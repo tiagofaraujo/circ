@@ -1,0 +1,62 @@
+/* src/components/css/HeroSection.css */
+
+.hero-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  text-align: center;
+}
+
+.mySwiper {
+  width: 100%;
+  height: 100%;
+  perspective: 1000px; /* Adiciona perspectiva para o efeito 3D */
+}
+
+.swiper-slide {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.5s ease; /* Transição suave para o efeito 3D */
+}
+
+.slide-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d; /* Mantém o efeito 3D */
+}
+
+.slide-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  backface-visibility: hidden; /* Esconde a face traseira do slide */
+}
+
+.text-overlay {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5); /* Fundo semitransparente */
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.text-overlay h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .text-overlay h2 {
+    font-size: 4rem;
+  }
+}

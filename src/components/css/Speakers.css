@@ -1,0 +1,17 @@
+/* src/components/css/Speakers.css */
+.speakers {
+    padding: 2rem 1rem;
+    background-color: #f1f1f1;
+    text-align: center;
+  }
+  
+  .speakers h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  @media (min-width: 768px) {
+    .speakers h1 {
+      font-size: 2rem;
+    }
+  }

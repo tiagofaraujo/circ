@@ -1,0 +1,99 @@
+/* src/components/css/TimeLine.css */
+.timeline {
+  padding: 2rem 1rem;
+  background-color:#F2E3D1;
+  text-align: center;
+}
+
+.timeline h2 {
+  color: #2E3191;
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+
+.timeline-container {
+  display: flex;
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.timeline-line {
+  position: absolute;
+  width: 4px;
+  background-color: #E55041;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-left: 2rem;
+  position: relative;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.timeline-circle {
+  width: 20px;
+  height: 20px;
+  background-color: #E55041;
+  border-radius: 50%;
+  position: absolute;
+  left: calc(50% - 10px); /* Centralizar círculo na linha */
+}
+
+.timeline-card {
+  background-color: #ffffff56;
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: left;
+  width: 100%;
+  max-width: 600px;
+}
+
+.timeline-card h4 {
+  font-size: 1.5rem;
+  color: #2E3191;
+}
+
+.timeline-card p {
+  font-size: 1rem;
+  color: #333;
+  margin: 0.5rem 0;
+}
+
+.timeline-button {
+  background-color: #2E3191;
+  color: rgba(255, 255, 255, 0.863);
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+}
+
+.timeline-button:hover {
+  background-color: #1e226d;
+}
+
+/* Responsividade */
+@media (min-width: 768px) {
+  .timeline-container {
+      flex-direction: column;
+      padding-left: 0;
+  }
+
+  .timeline-card {
+      margin-left: 5rem;
+  }
+}

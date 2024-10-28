@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# Forçar HTTPS se não estiver ativo
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Redirecionar tudo para a subpasta /circ-cb/ se não estiver a aceder diretamente a essa subpasta
+RewriteCond %{REQUEST_URI} !^/circ-cb/
+RewriteRule ^(.*)$ /circ-cb/$1 [L]
+
+# Definir cache para recursos estáticos (se necessário)
+<FilesMatch "\.(jpg|jpeg|png|gif|js|css|woff|woff2|ttf|svg)$">
+  Header set Cache-Control "max-age=2592000, public"
+</FilesMatch>

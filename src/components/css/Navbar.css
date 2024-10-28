@@ -1,0 +1,83 @@
+/* src/components/css/Navbar.css */
+.navbar {
+    background-color: #F2E3D1;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    padding: 0 1rem; /* Adiciona preenchimento para alinhar com o conteúdo */
+}
+
+.logo-container {
+  margin-top: auto;
+    margin-left: 0;
+}
+.logo {
+    height: 50px;
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-right: 10px;
+    margin-top: auto;
+}
+
+.nav-links {
+    display: none;
+    flex-direction: row;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-links li {
+    margin: 0 1rem;
+}
+
+.nav-links li a {
+    text-decoration: none;
+    color: #E55041; /* Cor do texto */
+    font-size: 0.875rem; /* Tamanho da fonte ajustado */
+    transition: color 0.3s ease; /* Transição suave para o efeito de hover */
+}
+
+.nav-links li a:hover {
+    color: #2E3191; /* Cor ao passar o mouse */
+}
+
+.primary-btn.desktop-only {
+    display: none;
+}
+
+.hamburger-menu {
+    display: block;
+}
+
+/* Mobile Styles */
+@media (min-width: 768px) {
+    .nav-links {
+        display: flex;
+    }
+
+    .primary-btn.desktop-only {
+        display: inline-block;
+        background-color: #E55041; /* Cor do botão de inscrição */
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        color: white;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .primary-btn.desktop-only:hover {
+        background-color: #d43f3a; /* Cor ao passar o mouse */
+    }
+
+    .hamburger-menu {
+        display: none;
+    }
+}

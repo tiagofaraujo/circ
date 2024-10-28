@@ -1,0 +1,18 @@
+{
+  "files": {
+    "main.css": "/subsites/circ-cb/static/css/main.2a6f4956.css",
+    "main.js": "/subsites/circ-cb/static/js/main.a2e0e913.js",
+    "static/js/453.78659179.chunk.js": "/subsites/circ-cb/static/js/453.78659179.chunk.js",
+    "static/media/Inter-ExtraBold.ttf": "/subsites/circ-cb/static/media/Inter-ExtraBold.4164cfba15dbca5f37aa.ttf",
+    "static/media/Inter-Regular.ttf": "/subsites/circ-cb/static/media/Inter-Regular.9ca9ba81e9dcaa12b3a1.ttf",
+    "static/media/SourceSerif4-SemiBoldItalic.ttf": "/subsites/circ-cb/static/media/SourceSerif4-SemiBoldItalic.adebefb89ad3acf45d7c.ttf",
+    "index.html": "/subsites/circ-cb/index.html",
+    "main.2a6f4956.css.map": "/subsites/circ-cb/static/css/main.2a6f4956.css.map",
+    "main.a2e0e913.js.map": "/subsites/circ-cb/static/js/main.a2e0e913.js.map",
+    "453.78659179.chunk.js.map": "/subsites/circ-cb/static/js/453.78659179.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.2a6f4956.css",
+    "static/js/main.a2e0e913.js"
+  ]
+}
