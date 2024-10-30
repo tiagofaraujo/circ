@@ -1,20 +1,27 @@
 /* src/components/css/TimeLine.css */
+
 .timeline {
   padding: 2rem 1rem;
-  background-color:#F2E3D1;
+  background-color: #F2E3D1;
   text-align: center;
+  overflow: hidden; /* Impede o overflow */
 }
 
+*::before, *::after {
+  content: none !important;
+}
+
+
+
 .timeline h2 {
-  color: #2E3191;
+  color: #2E3191; /* Cor azul do evento */
   font-size: 2rem;
   margin-bottom: 2rem;
 }
 
 .timeline-container {
-  display: flex;
   position: relative;
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -24,23 +31,15 @@
   background-color: #E55041;
   top: 0;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.timeline-content {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding-left: 2rem;
-  position: relative;
+  left: 50px; /* Posicionar a linha mais à esquerda */
 }
 
 .timeline-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 2rem;
   position: relative;
+  padding-left: 80px; /* Dar espaço para a linha e os pontos */
 }
 
 .timeline-circle {
@@ -49,22 +48,32 @@
   background-color: #E55041;
   border-radius: 50%;
   position: absolute;
-  left: calc(50% - 10px); /* Centralizar círculo na linha */
+  left: 40px; /* Alinhar com a linha */
+  top: 20px; /* Ajustar a altura do ponto em relação ao cartão */
 }
 
 .timeline-card {
-  background-color: #ffffff56;
+  background-color: white;
   border-radius: 10px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   text-align: left;
   width: 100%;
   max-width: 600px;
+  transition: all 0.3s ease;
 }
 
+.timeline-card:hover {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-5px); /* Efeito hover para dar um visual mais moderno */
+}
+
+/* Alteração: Estilo das datas agora igual ao parágrafo */
 .timeline-card h4 {
-  font-size: 1.5rem;
-  color: #2E3191;
+  font-size: 1rem; /* Mesmo tamanho do parágrafo */
+  font-weight: normal; /* Sem negrito, como o parágrafo */
+  color: #333; /* Mesma cor que o parágrafo */
+  margin: 0.5rem 0; /* Ajuste de margem */
 }
 
 .timeline-card p {
@@ -75,11 +84,12 @@
 
 .timeline-button {
   background-color: #2E3191;
-  color: rgba(255, 255, 255, 0.863);
+  color: white;
   padding: 0.5rem 1rem;
   border-radius: 5px;
   border: none;
   cursor: pointer;
+  margin-top: 0.5rem;
 }
 
 .timeline-button:hover {
@@ -89,11 +99,18 @@
 /* Responsividade */
 @media (min-width: 768px) {
   .timeline-container {
-      flex-direction: column;
-      padding-left: 0;
+      max-width: 1200px;
   }
 
-  .timeline-card {
-      margin-left: 5rem;
+  .timeline-item {
+      padding-left: 90px;
+  }
+
+  .timeline-line {
+      left: 60px;
+  }
+
+  .timeline-circle {
+      left: 50px;
   }
 }

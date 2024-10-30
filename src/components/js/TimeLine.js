@@ -1,47 +1,46 @@
-// src/components/js/TimeLine.js
 import React from 'react';
 import '../css/TimeLine.css';
 
+const timelineData = [
+  {
+    date: 'Julho 1',
+    description: 'Submissão de resumos para apresentações orais e posters.',
+    button: 'Submeter Trabalhos',
+  },
+  {
+    date: 'Outubro 1',
+    description: 'Abertura das Inscrições',
+  },
+  {
+    date: 'Dezembro 31',
+    description: 'Prazo final para submissão de resumos',
+  },
+  {
+    date: 'Abril 3, 4 e 5 - 2025',
+    description: 'CIRC 2025',
+  },
+];
+
 function TimeLine() {
-    return (
-        <section className="timeline">
-            <h2>Cronologia do Evento</h2>
-            <div className="timeline-container">
-                <div className="timeline-line"></div>
-                <div className="timeline-content">
-                    <div className="timeline-item">
-                        <div className="timeline-circle"></div>
-                        <div className="timeline-card">
-                            <h4>Julho 1</h4>
-                            <p>Submissão de resumos para apresentações orais e posters</p>
-                            <button className="timeline-button">Submeter Trabalhos</button>
-                        </div>
-                    </div>
-                    <div className="timeline-item">
-                        <div className="timeline-circle"></div>
-                        <div className="timeline-card">
-                            <h4>Outubro 1</h4>
-                            <p>Abertura das Inscrições</p>
-                        </div>
-                    </div>
-                    <div className="timeline-item">
-                        <div className="timeline-circle"></div>
-                        <div className="timeline-card">
-                            <h4>Dezembro 31</h4>
-                            <p>Prazo final para submissão de resumos</p>
-                        </div>
-                    </div>
-                    <div className="timeline-item">
-                        <div className="timeline-circle"></div>
-                        <div className="timeline-card">
-                            <h4>Abril 3, 4 e 5 - 2025</h4>
-                            <p>CIRC 2025</p>
-                        </div>
-                    </div>
-                </div>
+  return (
+    <div className="timeline">
+      <h2>Cronologia do Evento</h2>
+      <div className="timeline-container">
+        <div className="timeline-line"></div>
+        {timelineData.map((item, index) => (
+          <div className="timeline-item" key={index}>
+            <div className="timeline-circle"></div>
+            <div className="timeline-card">
+              <h4>{item.date}</h4>
+              <h4>{item.title}</h4>
+              <p>{item.description}</p>
+              {item.button && <button className="timeline-button">{item.button}</button>}
             </div>
-        </section>
-    );
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default TimeLine;

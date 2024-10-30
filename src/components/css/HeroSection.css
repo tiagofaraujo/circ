@@ -44,7 +44,7 @@
   transform: translateX(-50%);
   color: white;
   text-align: center;
-  background: rgba(0, 0, 0, 0.5); /* Fundo semitransparente */
+  background: #2e3191a6 ; /* Fundo semitransparente */
   padding: 20px;
   border-radius: 10px;
 }
