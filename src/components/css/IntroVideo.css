@@ -1,0 +1,69 @@
+.intro-video-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.intro-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.intro-video-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 1rem;
+}
+
+.mute-button, .skip-button {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.mute-button:hover, .skip-button:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .intro-video-controls {
+        bottom: 10px;
+        left: 10px;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .mute-button, .skip-button {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .intro-video-controls {
+        bottom: 5px;
+        left: 5px;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .mute-button, .skip-button {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
