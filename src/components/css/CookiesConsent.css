@@ -1,0 +1,50 @@
+.cookies-consent {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    background-color: #2E3191;
+    color: #fff;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.cookies-consent p {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+}
+
+.cookies-consent-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.cookies-consent-buttons button {
+    background-color: #E55041;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.cookies-consent-buttons button:hover {
+    background-color: #d43f2f;
+}
+
+.cookies-consent-buttons .reject {
+    background-color: #555;
+}
+
+.cookies-consent-buttons .reject:hover {
+    background-color: #333;
+}

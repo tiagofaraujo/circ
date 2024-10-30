@@ -77,6 +77,12 @@
     color: #999;
 }
 
+.card .highlight {
+    font-size: 1.2rem;
+    color: #E55041;
+    font-weight: bold;
+}
+
 .btn {
     background-color: #2E3191;
     color: #fff;
