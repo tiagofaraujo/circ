@@ -5,10 +5,6 @@ import '../css/Navbar.css';
 function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
-    const toggleMenu = () => {
-        setIsOpen(!isOpen);
-    };
-
     return (
         <header className="navbar">
             <div className="logo-container">
