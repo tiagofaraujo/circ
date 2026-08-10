@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 
 import '../css/Navbar.css';
@@ -13,57 +13,78 @@ const navItems = [
 
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 18);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const closeMenu = () => setIsOpen(false);
 
   return (
-    <header className="site-header">
-      <Link className="brand" to="/" onClick={closeMenu} aria-label="CIRC 2027 — início">
-        <img
-          src="/logo.png"
-          alt="CIRC — Congresso Internacional de Radiologia de Coimbra"
-        />
-      </Link>
+    <header className={`site-header${isScrolled ? ' is-scrolled' : ''}`}>
+      <div className="site-header__inner">
+        <Link className="brand" to="/" onClick={closeMenu} aria-label="CIRC 2027 — início">
+          <img
+            src="/logo.png"
+            alt="CIRC — Congresso Internacional de Radiologia de Coimbra"
+          />
+        </Link>
 
-      <nav className="desktop-nav" aria-label="Navegação principal">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => (isActive ? 'nav-link is-active' : 'nav-link')}
+        <nav className="desktop-nav" aria-label="Navegação principal">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => (isActive ? 'nav-link is-active' : 'nav-link')}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="header-actions">
+          <Link className="header-cta" to="/contactos">
+            <span>Contactos</span>
+            <span className="header-cta__arrow" aria-hidden="true">↗</span>
+          </Link>
+
+          <button
+            className={isOpen ? 'menu-toggle is-open' : 'menu-toggle'}
+            type="button"
+            onClick={() => setIsOpen((current) => !current)}
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation"
+            aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
           >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
+            <span />
+            <span />
+          </button>
+        </div>
 
-      <div className="header-actions">
-        <Link className="header-cta" to="/contactos">Contactos</Link>
-        <button
-          className={isOpen ? 'menu-toggle is-open' : 'menu-toggle'}
-          type="button"
-          onClick={() => setIsOpen((current) => !current)}
-          aria-expanded={isOpen}
-          aria-controls="mobile-navigation"
-          aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
+        <div
+          id="mobile-navigation"
+          className={isOpen ? 'mobile-nav is-open' : 'mobile-nav'}
         >
-          <span />
-          <span />
-        </button>
-      </div>
+          <div className="mobile-nav__meta">
+            <span>CIRC 2027</span>
+            <span>8–10 abril · Coimbra</span>
+          </div>
 
-      <div
-        id="mobile-navigation"
-        className={isOpen ? 'mobile-nav is-open' : 'mobile-nav'}
-      >
-        <p className="mobile-nav__title">CIRC 2027 · 8–10 abril</p>
-        <Link to="/" onClick={closeMenu}>Início</Link>
-        {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} onClick={closeMenu}>
-            {item.label}
-          </NavLink>
-        ))}
-        <Link to="/contactos" onClick={closeMenu}>Contactos</Link>
+          <Link to="/" onClick={closeMenu}>Início</Link>
+          {navItems.map((item) => (
+            <NavLink key={item.to} to={item.to} onClick={closeMenu}>
+              {item.label}
+            </NavLink>
+          ))}
+          <Link className="mobile-nav__contact" to="/contactos" onClick={closeMenu}>
+            Contactos <span aria-hidden="true">↗</span>
+          </Link>
+        </div>
       </div>
     </header>
   );
