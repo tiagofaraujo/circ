@@ -78,7 +78,7 @@ function Home() {
                 <small>Congresso Internacional</small>
               </div>
             </div>
-            <p className="hero__venue">Coimbra · Convento São Francisco</p>
+            <p className="hero__venue">Coimbra · Portugal</p>
           </div>
         </div>
       </section>
@@ -197,14 +197,14 @@ function Home() {
 
         <div className="venue-section__grid">
           <div className="venue-panel venue-panel--blue">
-            <span>08–10</span>
-            <p>abril 2027</p>
+            <span>09–10</span>
+            <p>abril 2027 · Congresso</p>
           </div>
           <div className="venue-panel venue-panel--cream">
-            <p className="eyebrow">Local</p>
+            <p className="eyebrow">Local do Congresso</p>
             <h3>Um encontro no centro de Coimbra.</h3>
             <p>
-              Informação sobre acessos, estadia e restauração será atualizada à medida que a organização fecha as condições para participantes.
+              O CIRC 2027 realiza-se no Convento São Francisco nos dias 9 e 10. A localização específica do Curso Pré-Congresso de 8 de abril será indicada quando confirmada. Informação sobre acessos, estadia e restauração será atualizada progressivamente.
             </p>
             <Link className="text-link" to="/coimbra">
               Preparar a visita <span aria-hidden="true">→</span>
