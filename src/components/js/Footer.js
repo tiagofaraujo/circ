@@ -27,6 +27,21 @@ function Footer() {
           <Link to="/contactos">Contactos</Link>
           <span>Com apoio do Município de Coimbra</span>
         </div>
+
+        <div className="site-footer__column site-footer__social">
+          <p className="footer-label">CIRC em rede</p>
+          <a
+            href="https://www.linkedin.com/company/circ-chuc/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className="site-footer__social-mark" aria-hidden="true">in</span>
+            LinkedIn <span aria-hidden="true">↗</span>
+          </a>
+          <span className="site-footer__hashtag">#CIRC2027</span>
+          <span className="site-footer__hashtag">#CIRCoimbra</span>
+          <span className="site-footer__hashtag">#Radiologia</span>
+        </div>
       </div>
 
       <div className="site-footer__bottom">
