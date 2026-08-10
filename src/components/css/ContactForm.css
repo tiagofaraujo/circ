@@ -70,6 +70,18 @@
   line-height: 1.5;
 }
 
+.contact-form__feedback p {
+  margin: 0;
+}
+
+.contact-form__technical-error {
+  display: block;
+  margin-top: 7px;
+  color: rgba(22, 41, 47, 0.72);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
 .contact-form__feedback--sending {
   background: rgba(255, 255, 255, 0.46);
   color: var(--ink-soft);
