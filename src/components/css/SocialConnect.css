@@ -175,10 +175,12 @@
   place-items: center;
   background: var(--ink);
   color: white;
-  font-size: .72rem;
-  font-weight: 850;
-  letter-spacing: -.04em;
-  text-transform: lowercase;
+}
+
+.social-connect__network-mark svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .social-connect__network--instagram .social-connect__network-mark {
@@ -363,6 +365,11 @@
   .social-connect__network-mark {
     width: 36px;
     height: 36px;
+  }
+
+  .social-connect__network-mark svg {
+    width: 18px;
+    height: 18px;
   }
 
   .social-connect__network-copy strong {
