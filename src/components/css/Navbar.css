@@ -32,32 +32,46 @@
 .desktop-nav {
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: center;
+  gap: 12px;
 }
 
 .nav-link {
-  position: relative;
-  padding: 10px 0;
-  color: var(--ink);
+  min-height: 40px;
+  padding: 10px 16px;
+  border: 1px solid rgba(22, 41, 47, 0.10);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.18);
   text-decoration: none;
-  font-size: 0.83rem;
-  font-weight: 650;
+  font-size: 0.87rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
-.nav-link::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 100%;
-  bottom: 4px;
-  height: 1px;
-  background: var(--ink);
-  transition: right 180ms ease;
+.nav-link:hover {
+  color: var(--ink);
+  background: rgba(220, 236, 239, 0.52);
+  border-color: rgba(49, 95, 112, 0.22);
+  transform: translateY(-1px);
 }
 
-.nav-link:hover::after,
-.nav-link.is-active::after {
-  right: 0;
+.nav-link.is-active {
+  color: var(--ink);
+  background: var(--mist);
+  border-color: rgba(49, 95, 112, 0.26);
+  box-shadow: 0 4px 14px rgba(22, 41, 47, 0.06);
 }
 
 .header-actions {
