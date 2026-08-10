@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SocialConnect from '../components/js/SocialConnect';
 
 const updates = [
   {
@@ -168,6 +169,8 @@ function Home() {
           ))}
         </div>
       </section>
+
+      <SocialConnect />
 
       <section className="section archive-teaser">
         <div className="archive-teaser__poster">
