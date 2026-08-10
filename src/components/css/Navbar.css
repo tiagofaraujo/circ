@@ -7,7 +7,7 @@
   min-height: 82px;
   padding: 14px 28px;
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto minmax(170px, 1fr);
+  grid-template-columns: minmax(180px, 1fr) auto minmax(170px, 1fr);
   gap: 28px;
   align-items: center;
   border-bottom: 1px solid var(--line);
@@ -18,32 +18,15 @@
 .brand {
   width: fit-content;
   display: inline-flex;
-  gap: 14px;
   align-items: center;
   color: var(--ink);
   text-decoration: none;
 }
 
 .brand img {
-  width: 94px;
-  max-height: 44px;
+  width: 142px;
+  max-height: 56px;
   object-fit: contain;
-}
-
-.brand span {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.brand strong {
-  font-size: 0.83rem;
-  letter-spacing: 0.04em;
-}
-
-.brand small {
-  color: var(--ink-soft);
-  font-size: 0.68rem;
 }
 
 .desktop-nav {
@@ -189,11 +172,8 @@
   }
 
   .brand img {
-    width: 82px;
-  }
-
-  .brand span {
-    display: none;
+    width: 122px;
+    max-height: 48px;
   }
 
   .header-cta {
