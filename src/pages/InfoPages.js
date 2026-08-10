@@ -34,31 +34,55 @@ export function ProgramPage() {
   return (
     <main className="page">
       <PageHero
-        eyebrow="CIRC 2027"
+        eyebrow="CIRC 2027 · 8–10 abril"
         title="Programa"
         status="Em preparação"
-        lead="A organização está a construir o programa científico. Nesta fase ainda não são publicados temas, horários ou convidados sem confirmação final."
+        lead="O CIRC 2027 integra um Curso Pré-Congresso a 8 de abril e o Congresso Internacional nos dias 9 e 10. Os conteúdos são publicados apenas após confirmação."
       />
+
+      <section className="programme-phases">
+        <article className="programme-phase programme-phase--course">
+          <span className="programme-phase__date">08</span>
+          <div>
+            <p className="eyebrow">Abril · Pré-Congresso</p>
+            <h2>Curso Pré-Congresso</h2>
+            <span className="status-chip">Tema e programa a anunciar</span>
+            <p>
+              Um dia dedicado a formação estruturada antes da abertura oficial do congresso. O tema, formato, corpo docente e condições de participação serão publicados após validação final.
+            </p>
+          </div>
+        </article>
+
+        <article className="programme-phase programme-phase--congress">
+          <span className="programme-phase__date">09—10</span>
+          <div>
+            <p className="eyebrow">Abril · CIRC 2027</p>
+            <h2>Congresso Internacional</h2>
+            <span className="status-chip">Programa científico em desenvolvimento</span>
+            <p>
+              Dois dias de sessões científicas, mesas-redondas, atualização profissional, inovação e encontro entre participantes, oradores e parceiros.
+            </p>
+          </div>
+        </article>
+      </section>
 
       <section className="status-list">
         <StatusBlock number="01" title="Programa científico" status="Em desenvolvimento">
-          A estrutura das sessões e os conteúdos científicos serão apresentados neste espaço
-          assim que estiverem consolidados.
+          A estrutura das sessões e os conteúdos científicos serão apresentados neste espaço assim que estiverem consolidados.
         </StatusBlock>
         <StatusBlock number="02" title="Oradores e convidados" status="Por anunciar">
-          Não existem ainda convidados publicados. As confirmações serão adicionadas
-          progressivamente, com biografia, tema e sessão.
+          Não existem ainda convidados publicados. As confirmações serão adicionadas progressivamente, com biografia, tema e sessão.
         </StatusBlock>
         <StatusBlock number="03" title="Programa detalhado" status="Por publicar">
-          Horários, salas e versão final do programa serão disponibilizados para consulta
-          online e em formato de fácil leitura.
+          Horários, salas e versão final do programa serão disponibilizados para consulta online e em formato de fácil leitura.
         </StatusBlock>
       </section>
 
       <section className="callout">
         <div>
           <p className="eyebrow">Save the date</p>
-          <h2>9 e 10 de abril de 2027 · Coimbra</h2>
+          <h2>8–10 de abril de 2027 · Coimbra</h2>
+          <p>8 abril · Curso Pré-Congresso &nbsp;·&nbsp; 9–10 abril · CIRC 2027</p>
         </div>
         <Link className="button button--dark" to="/participar">Participar</Link>
       </section>
@@ -73,40 +97,38 @@ export function ParticipatePage() {
         eyebrow="Participar"
         title="Inscrições e trabalhos"
         status="Ainda não aberto"
-        lead="As inscrições e a submissão de trabalhos ainda não têm data pública de abertura. Esta página será a referência oficial para prazos e condições."
+        lead="As inscrições e a submissão de trabalhos ainda não têm data pública de abertura. Esta página será a referência oficial para prazos e condições do Curso Pré-Congresso e do CIRC 2027."
       />
 
       <section className="editorial-grid editorial-grid--three">
-        <article className="info-card">
-          <p className="eyebrow">Inscrições</p>
-          <h2>Abertura a anunciar</h2>
+        <article className="info-card info-card--course">
+          <p className="eyebrow">8 abril · Curso Pré-Congresso</p>
+          <h2>Inscrição a anunciar</h2>
           <p>
-            Categorias, valores, condições e política de cancelamento serão publicados
-            antes da abertura das inscrições.
+            O formato de inscrição, eventuais vagas, condições e relação com a inscrição no congresso serão divulgados quando estiverem definidos.
           </p>
         </article>
         <article className="info-card">
-          <p className="eyebrow">Trabalhos científicos</p>
-          <h2>Regulamento em preparação</h2>
+          <p className="eyebrow">9–10 abril · CIRC 2027</p>
+          <h2>Inscrições a anunciar</h2>
           <p>
-            Prazos, formatos, critérios de avaliação e informação sobre comunicações e
-            posters serão disponibilizados quando aprovados.
+            Categorias, valores, condições e política de cancelamento serão publicados antes da abertura das inscrições.
           </p>
         </article>
         <article className="info-card info-card--accent">
-          <p className="eyebrow">Agora</p>
-          <h2>Reserve as datas</h2>
+          <p className="eyebrow">Trabalhos científicos</p>
+          <h2>Regulamento em preparação</h2>
           <p>
-            9 e 10 de abril de 2027, no Convento São Francisco, em Coimbra.
+            Prazos, formatos, critérios de avaliação e informação sobre comunicações e posters serão disponibilizados quando aprovados.
           </p>
         </article>
       </section>
 
       <section className="callout callout--soft">
         <div>
-          <p className="eyebrow">Sem ruído</p>
-          <h2>Publicamos apenas informação confirmada.</h2>
-          <p>Evita-se assim divulgar datas ou condições que ainda possam sofrer alterações.</p>
+          <p className="eyebrow">Agora</p>
+          <h2>Reserve 8, 9 e 10 de abril de 2027.</h2>
+          <p>Três dias de experiência CIRC, com um dia de formação pré-congresso e dois dias de congresso.</p>
         </div>
       </section>
     </main>
@@ -125,18 +147,15 @@ export function PartnersPage() {
 
       <section className="split-content">
         <div>
-          <p className="eyebrow">CIRC 2027</p>
+          <p className="eyebrow">CIRC 2027 · 8–10 abril</p>
           <h2>Uma área própria para parceiros.</h2>
         </div>
         <div>
           <p>
-            O dossier de patrocínio, modalidades de participação, contrapartidas e
-            informação da exposição comercial serão publicados quando a proposta
-            comercial estiver fechada.
+            O dossier de patrocínio, modalidades de participação, contrapartidas e informação da exposição comercial serão publicados quando a proposta comercial estiver fechada.
           </p>
           <p>
-            Até lá, esta página evita reutilizar preços ou condições da edição anterior,
-            mantendo a comunicação comercial rigorosa.
+            Até lá, esta página evita reutilizar preços ou condições da edição anterior, mantendo a comunicação comercial rigorosa.
           </p>
           <Link className="button button--outline" to="/contactos">Contactar organização</Link>
         </div>
@@ -156,13 +175,13 @@ export function CoimbraPage() {
         eyebrow="Coimbra"
         title="Local e estadia"
         status="Informação em atualização"
-        lead="O CIRC 2027 realiza-se no Convento São Francisco. Recomendações de alojamento, restauração e acessos serão adicionadas mais perto do congresso."
+        lead="O CIRC 2027 decorre entre 8 e 10 de abril, com Curso Pré-Congresso no dia 8 e congresso nos dias 9 e 10. O Convento São Francisco recebe o congresso principal."
       />
 
-      <section className="venue-feature">
+      <section className="venue-feature venue-feature--2027">
         <div className="venue-feature__date">
-          <span>09</span>
-          <span>10</span>
+          <span className="venue-feature__course">08</span>
+          <span>09—10</span>
           <small>ABR · 2027</small>
         </div>
         <div className="venue-feature__copy">
@@ -170,8 +189,7 @@ export function CoimbraPage() {
           <h2>Convento São Francisco</h2>
           <p>Coimbra · Portugal</p>
           <p>
-            A página será complementada com informação prática para participantes:
-            acessos, estacionamento, transportes, hotelaria e restauração.
+            A página será complementada com informação prática para participantes: acessos, estacionamento, transportes, hotelaria e restauração. A localização específica do Curso Pré-Congresso será indicada quando confirmada.
           </p>
         </div>
       </section>
@@ -197,13 +215,10 @@ export function Archive2025Page() {
           <p className="eyebrow">Eyes on the Future</p>
           <h2>Inovação, inteligência artificial e sustentabilidade.</h2>
           <p>
-            Em 2025, o CIRC destacou a Inteligência Artificial aplicada à Radiologia,
-            inovação tecnológica, prática clínica e a transição para hospitais e cuidados
-            de saúde mais sustentáveis.
+            Em 2025, o CIRC destacou a Inteligência Artificial aplicada à Radiologia, inovação tecnológica, prática clínica e a transição para hospitais e cuidados de saúde mais sustentáveis.
           </p>
           <p>
-            Esta área preserva a identidade e os principais conteúdos da edição anterior
-            sem confundir informação histórica com as condições do CIRC 2027.
+            Esta área preserva a identidade e os principais conteúdos da edição anterior sem confundir informação histórica com as condições do CIRC 2027.
           </p>
 
           <div className="archive-tags" aria-label="Temas CIRC 2025">
@@ -231,10 +246,10 @@ export function ContactPage() {
         <div>
           <p className="eyebrow">CIRC 2027</p>
           <h2>Congresso Internacional de Radiologia de Coimbra</h2>
-          <p>9–10 abril 2027 · Convento São Francisco · Coimbra</p>
+          <p>8–10 abril 2027 · Coimbra</p>
+          <p>8 abril · Curso Pré-Congresso &nbsp;·&nbsp; 9–10 abril · Congresso</p>
           <p className="contact-layout__note">
-            Para inscrições, programa e submissão de trabalhos, consulte primeiro as
-            páginas dedicadas: são atualizadas assim que existe informação confirmada.
+            Para inscrições, programa e submissão de trabalhos, consulte primeiro as páginas dedicadas: são atualizadas assim que existe informação confirmada.
           </p>
         </div>
         <ContactForm />

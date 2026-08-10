@@ -25,7 +25,7 @@ function Navbar() {
         />
         <span>
           <strong>CIRC 2027</strong>
-          <small>9–10 abril · Coimbra</small>
+          <small>8–10 abril · Coimbra</small>
         </span>
       </Link>
 
@@ -60,7 +60,7 @@ function Navbar() {
         id="mobile-navigation"
         className={isOpen ? 'mobile-nav is-open' : 'mobile-nav'}
       >
-        <p className="mobile-nav__title">CIRC 2027</p>
+        <p className="mobile-nav__title">CIRC 2027 · 8–10 abril</p>
         <Link to="/" onClick={closeMenu}>Início</Link>
         {navItems.map((item) => (
           <NavLink key={item.to} to={item.to} onClick={closeMenu}>

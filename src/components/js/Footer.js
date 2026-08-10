@@ -9,7 +9,8 @@ function Footer() {
         <div className="site-footer__brand">
           <img src="/logo.png" alt="CIRC" />
           <p>Congresso Internacional de Radiologia de Coimbra</p>
-          <strong>9–10 abril 2027 · Coimbra</strong>
+          <strong>8–10 abril 2027 · Coimbra</strong>
+          <small className="site-footer__format">8 abril · Curso Pré-Congresso · 9–10 abril · CIRC 2027</small>
         </div>
 
         <div className="site-footer__column">

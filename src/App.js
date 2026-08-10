@@ -17,6 +17,7 @@ import {
 } from './pages/InfoPages';
 
 import './App.css';
+import './event2027.css';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -44,7 +45,6 @@ function App() {
         <Route path="/2025" element={<Archive2025Page />} />
         <Route path="/contactos" element={<ContactPage />} />
 
-        {/* Compatibilidade com os endereços usados na versão anterior do site. */}
         <Route path="/schedule" element={<Navigate to="/programa" replace />} />
         <Route path="/exhibition" element={<Navigate to="/parcerias" replace />} />
         <Route path="/sponsors" element={<Navigate to="/parcerias" replace />} />

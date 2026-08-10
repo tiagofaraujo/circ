@@ -1,0 +1,211 @@
+.hero__date-card--2027 {
+  padding: 30px;
+}
+
+.hero__date-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 12px;
+}
+
+.hero__day {
+  min-height: 215px;
+  padding: 24px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.hero__day--course {
+  background: var(--coral-soft);
+}
+
+.hero__day--congress {
+  background: var(--mist);
+}
+
+.hero__day strong {
+  font-size: clamp(3.6rem, 6vw, 6.6rem);
+  line-height: 0.78;
+  letter-spacing: -0.075em;
+  font-weight: 450;
+}
+
+.hero__day span {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.hero__day small {
+  margin-top: 10px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.hero__venue {
+  margin: 18px 2px 0;
+  color: var(--ink-soft);
+  font-size: 0.83rem;
+  font-weight: 650;
+}
+
+.event-format {
+  padding-top: 96px;
+  padding-bottom: 54px;
+}
+
+.event-format .section-heading {
+  max-width: 1120px;
+  margin-bottom: 46px;
+}
+
+.event-format__grid {
+  display: grid;
+  grid-template-columns: 0.78fr 1.22fr;
+  gap: 14px;
+}
+
+.event-format__card {
+  min-height: 390px;
+  padding: 34px;
+  border-radius: 28px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 34px;
+  align-items: end;
+}
+
+.event-format__card--course {
+  background: var(--coral-soft);
+}
+
+.event-format__card--congress {
+  background: var(--mist);
+}
+
+.event-format__date {
+  align-self: start;
+  font-size: clamp(4.4rem, 8vw, 8.2rem);
+  line-height: 0.78;
+  letter-spacing: -0.075em;
+  font-weight: 350;
+}
+
+.event-format__card h3 {
+  margin: 0 0 18px;
+  font-size: clamp(2rem, 3.6vw, 4.3rem);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+  font-weight: 450;
+}
+
+.event-format__card p:last-child {
+  margin: 0;
+  max-width: 580px;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.programme-phases {
+  margin-top: 62px;
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 14px;
+}
+
+.programme-phase {
+  min-height: 440px;
+  padding: 38px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.programme-phase--course {
+  background: var(--coral-soft);
+}
+
+.programme-phase--congress {
+  background: var(--mist);
+}
+
+.programme-phase__date {
+  font-size: clamp(4.6rem, 8vw, 8.6rem);
+  line-height: 0.78;
+  letter-spacing: -0.075em;
+  font-weight: 350;
+}
+
+.programme-phase h2 {
+  margin: 0 0 18px;
+  font-size: clamp(2.2rem, 4vw, 4.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  font-weight: 450;
+}
+
+.programme-phase div > p:last-child {
+  margin: 20px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.info-card--course {
+  background: var(--coral-soft);
+}
+
+.venue-feature__course {
+  color: var(--coral-soft);
+}
+
+.site-footer__format {
+  display: block;
+  margin-top: 9px;
+  color: rgba(248, 246, 241, 0.62);
+  font-size: 0.74rem;
+}
+
+@media (max-width: 960px) {
+  .hero__date-grid,
+  .event-format__grid,
+  .programme-phases {
+    grid-template-columns: 1fr;
+  }
+
+  .event-format__card,
+  .programme-phase {
+    min-height: 330px;
+  }
+}
+
+@media (max-width: 620px) {
+  .hero__date-card--2027 {
+    padding: 16px;
+  }
+
+  .hero__day {
+    min-height: 142px;
+    padding: 18px;
+  }
+
+  .hero__day strong {
+    font-size: 3.8rem;
+  }
+
+  .event-format__card {
+    min-height: 300px;
+    padding: 26px;
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+
+  .programme-phase {
+    min-height: 330px;
+    padding: 28px;
+  }
+}
