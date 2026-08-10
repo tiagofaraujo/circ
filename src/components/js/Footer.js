@@ -1,77 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import '../css/Footer.css';
-import ContactForm from './ContactForm';
-import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function Footer() {
-    const [isVisible, setIsVisible] = useState(false);
+  return (
+    <footer className="site-footer">
+      <div className="site-footer__top">
+        <div className="site-footer__brand">
+          <img src="/logo.png" alt="CIRC" />
+          <p>Congresso Internacional de Radiologia de Coimbra</p>
+          <strong>8–10 abril 2027 · Coimbra</strong>
+          <small className="site-footer__format">8 abril · Curso Pré-Congresso · 9–10 abril · CIRC 2027</small>
+        </div>
 
-    // Mostrar o botão de "Back to the Top" após rolar 300px
-    const toggleVisibility = () => {
-        if (window.pageYOffset > 300) {
-            setIsVisible(true);
-        } else {
-            setIsVisible(false);
-        }
-    };
+        <div className="site-footer__column">
+          <p className="footer-label">CIRC 2027</p>
+          <Link to="/programa">Programa</Link>
+          <Link to="/participar">Participar</Link>
+          <Link to="/parcerias">Parcerias</Link>
+          <Link to="/coimbra">Coimbra</Link>
+        </div>
 
-    // Rolar para o topo da página
-    const scrollToTop = () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth',
-        });
-    };
+        <div className="site-footer__column">
+          <p className="footer-label">Arquivo e apoio</p>
+          <Link to="/2025">CIRC 2025</Link>
+          <Link to="/contactos">Contactos</Link>
+          <span>Com apoio do Município de Coimbra</span>
+        </div>
+      </div>
 
-    useEffect(() => {
-        window.addEventListener('scroll', toggleVisibility);
-        return () => {
-            window.removeEventListener('scroll', toggleVisibility);
-        };
-    }, []);
-
-    return (
-        <>
-            <footer className="footer">
-                <div className="footer-columns">
-                    <div className="footer-column">
-                        <h3>Sobre</h3>
-                        <ul>
-                            <li>Associação</li>
-                            <li>CIRC2023</li>
-                            <li>Política de Privacidade</li>
-                            <li>Termos de Utilização</li>
-                            <li>Política de Cookies</li>
-                        </ul>
-                    </div>
-
-                    <div className="footer-column">
-                        <h3>Comissões</h3>
-                        <ul>
-                            <li>Comissão Organizadora</li>
-                            <li>Comissão Científica</li>
-                            <li>Comissões Técnicas</li>
-                        </ul>
-                    </div>
-
-                    <div className="footer-column">
-                        <h3>Contacte-nos</h3>
-                        <ContactForm />
-                    </div>
-                </div>
-                <div className="footer-copyright">
-                    <p>&copy; 2025 Congresso Internacional de Radiologia de Coimbra</p>
-                </div>
-            </footer>
-
-            {/* Back to Top Section */}
-            {isVisible && (
-                <div className="back-to-top" onClick={scrollToTop}>
-                    <i className="fas fa-chevron-up"></i>
-                </div>
-            )}
-        </>
-    );
+      <div className="site-footer__bottom">
+        <span>© 2027 CIRC · Congresso Internacional de Radiologia de Coimbra</span>
+        <span>Organização · Associação Hemisfério Disciplinado</span>
+      </div>
+    </footer>
+  );
 }
 
 export default Footer;

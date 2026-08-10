@@ -1,86 +1,57 @@
-import React, { useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import Navbar from './components/js/Navbar';
 import Footer from './components/js/Footer';
 import CookiesConsent from './components/js/CookiesConsent';
-import IntroVideo from './components/js/IntroVideo';
 
 import Home from './pages/Home';
+import {
+  Archive2025Page,
+  CoimbraPage,
+  ContactPage,
+  NotFoundPage,
+  PartnersPage,
+  ParticipatePage,
+  ProgramPage,
+} from './pages/InfoPages';
 
 import './App.css';
-import './index.css';
+import './event2027.css';
 
-const PlaceholderPage = ({ title }) => {
-  return (
-    <main
-      style={{
-        minHeight: '70vh',
-        padding: '140px 24px 80px',
-        textAlign: 'center',
-      }}
-    >
-      <h1>{title}</h1>
-      <p>Conteúdo em atualização para o CIRC 2027.</p>
-    </main>
-  );
-};
-
-function App() {
-  const [showIntro, setShowIntro] = useState(true);
+function ScrollToTop() {
+  const { pathname } = useLocation();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowIntro(false);
-    }, 22000);
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  return null;
+}
 
-  const handleSkip = () => {
-    setShowIntro(false);
-  };
-
-  if (showIntro) {
-    return <IntroVideo onSkip={handleSkip} />;
-  }
-
+function App() {
   return (
     <div className="App">
+      <ScrollToTop />
       <Navbar />
 
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/2027" element={<Navigate to="/" replace />} />
+        <Route path="/programa" element={<ProgramPage />} />
+        <Route path="/participar" element={<ParticipatePage />} />
+        <Route path="/parcerias" element={<PartnersPage />} />
+        <Route path="/coimbra" element={<CoimbraPage />} />
+        <Route path="/2025" element={<Archive2025Page />} />
+        <Route path="/contactos" element={<ContactPage />} />
 
-        <Route
-          path="/exhibition"
-          element={<PlaceholderPage title="Exposição Técnica" />}
-        />
+        <Route path="/schedule" element={<Navigate to="/programa" replace />} />
+        <Route path="/exhibition" element={<Navigate to="/parcerias" replace />} />
+        <Route path="/sponsors" element={<Navigate to="/parcerias" replace />} />
+        <Route path="/hotels" element={<Navigate to="/coimbra" replace />} />
+        <Route path="/contact" element={<Navigate to="/contactos" replace />} />
 
-        <Route
-          path="/schedule"
-          element={<PlaceholderPage title="Programa" />}
-        />
-
-        <Route
-          path="/sponsors"
-          element={<PlaceholderPage title="Parcerias" />}
-        />
-
-        <Route
-          path="/hotels"
-          element={<PlaceholderPage title="Hotel e Restauração" />}
-        />
-
-        <Route
-          path="/contact"
-          element={<PlaceholderPage title="Contactos" />}
-        />
-
-        <Route
-          path="*"
-          element={<PlaceholderPage title="Página não encontrada" />}
-        />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       <Footer />
