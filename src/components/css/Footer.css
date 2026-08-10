@@ -83,10 +83,15 @@
   border-radius: 7px;
   display: inline-grid;
   place-items: center;
+  flex: 0 0 auto;
   background: var(--mist-strong);
   color: var(--ink) !important;
-  font-size: 0.72rem !important;
-  font-weight: 850;
+}
+
+.site-footer__social-mark svg {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 .site-footer__hashtag {
