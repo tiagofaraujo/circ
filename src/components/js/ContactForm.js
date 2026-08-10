@@ -11,11 +11,13 @@ function ContactForm() {
   const form = useRef();
   const [status, setStatus] = useState('idle');
   const [feedback, setFeedback] = useState('');
+  const [technicalError, setTechnicalError] = useState('');
 
   const sendEmail = async (event) => {
     event.preventDefault();
     setStatus('sending');
     setFeedback('A enviar a mensagem…');
+    setTechnicalError('');
 
     try {
       const formData = new FormData(form.current);
@@ -30,22 +32,32 @@ function ContactForm() {
         recipient: CIRC_EMAIL,
       };
 
-      await emailjs.send(
+      const response = await emailjs.send(
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
         templateParams,
         EMAILJS_PUBLIC_KEY
       );
 
+      if (response?.status !== 200) {
+        throw response;
+      }
+
       form.current.reset();
       setStatus('success');
       setFeedback('Mensagem enviada com sucesso. Obrigado pelo seu contacto.');
     } catch (error) {
       console.error('Erro EmailJS:', error);
+
+      const errorStatus = error?.status ? String(error.status) : '';
+      const errorText = error?.text || error?.message || '';
+      const diagnostic = [errorStatus, errorText].filter(Boolean).join(' · ');
+
       setStatus('error');
       setFeedback(
-        'Não foi possível enviar a mensagem. Por favor, tente novamente ou contacte a organização diretamente.'
+        'Não foi possível enviar a mensagem. O serviço de email recusou o pedido.'
       );
+      setTechnicalError(diagnostic || 'Erro sem código devolvido pelo serviço.');
     }
   };
 
@@ -65,13 +77,16 @@ function ContactForm() {
       </div>
 
       {feedback && (
-        <p
+        <div
           className={`contact-form__feedback contact-form__feedback--${status}`}
           role="status"
           aria-live="polite"
         >
-          {feedback}
-        </p>
+          <p>{feedback}</p>
+          {status === 'error' && technicalError && (
+            <small className="contact-form__technical-error">Código técnico: {technicalError}</small>
+          )}
+        </div>
       )}
     </form>
   );
