@@ -23,10 +23,6 @@ function Navbar() {
           src="/logo.png"
           alt="CIRC — Congresso Internacional de Radiologia de Coimbra"
         />
-        <span>
-          <strong>CIRC 2027</strong>
-          <small>8–10 abril · Coimbra</small>
-        </span>
       </Link>
 
       <nav className="desktop-nav" aria-label="Navegação principal">
