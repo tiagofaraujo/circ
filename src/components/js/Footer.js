@@ -2,6 +2,24 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import '../css/Footer.css';
 
+const socialLinks = [
+  {
+    name: 'LinkedIn',
+    mark: 'in',
+    url: 'https://www.linkedin.com/company/circ-chuc/',
+  },
+  {
+    name: 'Instagram',
+    mark: 'ig',
+    url: 'https://www.instagram.com/circ.chuc/',
+  },
+  {
+    name: 'Facebook',
+    mark: 'f',
+    url: 'https://www.facebook.com/circ.chuc/',
+  },
+];
+
 function Footer() {
   return (
     <footer className="site-footer">
@@ -30,17 +48,18 @@ function Footer() {
 
         <div className="site-footer__column site-footer__social">
           <p className="footer-label">CIRC em rede</p>
-          <a
-            href="https://www.linkedin.com/company/circ-chuc/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span className="site-footer__social-mark" aria-hidden="true">in</span>
-            LinkedIn <span aria-hidden="true">↗</span>
-          </a>
-          <span className="site-footer__hashtag">#CIRC2027</span>
-          <span className="site-footer__hashtag">#CIRCoimbra</span>
-          <span className="site-footer__hashtag">#Radiologia</span>
+          {socialLinks.map((social) => (
+            <a
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              key={social.name}
+            >
+              <span className="site-footer__social-mark" aria-hidden="true">{social.mark}</span>
+              {social.name} <span aria-hidden="true">↗</span>
+            </a>
+          ))}
+          <span className="site-footer__hashtag">#CIRC2027 · #CIRCoimbra · #Radiologia</span>
         </div>
       </div>
 
