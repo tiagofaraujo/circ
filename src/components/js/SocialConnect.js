@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 import '../css/SocialConnect.css';
 
 const LINKEDIN_URL = 'https://www.linkedin.com/company/circ-chuc/';
@@ -32,48 +33,40 @@ function SocialIcon({ name }) {
 }
 
 const socialNetworks = [
-  {
-    name: 'Facebook',
-    label: 'CIRC · Imaging Scientific Talks',
-    url: FACEBOOK_URL,
-  },
-  {
-    name: 'Instagram',
-    label: '@circ.chuc',
-    url: INSTAGRAM_URL,
-  },
-  {
-    name: 'LinkedIn',
-    label: 'CIRC — Imaging Scientific Talks',
-    url: LINKEDIN_URL,
-  },
+  { name: 'Facebook', label: 'CIRC · Imaging Scientific Talks', url: FACEBOOK_URL },
+  { name: 'Instagram', label: '@circ.chuc', url: INSTAGRAM_URL },
+  { name: 'LinkedIn', label: 'CIRC — Imaging Scientific Talks', url: LINKEDIN_URL },
 ];
 
 function SocialConnect() {
   const [shareStatus, setShareStatus] = useState('');
+  const { language } = useLanguage();
+  const en = language === 'en';
 
   const getShareUrl = () =>
     typeof window !== 'undefined' ? window.location.href : 'https://circ-coimbra.org/';
 
   const handleShare = async () => {
     const shareData = {
-      title: 'CIRC 2027 · 8–10 abril · Coimbra',
-      text: 'CIRC 2027 — 8 abril: Curso Pré-Congresso · 9–10 abril: Congresso Internacional de Radiologia de Coimbra.',
+      title: en ? 'CIRC 2027 · 8–10 April · Coimbra' : 'CIRC 2027 · 8–10 abril · Coimbra',
+      text: en
+        ? 'CIRC 2027 — 8 April: Pre-Congress Course · 9–10 April: Coimbra International Radiology Congress.'
+        : 'CIRC 2027 — 8 abril: Curso Pré-Congresso · 9–10 abril: Congresso Internacional de Radiologia de Coimbra.',
       url: getShareUrl(),
     };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
-        setShareStatus('Partilhado');
+        setShareStatus(en ? 'Shared' : 'Partilhado');
         return;
       }
 
       await navigator.clipboard.writeText(getShareUrl());
-      setShareStatus('Ligação copiada');
+      setShareStatus(en ? 'Link copied' : 'Ligação copiada');
     } catch (error) {
       if (error?.name !== 'AbortError') {
-        setShareStatus('Não foi possível partilhar');
+        setShareStatus(en ? 'Unable to share' : 'Não foi possível partilhar');
       }
     }
   };
@@ -81,9 +74,9 @@ function SocialConnect() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(getShareUrl());
-      setShareStatus('Ligação copiada');
+      setShareStatus(en ? 'Link copied' : 'Ligação copiada');
     } catch (error) {
-      setShareStatus('Não foi possível copiar');
+      setShareStatus(en ? 'Unable to copy' : 'Não foi possível copiar');
     }
   };
 
@@ -104,13 +97,16 @@ function SocialConnect() {
       </div>
 
       <div className="social-connect__statement">
-        <p className="eyebrow">CIRC · EM REDE</p>
-        <h2 id="social-connect-title">A conversa começa antes de abril.</h2>
+        <p className="eyebrow">{en ? 'CIRC · ONLINE' : 'CIRC · EM REDE'}</p>
+        <h2 id="social-connect-title">
+          {en ? 'The conversation starts before April.' : 'A conversa começa antes de abril.'}
+        </h2>
         <p>
-          Acompanhe a construção do CIRC 2027, partilhe o Save the Date e mantenha-se
-          ligado à comunidade entre cada novidade do congresso.
+          {en
+            ? 'Follow the development of CIRC 2027, share the Save the Date and stay connected with the community as new congress updates are released.'
+            : 'Acompanhe a construção do CIRC 2027, partilhe o Save the Date e mantenha-se ligado à comunidade entre cada novidade do congresso.'}
         </p>
-        <div className="social-connect__hashtags" aria-label="Hashtags oficiais">
+        <div className="social-connect__hashtags" aria-label={en ? 'Official hashtags' : 'Hashtags oficiais'}>
           <span>#CIRC2027</span>
           <span>#CIRCoimbra</span>
           <span>#Radiologia</span>
@@ -121,12 +117,14 @@ function SocialConnect() {
         <div className="social-connect__profile">
           <div className="social-connect__brand-mark" aria-hidden="true">C</div>
           <div>
-            <span className="social-connect__label">CIRC · presença digital</span>
+            <span className="social-connect__label">
+              {en ? 'CIRC · digital presence' : 'CIRC · presença digital'}
+            </span>
             <strong>CIRC — Imaging Scientific Talks</strong>
           </div>
         </div>
 
-        <div className="social-connect__network-list" aria-label="Redes sociais do CIRC">
+        <div className="social-connect__network-list" aria-label={en ? 'CIRC social networks' : 'Redes sociais do CIRC'}>
           {socialNetworks.map((network) => (
             <a
               className={`social-connect__network social-connect__network--${network.name.toLowerCase()}`}
@@ -148,16 +146,20 @@ function SocialConnect() {
         </div>
 
         <div className="social-connect__share-row">
-          <span className="social-connect__share-label">Partilhar o CIRC 2027</span>
+          <span className="social-connect__share-label">
+            {en ? 'Share CIRC 2027' : 'Partilhar o CIRC 2027'}
+          </span>
           <a href={facebookShareUrl} target="_blank" rel="noopener noreferrer">Facebook</a>
           <a href={linkedInShareUrl} target="_blank" rel="noopener noreferrer">LinkedIn</a>
-          <button type="button" onClick={handleShare}>Mais opções</button>
-          <button type="button" onClick={handleCopy}>Copiar ligação</button>
+          <button type="button" onClick={handleShare}>{en ? 'More options' : 'Mais opções'}</button>
+          <button type="button" onClick={handleCopy}>{en ? 'Copy link' : 'Copiar ligação'}</button>
         </div>
 
         <div className="social-connect__signal" aria-live="polite">
           <span className="social-connect__pulse" aria-hidden="true" />
-          <span>{shareStatus || 'Siga · partilhe · acompanhe o CIRC 2027'}</span>
+          <span>
+            {shareStatus || (en ? 'Follow · share · stay connected with CIRC 2027' : 'Siga · partilhe · acompanhe o CIRC 2027')}
+          </span>
         </div>
       </div>
 
