@@ -1,56 +1,107 @@
-.hero__date-card--2027 {
-  padding: 30px;
+.hero--official {
+  grid-template-columns: minmax(0, 0.82fr) minmax(520px, 1.18fr);
+  gap: 64px;
+  align-items: center;
 }
 
-.hero__date-grid {
+.hero--official .hero__copy {
+  padding-right: 10px;
+}
+
+.hero--official .eyebrow {
+  color: var(--coral);
+}
+
+.hero--official h1 {
+  color: var(--blue);
+  font-weight: 600;
+  letter-spacing: -0.065em;
+}
+
+.hero--official h1 span {
+  color: var(--coral);
+  font-weight: 500;
+}
+
+.hero--official .hero__lead {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.hero__format-list {
+  margin-top: 34px;
   display: grid;
-  grid-template-columns: 0.8fr 1.2fr;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-.hero__day {
-  min-height: 215px;
-  padding: 24px;
-  border-radius: 20px;
+.hero__format-list > div {
+  min-height: 112px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: space-between;
+  background: rgba(239, 232, 223, 0.68);
 }
 
-.hero__day--course {
-  background: var(--coral-soft);
+.hero__format-list > div:first-child {
+  border-top: 4px solid var(--coral);
 }
 
-.hero__day--congress {
-  background: var(--mist);
+.hero__format-list > div:last-child {
+  border-top: 4px solid var(--blue);
 }
 
-.hero__day strong {
-  font-size: clamp(3.6rem, 6vw, 6.6rem);
-  line-height: 0.78;
-  letter-spacing: -0.075em;
-  font-weight: 450;
+.hero__format-list span {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
-.hero__day span {
+.hero__format-list strong {
+  margin-top: 18px;
+  font-size: 1rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.hero--official .button--dark {
+  background: var(--blue);
+}
+
+.hero--official .button--dark:hover {
+  background: var(--blue-deep);
+}
+
+.hero__artwork {
+  margin: 0;
+  position: relative;
+}
+
+.hero__artwork::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 28px -26px -26px 28px;
+  background: var(--blue);
+}
+
+.hero__artwork img {
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+  border: 1px solid rgba(20, 24, 70, 0.12);
+  box-shadow: 0 22px 48px rgba(20, 24, 70, 0.12);
+}
+
+.hero__artwork figcaption {
   margin-top: 14px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-
-.hero__day small {
-  margin-top: 10px;
   color: var(--ink-soft);
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.hero__venue {
-  margin: 18px 2px 0;
-  color: var(--ink-soft);
-  font-size: 0.83rem;
-  font-weight: 650;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .event-format {
@@ -63,6 +114,11 @@
   margin-bottom: 46px;
 }
 
+.event-format .section-heading .eyebrow,
+.programme-phases .eyebrow {
+  color: var(--coral);
+}
+
 .event-format__grid {
   display: grid;
   grid-template-columns: 0.78fr 1.22fr;
@@ -72,19 +128,31 @@
 .event-format__card {
   min-height: 390px;
   padding: 34px;
-  border-radius: 28px;
+  border-radius: 0;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 34px;
   align-items: end;
+  border: 1px solid var(--line);
 }
 
 .event-format__card--course {
-  background: var(--coral-soft);
+  background: var(--paper-deep);
+}
+
+.event-format__card--course .event-format__date {
+  color: var(--coral);
 }
 
 .event-format__card--congress {
-  background: var(--mist);
+  background: var(--blue);
+  color: var(--white);
+  border-color: var(--blue);
+}
+
+.event-format__card--congress .eyebrow,
+.event-format__card--congress p:last-child {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .event-format__date {
@@ -92,15 +160,15 @@
   font-size: clamp(4.4rem, 8vw, 8.2rem);
   line-height: 0.78;
   letter-spacing: -0.075em;
-  font-weight: 350;
+  font-weight: 500;
 }
 
 .event-format__card h3 {
   margin: 0 0 18px;
   font-size: clamp(2rem, 3.6vw, 4.3rem);
   line-height: 0.96;
-  letter-spacing: -0.045em;
-  font-weight: 450;
+  letter-spacing: -0.035em;
+  font-weight: 500;
 }
 
 .event-format__card p:last-child {
@@ -120,33 +188,45 @@
 .programme-phase {
   min-height: 440px;
   padding: 38px;
-  border-radius: 28px;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  border: 1px solid var(--line);
 }
 
 .programme-phase--course {
-  background: var(--coral-soft);
+  background: var(--paper-deep);
+}
+
+.programme-phase--course .programme-phase__date {
+  color: var(--coral);
 }
 
 .programme-phase--congress {
-  background: var(--mist);
+  background: var(--blue);
+  color: var(--white);
+  border-color: var(--blue);
+}
+
+.programme-phase--congress .eyebrow,
+.programme-phase--congress div > p:last-child {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .programme-phase__date {
   font-size: clamp(4.6rem, 8vw, 8.6rem);
   line-height: 0.78;
   letter-spacing: -0.075em;
-  font-weight: 350;
+  font-weight: 500;
 }
 
 .programme-phase h2 {
   margin: 0 0 18px;
   font-size: clamp(2.2rem, 4vw, 4.8rem);
   line-height: 0.95;
-  letter-spacing: -0.045em;
-  font-weight: 450;
+  letter-spacing: -0.035em;
+  font-weight: 500;
 }
 
 .programme-phase div > p:last-child {
@@ -156,22 +236,40 @@
 }
 
 .info-card--course {
-  background: var(--coral-soft);
+  background: var(--paper-deep);
+  border-top: 4px solid var(--coral);
 }
 
 .venue-feature__course {
-  color: var(--coral-soft);
+  color: var(--coral);
+}
+
+.venue-panel--blue {
+  background: var(--blue);
+}
+
+.venue-panel--cream {
+  background: var(--paper-deep);
 }
 
 .site-footer__format {
   display: block;
   margin-top: 9px;
-  color: rgba(248, 246, 241, 0.62);
+  color: rgba(239, 232, 223, 0.68);
   font-size: 0.74rem;
 }
 
+@media (max-width: 1080px) {
+  .hero--official {
+    grid-template-columns: 1fr;
+  }
+
+  .hero__artwork {
+    max-width: 820px;
+  }
+}
+
 @media (max-width: 960px) {
-  .hero__date-grid,
   .event-format__grid,
   .programme-phases {
     grid-template-columns: 1fr;
@@ -184,17 +282,12 @@
 }
 
 @media (max-width: 620px) {
-  .hero__date-card--2027 {
-    padding: 16px;
+  .hero__format-list {
+    grid-template-columns: 1fr;
   }
 
-  .hero__day {
-    min-height: 142px;
-    padding: 18px;
-  }
-
-  .hero__day strong {
-    font-size: 3.8rem;
+  .hero__artwork::before {
+    inset: 14px -12px -12px 14px;
   }
 
   .event-format__card {
