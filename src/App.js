@@ -16,6 +16,12 @@ import {
   ParticipatePage,
   ProgramPage,
 } from './pages/InfoPages';
+import {
+  AccountOverviewPage,
+  AccountProfilePage,
+  AccountRegistrationsPage,
+  LoginPage,
+} from './pages/AccountPages';
 
 import './App.css';
 import './event2027.css';
@@ -47,6 +53,11 @@ function App() {
           <Route path="/coimbra" element={<CoimbraPage />} />
           <Route path="/2025" element={<Archive2025Page />} />
           <Route path="/contactos" element={<ContactPage />} />
+
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/conta" element={<AccountOverviewPage />} />
+          <Route path="/conta/perfil" element={<AccountProfilePage />} />
+          <Route path="/conta/inscricoes" element={<AccountRegistrationsPage />} />
 
           <Route path="/schedule" element={<Navigate to="/programa" replace />} />
           <Route path="/exhibition" element={<Navigate to="/parcerias" replace />} />
