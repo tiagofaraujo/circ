@@ -1,0 +1,507 @@
+.account-page {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 152px 48px 100px;
+}
+
+.account-hero {
+  min-height: 330px;
+  padding: 34px 0 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: end;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-hero h1 {
+  margin: 0;
+  max-width: 900px;
+  color: var(--blue);
+  font-size: clamp(3.7rem, 7vw, 7.8rem);
+  line-height: 0.88;
+  font-weight: 500;
+  letter-spacing: -0.06em;
+}
+
+.account-hero > div:first-child > p:last-child {
+  max-width: 720px;
+  margin: 28px 0 0;
+  color: var(--ink-soft);
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+.account-hero__mark {
+  width: 180px;
+  min-height: 180px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--blue);
+  color: var(--white);
+}
+
+.account-hero__mark span {
+  color: var(--coral);
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+
+.account-hero__mark small {
+  align-self: end;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.account-login-grid {
+  padding-top: 70px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.94fr) minmax(360px, 1.06fr);
+  gap: 16px;
+}
+
+.account-login-card,
+.account-benefits,
+.account-form-section,
+.account-registration-alert,
+.account-payment-preview,
+.account-empty-state {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.account-login-card {
+  min-height: 560px;
+  padding: 42px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.account-step {
+  display: inline-flex;
+  margin-bottom: 42px;
+  color: var(--coral);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.account-login-card h2,
+.account-benefits h2,
+.account-card h2,
+.account-payment-preview h2,
+.account-ticket h2 {
+  letter-spacing: -0.045em;
+}
+
+.account-login-card h2 {
+  margin: 0;
+  max-width: 560px;
+  font-size: clamp(2.5rem, 4vw, 4.6rem);
+  line-height: 0.98;
+  font-weight: 500;
+}
+
+.account-login-card > div > p {
+  max-width: 620px;
+  margin: 24px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+.account-login-form {
+  margin-top: 52px;
+}
+
+.account-login-form label,
+.account-profile-form label span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.account-login-form input,
+.account-profile-form input,
+.account-profile-form select {
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(20, 24, 70, 0.28);
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.05rem;
+}
+
+.account-login-form input:focus,
+.account-profile-form input:focus,
+.account-profile-form select:focus {
+  border-bottom-color: var(--blue);
+}
+
+.account-primary-button {
+  margin-top: 26px;
+  border: 0;
+  background: var(--blue);
+  color: var(--white);
+  cursor: pointer;
+}
+
+.account-primary-button:hover {
+  background: var(--blue-deep);
+}
+
+.account-demo-note {
+  margin: 34px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.account-benefits {
+  padding: 42px;
+  background: var(--blue);
+  color: var(--white);
+}
+
+.account-benefits .eyebrow {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.account-benefit-list {
+  margin-top: 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.account-benefit-list > div {
+  padding: 26px 0;
+  display: grid;
+  grid-template-columns: 44px minmax(140px, 0.55fr) 1fr;
+  gap: 16px;
+  align-items: baseline;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.account-benefit-list span {
+  color: var(--coral);
+  font-size: 0.72rem;
+}
+
+.account-benefit-list strong {
+  font-size: 1.18rem;
+  font-weight: 600;
+}
+
+.account-benefit-list p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.55;
+}
+
+.account-dashboard {
+  padding-top: 54px;
+}
+
+.account-dashboard__topline {
+  padding: 20px 0 28px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: end;
+}
+
+.account-dashboard__topline p {
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+}
+
+.account-status {
+  min-height: 30px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.account-status--neutral {
+  border: 1px solid rgba(35, 46, 183, 0.22);
+  background: rgba(35, 46, 183, 0.06);
+  color: var(--blue);
+}
+
+.account-text-button {
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+}
+
+.account-dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.account-card {
+  min-height: 330px;
+  padding: 30px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.account-card--primary {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.account-card--primary .eyebrow,
+.account-card--primary > p:not(.eyebrow) {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.account-card--profile {
+  background: var(--paper-deep);
+}
+
+.account-card__number {
+  margin-bottom: auto;
+  color: var(--coral);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.account-card h2 {
+  margin: 0 0 18px;
+  font-size: clamp(2rem, 3.4vw, 3.9rem);
+  line-height: 0.98;
+  font-weight: 500;
+}
+
+.account-card > p:not(.eyebrow) {
+  max-width: 560px;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.account-card__link {
+  margin-top: 28px;
+  align-self: flex-start;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  font-weight: 650;
+}
+
+.account-form-section {
+  margin-top: 60px;
+  padding: 42px;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 34px 38px;
+}
+
+.account-form-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.account-form-actions {
+  margin-top: 46px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.account-save-message {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.account-registration-section {
+  padding-top: 58px;
+}
+
+.account-registration-alert {
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.account-registration-alert p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.account-ticket-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.account-ticket {
+  min-height: 370px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.account-ticket:nth-child(2) {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.account-ticket:nth-child(2) .eyebrow,
+.account-ticket:nth-child(2) div > p:last-child {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.account-ticket > strong {
+  margin-bottom: auto;
+  color: var(--coral);
+  font-size: clamp(3.5rem, 6vw, 6.4rem);
+  line-height: 0.8;
+  font-weight: 500;
+  letter-spacing: -0.075em;
+}
+
+.account-ticket h2 {
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 3vw, 3.3rem);
+  line-height: 0.98;
+  font-weight: 500;
+}
+
+.account-ticket div > p:last-child {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.account-payment-preview {
+  margin-top: 20px;
+  padding: 42px;
+}
+
+.account-payment-preview h2 {
+  margin: 0;
+  max-width: 900px;
+  color: var(--blue);
+  font-size: clamp(2.5rem, 4.8vw, 5.4rem);
+  line-height: 0.96;
+  font-weight: 500;
+}
+
+.account-payment-methods {
+  margin: 34px 0 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.account-payment-methods span {
+  padding: 10px 14px;
+  border: 1px solid rgba(35, 46, 183, 0.18);
+  border-radius: 999px;
+  background: rgba(35, 46, 183, 0.05);
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.account-payment-preview > p:last-child {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.account-empty-state {
+  margin-top: 60px;
+  padding: 48px;
+}
+
+@media (max-width: 1050px) {
+  .account-login-grid,
+  .account-ticket-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-ticket {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 760px) {
+  .account-page {
+    padding: 126px 20px 72px;
+  }
+
+  .account-hero {
+    min-height: 290px;
+    grid-template-columns: 1fr;
+  }
+
+  .account-hero__mark {
+    width: 138px;
+    min-height: 138px;
+  }
+
+  .account-login-card,
+  .account-benefits,
+  .account-form-section,
+  .account-payment-preview {
+    padding: 28px;
+  }
+
+  .account-benefit-list > div {
+    grid-template-columns: 36px 1fr;
+  }
+
+  .account-benefit-list p {
+    grid-column: 2;
+  }
+
+  .account-dashboard__grid,
+  .account-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-form-grid__wide {
+    grid-column: auto;
+  }
+
+  .account-dashboard__topline,
+  .account-registration-alert {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
