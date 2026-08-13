@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import emailjs from 'emailjs-com';
+import { useLanguage } from '../../context/LanguageContext';
 import '../css/ContactForm.css';
 
 const EMAILJS_SERVICE_ID = 'service_vv5ni14';
@@ -12,11 +13,13 @@ function ContactForm() {
   const [status, setStatus] = useState('idle');
   const [feedback, setFeedback] = useState('');
   const [technicalError, setTechnicalError] = useState('');
+  const { language } = useLanguage();
+  const en = language === 'en';
 
   const sendEmail = async (event) => {
     event.preventDefault();
     setStatus('sending');
-    setFeedback('A enviar a mensagem…');
+    setFeedback(en ? 'Sending your message…' : 'A enviar a mensagem…');
     setTechnicalError('');
 
     try {
@@ -45,9 +48,13 @@ function ContactForm() {
 
       form.current.reset();
       setStatus('success');
-      setFeedback('Mensagem enviada com sucesso. Obrigado pelo seu contacto.');
+      setFeedback(
+        en
+          ? 'Message sent successfully. Thank you for contacting us.'
+          : 'Mensagem enviada com sucesso. Obrigado pelo seu contacto.'
+      );
     } catch (error) {
-      console.error('Erro EmailJS:', error);
+      console.error('EmailJS error:', error);
 
       const errorStatus = error?.status ? String(error.status) : '';
       const errorText = error?.text || error?.message || '';
@@ -55,25 +62,37 @@ function ContactForm() {
 
       setStatus('error');
       setFeedback(
-        'Não foi possível enviar a mensagem. O serviço de email recusou o pedido.'
+        en
+          ? 'Your message could not be sent. The email service rejected the request.'
+          : 'Não foi possível enviar a mensagem. O serviço de email recusou o pedido.'
       );
-      setTechnicalError(diagnostic || 'Erro sem código devolvido pelo serviço.');
+      setTechnicalError(
+        diagnostic || (en ? 'No error code was returned by the service.' : 'Erro sem código devolvido pelo serviço.')
+      );
     }
   };
 
   return (
     <form ref={form} onSubmit={sendEmail} className="contact-form">
       <input type="hidden" name="to_email" value={CIRC_EMAIL} />
-      <input type="text" name="name" placeholder="Nome" autoComplete="name" required />
+      <input
+        type="text"
+        name="name"
+        placeholder={en ? 'Name' : 'Nome'}
+        autoComplete="name"
+        required
+      />
       <input type="email" name="email" placeholder="Email" autoComplete="email" required />
-      <input type="text" name="subject" placeholder="Assunto" required />
-      <textarea name="message" placeholder="Mensagem" required />
+      <input type="text" name="subject" placeholder={en ? 'Subject' : 'Assunto'} required />
+      <textarea name="message" placeholder={en ? 'Message' : 'Mensagem'} required />
 
       <div className="contact-form__actions">
         <button type="submit" disabled={status === 'sending'}>
-          {status === 'sending' ? 'A enviar…' : 'Enviar'}
+          {status === 'sending' ? (en ? 'Sending…' : 'A enviar…') : (en ? 'Send' : 'Enviar')}
         </button>
-        <span className="contact-form__destination">Destino: {CIRC_EMAIL}</span>
+        <span className="contact-form__destination">
+          {en ? 'To' : 'Destino'}: {CIRC_EMAIL}
+        </span>
       </div>
 
       {feedback && (
@@ -84,7 +103,9 @@ function ContactForm() {
         >
           <p>{feedback}</p>
           {status === 'error' && technicalError && (
-            <small className="contact-form__technical-error">Código técnico: {technicalError}</small>
+            <small className="contact-form__technical-error">
+              {en ? 'Technical code' : 'Código técnico'}: {technicalError}
+            </small>
           )}
         </div>
       )}
