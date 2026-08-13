@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alike+Angular&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 
 :root {
   --ink: #141846;
@@ -17,6 +17,7 @@
   --shadow: 0 18px 55px rgba(20, 24, 70, 0.12);
   --radius: 24px;
   --max-width: 1440px;
+  --font-display: 'Alike Angular', Georgia, 'Times New Roman', serif;
 }
 
 * {
