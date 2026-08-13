@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
 import '../css/Footer.css';
 
 function SocialIcon({ name }) {
@@ -29,48 +30,46 @@ function SocialIcon({ name }) {
 }
 
 const socialLinks = [
-  {
-    name: 'Facebook',
-    url: 'https://www.facebook.com/circ.chuc/',
-  },
-  {
-    name: 'Instagram',
-    url: 'https://www.instagram.com/circ.chuc/',
-  },
-  {
-    name: 'LinkedIn',
-    url: 'https://www.linkedin.com/company/circ-chuc/',
-  },
+  { name: 'Facebook', url: 'https://www.facebook.com/circ.chuc/' },
+  { name: 'Instagram', url: 'https://www.instagram.com/circ.chuc/' },
+  { name: 'LinkedIn', url: 'https://www.linkedin.com/company/circ-chuc/' },
 ];
 
 function Footer() {
+  const { language } = useLanguage();
+  const en = language === 'en';
+
   return (
     <footer className="site-footer">
       <div className="site-footer__top">
         <div className="site-footer__brand">
           <img src="/logo.png" alt="CIRC" />
-          <p>Congresso Internacional de Radiologia de Coimbra</p>
-          <strong>8–10 abril 2027 · Coimbra</strong>
-          <small className="site-footer__format">8 abril · Curso Pré-Congresso · 9–10 abril · CIRC 2027</small>
+          <p>{en ? 'Coimbra International Radiology Congress' : 'Congresso Internacional de Radiologia de Coimbra'}</p>
+          <strong>{en ? '8–10 April 2027 · Coimbra' : '8–10 abril 2027 · Coimbra'}</strong>
+          <small className="site-footer__format">
+            {en
+              ? '8 April · Pre-Congress Course · 9–10 April · CIRC 2027'
+              : '8 abril · Curso Pré-Congresso · 9–10 abril · CIRC 2027'}
+          </small>
         </div>
 
         <div className="site-footer__column">
           <p className="footer-label">CIRC 2027</p>
-          <Link to="/programa">Programa</Link>
-          <Link to="/participar">Participar</Link>
-          <Link to="/parcerias">Parcerias</Link>
+          <Link to="/programa">{en ? 'Programme' : 'Programa'}</Link>
+          <Link to="/participar">{en ? 'Attend' : 'Participar'}</Link>
+          <Link to="/parcerias">{en ? 'Partners' : 'Parcerias'}</Link>
           <Link to="/coimbra">Coimbra</Link>
         </div>
 
         <div className="site-footer__column">
-          <p className="footer-label">Arquivo e apoio</p>
+          <p className="footer-label">{en ? 'Archive and support' : 'Arquivo e apoio'}</p>
           <Link to="/2025">CIRC 2025</Link>
-          <Link to="/contactos">Contactos</Link>
-          <span>Com apoio do Município de Coimbra</span>
+          <Link to="/contactos">{en ? 'Contact' : 'Contactos'}</Link>
+          <span>{en ? 'With the support of the Municipality of Coimbra' : 'Com apoio do Município de Coimbra'}</span>
         </div>
 
         <div className="site-footer__column site-footer__social">
-          <p className="footer-label">CIRC em rede</p>
+          <p className="footer-label">{en ? 'CIRC online' : 'CIRC em rede'}</p>
           {socialLinks.map((social) => (
             <a
               href={social.url}
@@ -89,8 +88,16 @@ function Footer() {
       </div>
 
       <div className="site-footer__bottom">
-        <span>© 2027 CIRC · Congresso Internacional de Radiologia de Coimbra</span>
-        <span>Organização · Associação Hemisfério Disciplinado</span>
+        <span>
+          {en
+            ? '© 2027 CIRC · Coimbra International Radiology Congress'
+            : '© 2027 CIRC · Congresso Internacional de Radiologia de Coimbra'}
+        </span>
+        <span>
+          {en
+            ? 'Organised by · Associação Hemisfério Disciplinado'
+            : 'Organização · Associação Hemisfério Disciplinado'}
+        </span>
       </div>
     </footer>
   );
