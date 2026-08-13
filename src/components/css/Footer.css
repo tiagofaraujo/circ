@@ -1,7 +1,7 @@
 .site-footer {
   margin-top: 36px;
   color: var(--paper);
-  background: var(--ink);
+  background: #141846;
 }
 
 .site-footer__top {
@@ -23,11 +23,12 @@
   margin: 28px 0 8px;
   font-size: clamp(1.7rem, 3vw, 3.3rem);
   line-height: 1.08;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.035em;
+  font-weight: 500;
 }
 
 .site-footer__brand strong {
-  color: var(--mist-strong);
+  color: var(--coral);
   font-size: 0.86rem;
 }
 
@@ -35,7 +36,7 @@
   display: block;
   margin-top: 10px;
   max-width: 450px;
-  color: rgba(248,246,241,.58);
+  color: rgba(239, 232, 223, 0.64);
   font-size: 0.74rem;
   line-height: 1.5;
 }
@@ -48,9 +49,9 @@
 
 .footer-label {
   margin: 0 0 10px;
-  color: var(--mist-strong);
+  color: var(--coral);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -64,7 +65,7 @@
 }
 
 .site-footer__column a:hover {
-  color: var(--coral-soft);
+  color: #ffffff;
 }
 
 .site-footer__social a {
@@ -73,8 +74,8 @@
   align-items: center;
   gap: 9px;
   padding-bottom: 3px;
-  border-bottom: 1px solid rgba(248,246,241,.28);
-  font-weight: 750;
+  border-bottom: 1px solid rgba(239, 232, 223, 0.26);
+  font-weight: 600;
 }
 
 .site-footer__social-mark {
@@ -84,8 +85,8 @@
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  background: var(--mist-strong);
-  color: var(--ink) !important;
+  background: var(--paper);
+  color: var(--blue) !important;
 }
 
 .site-footer__social-mark svg {
@@ -95,7 +96,7 @@
 }
 
 .site-footer__hashtag {
-  color: rgba(248,246,241,.6) !important;
+  color: rgba(239, 232, 223, 0.58) !important;
   font-size: 0.76rem !important;
 }
 
@@ -106,8 +107,8 @@
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  border-top: 1px solid rgba(255,255,255,.15);
-  color: rgba(248,246,241,.65);
+  border-top: 1px solid rgba(239, 232, 223, 0.16);
+  color: rgba(239, 232, 223, 0.62);
   font-size: 0.72rem;
 }
 
@@ -119,7 +120,7 @@
   .site-footer__social {
     grid-column: 2 / span 2;
     padding-top: 22px;
-    border-top: 1px solid rgba(255,255,255,.12);
+    border-top: 1px solid rgba(239, 232, 223, 0.14);
   }
 }
 
