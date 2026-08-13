@@ -1,0 +1,29 @@
+.hero--official.hero--without-artwork {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  min-height: 690px;
+  align-items: center;
+}
+
+.hero--without-artwork .hero__copy {
+  width: min(100%, 1040px);
+  padding-right: 0;
+}
+
+.hero--without-artwork .hero__lead {
+  max-width: 820px;
+}
+
+.hero--without-artwork .hero__format-list {
+  max-width: 760px;
+}
+
+.hero--without-artwork .hero__note {
+  max-width: 760px;
+}
+
+@media (max-width: 760px) {
+  .hero--official.hero--without-artwork {
+    min-height: auto;
+  }
+}
