@@ -252,6 +252,25 @@
   background: var(--paper-deep);
 }
 
+/* Alike Angular: uso deliberadamente pontual para ecoar o lettering de "COIMBRA" do Save the Date. */
+.venue-section__header h2,
+.venue-feature__copy h2 {
+  font-family: var(--font-display);
+  color: var(--blue);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.venue-section__header .eyebrow,
+.venue-feature__copy .eyebrow {
+  font-family: var(--font-display);
+  color: var(--blue);
+  font-size: 0.98rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
 .site-footer__format {
   display: block;
   margin-top: 9px;
