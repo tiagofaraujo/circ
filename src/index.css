@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Alike+Angular&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
-
 :root {
   --ink: #141846;
   --ink-soft: #41465f;
@@ -17,6 +15,7 @@
   --shadow: 0 18px 55px rgba(20, 24, 70, 0.12);
   --radius: 24px;
   --max-width: 1440px;
+  --font-sans: 'Barlow', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   --font-display: 'Alike Angular', Georgia, 'Times New Roman', serif;
 }
 
@@ -34,7 +33,8 @@ body {
   min-width: 320px;
   color: var(--ink);
   background: var(--paper);
-  font-family: 'Barlow', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -43,7 +43,7 @@ body,
 button,
 input,
 textarea {
-  font: inherit;
+  font-family: var(--font-sans);
 }
 
 a {
@@ -68,3 +68,30 @@ a {
 #root {
   min-height: 100vh;
 }
+
+/* Classes utilitárias oficiais da identidade CIRC 2027 */
+.alike-angular-regular {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: normal;
+}
+
+.barlow-thin { font-family: var(--font-sans); font-weight: 100; font-style: normal; }
+.barlow-extralight { font-family: var(--font-sans); font-weight: 200; font-style: normal; }
+.barlow-light { font-family: var(--font-sans); font-weight: 300; font-style: normal; }
+.barlow-regular { font-family: var(--font-sans); font-weight: 400; font-style: normal; }
+.barlow-medium { font-family: var(--font-sans); font-weight: 500; font-style: normal; }
+.barlow-semibold { font-family: var(--font-sans); font-weight: 600; font-style: normal; }
+.barlow-bold { font-family: var(--font-sans); font-weight: 700; font-style: normal; }
+.barlow-extrabold { font-family: var(--font-sans); font-weight: 800; font-style: normal; }
+.barlow-black { font-family: var(--font-sans); font-weight: 900; font-style: normal; }
+
+.barlow-thin-italic { font-family: var(--font-sans); font-weight: 100; font-style: italic; }
+.barlow-extralight-italic { font-family: var(--font-sans); font-weight: 200; font-style: italic; }
+.barlow-light-italic { font-family: var(--font-sans); font-weight: 300; font-style: italic; }
+.barlow-regular-italic { font-family: var(--font-sans); font-weight: 400; font-style: italic; }
+.barlow-medium-italic { font-family: var(--font-sans); font-weight: 500; font-style: italic; }
+.barlow-semibold-italic { font-family: var(--font-sans); font-weight: 600; font-style: italic; }
+.barlow-bold-italic { font-family: var(--font-sans); font-weight: 700; font-style: italic; }
+.barlow-extrabold-italic { font-family: var(--font-sans); font-weight: 800; font-style: italic; }
+.barlow-black-italic { font-family: var(--font-sans); font-weight: 900; font-style: italic; }
