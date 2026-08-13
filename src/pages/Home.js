@@ -36,7 +36,7 @@ const updates = [
 function Home() {
   return (
     <main>
-      <section className="hero" id="save-the-date">
+      <section className="hero hero--official" id="save-the-date">
         <div className="hero__copy">
           <p className="eyebrow">Congresso Internacional de Radiologia de Coimbra</p>
           <h1>
@@ -44,12 +44,23 @@ function Home() {
             <span>2027</span>
           </h1>
           <p className="hero__lead">
-            Três dias dedicados à formação, ciência e evolução da Radiologia e da Imagem Médica em Coimbra.
+            8, 9 e 10 de abril de 2027. Três dias de formação, ciência, inovação e encontro profissional em Coimbra.
           </p>
 
+          <div className="hero__format-list" aria-label="Estrutura do CIRC 2027">
+            <div>
+              <span>08 ABR</span>
+              <strong>Curso Pré-Congresso</strong>
+            </div>
+            <div>
+              <span>09—10 ABR</span>
+              <strong>Congresso Internacional</strong>
+            </div>
+          </div>
+
           <div className="hero__actions">
-            <Link className="button button--dark" to="/participar">
-              Save the date
+            <Link className="button button--dark" to="/programa">
+              Acompanhar o programa
             </Link>
             <Link className="text-link" to="/2025">
               Rever a edição de 2025 <span aria-hidden="true">↗</span>
@@ -57,31 +68,17 @@ function Home() {
           </div>
 
           <p className="hero__note">
-            8 abril · Curso Pré-Congresso &nbsp;·&nbsp; 9–10 abril · CIRC 2027. Programa, convidados e inscrições serão anunciados progressivamente.
+            Programa, convidados, inscrições e condições do curso serão anunciados progressivamente neste website.
           </p>
         </div>
 
-        <div className="hero__visual" aria-label="CIRC 2027, 8 a 10 de abril, Coimbra">
-          <div className="scan-orbit scan-orbit--one" />
-          <div className="scan-orbit scan-orbit--two" />
-          <div className="scan-orbit scan-orbit--three" />
-          <div className="hero__date-card hero__date-card--2027">
-            <span className="hero__date-kicker">SAVE THE DATE · 08—10 ABR 2027</span>
-            <div className="hero__date-grid">
-              <div className="hero__day hero__day--course">
-                <strong>08</strong>
-                <span>ABR</span>
-                <small>Curso Pré-Congresso</small>
-              </div>
-              <div className="hero__day hero__day--congress">
-                <strong>09—10</strong>
-                <span>ABR</span>
-                <small>Congresso Internacional</small>
-              </div>
-            </div>
-            <p className="hero__venue">Coimbra · Portugal</p>
-          </div>
-        </div>
+        <figure className="hero__artwork">
+          <img
+            src="/save-the-date-2027.webp"
+            alt="Save the Date CIRC 2027 — Coimbra, 8, 9 e 10 de abril de 2027"
+          />
+          <figcaption>Imagem oficial · Save the Date CIRC 2027</figcaption>
+        </figure>
       </section>
 
       <section className="fact-strip" aria-label="Informação principal do CIRC 2027">
