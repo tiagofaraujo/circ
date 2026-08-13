@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 import '../css/CookiesConsent.css';
 
 function CookiesConsent() {
   const [isVisible, setIsVisible] = useState(false);
+  const { language } = useLanguage();
+  const en = language === 'en';
 
   useEffect(() => {
     const consent = localStorage.getItem('cookies-consent');
@@ -21,20 +24,21 @@ function CookiesConsent() {
   }
 
   return (
-    <aside className="cookies-consent" aria-label="Preferências de cookies">
+    <aside className="cookies-consent" aria-label={en ? 'Cookie preferences' : 'Preferências de cookies'}>
       <div>
-        <strong>Privacidade</strong>
+        <strong>{en ? 'Privacy' : 'Privacidade'}</strong>
         <p>
-          Utilizamos tecnologias essenciais para o funcionamento do website e para
-          memorizar esta preferência.
+          {en
+            ? 'We use essential technologies required for the website to function and to remember this preference.'
+            : 'Utilizamos tecnologias essenciais para o funcionamento do website e para memorizar esta preferência.'}
         </p>
       </div>
       <div className="cookies-consent-buttons">
         <button className="accept" type="button" onClick={() => savePreference('accepted')}>
-          Aceitar
+          {en ? 'Accept' : 'Aceitar'}
         </button>
         <button className="reject" type="button" onClick={() => savePreference('rejected')}>
-          Rejeitar
+          {en ? 'Reject' : 'Rejeitar'}
         </button>
       </div>
     </aside>
