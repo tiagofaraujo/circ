@@ -150,11 +150,6 @@
   border-color: var(--blue);
 }
 
-.event-format__card--congress .eyebrow,
-.event-format__card--congress p:last-child {
-  color: rgba(255, 255, 255, 0.82);
-}
-
 .event-format__date {
   align-self: start;
   font-size: clamp(4.4rem, 8vw, 8.2rem);
@@ -176,6 +171,12 @@
   max-width: 580px;
   color: var(--ink-soft);
   line-height: 1.65;
+}
+
+/* Garantir contraste total no painel azul do congresso. Esta regra vem depois da regra genérica. */
+.event-format__card--congress .eyebrow,
+.event-format__card--congress p:last-child {
+  color: #ffffff;
 }
 
 .programme-phases {
@@ -209,11 +210,6 @@
   border-color: var(--blue);
 }
 
-.programme-phase--congress .eyebrow,
-.programme-phase--congress div > p:last-child {
-  color: rgba(255, 255, 255, 0.82);
-}
-
 .programme-phase__date {
   font-size: clamp(4.6rem, 8vw, 8.6rem);
   line-height: 0.78;
@@ -233,6 +229,12 @@
   margin: 20px 0 0;
   color: var(--ink-soft);
   line-height: 1.65;
+}
+
+/* Mesma correção na página Programa, para manter consistência visual. */
+.programme-phase--congress .eyebrow,
+.programme-phase--congress div > p:last-child {
+  color: #ffffff;
 }
 
 .info-card--course {
