@@ -73,8 +73,8 @@ function Navbar() {
           </button>
         </div>
 
-        <Link className="header-cta" to="/contactos">
-          {isEnglish ? 'Contact' : 'Contactos'}
+        <Link className="header-cta" to="/conta">
+          {isEnglish ? 'My CIRC' : 'Área CIRC'}
         </Link>
         <button
           className={isOpen ? 'menu-toggle is-open' : 'menu-toggle'}
@@ -110,6 +110,7 @@ function Navbar() {
             {isEnglish ? item.en : item.pt}
           </NavLink>
         ))}
+        <Link to="/conta" onClick={closeMenu}>{isEnglish ? 'My CIRC' : 'Área CIRC'}</Link>
         <Link to="/contactos" onClick={closeMenu}>{isEnglish ? 'Contact' : 'Contactos'}</Link>
       </div>
     </header>
