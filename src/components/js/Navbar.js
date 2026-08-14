@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../auth/AuthContext';
 
 import '../css/Navbar.css';
 
@@ -15,7 +16,12 @@ const navItems = [
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
+  const { user } = useAuth();
   const isEnglish = language === 'en';
+  const accountPath = user ? '/conta' : '/login';
+  const accountLabel = user
+    ? (isEnglish ? 'My CIRC' : 'Área CIRC')
+    : (isEnglish ? 'Sign in' : 'Entrar');
 
   const closeMenu = () => setIsOpen(false);
 
@@ -73,8 +79,8 @@ function Navbar() {
           </button>
         </div>
 
-        <Link className="header-cta" to="/conta">
-          {isEnglish ? 'My CIRC' : 'Área CIRC'}
+        <Link className="header-cta" to={accountPath}>
+          {accountLabel}
         </Link>
         <button
           className={isOpen ? 'menu-toggle is-open' : 'menu-toggle'}
@@ -110,7 +116,7 @@ function Navbar() {
             {isEnglish ? item.en : item.pt}
           </NavLink>
         ))}
-        <Link to="/conta" onClick={closeMenu}>{isEnglish ? 'My CIRC' : 'Área CIRC'}</Link>
+        <Link to={accountPath} onClick={closeMenu}>{accountLabel}</Link>
         <Link to="/contactos" onClick={closeMenu}>{isEnglish ? 'Contact' : 'Contactos'}</Link>
       </div>
     </header>
