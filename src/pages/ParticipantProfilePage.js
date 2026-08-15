@@ -1,0 +1,203 @@
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import '../account.css';
+import '../account-settings.css';
+
+const ACCOUNT_STORAGE_KEY = 'circ_demo_account';
+
+const professionOptions = [
+  ['radiographer', 'TSDT — Radiologia', 'Radiographer / Radiologic Technologist'],
+  ['radiologist', 'Médico / Radiologista', 'Physician / Radiologist'],
+  ['nurse', 'Enfermeiro', 'Nurse'],
+  ['medical-physicist', 'Físico Médico', 'Medical Physicist'],
+  ['engineer', 'Engenheiro', 'Engineer'],
+  ['student', 'Estudante', 'Student'],
+  ['researcher', 'Investigador', 'Researcher'],
+  ['industry', 'Indústria', 'Industry'],
+  ['other', 'Outra', 'Other'],
+];
+
+const genderOptions = [
+  ['', 'Selecionar', 'Select'],
+  ['female', 'Feminino', 'Female'],
+  ['male', 'Masculino', 'Male'],
+  ['other', 'Outro', 'Other'],
+  ['prefer-not-to-say', 'Prefiro não indicar', 'Prefer not to say'],
+];
+
+function readProfile() {
+  try {
+    return JSON.parse(window.localStorage.getItem(ACCOUNT_STORAGE_KEY)) || {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeProfile(profile) {
+  window.localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(profile));
+}
+
+export default function ParticipantProfilePage() {
+  const { language } = useLanguage();
+  const isEnglish = language === 'en';
+  const { user, updateDisplayName } = useAuth();
+  const existing = readProfile();
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState({
+    name: existing.name || user?.displayName || '',
+    email: user?.email || existing.email || '',
+    dateOfBirth: existing.dateOfBirth || '',
+    gender: existing.gender || '',
+    taxNumber: existing.taxNumber || '',
+    mobile: existing.mobile || '',
+    country: existing.country || 'Portugal',
+    profession: existing.profession || 'radiographer',
+    institution: existing.institution || '',
+    professionalId: existing.professionalId || '',
+    billingAddress: existing.billingAddress || '',
+    billingPostalCode: existing.billingPostalCode || '',
+    billingCity: existing.billingCity || '',
+    billingCountry: existing.billingCountry || existing.country || 'Portugal',
+  });
+
+  const selectedProfession = useMemo(
+    () => professionOptions.find(([value]) => value === form.profession),
+    [form.profession]
+  );
+
+  const updateField = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    setSaved(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const professionLabel = selectedProfession ? (isEnglish ? selectedProfession[2] : selectedProfession[1]) : '';
+    const nextProfile = { ...existing, ...form, professionLabel, demoAccess: false, firebaseUid: user?.uid || existing.firebaseUid };
+    writeProfile(nextProfile);
+    if (form.name.trim() && form.name.trim() !== user?.displayName) {
+      await updateDisplayName(form.name.trim());
+    }
+    setSaved(true);
+  };
+
+  const showPortugueseRadiographerId = form.country === 'Portugal' && form.profession === 'radiographer';
+
+  return (
+    <main className="account-page participant-profile-page">
+      <section className="account-hero">
+        <div>
+          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}</p>
+          <h1>{isEnglish ? 'Personal and professional details' : 'Dados pessoais e profissionais'}</h1>
+          <p>{isEnglish ? 'Keep the information used for registration and billing up to date.' : 'Mantenha atualizados os dados utilizados na inscrição e faturação.'}</p>
+        </div>
+      </section>
+
+      <nav className="account-subnav" aria-label={isEnglish ? 'Account navigation' : 'Navegação da conta'}>
+        <Link to="/conta">{isEnglish ? 'Overview' : 'Visão geral'}</Link>
+        <span aria-current="page">{isEnglish ? 'Profile' : 'Perfil'}</span>
+        <Link to="/conta/seguranca">{isEnglish ? 'Security' : 'Segurança'}</Link>
+      </nav>
+
+      <section className="account-form-section participant-form-section">
+        <form className="account-profile-form" onSubmit={handleSubmit}>
+          <div className="profile-section-heading">
+            <p className="eyebrow">01</p>
+            <h2>{isEnglish ? 'Personal details' : 'Dados pessoais'}</h2>
+          </div>
+
+          <div className="account-form-grid">
+            <label>
+              <span>{isEnglish ? 'Full name' : 'Nome completo'}</span>
+              <input name="name" autoComplete="name" value={form.name} onChange={updateField} required />
+            </label>
+            <label>
+              <span>Email</span>
+              <input name="email" type="email" value={form.email} readOnly aria-readonly="true" />
+              <small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small>
+            </label>
+            <label>
+              <span>{isEnglish ? 'Date of birth' : 'Data de nascimento'}</span>
+              <input name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={updateField} />
+            </label>
+            <label>
+              <span>{isEnglish ? 'Gender' : 'Sexo / género'}</span>
+              <select name="gender" value={form.gender} onChange={updateField}>
+                {genderOptions.map(([value, pt, en]) => <option key={value || 'empty'} value={value}>{isEnglish ? en : pt}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>{isEnglish ? 'Tax identification number / VAT' : 'N.º de contribuinte / NIF'}</span>
+              <input name="taxNumber" inputMode="numeric" value={form.taxNumber} onChange={updateField} autoComplete="off" />
+            </label>
+            <label>
+              <span>{isEnglish ? 'Mobile phone' : 'Telemóvel'}</span>
+              <input name="mobile" type="tel" autoComplete="tel" value={form.mobile} onChange={updateField} placeholder={isEnglish ? '+351 9xx xxx xxx' : '+351 9xx xxx xxx'} />
+            </label>
+            <label>
+              <span>{isEnglish ? 'Country of residence' : 'País de residência'}</span>
+              <input name="country" autoComplete="country-name" value={form.country} onChange={updateField} />
+            </label>
+          </div>
+
+          <div className="profile-section-heading profile-section-heading--spaced">
+            <p className="eyebrow">02</p>
+            <h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2>
+          </div>
+
+          <div className="account-form-grid">
+            <label>
+              <span>{isEnglish ? 'Profession' : 'Profissão'}</span>
+              <select name="profession" value={form.profession} onChange={updateField}>
+                {professionOptions.map(([value, pt, en]) => <option key={value} value={value}>{isEnglish ? en : pt}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>{isEnglish ? 'Institution / organisation' : 'Instituição / organização'}</span>
+              <input name="institution" value={form.institution} onChange={updateField} />
+            </label>
+            {showPortugueseRadiographerId && (
+              <label className="account-form-grid__wide">
+                <span>{isEnglish ? 'Professional licence number' : 'N.º de cédula profissional'}</span>
+                <input name="professionalId" value={form.professionalId} onChange={updateField} />
+              </label>
+            )}
+          </div>
+
+          <div className="profile-section-heading profile-section-heading--spaced">
+            <p className="eyebrow">03</p>
+            <h2>{isEnglish ? 'Billing address' : 'Morada de faturação'}</h2>
+          </div>
+
+          <div className="account-form-grid">
+            <label className="account-form-grid__wide">
+              <span>{isEnglish ? 'Address' : 'Morada'}</span>
+              <textarea name="billingAddress" rows="3" autoComplete="street-address" value={form.billingAddress} onChange={updateField} />
+            </label>
+            <label>
+              <span>{isEnglish ? 'Postal code' : 'Código postal'}</span>
+              <input name="billingPostalCode" autoComplete="postal-code" value={form.billingPostalCode} onChange={updateField} />
+            </label>
+            <label>
+              <span>{isEnglish ? 'City' : 'Localidade'}</span>
+              <input name="billingCity" autoComplete="address-level2" value={form.billingCity} onChange={updateField} />
+            </label>
+            <label className="account-form-grid__wide">
+              <span>{isEnglish ? 'Billing country' : 'País de faturação'}</span>
+              <input name="billingCountry" autoComplete="country-name" value={form.billingCountry} onChange={updateField} />
+            </label>
+          </div>
+
+          <div className="account-form-actions">
+            <button className="button account-primary-button" type="submit">{isEnglish ? 'Save details' : 'Guardar dados'}</button>
+            <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar à Área CIRC'}</Link>
+            {saved && <span className="account-save-message">{isEnglish ? 'Saved.' : 'Guardado.'}</span>}
+          </div>
+        </form>
+      </section>
+    </main>
+  );
+}
