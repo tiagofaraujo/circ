@@ -15,7 +15,31 @@ function readLocalProfile() {
 
 function writeLocalProfile(profile) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(LOCAL_KEY, JSON.stringify(profile));
+  const existing = readLocalProfile();
+  const safeProfile = {
+    ...existing,
+    firebaseUid: profile.firebaseUid || existing.firebaseUid || '',
+    email: profile.email || existing.email || '',
+    name: profile.name || existing.name || '',
+    photoURL: profile.photoURL || '',
+    profession: profile.profession || existing.profession || '',
+    professionLabel: profile.professionLabel || existing.professionLabel || '',
+    institution: profile.institution || existing.institution || '',
+    professionalId: profile.professionalId || existing.professionalId || '',
+    demoAccess: false,
+  };
+
+  // Sensitive billing and identity fields are deliberately not persisted in localStorage.
+  delete safeProfile.taxNumber;
+  delete safeProfile.mobile;
+  delete safeProfile.dateOfBirth;
+  delete safeProfile.gender;
+  delete safeProfile.billingAddress;
+  delete safeProfile.billingPostalCode;
+  delete safeProfile.billingCity;
+  delete safeProfile.billingCountry;
+
+  window.localStorage.setItem(LOCAL_KEY, JSON.stringify(safeProfile));
 }
 
 function userBaseProfile(user) {
@@ -72,6 +96,7 @@ export async function saveParticipantProfile(user, profile) {
 
   writeLocalProfile(next);
 
+  let remoteSaved = false;
   const db = getFirebaseFirestore();
   if (db) {
     try {
@@ -82,13 +107,14 @@ export async function saveParticipantProfile(user, profile) {
         },
         { merge: true }
       );
+      remoteSaved = true;
     } catch (error) {
-      // Keep a local fallback until Firestore is enabled/configured in the Firebase project.
+      // The account remains usable while Firestore is being activated, but sensitive fields are never stored locally.
       if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
     }
   }
 
-  return next;
+  return { ...next, __remoteSaved: remoteSaved };
 }
 
 export function validateProfilePhoto(file) {
