@@ -1,0 +1,218 @@
+.account-subnav {
+  margin: 28px 0 0;
+  padding: 0 42px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-subnav a,
+.account-subnav span {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid rgba(20, 24, 70, 0.16);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.account-subnav span[aria-current='page'] {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
+.participant-form-section {
+  padding-top: 34px;
+}
+
+.profile-section-heading {
+  margin-bottom: 30px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-section-heading--spaced {
+  margin-top: 58px;
+}
+
+.profile-section-heading .eyebrow {
+  margin-bottom: 8px;
+  color: var(--coral);
+}
+
+.profile-section-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  font-weight: 500;
+}
+
+.account-profile-form textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(20, 24, 70, 0.28);
+  border-radius: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.05rem;
+}
+
+.account-profile-form textarea:focus {
+  border-bottom-color: var(--blue);
+}
+
+.account-profile-form input[readonly] {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
+.account-profile-form label small {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.account-security-grid {
+  margin-top: 46px;
+  padding: 0 42px 70px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.account-security-card {
+  padding: 34px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.account-security-card > .eyebrow {
+  color: var(--coral);
+}
+
+.account-security-card h2 {
+  margin: 10px 0 22px;
+  color: var(--ink);
+  font-size: clamp(2rem, 3vw, 3.4rem);
+  font-weight: 500;
+}
+
+.account-security-card > p:not(.eyebrow),
+.security-provider-note p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.security-form,
+.security-danger-field {
+  display: grid;
+  gap: 18px;
+}
+
+.security-form label,
+.security-danger-field {
+  display: block;
+}
+
+.security-form label span,
+.security-danger-field span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.security-form input,
+.security-danger-field input {
+  width: 100%;
+  min-height: 54px;
+  padding: 13px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(20, 24, 70, 0.28);
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.security-form input:focus,
+.security-danger-field input:focus {
+  border-bottom-color: var(--blue);
+}
+
+.security-provider-note {
+  padding: 18px 20px;
+  border: 1px solid rgba(35, 46, 183, 0.18);
+  background: rgba(35, 46, 183, 0.05);
+}
+
+.security-provider-note p {
+  margin-bottom: 0;
+}
+
+.account-security-card--danger {
+  border-color: rgba(230, 80, 59, 0.35);
+  background: rgba(230, 80, 59, 0.045);
+}
+
+.account-security-card--danger .security-danger-field {
+  margin-top: 24px;
+}
+
+.account-danger-button {
+  margin-top: 26px;
+  min-height: 50px;
+  padding: 12px 18px;
+  border: 1px solid var(--coral);
+  background: var(--coral);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-danger-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 820px) {
+  .account-subnav {
+    padding: 0 22px;
+  }
+
+  .account-security-grid {
+    padding: 0 22px 56px;
+    grid-template-columns: 1fr;
+  }
+
+  .account-security-card {
+    padding: 26px 22px;
+  }
+}
+
+@media (max-width: 620px) {
+  .participant-form-section {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  .profile-section-heading--spaced {
+    margin-top: 46px;
+  }
+}
