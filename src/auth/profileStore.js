@@ -28,6 +28,17 @@ function userBaseProfile(user) {
   };
 }
 
+function serviceNotReady(error) {
+  const code = error?.code || '';
+  return [
+    'failed-precondition',
+    'not-found',
+    'unavailable',
+    'storage/bucket-not-found',
+    'storage/object-not-found',
+  ].includes(code);
+}
+
 export async function loadParticipantProfile(user) {
   const local = readLocalProfile();
   const base = { ...local, ...userBaseProfile(user) };
@@ -63,13 +74,18 @@ export async function saveParticipantProfile(user, profile) {
 
   const db = getFirebaseFirestore();
   if (db) {
-    await db.collection('users').doc(user.uid).set(
-      {
-        ...next,
-        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    try {
+      await db.collection('users').doc(user.uid).set(
+        {
+          ...next,
+          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      // Keep a local fallback until Firestore is enabled/configured in the Firebase project.
+      if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
+    }
   }
 
   return next;
@@ -90,13 +106,18 @@ export async function uploadParticipantPhoto(user, file) {
   if (!storage) throw new Error('profile/storage-not-configured');
 
   const reference = storage.ref().child(`users/${user.uid}/profile/avatar`);
-  await reference.put(file, {
-    contentType: file.type,
-    cacheControl: 'public,max-age=3600',
-    customMetadata: { ownerUid: user.uid },
-  });
-  const photoURL = await reference.getDownloadURL();
+  try {
+    await reference.put(file, {
+      contentType: file.type,
+      cacheControl: 'public,max-age=3600',
+      customMetadata: { ownerUid: user.uid },
+    });
+  } catch (error) {
+    if (serviceNotReady(error)) throw new Error('profile/storage-not-configured');
+    throw error;
+  }
 
+  const photoURL = await reference.getDownloadURL();
   await user.updateProfile({ photoURL });
   await user.reload();
 
@@ -113,7 +134,7 @@ export async function removeParticipantPhoto(user) {
     try {
       await storage.ref().child(`users/${user.uid}/profile/avatar`).delete();
     } catch (error) {
-      if (error?.code !== 'storage/object-not-found') throw error;
+      if (!serviceNotReady(error)) throw error;
     }
   }
 
@@ -132,7 +153,7 @@ export async function deleteParticipantData(user) {
     try {
       await storage.ref().child(`users/${user.uid}/profile/avatar`).delete();
     } catch (error) {
-      if (error?.code !== 'storage/object-not-found') throw error;
+      if (!serviceNotReady(error)) throw error;
     }
   }
 
@@ -141,7 +162,7 @@ export async function deleteParticipantData(user) {
     try {
       await db.collection('users').doc(user.uid).delete();
     } catch (error) {
-      throw error;
+      if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
     }
   }
 
