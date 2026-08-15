@@ -18,10 +18,9 @@ import {
   ParticipatePage,
   ProgramPage,
 } from './pages/InfoPages';
-import {
-  AccountProfilePage,
-  AccountRegistrationsPage,
-} from './pages/AccountPages';
+import { AccountRegistrationsPage } from './pages/AccountPages';
+import ParticipantProfilePage from './pages/ParticipantProfilePage';
+import AccountSecurityPage from './pages/AccountSecurityPage';
 import {
   AuthenticatedAccountPage,
   ForgotPasswordPage,
@@ -76,7 +75,15 @@ function App() {
               path="/conta/perfil"
               element={
                 <ProtectedRoute>
-                  <AccountProfilePage />
+                  <ParticipantProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/conta/seguranca"
+              element={
+                <ProtectedRoute>
+                  <AccountSecurityPage />
                 </ProtectedRoute>
               }
             />
