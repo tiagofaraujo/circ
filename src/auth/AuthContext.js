@@ -86,10 +86,6 @@ export function AuthProvider({ children }) {
 
       applyAuthLanguage(auth, language);
       await ensurePersistence(auth);
-
-      // The CIRC website is hosted on Cloudflare rather than Firebase Hosting.
-      // Firebase recommends popup sign-in as the simplest production option in this setup,
-      // avoiding third-party-storage limitations that affect signInWithRedirect.
       const credential = await auth.signInWithPopup(provider);
       syncLegacyAccount(credential.user);
       return credential.user;
@@ -122,6 +118,51 @@ export function AuthProvider({ children }) {
       if (!auth?.currentUser) throw new Error('auth/user-not-found');
       applyAuthLanguage(auth, language);
       return auth.currentUser.sendEmailVerification();
+    },
+
+    async updateDisplayName(name) {
+      const auth = getFirebaseAuth();
+      if (!auth?.currentUser) throw new Error('auth/user-not-found');
+      await auth.currentUser.updateProfile({ displayName: name.trim() });
+      await auth.currentUser.reload();
+      const currentUser = auth.currentUser;
+      setUser(currentUser);
+      syncLegacyAccount(currentUser);
+      return currentUser;
+    },
+
+    async changePassword(currentPassword, newPassword) {
+      const auth = getFirebaseAuth();
+      const currentUser = auth?.currentUser;
+      if (!currentUser?.email || !window.firebase) throw new Error('auth/user-not-found');
+
+      const hasPasswordProvider = currentUser.providerData?.some((provider) => provider.providerId === 'password');
+      if (!hasPasswordProvider) throw new Error('auth/provider-not-password');
+
+      const credential = window.firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+      await currentUser.reauthenticateWithCredential(credential);
+      await currentUser.updatePassword(newPassword);
+    },
+
+    async deleteAccount(currentPassword = '') {
+      const auth = getFirebaseAuth();
+      const currentUser = auth?.currentUser;
+      if (!currentUser || !window.firebase) throw new Error('auth/user-not-found');
+
+      const providers = currentUser.providerData?.map((provider) => provider.providerId) || [];
+      if (providers.includes('password')) {
+        if (!currentUser.email || !currentPassword) throw new Error('auth/wrong-password');
+        const credential = window.firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+        await currentUser.reauthenticateWithCredential(credential);
+      } else if (providers.includes('google.com')) {
+        const provider = createGoogleProvider();
+        if (!provider) throw new Error('auth/not-configured');
+        await currentUser.reauthenticateWithPopup(provider);
+      }
+
+      await currentUser.delete();
+      clearLegacyAccount();
+      setUser(null);
     },
 
     async signOut() {
