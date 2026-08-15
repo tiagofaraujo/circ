@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import '../auth.css';
 
 function getErrorCode(error) {
@@ -55,6 +56,9 @@ function GoogleIcon() {
 }
 
 function AuthLayout({ eyebrow, title, subtitle, children, asideTitle, asideText }) {
+  const { language } = useLanguage();
+  const isEnglish = language === 'en';
+
   return (
     <main className="auth-page">
       <section className="auth-shell">
@@ -69,7 +73,7 @@ function AuthLayout({ eyebrow, title, subtitle, children, asideTitle, asideText 
         <aside className="auth-aside">
           <div>
             <span className="auth-aside__date">08—10</span>
-            <p className="eyebrow">Abril 2027 · Coimbra</p>
+            <p className="eyebrow">{isEnglish ? 'April 2027 · Coimbra' : 'Abril 2027 · Coimbra'}</p>
           </div>
           <div>
             <h2>{asideTitle}</h2>
@@ -95,6 +99,8 @@ function ConfigurationNotice({ isEnglish }) {
 }
 
 export function LoginPage() {
+  const { language } = useLanguage();
+  const isEnglish = language === 'en';
   const { configured, user, signInWithEmail, signInWithGoogle } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -103,7 +109,6 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const isEnglish = false;
   const destination = location.state?.from || '/conta';
 
   if (user) return <Navigate to={destination} replace />;
@@ -113,7 +118,7 @@ export function LoginPage() {
     setError('');
     setBusy(true);
     try {
-      await signInWithEmail(email, password);
+      await signInWithEmail(email, password, language);
       navigate(destination, { replace: true });
     } catch (authError) {
       setError(authErrorMessage(authError, isEnglish));
@@ -126,8 +131,8 @@ export function LoginPage() {
     setError('');
     setBusy(true);
     try {
-      await signInWithGoogle();
-      navigate(destination, { replace: true });
+      const result = await signInWithGoogle(language);
+      if (result) navigate(destination, { replace: true });
     } catch (authError) {
       setError(authErrorMessage(authError, isEnglish));
     } finally {
@@ -137,66 +142,54 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      eyebrow="Área CIRC · Participante"
-      title="Entrar na Área CIRC"
-      subtitle="Utilize a sua conta Google ou entre com email e palavra-passe."
-      asideTitle="Uma conta para toda a experiência CIRC."
-      asideText="Inscrição, dados profissionais, bilhete digital e, futuramente, certificados reunidos num único acesso."
+      eyebrow={isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}
+      title={isEnglish ? 'Sign in to My CIRC' : 'Entrar na Área CIRC'}
+      subtitle={isEnglish ? 'Use your Google account or sign in with email and password.' : 'Utilize a sua conta Google ou entre com email e palavra-passe.'}
+      asideTitle={isEnglish ? 'One account for the complete CIRC experience.' : 'Uma conta para toda a experiência CIRC.'}
+      asideText={isEnglish ? 'Registration, professional details, digital ticket and, in the future, certificates in one secure account.' : 'Inscrição, dados profissionais, bilhete digital e, futuramente, certificados reunidos num único acesso.'}
     >
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
 
       <button className="auth-google-button" type="button" onClick={handleGoogleLogin} disabled={busy || !configured}>
         <GoogleIcon />
-        <span>Continuar com Google</span>
+        <span>{isEnglish ? 'Continue with Google' : 'Continuar com Google'}</span>
       </button>
 
-      <div className="auth-divider"><span>ou</span></div>
+      <div className="auth-divider"><span>{isEnglish ? 'or' : 'ou'}</span></div>
 
       <form className="auth-form" onSubmit={handleEmailLogin}>
         <label htmlFor="login-email">Email</label>
-        <input
-          id="login-email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="nome@instituicao.pt"
-          required
-        />
+        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'name@institution.org' : 'nome@instituicao.pt'} required />
 
         <div className="auth-password-row">
-          <label htmlFor="login-password">Palavra-passe</label>
-          <Link to="/recuperar-password">Esqueceu-se?</Link>
+          <label htmlFor="login-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
+          <Link to="/recuperar-password">{isEnglish ? 'Forgot password?' : 'Esqueceu-se?'}</Link>
         </div>
         <div className="auth-password-field">
-          <input
-            id="login-password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="A sua palavra-passe"
-            required
-          />
-          <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}>
-            {showPassword ? 'Ocultar' : 'Mostrar'}
+          <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isEnglish ? 'Your password' : 'A sua palavra-passe'} required />
+          <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? (isEnglish ? 'Hide password' : 'Ocultar palavra-passe') : (isEnglish ? 'Show password' : 'Mostrar palavra-passe')}>
+            {showPassword ? (isEnglish ? 'Hide' : 'Ocultar') : (isEnglish ? 'Show' : 'Mostrar')}
           </button>
         </div>
 
         {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
 
         <button className="auth-primary-button" type="submit" disabled={busy || !configured}>
-          {busy ? 'A entrar…' : 'Entrar'}
+          {busy ? (isEnglish ? 'Signing in…' : 'A entrar…') : (isEnglish ? 'Sign in' : 'Entrar')}
         </button>
       </form>
 
-      <p className="auth-switch">Ainda não tem conta? <Link to="/registar">Criar conta</Link></p>
+      <p className="auth-switch">
+        {isEnglish ? 'New to CIRC?' : 'Ainda não tem conta?'}{' '}
+        <Link to="/registar">{isEnglish ? 'Create account' : 'Criar conta'}</Link>
+      </p>
     </AuthLayout>
   );
 }
 
 export function RegisterPage() {
+  const { language } = useLanguage();
+  const isEnglish = language === 'en';
   const { configured, user, registerWithEmail, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -212,22 +205,21 @@ export function RegisterPage() {
   const handleRegister = async (event) => {
     event.preventDefault();
     setError('');
-
     if (password.length < 8) {
-      setError('Utilize uma palavra-passe com pelo menos 8 caracteres.');
+      setError(isEnglish ? 'Use a password with at least 8 characters.' : 'Utilize uma palavra-passe com pelo menos 8 caracteres.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('As palavras-passe não coincidem.');
+      setError(isEnglish ? 'The passwords do not match.' : 'As palavras-passe não coincidem.');
       return;
     }
 
     setBusy(true);
     try {
-      await registerWithEmail(name, email, password);
+      await registerWithEmail(name, email, password, language);
       navigate('/conta', { replace: true, state: { newAccount: true } });
     } catch (authError) {
-      setError(authErrorMessage(authError));
+      setError(authErrorMessage(authError, isEnglish));
     } finally {
       setBusy(false);
     }
@@ -237,10 +229,10 @@ export function RegisterPage() {
     setError('');
     setBusy(true);
     try {
-      await signInWithGoogle();
-      navigate('/conta', { replace: true });
+      const result = await signInWithGoogle(language);
+      if (result) navigate('/conta', { replace: true });
     } catch (authError) {
-      setError(authErrorMessage(authError));
+      setError(authErrorMessage(authError, isEnglish));
     } finally {
       setBusy(false);
     }
@@ -248,68 +240,56 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      eyebrow="Área CIRC · Novo participante"
-      title="Criar conta CIRC"
-      subtitle="Crie uma conta segura para acompanhar a sua participação no CIRC 2027."
-      asideTitle="Comece agora. Complete o perfil depois."
-      asideText="A conta poderá ser criada antes da abertura das inscrições. Os dados de participação serão acrescentados progressivamente."
+      eyebrow={isEnglish ? 'My CIRC · New participant' : 'Área CIRC · Novo participante'}
+      title={isEnglish ? 'Create your CIRC account' : 'Criar conta CIRC'}
+      subtitle={isEnglish ? 'Create a secure account to manage your participation in CIRC 2027.' : 'Crie uma conta segura para acompanhar a sua participação no CIRC 2027.'}
+      asideTitle={isEnglish ? 'Start now. Complete your profile later.' : 'Comece agora. Complete o perfil depois.'}
+      asideText={isEnglish ? 'You can create your account before registration opens. Participation details will be added progressively.' : 'A conta poderá ser criada antes da abertura das inscrições. Os dados de participação serão acrescentados progressivamente.'}
     >
-      {!configured && <ConfigurationNotice isEnglish={false} />}
+      {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
 
       <button className="auth-google-button" type="button" onClick={handleGoogleRegister} disabled={busy || !configured}>
         <GoogleIcon />
-        <span>Criar conta com Google</span>
+        <span>{isEnglish ? 'Create account with Google' : 'Criar conta com Google'}</span>
       </button>
 
-      <div className="auth-divider"><span>ou</span></div>
+      <div className="auth-divider"><span>{isEnglish ? 'or' : 'ou'}</span></div>
 
       <form className="auth-form" onSubmit={handleRegister}>
-        <label htmlFor="register-name">Nome completo</label>
+        <label htmlFor="register-name">{isEnglish ? 'Full name' : 'Nome completo'}</label>
         <input id="register-name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
 
         <label htmlFor="register-email">Email</label>
         <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
 
-        <label htmlFor="register-password">Palavra-passe</label>
+        <label htmlFor="register-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
         <div className="auth-password-field">
-          <input
-            id="register-password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            minLength="8"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            aria-describedby="password-help"
-            required
-          />
-          <button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? 'Ocultar' : 'Mostrar'}</button>
+          <input id="register-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby="password-help" required />
+          <button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? (isEnglish ? 'Hide' : 'Ocultar') : (isEnglish ? 'Show' : 'Mostrar')}</button>
         </div>
-        <small id="password-help" className="auth-help">Mínimo de 8 caracteres.</small>
+        <small id="password-help" className="auth-help">{isEnglish ? 'Minimum 8 characters.' : 'Mínimo de 8 caracteres.'}</small>
 
-        <label htmlFor="register-password-confirm">Confirmar palavra-passe</label>
-        <input
-          id="register-password-confirm"
-          type={showPassword ? 'text' : 'password'}
-          autoComplete="new-password"
-          minLength="8"
-          value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          required
-        />
+        <label htmlFor="register-password-confirm">{isEnglish ? 'Confirm password' : 'Confirmar palavra-passe'}</label>
+        <input id="register-password-confirm" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
 
         {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
 
         <button className="auth-primary-button" type="submit" disabled={busy || !configured}>
-          {busy ? 'A criar conta…' : 'Criar conta'}
+          {busy ? (isEnglish ? 'Creating account…' : 'A criar conta…') : (isEnglish ? 'Create account' : 'Criar conta')}
         </button>
       </form>
 
-      <p className="auth-switch">Já tem conta? <Link to="/login">Entrar</Link></p>
+      <p className="auth-switch">
+        {isEnglish ? 'Already have an account?' : 'Já tem conta?'}{' '}
+        <Link to="/login">{isEnglish ? 'Sign in' : 'Entrar'}</Link>
+      </p>
     </AuthLayout>
   );
 }
 
 export function ForgotPasswordPage() {
+  const { language } = useLanguage();
+  const isEnglish = language === 'en';
   const { configured, sendPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -322,10 +302,10 @@ export function ForgotPasswordPage() {
     setSent(false);
     setBusy(true);
     try {
-      await sendPasswordReset(email);
+      await sendPasswordReset(email, language);
       setSent(true);
     } catch (authError) {
-      setError(authErrorMessage(authError));
+      setError(authErrorMessage(authError, isEnglish));
     } finally {
       setBusy(false);
     }
@@ -333,35 +313,37 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout
-      eyebrow="Área CIRC · Segurança"
-      title="Recuperar palavra-passe"
-      subtitle="Indique o email da sua conta. Enviaremos as instruções de recuperação."
-      asideTitle="Recupere o acesso com segurança."
-      asideText="A palavra-passe nunca é enviada por email. Receberá um link seguro para definir uma nova."
+      eyebrow={isEnglish ? 'My CIRC · Security' : 'Área CIRC · Segurança'}
+      title={isEnglish ? 'Reset your password' : 'Recuperar palavra-passe'}
+      subtitle={isEnglish ? 'Enter your account email. We will send you secure recovery instructions.' : 'Indique o email da sua conta. Enviaremos as instruções de recuperação.'}
+      asideTitle={isEnglish ? 'Recover access securely.' : 'Recupere o acesso com segurança.'}
+      asideText={isEnglish ? 'Your password is never sent by email. You will receive a secure link to create a new one.' : 'A palavra-passe nunca é enviada por email. Receberá um link seguro para definir uma nova.'}
     >
-      {!configured && <ConfigurationNotice isEnglish={false} />}
+      {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
       <form className="auth-form" onSubmit={handleReset}>
         <label htmlFor="reset-email">Email</label>
         <input id="reset-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
 
-        {sent && <div className="auth-notice auth-notice--success" role="status">Se existir uma conta associada a este endereço, receberá um email com as instruções de recuperação.</div>}
+        {sent && <div className="auth-notice auth-notice--success" role="status">{isEnglish ? 'If an account exists for this address, you will receive an email with recovery instructions.' : 'Se existir uma conta associada a este endereço, receberá um email com as instruções de recuperação.'}</div>}
         {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
 
-        <button className="auth-primary-button" type="submit" disabled={busy || !configured}>{busy ? 'A enviar…' : 'Enviar instruções'}</button>
+        <button className="auth-primary-button" type="submit" disabled={busy || !configured}>{busy ? (isEnglish ? 'Sending…' : 'A enviar…') : (isEnglish ? 'Send instructions' : 'Enviar instruções')}</button>
       </form>
-      <p className="auth-switch"><Link to="/login">← Voltar ao login</Link></p>
+      <p className="auth-switch"><Link to="/login">{isEnglish ? '← Back to sign in' : '← Voltar ao login'}</Link></p>
     </AuthLayout>
   );
 }
 
 export function AuthenticatedAccountPage() {
+  const { language } = useLanguage();
+  const isEnglish = language === 'en';
   const { user, signOut, resendVerification } = useAuth();
   const navigate = useNavigate();
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const isPasswordAccount = user?.providerData?.some((provider) => provider.providerId === 'password');
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Participante';
+  const displayName = user?.displayName || user?.email?.split('@')[0] || (isEnglish ? 'Participant' : 'Participante');
 
   const handleSignOut = async () => {
     setBusy(true);
@@ -372,7 +354,7 @@ export function AuthenticatedAccountPage() {
   const handleVerification = async () => {
     setBusy(true);
     try {
-      await resendVerification();
+      await resendVerification(language);
       setVerificationSent(true);
     } finally {
       setBusy(false);
@@ -383,9 +365,9 @@ export function AuthenticatedAccountPage() {
     <main className="account-page auth-account-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">Área CIRC · Participante</p>
-          <h1>Olá, {displayName}</h1>
-          <p>CIRC 2027 · Coimbra · 8–10 abril</p>
+          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}</p>
+          <h1>{isEnglish ? 'Hello' : 'Olá'}, {displayName}</h1>
+          <p>{isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 abril'}</p>
         </div>
         {user?.photoURL ? <img className="auth-account-avatar" src={user.photoURL} alt="" /> : <div className="auth-account-avatar auth-account-avatar--initials">{displayName.slice(0, 1).toUpperCase()}</div>}
       </section>
@@ -393,34 +375,34 @@ export function AuthenticatedAccountPage() {
       {isPasswordAccount && !user.emailVerified && (
         <section className="auth-verification-banner">
           <div>
-            <strong>Confirme o seu endereço de email.</strong>
-            <p>Enviámos uma mensagem de verificação para {user.email}. A confirmação reforça a segurança da sua conta.</p>
+            <strong>{isEnglish ? 'Confirm your email address.' : 'Confirme o seu endereço de email.'}</strong>
+            <p>{isEnglish ? `We sent a verification message to ${user.email}. Verification adds an extra layer of security to your account.` : `Enviámos uma mensagem de verificação para ${user.email}. A confirmação reforça a segurança da sua conta.`}</p>
           </div>
-          <button type="button" onClick={handleVerification} disabled={busy}>{verificationSent ? 'Email reenviado' : 'Reenviar verificação'}</button>
+          <button type="button" onClick={handleVerification} disabled={busy}>{verificationSent ? (isEnglish ? 'Verification email sent' : 'Email reenviado') : (isEnglish ? 'Resend verification' : 'Reenviar verificação')}</button>
         </section>
       )}
 
       <section className="auth-account-grid">
         <article className="auth-account-card auth-account-card--primary">
           <span>01</span>
-          <p className="eyebrow">Inscrição</p>
-          <h2>Ainda não aberta</h2>
-          <p>Quando as inscrições forem disponibilizadas, poderá iniciar e acompanhar todo o processo nesta área.</p>
-          <Link to="/conta/inscricoes">Ver opções previstas →</Link>
+          <p className="eyebrow">{isEnglish ? 'Registration' : 'Inscrição'}</p>
+          <h2>{isEnglish ? 'Not open yet' : 'Ainda não aberta'}</h2>
+          <p>{isEnglish ? 'When registration opens, you will be able to start and follow the complete process in this area.' : 'Quando as inscrições forem disponibilizadas, poderá iniciar e acompanhar todo o processo nesta área.'}</p>
+          <Link to="/conta/inscricoes">{isEnglish ? 'See planned options →' : 'Ver opções previstas →'}</Link>
         </article>
         <article className="auth-account-card">
           <span>02</span>
-          <p className="eyebrow">Perfil</p>
-          <h2>Dados profissionais</h2>
-          <p>Complete os dados que serão utilizados na inscrição e documentação do congresso.</p>
-          <Link to="/conta/perfil">Editar perfil →</Link>
+          <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
+          <h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2>
+          <p>{isEnglish ? 'Complete the information that will be used for registration and congress documentation.' : 'Complete os dados que serão utilizados na inscrição e documentação do congresso.'}</p>
+          <Link to="/conta/perfil">{isEnglish ? 'Edit profile →' : 'Editar perfil →'}</Link>
         </article>
         <article className="auth-account-card">
           <span>03</span>
-          <p className="eyebrow">Conta</p>
+          <p className="eyebrow">{isEnglish ? 'Account' : 'Conta'}</p>
           <h2>{user?.email}</h2>
-          <p>{user?.emailVerified ? 'Email verificado.' : 'Email ainda não verificado.'}</p>
-          <button className="auth-signout-button" type="button" onClick={handleSignOut} disabled={busy}>Terminar sessão</button>
+          <p>{user?.emailVerified ? (isEnglish ? 'Email verified.' : 'Email verificado.') : (isEnglish ? 'Email not yet verified.' : 'Email ainda não verificado.')}</p>
+          <button className="auth-signout-button" type="button" onClick={handleSignOut} disabled={busy}>{isEnglish ? 'Sign out' : 'Terminar sessão'}</button>
         </article>
       </section>
     </main>
