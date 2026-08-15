@@ -43,13 +43,6 @@ function applyAuthLanguage(auth, language = 'pt') {
   auth.languageCode = language === 'en' ? 'en' : 'pt';
 }
 
-function shouldUseRedirect() {
-  if (typeof window === 'undefined') return false;
-  const narrowScreen = window.matchMedia?.('(max-width: 820px)')?.matches;
-  const touchDevice = navigator.maxTouchPoints > 0;
-  return Boolean(narrowScreen && touchDevice);
-}
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,22 +87,12 @@ export function AuthProvider({ children }) {
       applyAuthLanguage(auth, language);
       await ensurePersistence(auth);
 
-      if (shouldUseRedirect()) {
-        await auth.signInWithRedirect(provider);
-        return null;
-      }
-
-      try {
-        const credential = await auth.signInWithPopup(provider);
-        syncLegacyAccount(credential.user);
-        return credential.user;
-      } catch (error) {
-        if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
-          await auth.signInWithRedirect(provider);
-          return null;
-        }
-        throw error;
-      }
+      // The CIRC website is hosted on Cloudflare rather than Firebase Hosting.
+      // Firebase recommends popup sign-in as the simplest production option in this setup,
+      // avoiding third-party-storage limitations that affect signInWithRedirect.
+      const credential = await auth.signInWithPopup(provider);
+      syncLegacyAccount(credential.user);
+      return credential.user;
     },
 
     async registerWithEmail(name, email, password, language = 'pt') {
