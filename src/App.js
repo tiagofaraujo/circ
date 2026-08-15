@@ -19,13 +19,13 @@ import {
   ProgramPage,
 } from './pages/InfoPages';
 import { AccountRegistrationsPage } from './pages/AccountPages';
-import ParticipantProfilePage from './pages/ParticipantProfilePage';
+import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
+import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import {
   AuthenticatedAccountPage,
   ForgotPasswordPage,
   LoginPage,
-  RegisterPage,
 } from './pages/AuthPages';
 
 import './App.css';
@@ -61,7 +61,7 @@ function App() {
             <Route path="/contactos" element={<ContactPage />} />
 
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/registar" element={<RegisterPage />} />
+            <Route path="/registar" element={<RegisterWithPhotoPage />} />
             <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
             <Route
               path="/conta"
@@ -75,7 +75,7 @@ function App() {
               path="/conta/perfil"
               element={
                 <ProtectedRoute>
-                  <ParticipantProfilePage />
+                  <ParticipantProfileFirebasePage />
                 </ProtectedRoute>
               }
             />
