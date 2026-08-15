@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { createGoogleProvider, firebaseConfigured, getFirebaseAuth } from './firebaseClient';
+import {
+  deleteParticipantData,
+  removeParticipantPhoto,
+  uploadParticipantPhoto,
+} from './profileStore';
 
 const AuthContext = createContext(null);
 const LEGACY_ACCOUNT_KEY = 'circ_demo_account';
@@ -102,8 +107,10 @@ export function AuthProvider({ children }) {
         await credential.user.reload();
       }
       await credential.user.sendEmailVerification();
-      syncLegacyAccount(auth.currentUser || credential.user);
-      return auth.currentUser || credential.user;
+      const currentUser = auth.currentUser || credential.user;
+      setUser(currentUser);
+      syncLegacyAccount(currentUser);
+      return currentUser;
     },
 
     async sendPasswordReset(email, language = 'pt') {
@@ -129,6 +136,27 @@ export function AuthProvider({ children }) {
       setUser(currentUser);
       syncLegacyAccount(currentUser);
       return currentUser;
+    },
+
+    async uploadProfilePhoto(file) {
+      const auth = getFirebaseAuth();
+      const currentUser = auth?.currentUser;
+      if (!currentUser) throw new Error('auth/user-not-found');
+      const photoURL = await uploadParticipantPhoto(currentUser, file);
+      await currentUser.reload();
+      setUser(auth.currentUser);
+      syncLegacyAccount(auth.currentUser);
+      return photoURL;
+    },
+
+    async removeProfilePhoto() {
+      const auth = getFirebaseAuth();
+      const currentUser = auth?.currentUser;
+      if (!currentUser) throw new Error('auth/user-not-found');
+      await removeParticipantPhoto(currentUser);
+      await currentUser.reload();
+      setUser(auth.currentUser);
+      syncLegacyAccount(auth.currentUser);
     },
 
     async changePassword(currentPassword, newPassword) {
@@ -160,6 +188,7 @@ export function AuthProvider({ children }) {
         await currentUser.reauthenticateWithPopup(provider);
       }
 
+      await deleteParticipantData(currentUser);
       await currentUser.delete();
       clearLegacyAccount();
       setUser(null);
