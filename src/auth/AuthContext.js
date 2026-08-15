@@ -38,6 +38,18 @@ async function ensurePersistence(auth) {
   await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
 }
 
+function applyAuthLanguage(auth, language = 'pt') {
+  if (!auth) return;
+  auth.languageCode = language === 'en' ? 'en' : 'pt';
+}
+
+function shouldUseRedirect() {
+  if (typeof window === 'undefined') return false;
+  const narrowScreen = window.matchMedia?.('(max-width: 820px)')?.matches;
+  const touchDevice = navigator.maxTouchPoints > 0;
+  return Boolean(narrowScreen && touchDevice);
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,28 +76,46 @@ export function AuthProvider({ children }) {
     user,
     loading,
 
-    async signInWithEmail(email, password) {
+    async signInWithEmail(email, password, language = 'pt') {
       const auth = getFirebaseAuth();
       if (!auth) throw new Error('auth/not-configured');
+      applyAuthLanguage(auth, language);
       await ensurePersistence(auth);
       const credential = await auth.signInWithEmailAndPassword(email.trim(), password);
       syncLegacyAccount(credential.user);
       return credential.user;
     },
 
-    async signInWithGoogle() {
+    async signInWithGoogle(language = 'pt') {
       const auth = getFirebaseAuth();
       const provider = createGoogleProvider();
       if (!auth || !provider) throw new Error('auth/not-configured');
+
+      applyAuthLanguage(auth, language);
       await ensurePersistence(auth);
-      const credential = await auth.signInWithPopup(provider);
-      syncLegacyAccount(credential.user);
-      return credential.user;
+
+      if (shouldUseRedirect()) {
+        await auth.signInWithRedirect(provider);
+        return null;
+      }
+
+      try {
+        const credential = await auth.signInWithPopup(provider);
+        syncLegacyAccount(credential.user);
+        return credential.user;
+      } catch (error) {
+        if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
+          await auth.signInWithRedirect(provider);
+          return null;
+        }
+        throw error;
+      }
     },
 
-    async registerWithEmail(name, email, password) {
+    async registerWithEmail(name, email, password, language = 'pt') {
       const auth = getFirebaseAuth();
       if (!auth) throw new Error('auth/not-configured');
+      applyAuthLanguage(auth, language);
       await ensurePersistence(auth);
       const credential = await auth.createUserWithEmailAndPassword(email.trim(), password);
       if (name.trim()) {
@@ -97,15 +127,17 @@ export function AuthProvider({ children }) {
       return auth.currentUser || credential.user;
     },
 
-    async sendPasswordReset(email) {
+    async sendPasswordReset(email, language = 'pt') {
       const auth = getFirebaseAuth();
       if (!auth) throw new Error('auth/not-configured');
+      applyAuthLanguage(auth, language);
       return auth.sendPasswordResetEmail(email.trim());
     },
 
-    async resendVerification() {
+    async resendVerification(language = 'pt') {
       const auth = getFirebaseAuth();
       if (!auth?.currentUser) throw new Error('auth/user-not-found');
+      applyAuthLanguage(auth, language);
       return auth.currentUser.sendEmailVerification();
     },
 
