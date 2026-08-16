@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { createGoogleProvider, firebaseConfigured, getFirebaseAuth } from './firebaseClient';
+import {
+  createGoogleProvider,
+  createMicrosoftProvider,
+  firebaseConfigured,
+  microsoftAuthEnabled,
+  getFirebaseAuth,
+} from './firebaseClient';
 import { deleteParticipantData } from './profileStore';
 
 const AuthContext = createContext(null);
@@ -67,6 +73,7 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(() => ({
     configured: firebaseConfigured,
+    microsoftAuthEnabled,
     user,
     loading,
 
@@ -83,6 +90,19 @@ export function AuthProvider({ children }) {
     async signInWithGoogle(language = 'pt') {
       const auth = getFirebaseAuth();
       const provider = createGoogleProvider();
+      if (!auth || !provider) throw new Error('auth/not-configured');
+
+      applyAuthLanguage(auth, language);
+      await ensurePersistence(auth);
+      const credential = await auth.signInWithPopup(provider);
+      syncLegacyAccount(credential.user);
+      return credential.user;
+    },
+
+    async signInWithMicrosoft(language = 'pt') {
+      if (!microsoftAuthEnabled) throw new Error('auth/microsoft-not-configured');
+      const auth = getFirebaseAuth();
+      const provider = createMicrosoftProvider();
       if (!auth || !provider) throw new Error('auth/not-configured');
 
       applyAuthLanguage(auth, language);
@@ -159,6 +179,10 @@ export function AuthProvider({ children }) {
         await currentUser.reauthenticateWithCredential(credential);
       } else if (providers.includes('google.com')) {
         const provider = createGoogleProvider();
+        if (!provider) throw new Error('auth/not-configured');
+        await currentUser.reauthenticateWithPopup(provider);
+      } else if (providers.includes('microsoft.com')) {
+        const provider = createMicrosoftProvider();
         if (!provider) throw new Error('auth/not-configured');
         await currentUser.reauthenticateWithPopup(provider);
       }
