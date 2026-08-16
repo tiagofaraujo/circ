@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { saveParticipantProfile, validateProfilePhoto } from '../auth/profileStore';
+import { saveParticipantProfile } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../auth.css';
-import '../profile-photo.css';
 
 function GoogleIcon() {
   return (
@@ -24,9 +23,7 @@ function friendlyError(error, isEnglish) {
     'auth/invalid-email': isEnglish ? 'Enter a valid email address.' : 'Introduza um endereço de email válido.',
     'auth/weak-password': isEnglish ? 'Use a stronger password.' : 'Utilize uma palavra-passe mais segura.',
     'auth/popup-closed-by-user': isEnglish ? 'Google sign-in was cancelled.' : 'O acesso Google foi cancelado.',
-    'profile/photo-type': isEnglish ? 'Use a JPG, PNG or WEBP image.' : 'Utilize uma imagem JPG, PNG ou WEBP.',
-    'profile/photo-size': isEnglish ? 'The photo must be no larger than 2 MB.' : 'A fotografia não pode exceder 2 MB.',
-    'profile/storage-not-configured': isEnglish ? 'The account was created, but photo storage is not active yet. You can add the photo later in your profile.' : 'A conta foi criada, mas o armazenamento de fotografias ainda não está ativo. Pode adicionar a fotografia mais tarde no perfil.',
+    'auth/popup-blocked': isEnglish ? 'Your browser blocked the Google sign-in window.' : 'O browser bloqueou a janela de acesso Google.',
   };
   return messages[code] || (isEnglish ? 'The operation could not be completed.' : 'Não foi possível concluir a operação.');
 }
@@ -34,45 +31,22 @@ function friendlyError(error, isEnglish) {
 export default function RegisterWithPhotoPage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
-  const { configured, user, registerWithEmail, signInWithGoogle, uploadProfilePhoto } = useAuth();
+  const { configured, user, registerWithEmail, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => () => {
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-  }, [photoPreview]);
-
   if (user) return <Navigate to="/conta" replace />;
-
-  const selectPhoto = (event) => {
-    const file = event.target.files?.[0];
-    setError('');
-    if (!file) return;
-    try {
-      validateProfilePhoto(file);
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    } catch (photoError) {
-      setPhotoFile(null);
-      setPhotoPreview('');
-      setError(friendlyError(photoError, isEnglish));
-    }
-  };
 
   const handleRegister = async (event) => {
     event.preventDefault();
     setError('');
-    setNotice('');
+
     if (password.length < 8) {
       setError(isEnglish ? 'Use a password with at least 8 characters.' : 'Utilize uma palavra-passe com pelo menos 8 caracteres.');
       return;
@@ -85,16 +59,11 @@ export default function RegisterWithPhotoPage() {
     setBusy(true);
     try {
       const createdUser = await registerWithEmail(name, email, password, language);
-      await saveParticipantProfile(createdUser, { name: name.trim(), email: email.trim().toLowerCase(), photoURL: '' });
-
-      if (photoFile) {
-        try {
-          await uploadProfilePhoto(photoFile);
-        } catch (photoError) {
-          setNotice(friendlyError(photoError, isEnglish));
-        }
-      }
-
+      await saveParticipantProfile(createdUser, {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        photoURL: '',
+      });
       navigate('/conta', { replace: true, state: { newAccount: true } });
     } catch (registerError) {
       setError(friendlyError(registerError, isEnglish));
@@ -130,7 +99,7 @@ export default function RegisterWithPhotoPage() {
           <div className="auth-panel__heading">
             <p className="eyebrow">{isEnglish ? 'My CIRC · New participant' : 'Área CIRC · Novo participante'}</p>
             <h1>{isEnglish ? 'Create your CIRC account' : 'Criar conta CIRC'}</h1>
-            <p>{isEnglish ? 'Create a secure account and add a profile photo if you wish.' : 'Crie uma conta segura e, se desejar, adicione uma fotografia de perfil.'}</p>
+            <p>{isEnglish ? 'Create a secure account to manage your participation in CIRC 2027.' : 'Crie uma conta segura para acompanhar a sua participação no CIRC 2027.'}</p>
           </div>
 
           <button className="auth-google-button" type="button" onClick={handleGoogleRegister} disabled={busy || !configured}>
@@ -141,18 +110,6 @@ export default function RegisterWithPhotoPage() {
           <div className="auth-divider"><span>{isEnglish ? 'or' : 'ou'}</span></div>
 
           <form className="auth-form" onSubmit={handleRegister}>
-            <div className="registration-photo-block">
-              <div className="profile-photo-preview profile-photo-preview--register">
-                {photoPreview ? <img src={photoPreview} alt="" /> : <span aria-hidden="true">{name.trim()?.charAt(0)?.toUpperCase() || 'C'}</span>}
-              </div>
-              <div>
-                <label className="profile-photo-upload-button" htmlFor="register-photo">{isEnglish ? 'Add profile photo' : 'Adicionar fotografia'}</label>
-                <input id="register-photo" className="profile-photo-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} />
-                <p>{isEnglish ? 'Optional · JPG, PNG or WEBP · max. 2 MB' : 'Opcional · JPG, PNG ou WEBP · máx. 2 MB'}</p>
-                {photoFile && <button className="profile-photo-remove-link" type="button" onClick={() => { if (photoPreview) URL.revokeObjectURL(photoPreview); setPhotoFile(null); setPhotoPreview(''); }}>{isEnglish ? 'Remove selected photo' : 'Remover fotografia selecionada'}</button>}
-              </div>
-            </div>
-
             <label htmlFor="register-name">{isEnglish ? 'Full name' : 'Nome completo'}</label>
             <input id="register-name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
 
@@ -170,7 +127,6 @@ export default function RegisterWithPhotoPage() {
             <input id="register-password-confirm" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
 
             {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
-            {notice && <div className="auth-notice auth-notice--warning" role="status">{notice}</div>}
 
             <button className="auth-primary-button" type="submit" disabled={busy || !configured}>{busy ? (isEnglish ? 'Creating account…' : 'A criar conta…') : (isEnglish ? 'Create account' : 'Criar conta')}</button>
           </form>
@@ -180,7 +136,7 @@ export default function RegisterWithPhotoPage() {
 
         <aside className="auth-aside">
           <div><span className="auth-aside__date">08—10</span><p className="eyebrow">{isEnglish ? 'April 2027 · Coimbra' : 'Abril 2027 · Coimbra'}</p></div>
-          <div><h2>{isEnglish ? 'Your CIRC identity, ready from day one.' : 'A sua identidade CIRC, preparada desde o primeiro dia.'}</h2><p>{isEnglish ? 'Your photo and details can be updated at any time in your participant profile.' : 'A fotografia e os dados podem ser atualizados a qualquer momento no perfil de participante.'}</p></div>
+          <div><h2>{isEnglish ? 'One account for the complete CIRC experience.' : 'Uma conta para toda a experiência CIRC.'}</h2><p>{isEnglish ? 'Google accounts use the Google profile avatar. Email accounts use a simple initials avatar for now.' : 'As contas Google utilizam o avatar do perfil Google. As contas por email utilizam, para já, um avatar simples com iniciais.'}</p></div>
         </aside>
       </section>
     </main>
