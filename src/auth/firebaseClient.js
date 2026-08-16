@@ -20,6 +20,9 @@ export const firebaseConfigured = requiredKeys.every(
   (key) => typeof firebaseConfig[key] === 'string' && firebaseConfig[key].trim().length > 0
 );
 
+// Microsoft stays hidden until the provider has been configured in Firebase.
+export const microsoftAuthEnabled = process.env.REACT_APP_MICROSOFT_AUTH_ENABLED === 'true';
+
 let authInstance = null;
 let firestoreInstance = null;
 
@@ -48,5 +51,15 @@ export function createGoogleProvider() {
   if (typeof window === 'undefined' || !window.firebase?.auth) return null;
   const provider = new window.firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
+export function createMicrosoftProvider() {
+  if (typeof window === 'undefined' || !window.firebase?.auth) return null;
+  const provider = new window.firebase.auth.OAuthProvider('microsoft.com');
+  provider.setCustomParameters({
+    tenant: 'common',
+    prompt: 'select_account',
+  });
   return provider;
 }
