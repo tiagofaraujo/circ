@@ -1,8 +1,6 @@
-import { getFirebaseFirestore, getFirebaseStorage } from './firebaseClient';
+import { getFirebaseFirestore } from './firebaseClient';
 
 const LOCAL_KEY = 'circ_demo_account';
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
 function readLocalProfile() {
   if (typeof window === 'undefined') return {};
@@ -54,13 +52,7 @@ function userBaseProfile(user) {
 
 function serviceNotReady(error) {
   const code = error?.code || '';
-  return [
-    'failed-precondition',
-    'not-found',
-    'unavailable',
-    'storage/bucket-not-found',
-    'storage/object-not-found',
-  ].includes(code);
+  return ['failed-precondition', 'not-found', 'unavailable'].includes(code);
 }
 
 export async function loadParticipantProfile(user) {
@@ -75,7 +67,12 @@ export async function loadParticipantProfile(user) {
     const snapshot = await db.collection('users').doc(user.uid).get();
     if (!snapshot.exists) return base;
     const remote = snapshot.data() || {};
-    const merged = { ...local, ...remote, ...userBaseProfile(user), photoURL: remote.photoURL || user?.photoURL || local.photoURL || '' };
+    const merged = {
+      ...local,
+      ...remote,
+      ...userBaseProfile(user),
+      photoURL: user?.photoURL || '',
+    };
     writeLocalProfile(merged);
     return merged;
   } catch (error) {
@@ -90,7 +87,7 @@ export async function saveParticipantProfile(user, profile) {
     firebaseUid: user.uid,
     email: user.email || profile.email || '',
     name: profile.name || user.displayName || '',
-    photoURL: profile.photoURL || user.photoURL || '',
+    photoURL: user.photoURL || '',
     demoAccess: false,
   };
 
@@ -109,7 +106,6 @@ export async function saveParticipantProfile(user, profile) {
       );
       remoteSaved = true;
     } catch (error) {
-      // The account remains usable while Firestore is being activated, but sensitive fields are never stored locally.
       if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
     }
   }
@@ -117,71 +113,8 @@ export async function saveParticipantProfile(user, profile) {
   return { ...next, __remoteSaved: remoteSaved };
 }
 
-export function validateProfilePhoto(file) {
-  if (!file) throw new Error('profile/photo-required');
-  if (!ALLOWED_TYPES.includes(file.type)) throw new Error('profile/photo-type');
-  if (file.size > MAX_PHOTO_BYTES) throw new Error('profile/photo-size');
-  return true;
-}
-
-export async function uploadParticipantPhoto(user, file) {
-  if (!user?.uid) throw new Error('auth/user-not-found');
-  validateProfilePhoto(file);
-
-  const storage = getFirebaseStorage();
-  if (!storage) throw new Error('profile/storage-not-configured');
-
-  const reference = storage.ref().child(`users/${user.uid}/profile/avatar`);
-  try {
-    await reference.put(file, {
-      contentType: file.type,
-      cacheControl: 'public,max-age=3600',
-      customMetadata: { ownerUid: user.uid },
-    });
-  } catch (error) {
-    if (serviceNotReady(error)) throw new Error('profile/storage-not-configured');
-    throw error;
-  }
-
-  const photoURL = await reference.getDownloadURL();
-  await user.updateProfile({ photoURL });
-  await user.reload();
-
-  const current = await loadParticipantProfile(user);
-  await saveParticipantProfile(user, { ...current, photoURL });
-  return photoURL;
-}
-
-export async function removeParticipantPhoto(user) {
-  if (!user?.uid) throw new Error('auth/user-not-found');
-
-  const storage = getFirebaseStorage();
-  if (storage) {
-    try {
-      await storage.ref().child(`users/${user.uid}/profile/avatar`).delete();
-    } catch (error) {
-      if (!serviceNotReady(error)) throw error;
-    }
-  }
-
-  await user.updateProfile({ photoURL: null });
-  await user.reload();
-
-  const current = await loadParticipantProfile(user);
-  await saveParticipantProfile(user, { ...current, photoURL: '' });
-}
-
 export async function deleteParticipantData(user) {
   if (!user?.uid) return;
-
-  const storage = getFirebaseStorage();
-  if (storage) {
-    try {
-      await storage.ref().child(`users/${user.uid}/profile/avatar`).delete();
-    } catch (error) {
-      if (!serviceNotReady(error)) throw error;
-    }
-  }
 
   const db = getFirebaseFirestore();
   if (db) {
