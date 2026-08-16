@@ -1,11 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import {
-  loadParticipantProfile,
-  saveParticipantProfile,
-  validateProfilePhoto,
-} from '../auth/profileStore';
+import { loadParticipantProfile, saveParticipantProfile } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../account.css';
 import '../account-settings.css';
@@ -47,42 +43,33 @@ function emptyForm(user) {
     billingPostalCode: '',
     billingCity: '',
     billingCountry: 'Portugal',
-    photoURL: user?.photoURL || '',
   };
-}
-
-function photoErrorMessage(error, isEnglish) {
-  const code = error?.code || error?.message || '';
-  const messages = {
-    'profile/photo-type': isEnglish ? 'Use a JPG, PNG or WEBP image.' : 'Utilize uma imagem JPG, PNG ou WEBP.',
-    'profile/photo-size': isEnglish ? 'The photo must be no larger than 2 MB.' : 'A fotografia não pode exceder 2 MB.',
-    'profile/storage-not-configured': isEnglish ? 'Photo storage is not active yet.' : 'O armazenamento de fotografias ainda não está ativo.',
-    'storage/unauthorized': isEnglish ? 'You do not have permission to change this photo.' : 'Não tem permissão para alterar esta fotografia.',
-  };
-  return messages[code] || (isEnglish ? 'The photo could not be updated.' : 'Não foi possível atualizar a fotografia.');
 }
 
 export default function ParticipantProfileFirebasePage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
-  const { user, updateDisplayName, uploadProfilePhoto, removeProfilePhoto } = useAuth();
+  const { user, updateDisplayName } = useAuth();
   const [form, setForm] = useState(() => emptyForm(user));
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [photoError, setPhotoError] = useState('');
 
-  const providers = useMemo(() => user?.providerData?.map((item) => item.providerId) || [], [user]);
-  const hasPasswordProvider = providers.includes('password');
-  const selectedProfession = useMemo(() => professionOptions.find(([value]) => value === form.profession), [form.profession]);
+  const selectedProfession = useMemo(
+    () => professionOptions.find(([value]) => value === form.profession),
+    [form.profession]
+  );
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     loadParticipantProfile(user).then((profile) => {
       if (!active) return;
-      setForm((current) => ({ ...current, ...profile, email: user?.email || profile.email || '', photoURL: profile.photoURL || user?.photoURL || '' }));
+      setForm((current) => ({
+        ...current,
+        ...profile,
+        email: user?.email || profile.email || '',
+      }));
       setLoading(false);
     });
     return () => { active = false; };
@@ -100,42 +87,18 @@ export default function ParticipantProfileFirebasePage() {
     setSaved(false);
     try {
       const professionLabel = selectedProfession ? (isEnglish ? selectedProfession[2] : selectedProfession[1]) : '';
-      const next = { ...form, professionLabel, photoURL: user?.photoURL || form.photoURL || '' };
-      if (form.name.trim() && form.name.trim() !== user?.displayName) await updateDisplayName(form.name.trim());
+      const next = {
+        ...form,
+        professionLabel,
+        photoURL: user?.photoURL || '',
+      };
+      if (form.name.trim() && form.name.trim() !== user?.displayName) {
+        await updateDisplayName(form.name.trim());
+      }
       await saveParticipantProfile(user, next);
       setSaved(true);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handlePhoto = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    setPhotoError('');
-    try {
-      validateProfilePhoto(file);
-      setPhotoBusy(true);
-      const photoURL = await uploadProfilePhoto(file);
-      setForm((current) => ({ ...current, photoURL }));
-    } catch (error) {
-      setPhotoError(photoErrorMessage(error, isEnglish));
-    } finally {
-      setPhotoBusy(false);
-    }
-  };
-
-  const handleRemovePhoto = async () => {
-    setPhotoError('');
-    setPhotoBusy(true);
-    try {
-      await removeProfilePhoto();
-      setForm((current) => ({ ...current, photoURL: '' }));
-    } catch (error) {
-      setPhotoError(photoErrorMessage(error, isEnglish));
-    } finally {
-      setPhotoBusy(false);
     }
   };
 
@@ -151,7 +114,7 @@ export default function ParticipantProfileFirebasePage() {
           <p>{isEnglish ? 'Keep the information used for registration and billing up to date.' : 'Mantenha atualizados os dados utilizados na inscrição e faturação.'}</p>
         </div>
         <div className="profile-photo-preview profile-photo-preview--hero">
-          {(form.photoURL || user?.photoURL) ? <img src={form.photoURL || user.photoURL} alt="" /> : <span aria-hidden="true">{avatarText}</span>}
+          {user?.photoURL ? <img src={user.photoURL} alt="" /> : <span aria-hidden="true">{avatarText}</span>}
         </div>
       </section>
 
@@ -164,34 +127,21 @@ export default function ParticipantProfileFirebasePage() {
       <section className="account-form-section participant-form-section">
         {loading ? <p>{isEnglish ? 'Loading profile…' : 'A carregar perfil…'}</p> : (
           <form className="account-profile-form" onSubmit={handleSubmit}>
-            <div className="profile-section-heading">
-              <p className="eyebrow">00</p>
-              <h2>{isEnglish ? 'Profile photo' : 'Fotografia de perfil'}</h2>
-            </div>
-
-            <div className="profile-photo-manager">
+            <div className="profile-avatar-note">
               <div className="profile-photo-preview">
-                {(form.photoURL || user?.photoURL) ? <img src={form.photoURL || user.photoURL} alt="" /> : <span aria-hidden="true">{avatarText}</span>}
+                {user?.photoURL ? <img src={user.photoURL} alt="" /> : <span aria-hidden="true">{avatarText}</span>}
               </div>
-              <div className="profile-photo-manager__content">
-                {hasPasswordProvider ? (
-                  <>
-                    <p>{isEnglish ? 'Add a photo to personalise your CIRC account. You can replace or remove it at any time.' : 'Adicione uma fotografia para personalizar a sua conta CIRC. Pode substituí-la ou removê-la a qualquer momento.'}</p>
-                    <div className="profile-photo-actions">
-                      <label className="profile-photo-upload-button" htmlFor="profile-photo-file">{photoBusy ? (isEnglish ? 'Uploading…' : 'A carregar…') : (isEnglish ? 'Choose photo' : 'Escolher fotografia')}</label>
-                      <input id="profile-photo-file" className="profile-photo-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} disabled={photoBusy} />
-                      {(form.photoURL || user?.photoURL) && <button className="profile-photo-remove-link" type="button" onClick={handleRemovePhoto} disabled={photoBusy}>{isEnglish ? 'Remove photo' : 'Remover fotografia'}</button>}
-                    </div>
-                    <small>{isEnglish ? 'JPG, PNG or WEBP · maximum 2 MB.' : 'JPG, PNG ou WEBP · máximo 2 MB.'}</small>
-                  </>
-                ) : (
-                  <p>{isEnglish ? 'This photo comes from your Google Account and is updated through Google.' : 'Esta fotografia provém da sua Conta Google e é atualizada através da Google.'}</p>
-                )}
-                {photoError && <div className="auth-notice auth-notice--error" role="alert">{photoError}</div>}
-              </div>
+              <p>
+                {user?.photoURL
+                  ? (isEnglish ? 'Your profile photo comes from your Google Account.' : 'A fotografia de perfil provém da sua Conta Google.')
+                  : (isEnglish ? 'Profile photo uploads are paused for now. Your initials are used as your avatar.' : 'O carregamento de fotografias está suspenso nesta fase. As suas iniciais são utilizadas como avatar.')}
+              </p>
             </div>
 
-            <div className="profile-section-heading profile-section-heading--spaced"><p className="eyebrow">01</p><h2>{isEnglish ? 'Personal details' : 'Dados pessoais'}</h2></div>
+            <div className="profile-section-heading profile-section-heading--spaced">
+              <p className="eyebrow">01</p>
+              <h2>{isEnglish ? 'Personal details' : 'Dados pessoais'}</h2>
+            </div>
             <div className="account-form-grid">
               <label><span>{isEnglish ? 'Full name' : 'Nome completo'}</span><input name="name" autoComplete="name" value={form.name || ''} onChange={updateField} required /></label>
               <label><span>Email</span><input name="email" type="email" value={form.email || ''} readOnly aria-readonly="true" /><small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small></label>
