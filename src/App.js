@@ -10,14 +10,23 @@ import ProtectedRoute from './auth/ProtectedRoute';
 
 import Home from './pages/Home';
 import {
-  Archive2025Page,
-  CoimbraPage,
-  ContactPage,
   NotFoundPage,
-  PartnersPage,
   ParticipatePage,
   ProgramPage,
 } from './pages/InfoPages';
+import {
+  EnhancedArchive2025Page,
+  EnhancedCoimbraPage,
+  EnhancedContactPage,
+  EnhancedPartnersPage,
+  OrganizationPage,
+} from './pages/RecoveredContentPages';
+import {
+  CookiesPolicyPage,
+  EventRegulationPage,
+  PrivacyPolicyPage,
+  TermsOfUsePage,
+} from './pages/LegalPages';
 import { AccountRegistrationsPage } from './pages/AccountPages';
 import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
@@ -55,10 +64,16 @@ function App() {
             <Route path="/2027" element={<Navigate to="/" replace />} />
             <Route path="/programa" element={<ProgramPage />} />
             <Route path="/participar" element={<ParticipatePage />} />
-            <Route path="/parcerias" element={<PartnersPage />} />
-            <Route path="/coimbra" element={<CoimbraPage />} />
-            <Route path="/2025" element={<Archive2025Page />} />
-            <Route path="/contactos" element={<ContactPage />} />
+            <Route path="/parcerias" element={<EnhancedPartnersPage />} />
+            <Route path="/coimbra" element={<EnhancedCoimbraPage />} />
+            <Route path="/2025" element={<EnhancedArchive2025Page />} />
+            <Route path="/organizacao" element={<OrganizationPage />} />
+            <Route path="/contactos" element={<EnhancedContactPage />} />
+
+            <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+            <Route path="/cookies" element={<CookiesPolicyPage />} />
+            <Route path="/termos" element={<TermsOfUsePage />} />
+            <Route path="/regulamento" element={<EventRegulationPage />} />
 
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registar" element={<RegisterWithPhotoPage />} />
@@ -101,6 +116,17 @@ function App() {
             <Route path="/sponsors" element={<Navigate to="/parcerias" replace />} />
             <Route path="/hotels" element={<Navigate to="/coimbra" replace />} />
             <Route path="/contact" element={<Navigate to="/contactos" replace />} />
+
+            <Route path="/ahd" element={<Navigate to="/organizacao" replace />} />
+            <Route path="/org-commission" element={<Navigate to="/organizacao" replace />} />
+            <Route path="/scient-commission" element={<Navigate to="/organizacao" replace />} />
+            <Route path="/tec-commission" element={<Navigate to="/organizacao" replace />} />
+            <Route path="/circ" element={<Navigate to="/2025" replace />} />
+            <Route path="/gallery" element={<Navigate to="/2025" replace />} />
+            <Route path="/event-regulation" element={<Navigate to="/regulamento" replace />} />
+            <Route path="/privacy-policy" element={<Navigate to="/privacidade" replace />} />
+            <Route path="/terms-of-use" element={<Navigate to="/termos" replace />} />
+            <Route path="/cookies-policy" element={<Navigate to="/cookies" replace />} />
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
