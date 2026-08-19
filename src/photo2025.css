@@ -1,9 +1,7 @@
 /* CIRC 2025 photography — curated editorial use across the 2027 website.
-   The images are historical context, never a substitute for confirmed 2027 content. */
+   Historical photography is clearly labelled so it never reads as confirmed 2027 content. */
 
-/* ─────────────────────────────
-   HOME · cinematic hero
-   ───────────────────────────── */
+/* HOME · cinematic hero */
 .hero--official.hero--without-artwork {
   position: relative;
   isolation: isolate;
@@ -14,7 +12,7 @@
   border: 1px solid rgba(20, 24, 70, 0.14);
   background:
     linear-gradient(90deg, rgba(20, 24, 70, 0.97) 0%, rgba(20, 24, 70, 0.92) 36%, rgba(20, 24, 70, 0.66) 63%, rgba(20, 24, 70, 0.20) 100%),
-    url('/circ2025/hero-auditorium.webp') center center / cover no-repeat;
+    url('./assets/circ2025/hero-auditorium.webp') center center / cover no-repeat;
   box-shadow: 0 28px 70px rgba(20, 24, 70, 0.14);
 }
 
@@ -25,13 +23,13 @@
   right: 34px;
   bottom: 24px;
   padding: 7px 10px;
-  border: 1px solid rgba(255,255,255,.26);
-  color: rgba(255,255,255,.76);
-  background: rgba(20,24,70,.28);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: rgba(255, 255, 255, 0.76);
+  background: rgba(20, 24, 70, 0.28);
   backdrop-filter: blur(8px);
-  font-size: .64rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  letter-spacing: .13em;
+  letter-spacing: 0.13em;
 }
 
 .hero--official.hero--without-artwork .hero__copy {
@@ -40,48 +38,35 @@
   padding-right: 0;
 }
 
-.hero--official.hero--without-artwork .eyebrow {
-  color: #ff7b68;
-}
+.hero--official.hero--without-artwork .eyebrow { color: #ff7b68; }
 
 .hero--official.hero--without-artwork h1,
 .hero--official.hero--without-artwork .hero__lead,
-.hero--official.hero--without-artwork .hero__note {
-  color: #fff;
-}
+.hero--official.hero--without-artwork .hero__note { color: #fff; }
 
-.hero--official.hero--without-artwork h1 span {
-  color: #ff735f;
-}
+.hero--official.hero--without-artwork h1 span { color: #ff735f; }
 
 .hero--official.hero--without-artwork .hero__lead,
 .hero--official.hero--without-artwork .hero__note {
-  text-shadow: 0 2px 18px rgba(0,0,0,.16);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.16);
 }
 
 .hero--official.hero--without-artwork .hero__format-list > div {
-  border-color: rgba(255,255,255,.32);
+  border-color: rgba(255, 255, 255, 0.32);
   background: rgba(239, 232, 223, 0.93);
   backdrop-filter: blur(10px);
   color: var(--ink);
 }
 
-.hero--official.hero--without-artwork .hero__actions .button--dark {
-  background: var(--coral);
-}
-
-.hero--official.hero--without-artwork .hero__actions .button--dark:hover {
-  background: #ca402f;
-}
+.hero--official.hero--without-artwork .hero__actions .button--dark { background: var(--coral); }
+.hero--official.hero--without-artwork .hero__actions .button--dark:hover { background: #ca402f; }
 
 .hero--official.hero--without-artwork .hero__actions .text-link {
   color: #fff;
-  border-bottom-color: rgba(255,255,255,.7);
+  border-bottom-color: rgba(255, 255, 255, 0.7);
 }
 
-/* ─────────────────────────────
-   PROGRAMME · scientific memory
-   ───────────────────────────── */
+/* PROGRAMME · scientific memory */
 .page > .page-hero + .programme-phases {
   position: relative;
   padding-bottom: 430px;
@@ -95,8 +80,8 @@
   bottom: 0;
   height: 388px;
   border: 1px solid var(--line);
-  background: url('/circ2025/scientific-programme.webp') center 42% / cover no-repeat;
-  box-shadow: 0 20px 50px rgba(20,24,70,.08);
+  background: url('./assets/circ2025/scientific-programme.webp') center 42% / cover no-repeat;
+  box-shadow: 0 20px 50px rgba(20, 24, 70, 0.08);
 }
 
 .page > .page-hero + .programme-phases::before {
@@ -107,15 +92,13 @@
   bottom: 18px;
   padding: 8px 11px;
   color: #fff;
-  background: rgba(20,24,70,.78);
-  font-size: .66rem;
+  background: rgba(20, 24, 70, 0.78);
+  font-size: 0.66rem;
   font-weight: 750;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
 }
 
-/* ─────────────────────────────
-   PARTNERS / MEDICAL EXHIBITION
-   ───────────────────────────── */
+/* PARTNERS / MEDICAL EXHIBITION */
 main.page > .page-hero + .recovered-feature {
   position: relative;
   padding-top: 500px;
@@ -129,8 +112,8 @@ main.page > .page-hero + .recovered-feature::before {
   right: 0;
   height: 458px;
   border: 1px solid var(--line);
-  background: url('/circ2025/medical-exhibition.webp') center center / cover no-repeat;
-  box-shadow: 0 20px 50px rgba(20,24,70,.09);
+  background: url('./assets/circ2025/medical-exhibition.webp') center center / cover no-repeat;
+  box-shadow: 0 20px 50px rgba(20, 24, 70, 0.09);
 }
 
 main.page > .page-hero + .recovered-feature::after {
@@ -140,15 +123,13 @@ main.page > .page-hero + .recovered-feature::after {
   right: 18px;
   padding: 8px 11px;
   color: #fff;
-  background: rgba(20,24,70,.82);
-  font-size: .66rem;
+  background: rgba(20, 24, 70, 0.82);
+  font-size: 0.66rem;
   font-weight: 750;
-  letter-spacing: .11em;
+  letter-spacing: 0.11em;
 }
 
-/* ─────────────────────────────
-   COIMBRA / VENUE · place memory
-   ───────────────────────────── */
+/* COIMBRA / VENUE · place memory */
 main.page > .page-hero + .venue-feature--2027 {
   position: relative;
   margin-bottom: 390px;
@@ -162,8 +143,8 @@ main.page > .page-hero + .venue-feature--2027::after {
   bottom: -350px;
   height: 326px;
   border: 1px solid var(--line);
-  background: url('/circ2025/venue-auditorium.webp') center 52% / cover no-repeat;
-  box-shadow: 0 18px 46px rgba(20,24,70,.08);
+  background: url('./assets/circ2025/venue-auditorium.webp') center 52% / cover no-repeat;
+  box-shadow: 0 18px 46px rgba(20, 24, 70, 0.08);
 }
 
 main.page > .page-hero + .venue-feature--2027::before {
@@ -174,15 +155,13 @@ main.page > .page-hero + .venue-feature--2027::before {
   bottom: -334px;
   padding: 8px 11px;
   color: #fff;
-  background: rgba(20,24,70,.80);
-  font-size: .66rem;
+  background: rgba(20, 24, 70, 0.80);
+  font-size: 0.66rem;
   font-weight: 750;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
 }
 
-/* ─────────────────────────────
-   CIRC 2025 ARCHIVE · visual memory
-   ───────────────────────────── */
+/* CIRC 2025 ARCHIVE · visual memory */
 main.page > .page-hero + .archive-page {
   position: relative;
   padding-bottom: 640px;
@@ -196,8 +175,8 @@ main.page > .page-hero + .archive-page::after {
   bottom: 42px;
   height: 540px;
   border: 1px solid var(--line);
-  background: url('/circ2025/archive-mosaic.webp') center center / cover no-repeat;
-  box-shadow: 0 22px 54px rgba(20,24,70,.10);
+  background: url('./assets/circ2025/archive-mosaic.webp') center center / cover no-repeat;
+  box-shadow: 0 22px 54px rgba(20, 24, 70, 0.10);
 }
 
 main.page > .page-hero + .archive-page::before {
@@ -208,10 +187,10 @@ main.page > .page-hero + .archive-page::before {
   bottom: 60px;
   padding: 8px 11px;
   color: #fff;
-  background: rgba(20,24,70,.82);
-  font-size: .66rem;
+  background: rgba(20, 24, 70, 0.82);
+  font-size: 0.66rem;
   font-weight: 750;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
 }
 
 @media (max-width: 1040px) {
@@ -220,17 +199,9 @@ main.page > .page-hero + .archive-page::before {
     background-position: 58% center;
   }
 
-  main.page > .page-hero + .recovered-feature {
-    padding-top: 440px;
-  }
-
-  main.page > .page-hero + .recovered-feature::before {
-    height: 400px;
-  }
-
-  main.page > .page-hero + .recovered-feature::after {
-    top: 362px;
-  }
+  main.page > .page-hero + .recovered-feature { padding-top: 440px; }
+  main.page > .page-hero + .recovered-feature::before { height: 400px; }
+  main.page > .page-hero + .recovered-feature::after { top: 362px; }
 }
 
 @media (max-width: 760px) {
@@ -238,8 +209,8 @@ main.page > .page-hero + .archive-page::before {
     min-height: 760px;
     margin-top: 8px;
     background:
-      linear-gradient(180deg, rgba(20,24,70,.90) 0%, rgba(20,24,70,.82) 48%, rgba(20,24,70,.58) 100%),
-      url('/circ2025/hero-auditorium.webp') 56% center / cover no-repeat;
+      linear-gradient(180deg, rgba(20, 24, 70, 0.90) 0%, rgba(20, 24, 70, 0.82) 48%, rgba(20, 24, 70, 0.58) 100%),
+      url('./assets/circ2025/hero-auditorium.webp') 56% center / cover no-repeat;
   }
 
   .hero--official.hero--without-artwork::after {
@@ -247,51 +218,28 @@ main.page > .page-hero + .archive-page::before {
     bottom: 14px;
   }
 
-  .page > .page-hero + .programme-phases {
-    padding-bottom: 300px;
-  }
+  .page > .page-hero + .programme-phases { padding-bottom: 300px; }
+  .page > .page-hero + .programme-phases::after { height: 270px; }
 
-  .page > .page-hero + .programme-phases::after {
-    height: 270px;
-  }
-
-  main.page > .page-hero + .recovered-feature {
-    padding-top: 330px;
-  }
-
-  main.page > .page-hero + .recovered-feature::before {
-    height: 296px;
-  }
-
+  main.page > .page-hero + .recovered-feature { padding-top: 330px; }
+  main.page > .page-hero + .recovered-feature::before { height: 296px; }
   main.page > .page-hero + .recovered-feature::after {
     top: 260px;
     right: 12px;
     max-width: calc(100% - 24px);
   }
 
-  main.page > .page-hero + .venue-feature--2027 {
-    margin-bottom: 300px;
-  }
-
+  main.page > .page-hero + .venue-feature--2027 { margin-bottom: 300px; }
   main.page > .page-hero + .venue-feature--2027::after {
     bottom: -270px;
     height: 250px;
   }
+  main.page > .page-hero + .venue-feature--2027::before { bottom: -254px; }
 
-  main.page > .page-hero + .venue-feature--2027::before {
-    bottom: -254px;
-  }
-
-  main.page > .page-hero + .archive-page {
-    padding-bottom: 430px;
-  }
-
+  main.page > .page-hero + .archive-page { padding-bottom: 430px; }
   main.page > .page-hero + .archive-page::after {
     bottom: 24px;
     height: 360px;
   }
-
-  main.page > .page-hero + .archive-page::before {
-    bottom: 42px;
-  }
+  main.page > .page-hero + .archive-page::before { bottom: 42px; }
 }
