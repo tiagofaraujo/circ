@@ -209,7 +209,7 @@ export function EnhancedPartnersPage() {
           <p>
             {en
               ? 'The original Medical Radiology Exhibition was conceived as an extension of the congress: a space where professionals, companies and institutions can meet, present innovation and build useful relationships around radiology services of the 21st century.'
-              : 'A Medical Radiology Exhibition foi originalmente pensada como extensão natural do congresso: um espaço onde profissionais, empresas e instituições se encontram, apresentam inovação e constroem relações úteis em torno dos serviços de Radiologia do século XXI.'
+              : 'A Medical Radiology Exhibition foi originalmente pensada como extensão natural do congresso: um espaço onde profissionais, empresas e instituições se encontram, apresentam inovação e constroem relações úteis em torno dos serviços de Radiologia do século XXI.'}
           </p>
           <div className="recovered-pills">
             {sectors.map((sector) => <span className="recovered-pill" key={sector}>{sector}</span>)}
@@ -406,7 +406,7 @@ export function EnhancedArchive2025Page() {
           <p>
             {en
               ? 'The 2025 website described the exhibition as a parallel, inseparable dimension of CIRC: a commercial and networking area for equipment, intervention, contrast media, digital transformation, consulting, training and other services relevant to modern radiology departments.'
-              : 'O website de 2025 apresentava a exposição como uma dimensão paralela e indissociável do CIRC: uma área comercial e de networking para equipamentos, intervenção, meios de contraste, transformação digital, consultoria, formação e outros serviços relevantes para os modernos departamentos de Radiologia.'
+              : 'O website de 2025 apresentava a exposição como uma dimensão paralela e indissociável do CIRC: uma área comercial e de networking para equipamentos, intervenção, meios de contraste, transformação digital, consultoria, formação e outros serviços relevantes para os modernos departamentos de Radiologia.'}
           </p>
         </div>
       </section>
