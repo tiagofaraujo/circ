@@ -81,6 +81,13 @@
       }
     </script>
 
+    <!-- Public assets referenced from src CSS are exposed through runtime CSS variables. -->
+    <style>
+      :root {
+        --hero-background-image: url('/circ-hero-convento-2025.webp');
+      }
+    </style>
+
     <!-- Firebase compat SDK: Auth + Firestore only. Storage is intentionally suspended for now. -->
     <script defer src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
