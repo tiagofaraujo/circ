@@ -12,7 +12,7 @@
   background-image:
     linear-gradient(90deg, rgba(14, 18, 56, 0.90) 0%, rgba(20, 24, 70, 0.74) 38%, rgba(20, 24, 70, 0.34) 68%, rgba(20, 24, 70, 0.16) 100%),
     linear-gradient(180deg, rgba(8, 10, 28, 0.18) 0%, rgba(8, 10, 28, 0.44) 100%),
-    url('/circ-hero-convento-2025.webp');
+    var(--hero-background-image);
   background-size: cover;
   background-position: center 52%;
   background-repeat: no-repeat;
@@ -94,7 +94,7 @@
     background-image:
       linear-gradient(90deg, rgba(14, 18, 56, 0.92) 0%, rgba(20, 24, 70, 0.72) 58%, rgba(20, 24, 70, 0.32) 100%),
       linear-gradient(180deg, rgba(8, 10, 28, 0.12) 0%, rgba(8, 10, 28, 0.48) 100%),
-      url('/circ-hero-convento-2025.webp');
+      var(--hero-background-image);
   }
 
   .hero--without-artwork .hero__copy {
