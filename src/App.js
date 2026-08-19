@@ -19,8 +19,8 @@ import {
   EnhancedCoimbraPage,
   EnhancedContactPage,
   EnhancedPartnersPage,
-  OrganizationPage,
 } from './pages/RecoveredContentPages';
+import OrganizationPage2027 from './pages/OrganizationPage2027';
 import {
   CookiesPolicyPage,
   EventRegulationPage,
@@ -68,7 +68,7 @@ function App() {
             <Route path="/parcerias" element={<EnhancedPartnersPage />} />
             <Route path="/coimbra" element={<EnhancedCoimbraPage />} />
             <Route path="/2025" element={<EnhancedArchive2025Page />} />
-            <Route path="/organizacao" element={<OrganizationPage />} />
+            <Route path="/organizacao" element={<OrganizationPage2027 />} />
             <Route path="/contactos" element={<EnhancedContactPage />} />
 
             <Route path="/privacidade" element={<PrivacyPolicyPage />} />
