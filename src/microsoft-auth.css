@@ -1,0 +1,21 @@
+.auth-provider-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-microsoft-button {
+  border-color: rgba(20, 24, 70, 0.24);
+  background: #ffffff;
+}
+
+.auth-microsoft-button:hover:not(:disabled) {
+  border-color: rgba(35, 46, 183, 0.46);
+}
+
+.auth-provider-status {
+  margin: 2px 2px 0;
+  color: rgba(20, 24, 70, 0.58);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
