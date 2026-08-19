@@ -40,6 +40,7 @@ import {
 import './App.css';
 import './event2027.css';
 import './hero2027.css';
+import './photo2025.css';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
