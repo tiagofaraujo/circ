@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import '../css/CookiesConsent.css';
 
@@ -26,12 +27,15 @@ function CookiesConsent() {
   return (
     <aside className="cookies-consent" aria-label={en ? 'Cookie preferences' : 'Preferências de cookies'}>
       <div>
-        <strong>{en ? 'Privacy' : 'Privacidade'}</strong>
+        <strong>{en ? 'Privacy & browser storage' : 'Privacidade e armazenamento'}</strong>
         <p>
           {en
-            ? 'We use essential technologies required for the website to function and to remember this preference.'
-            : 'Utilizamos tecnologias essenciais para o funcionamento do website e para memorizar esta preferência.'}
+            ? 'We use essential technologies to operate the website, remember your preferences and support secure sign-in.'
+            : 'Utilizamos tecnologias essenciais para o funcionamento do website, memorizar preferências e suportar o acesso seguro.'}
         </p>
+        <Link className="cookies-consent__link" to="/cookies">
+          {en ? 'Learn more' : 'Saber mais'}
+        </Link>
       </div>
       <div className="cookies-consent-buttons">
         <button className="accept" type="button" onClick={() => savePreference('accepted')}>
