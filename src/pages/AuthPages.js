@@ -3,7 +3,6 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import '../auth.css';
-import '../microsoft-auth.css';
 
 function getErrorCode(error) {
   return error?.code || error?.message || '';
@@ -16,17 +15,14 @@ function authErrorMessage(error, isEnglish = false) {
     'auth/user-not-found': 'Não encontramos uma conta com estes dados.',
     'auth/wrong-password': 'Email ou palavra-passe incorretos.',
     'auth/email-already-in-use': 'Já existe uma conta associada a este email.',
-    'auth/account-exists-with-different-credential': 'Já existe uma conta CIRC com este email através de outro método de autenticação. Entre primeiro com o método anteriormente utilizado.',
     'auth/invalid-email': 'Introduza um endereço de email válido.',
     'auth/weak-password': 'A palavra-passe não cumpre os requisitos mínimos de segurança.',
     'auth/too-many-requests': 'Foram efetuadas demasiadas tentativas. Aguarde alguns minutos e tente novamente.',
-    'auth/popup-closed-by-user': 'A janela de autenticação foi fechada antes de concluir o acesso.',
-    'auth/popup-blocked': 'O browser bloqueou a janela de autenticação. Autorize pop-ups para este site e tente novamente.',
+    'auth/popup-closed-by-user': 'A janela de autenticação Google foi fechada antes de concluir o acesso.',
+    'auth/popup-blocked': 'O browser bloqueou a janela do Google. Autorize pop-ups para este site e tente novamente.',
     'auth/cancelled-popup-request': 'O pedido de autenticação anterior foi cancelado. Tente novamente.',
     'auth/network-request-failed': 'Não foi possível contactar o serviço de autenticação. Verifique a ligação à internet.',
     'auth/unauthorized-domain': 'Este domínio ainda não está autorizado no serviço de autenticação.',
-    'auth/operation-not-allowed': 'Este método de autenticação ainda não está ativo no Firebase.',
-    'auth/microsoft-not-configured': 'O acesso com conta Microsoft ainda está a ser configurado.',
     'auth/not-configured': 'A autenticação ainda não está ligada ao ambiente de produção.',
   };
   const en = {
@@ -34,17 +30,14 @@ function authErrorMessage(error, isEnglish = false) {
     'auth/user-not-found': 'We could not find an account with these details.',
     'auth/wrong-password': 'Incorrect email or password.',
     'auth/email-already-in-use': 'An account already exists for this email.',
-    'auth/account-exists-with-different-credential': 'A CIRC account already exists for this email using another sign-in method. Sign in first with the method you previously used.',
     'auth/invalid-email': 'Enter a valid email address.',
     'auth/weak-password': 'The password does not meet the minimum security requirements.',
     'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
-    'auth/popup-closed-by-user': 'The authentication window was closed before completion.',
-    'auth/popup-blocked': 'Your browser blocked the authentication window. Allow pop-ups for this site and try again.',
+    'auth/popup-closed-by-user': 'The Google sign-in window was closed before completion.',
+    'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for this site and try again.',
     'auth/cancelled-popup-request': 'The previous authentication request was cancelled. Please try again.',
     'auth/network-request-failed': 'The authentication service could not be reached. Check your internet connection.',
     'auth/unauthorized-domain': 'This domain is not yet authorized by the authentication service.',
-    'auth/operation-not-allowed': 'This authentication method is not yet enabled in Firebase.',
-    'auth/microsoft-not-configured': 'Microsoft account sign-in is still being configured.',
     'auth/not-configured': 'Authentication is not yet connected to the production environment.',
   };
   const messages = isEnglish ? en : pt;
@@ -58,17 +51,6 @@ function GoogleIcon() {
       <path fill="#34A853" d="M12.2 21.8c2.63 0 4.84-.87 6.45-2.37l-3.09-2.38c-.83.56-1.94.95-3.36.95a5.84 5.84 0 0 1-5.52-4.04l-.1.01-3.03 2.35-.04.1A9.74 9.74 0 0 0 12.2 21.8Z" />
       <path fill="#FBBC05" d="M6.68 13.96a6 6 0 0 1-.32-1.96c0-.69.12-1.35.31-1.96v-.12L3.61 7.54l-.1.05A9.8 9.8 0 0 0 2.45 12c0 1.59.38 3.08 1.06 4.41l3.17-2.45Z" />
       <path fill="#EA4335" d="M12.2 6c1.83 0 3.06.79 3.76 1.44l2.75-2.68C17.03 3.19 14.83 2.2 12.2 2.2a9.74 9.74 0 0 0-8.69 5.39l3.16 2.45A5.86 5.86 0 0 1 12.2 6Z" />
-    </svg>
-  );
-}
-
-function MicrosoftIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="2.5" y="2.5" width="8.5" height="8.5" fill="#F25022" />
-      <rect x="13" y="2.5" width="8.5" height="8.5" fill="#7FBA00" />
-      <rect x="2.5" y="13" width="8.5" height="8.5" fill="#00A4EF" />
-      <rect x="13" y="13" width="8.5" height="8.5" fill="#FFB900" />
     </svg>
   );
 }
@@ -116,62 +98,10 @@ function ConfigurationNotice({ isEnglish }) {
   );
 }
 
-function ProviderButtons({
-  isEnglish,
-  busy,
-  configured,
-  microsoftAuthEnabled,
-  onGoogle,
-  onMicrosoft,
-  register = false,
-}) {
-  return (
-    <div className="auth-provider-stack">
-      <button className="auth-google-button" type="button" onClick={onGoogle} disabled={busy || !configured}>
-        <GoogleIcon />
-        <span>
-          {register
-            ? (isEnglish ? 'Create account with Google' : 'Criar conta com Google')
-            : (isEnglish ? 'Continue with Google' : 'Continuar com Google')}
-        </span>
-      </button>
-
-      <button
-        className="auth-google-button auth-microsoft-button"
-        type="button"
-        onClick={onMicrosoft}
-        disabled={busy || !configured || !microsoftAuthEnabled}
-      >
-        <MicrosoftIcon />
-        <span>
-          {register
-            ? (isEnglish ? 'Create account with Microsoft' : 'Criar conta com Microsoft')
-            : (isEnglish ? 'Continue with Microsoft' : 'Continuar com Microsoft')}
-        </span>
-      </button>
-
-      {!microsoftAuthEnabled && (
-        <p className="auth-provider-status">
-          {isEnglish
-            ? 'Microsoft sign-in will become available after the provider is activated in Firebase.'
-            : 'O acesso Microsoft ficará disponível após ativação do provider no Firebase.'}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function LoginPage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
-  const {
-    configured,
-    microsoftAuthEnabled,
-    user,
-    signInWithEmail,
-    signInWithGoogle,
-    signInWithMicrosoft,
-  } = useAuth();
+  const { configured, user, signInWithEmail, signInWithGoogle } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -210,37 +140,20 @@ export function LoginPage() {
     }
   };
 
-  const handleMicrosoftLogin = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      const result = await signInWithMicrosoft(language);
-      if (result) navigate(destination, { replace: true });
-    } catch (authError) {
-      setError(authErrorMessage(authError, isEnglish));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <AuthLayout
       eyebrow={isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}
       title={isEnglish ? 'Sign in to My CIRC' : 'Entrar na Área CIRC'}
-      subtitle={isEnglish ? 'Use Google, Microsoft, or sign in with email and password.' : 'Utilize Google, Microsoft ou entre com email e palavra-passe.'}
+      subtitle={isEnglish ? 'Use your Google account or sign in with email and password.' : 'Utilize a sua conta Google ou entre com email e palavra-passe.'}
       asideTitle={isEnglish ? 'One account for the complete CIRC experience.' : 'Uma conta para toda a experiência CIRC.'}
       asideText={isEnglish ? 'Registration, professional details, digital ticket and, in the future, certificates in one secure account.' : 'Inscrição, dados profissionais, bilhete digital e, futuramente, certificados reunidos num único acesso.'}
     >
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
 
-      <ProviderButtons
-        isEnglish={isEnglish}
-        busy={busy}
-        configured={configured}
-        microsoftAuthEnabled={microsoftAuthEnabled}
-        onGoogle={handleGoogleLogin}
-        onMicrosoft={handleMicrosoftLogin}
-      />
+      <button className="auth-google-button" type="button" onClick={handleGoogleLogin} disabled={busy || !configured}>
+        <GoogleIcon />
+        <span>{isEnglish ? 'Continue with Google' : 'Continuar com Google'}</span>
+      </button>
 
       <div className="auth-divider"><span>{isEnglish ? 'or' : 'ou'}</span></div>
 
@@ -277,14 +190,7 @@ export function LoginPage() {
 export function RegisterPage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
-  const {
-    configured,
-    microsoftAuthEnabled,
-    user,
-    registerWithEmail,
-    signInWithGoogle,
-    signInWithMicrosoft,
-  } = useAuth();
+  const { configured, user, registerWithEmail, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -332,38 +238,20 @@ export function RegisterPage() {
     }
   };
 
-  const handleMicrosoftRegister = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      const result = await signInWithMicrosoft(language);
-      if (result) navigate('/conta', { replace: true });
-    } catch (authError) {
-      setError(authErrorMessage(authError, isEnglish));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <AuthLayout
       eyebrow={isEnglish ? 'My CIRC · New participant' : 'Área CIRC · Novo participante'}
       title={isEnglish ? 'Create your CIRC account' : 'Criar conta CIRC'}
-      subtitle={isEnglish ? 'Create a secure account with Google, Microsoft or email and password.' : 'Crie uma conta segura com Google, Microsoft ou email e palavra-passe.'}
+      subtitle={isEnglish ? 'Create a secure account to manage your participation in CIRC 2027.' : 'Crie uma conta segura para acompanhar a sua participação no CIRC 2027.'}
       asideTitle={isEnglish ? 'Start now. Complete your profile later.' : 'Comece agora. Complete o perfil depois.'}
       asideText={isEnglish ? 'You can create your account before registration opens. Participation details will be added progressively.' : 'A conta poderá ser criada antes da abertura das inscrições. Os dados de participação serão acrescentados progressivamente.'}
     >
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
 
-      <ProviderButtons
-        isEnglish={isEnglish}
-        busy={busy}
-        configured={configured}
-        microsoftAuthEnabled={microsoftAuthEnabled}
-        onGoogle={handleGoogleRegister}
-        onMicrosoft={handleMicrosoftRegister}
-        register
-      />
+      <button className="auth-google-button" type="button" onClick={handleGoogleRegister} disabled={busy || !configured}>
+        <GoogleIcon />
+        <span>{isEnglish ? 'Create account with Google' : 'Criar conta com Google'}</span>
+      </button>
 
       <div className="auth-divider"><span>{isEnglish ? 'or' : 'ou'}</span></div>
 
