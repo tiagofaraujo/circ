@@ -1,4 +1,4 @@
 # https://www.robotstxt.org/robotstxt.html
-# CIRC production build refresh
+# CIRC production build refresh — Google + email login
 User-agent: *
 Disallow:
