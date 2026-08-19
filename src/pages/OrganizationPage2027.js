@@ -5,7 +5,7 @@ import '../recoveredContent.css';
 
 const tx = (en, english, portuguese) => (en ? english : portuguese);
 
-const scientificCommittee2027 = [
+const organisingCommittee2027 = [
   'Tiago Araújo',
   'Tiago Patrão',
   'Ana Carolina Gomes',
@@ -123,26 +123,26 @@ export default function OrganizationPage2027() {
       <section className="recovered-section">
         <SectionHeader
           eyebrow="CIRC 2027"
-          title={tx(en, 'Scientific Committee', 'Comissão Científica')}
+          title={tx(en, 'Organising Committee', 'Comissão Organizadora')}
           text={tx(
             en,
-            'The CIRC 2027 Scientific Committee is responsible for supporting the scientific structure of the congress, its programme, speakers and scientific participation framework.',
-            'A Comissão Científica do CIRC 2027 apoia a construção da estrutura científica do congresso, do programa, dos oradores e do enquadramento da participação científica.'
+            'The CIRC 2027 Organising Committee is responsible for planning and delivering the congress, coordinating its programme, logistics, communication and participant experience.',
+            'A Comissão Organizadora do CIRC 2027 assegura o planeamento e a realização do congresso, coordenando o programa, a logística, a comunicação e a experiência dos participantes.'
           )}
         />
 
         <div className="recovered-grid recovered-grid--two">
           <article className="recovered-card recovered-card--blue">
             <span className="recovered-card__number">2027</span>
-            <h3>{tx(en, 'Scientific structure confirmed', 'Estrutura científica confirmada')}</h3>
-            <p>{tx(en, `${scientificCommittee2027.length} members currently make up the CIRC 2027 Scientific Committee.`, `${scientificCommittee2027.length} elementos integram atualmente a Comissão Científica do CIRC 2027.`)}</p>
+            <h3>{tx(en, 'Organising structure confirmed', 'Estrutura organizadora confirmada')}</h3>
+            <p>{tx(en, `${organisingCommittee2027.length} members currently make up the CIRC 2027 Organising Committee.`, `${organisingCommittee2027.length} elementos integram atualmente a Comissão Organizadora do CIRC 2027.`)}</p>
           </article>
 
           <article className="recovered-card">
-            <span className="recovered-card__number">{String(scientificCommittee2027.length).padStart(2, '0')}</span>
-            <h3>{tx(en, 'Scientific Committee members', 'Elementos da Comissão Científica')}</h3>
-            <ul className="archive-details__names" aria-label={tx(en, 'CIRC 2027 Scientific Committee', 'Comissão Científica CIRC 2027')}>
-              {scientificCommittee2027.map((name) => <li key={name}>{name}</li>)}
+            <span className="recovered-card__number">{String(organisingCommittee2027.length).padStart(2, '0')}</span>
+            <h3>{tx(en, 'Organising Committee members', 'Elementos da Comissão Organizadora')}</h3>
+            <ul className="archive-details__names" aria-label={tx(en, 'CIRC 2027 Organising Committee', 'Comissão Organizadora CIRC 2027')}>
+              {organisingCommittee2027.map((name) => <li key={name}>{name}</li>)}
             </ul>
           </article>
         </div>
@@ -150,8 +150,8 @@ export default function OrganizationPage2027() {
         <div className="recovered-note">
           {tx(
             en,
-            'The Organising Committee and other operational structures will be published separately as they are formally consolidated.',
-            'A Comissão Organizadora e as restantes estruturas operacionais serão publicadas separadamente à medida que forem formalmente consolidadas.'
+            'The remaining operational structures and working groups will be published as they are formally consolidated.',
+            'As restantes estruturas operacionais e os grupos de trabalho serão publicados à medida que forem formalmente consolidados.'
           )}
         </div>
       </section>

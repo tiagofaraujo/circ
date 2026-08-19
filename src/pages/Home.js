@@ -43,7 +43,6 @@ const content = {
     congress: 'Congresso Internacional',
     followProgramme: 'Acompanhar o programa',
     revisit2025: 'Rever a edição de 2025',
-    heroNote: 'Programa, convidados, inscrições e condições do curso serão anunciados progressivamente neste website.',
     factsLabel: 'Informação principal do CIRC 2027',
     experience: 'Experiência CIRC',
     eventDate: '8–10 abril 2027',
@@ -113,7 +112,6 @@ const content = {
     congress: 'International Congress',
     followProgramme: 'Follow the programme',
     revisit2025: 'Revisit the 2025 edition',
-    heroNote: 'Programme, speakers, registration and course details will be announced progressively on this website.',
     factsLabel: 'Key CIRC 2027 information',
     experience: 'CIRC Experience',
     eventDate: '8–10 April 2027',
@@ -180,8 +178,6 @@ function Home() {
               {copy.revisit2025} <span aria-hidden="true">↗</span>
             </Link>
           </div>
-
-          <p className="hero__note">{copy.heroNote}</p>
         </div>
       </section>
 

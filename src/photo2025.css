@@ -16,21 +16,6 @@
   box-shadow: 0 28px 70px rgba(20, 24, 70, 0.14);
 }
 
-.hero--official.hero--without-artwork::after {
-  content: 'CIRC 2025 · ARCHIVE';
-  position: absolute;
-  z-index: 1;
-  right: 34px;
-  bottom: 24px;
-  padding: 7px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  color: rgba(255, 255, 255, 0.76);
-  background: rgba(20, 24, 70, 0.28);
-  backdrop-filter: blur(8px);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-}
 
 .hero--official.hero--without-artwork .hero__copy {
   position: relative;
@@ -213,10 +198,6 @@ main.page > .page-hero + .archive-page::before {
       url('./assets/circ2025/hero-auditorium.webp') 56% center / cover no-repeat;
   }
 
-  .hero--official.hero--without-artwork::after {
-    right: 16px;
-    bottom: 14px;
-  }
 
   .page > .page-hero + .programme-phases { padding-bottom: 300px; }
   .page > .page-hero + .programme-phases::after { height: 270px; }
