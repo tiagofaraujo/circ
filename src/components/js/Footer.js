@@ -57,26 +57,32 @@ function Footer() {
           <p className="footer-label">CIRC 2027</p>
           <Link to="/programa">{en ? 'Programme' : 'Programa'}</Link>
           <Link to="/participar">{en ? 'Attend' : 'Participar'}</Link>
-          <Link to="/parcerias">{en ? 'Partners' : 'Parcerias'}</Link>
+          <Link to="/parcerias">{en ? 'Partners & Exhibition' : 'Parcerias & Exhibition'}</Link>
           <Link to="/coimbra">Coimbra</Link>
+          <Link to="/conta">{en ? 'My CIRC' : 'Área CIRC'}</Link>
         </div>
 
         <div className="site-footer__column">
-          <p className="footer-label">{en ? 'Archive and support' : 'Arquivo e apoio'}</p>
-          <Link to="/2025">CIRC 2025</Link>
+          <p className="footer-label">{en ? 'Organisation' : 'Organização'}</p>
+          <Link to="/organizacao">Associação Hemisfério Disciplinado</Link>
+          <Link to="/organizacao">{en ? 'Organising structure' : 'Estrutura organizadora'}</Link>
           <Link to="/contactos">{en ? 'Contact' : 'Contactos'}</Link>
-          <span>{en ? 'With the support of the Municipality of Coimbra' : 'Com apoio do Município de Coimbra'}</span>
+          <span className="site-footer__muted">NIF 517 072 262 · Coimbra</span>
+        </div>
+
+        <div className="site-footer__column">
+          <p className="footer-label">{en ? 'Archive & legal' : 'Arquivo & legal'}</p>
+          <Link to="/2025">CIRC 2025</Link>
+          <Link to="/regulamento">{en ? 'Event Regulation' : 'Regulamento do Evento'}</Link>
+          <Link to="/privacidade">{en ? 'Privacy Policy' : 'Política de Privacidade'}</Link>
+          <Link to="/cookies">{en ? 'Cookie Policy' : 'Política de Cookies'}</Link>
+          <Link to="/termos">{en ? 'Terms of Use' : 'Termos de Utilização'}</Link>
         </div>
 
         <div className="site-footer__column site-footer__social">
           <p className="footer-label">{en ? 'CIRC online' : 'CIRC em rede'}</p>
           {socialLinks.map((social) => (
-            <a
-              href={social.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              key={social.name}
-            >
+            <a href={social.url} target="_blank" rel="noopener noreferrer" key={social.name}>
               <span className="site-footer__social-mark" aria-hidden="true">
                 <SocialIcon name={social.name} />
               </span>
@@ -85,6 +91,10 @@ function Footer() {
           ))}
           <span className="site-footer__hashtag">#CIRC2027 · #CIRCoimbra · #Radiologia</span>
         </div>
+      </div>
+
+      <div className="site-footer__support">
+        <span>{en ? 'With the support of the Municipality of Coimbra' : 'Com apoio do Município de Coimbra'}</span>
       </div>
 
       <div className="site-footer__bottom">
