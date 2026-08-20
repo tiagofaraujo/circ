@@ -230,13 +230,6 @@ export function PartnersPage() {
           </Link>
         </div>
       </section>
-
-      <section className="support-strip support-strip--page">
-        <div className="municipal-support">
-          <span>{en ? 'With the support of' : 'Com apoio de'}</span>
-          <img src="/cmc-logo-monochrome.png" alt="Câmara Municipal de Coimbra" />
-        </div>
-      </section>
     </main>
   );
 }

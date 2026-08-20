@@ -474,48 +474,6 @@ main {
   line-height: 1.7;
 }
 
-.support-strip {
-  max-width: var(--max-width);
-  margin: 0 auto 72px;
-  padding: 26px 48px;
-  display: flex;
-  justify-content: space-between;
-  gap: 28px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-size: 0.86rem;
-}
-
-.support-strip p {
-  margin: 0;
-}
-
-.municipal-support {
-  display: inline-flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.municipal-support span {
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.municipal-support img {
-  display: block;
-  width: min(220px, 42vw);
-  height: auto;
-}
-
-.support-strip--page {
-  justify-content: flex-end;
-  margin: 72px 0 0;
-}
-
 .page {
   padding: 152px 48px 90px;
 }
@@ -931,8 +889,7 @@ main {
   }
 
   .venue-section__header,
-  .callout,
-  .support-strip {
+  .callout {
     align-items: start;
     flex-direction: column;
   }
@@ -947,13 +904,6 @@ main {
 
   .venue-panel--blue {
     min-height: 320px;
-  }
-
-  .support-strip {
-    margin-left: 22px;
-    margin-right: 22px;
-    padding-left: 0;
-    padding-right: 0;
   }
 
   .page {
@@ -1007,15 +957,3 @@ main {
   }
 }
 
-
-@media (max-width: 780px) {
-  .municipal-support {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .municipal-support img {
-    width: min(210px, 72vw);
-  }
-}

@@ -70,8 +70,6 @@ const content = {
     venueText: 'O CIRC 2027 realiza-se no Convento São Francisco nos dias 9 e 10. A localização específica do Curso Pré-Congresso de 8 de abril será indicada quando confirmada. Informação sobre acessos, estadia e restauração será atualizada progressivamente.',
     prepareVisit: 'Preparar a visita',
     congressDateLabel: 'abril 2027 · Congresso',
-    organization: 'Organização · Associação Hemisfério Disciplinado',
-    support: 'Com apoio de',
   },
   en: {
     updates: [
@@ -139,8 +137,6 @@ const content = {
     venueText: 'CIRC 2027 will take place at Convento São Francisco on 9 and 10 April. The specific location of the Pre-Congress Course on 8 April will be announced once confirmed. Access, accommodation and dining information will be updated progressively.',
     prepareVisit: 'Plan your visit',
     congressDateLabel: 'April 2027 · Congress',
-    organization: 'Organised by · Associação Hemisfério Disciplinado',
-    support: 'With the support of',
   },
 };
 
@@ -298,14 +294,6 @@ function Home() {
               {copy.prepareVisit} <span aria-hidden="true">→</span>
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="support-strip">
-        <p>{copy.organization}</p>
-        <div className="municipal-support">
-          <span>{copy.support}</span>
-          <img src="/cmc-logo-monochrome.png" alt="Câmara Municipal de Coimbra" />
         </div>
       </section>
     </main>
