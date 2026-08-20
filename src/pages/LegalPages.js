@@ -49,7 +49,7 @@ export function PrivacyPolicyPage() {
         lead={
           en
             ? 'A clear description of the personal data used by the CIRC website, the participant area and the contact channels.'
-            : 'Uma descrição clara dos dados pessoais utilizados pelo website CIRC, pela Área CIRC e pelos canais de contacto.'
+            : 'Uma descrição clara dos dados pessoais utilizados pelo website CIRC, pelo My CIRC e pelos canais de contacto.'
         }
       />
 
@@ -71,7 +71,7 @@ export function PrivacyPolicyPage() {
       <LegalSection title={en ? '2. Data we may process' : '2. Dados que podemos tratar'}>
         <ul>
           <li>{en ? 'Contact form: name, email address, subject and message.' : 'Formulário de contacto: nome, endereço de email, assunto e mensagem.'}</li>
-          <li>{en ? 'My CIRC account: email address, account identifier and, where provided by the user or Google, name and profile photograph.' : 'Conta Área CIRC: endereço de email, identificador da conta e, quando fornecidos pelo utilizador ou pela conta Google, nome e fotografia de perfil.'}</li>
+          <li>{en ? 'My CIRC account: email address, account identifier and, where provided by the user or Google, name and profile photograph.' : 'Conta My CIRC: endereço de email, identificador da conta e, quando fornecidos pelo utilizador ou pela conta Google, nome e fotografia de perfil.'}</li>
           <li>{en ? 'Authentication security data processed by the authentication provider, which may include device/browser information and IP address for security and abuse prevention.' : 'Dados técnicos de segurança tratados pelo fornecedor de autenticação, que podem incluir informação do dispositivo/browser e endereço IP para segurança e prevenção de abuso.'}</li>
           <li>{en ? 'Future registration data: professional, institutional, attendance, invoicing and payment information, once registration services are activated.' : 'Futuros dados de inscrição: informação profissional, institucional, de participação, faturação e pagamento, quando os serviços de inscrição forem ativados.'}</li>
         </ul>
@@ -91,7 +91,7 @@ export function PrivacyPolicyPage() {
         <p>
           {en
             ? 'The website is delivered through Cloudflare infrastructure. My CIRC uses Google Firebase Authentication and, when registrations are active, Cloud Firestore and private Cloud Storage for registration records and related documents. The contact form is transmitted through EmailJS to the organisation email account. These providers process data only to the extent required to provide their respective technical services and according to their own contractual and privacy frameworks.'
-            : 'O website é disponibilizado através de infraestrutura Cloudflare. A Área CIRC utiliza Google Firebase Authentication e, quando as inscrições estiverem ativas, Cloud Firestore e Cloud Storage privado para registos de inscrição e documentos associados. O formulário de contacto é transmitido através do EmailJS para a caixa de correio da organização. Estes prestadores tratam dados na medida necessária à prestação dos respetivos serviços técnicos e de acordo com os seus enquadramentos contratuais e de privacidade.'}
+            : 'O website é disponibilizado através de infraestrutura Cloudflare. O My CIRC utiliza Google Firebase Authentication e, quando as inscrições estiverem ativas, Cloud Firestore e Cloud Storage privado para registos de inscrição e documentos associados. O formulário de contacto é transmitido através do EmailJS para a caixa de correio da organização. Estes prestadores tratam dados na medida necessária à prestação dos respetivos serviços técnicos e de acordo com os seus enquadramentos contratuais e de privacidade.'}
         </p>
         <p>
           <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">Firebase · Privacy &amp; Security</a>{' · '}
@@ -158,7 +158,7 @@ export function CookiesPolicyPage() {
         <ul>
           <li>{en ? 'Language preference (Portuguese or English).' : 'Preferência de idioma (português ou inglês).'}</li>
           <li>{en ? 'The choice made in the privacy/cookie notice.' : 'A escolha efetuada no aviso de privacidade/cookies.'}</li>
-          <li>{en ? 'Authentication state required to keep a user signed in to My CIRC, when authentication is active.' : 'Estado de autenticação necessário para manter a sessão da Área CIRC, quando a autenticação está ativa.'}</li>
+          <li>{en ? 'Authentication state required to keep a user signed in to My CIRC, when authentication is active.' : 'Estado de autenticação necessário para manter a sessão do My CIRC, quando a autenticação está ativa.'}</li>
           <li>{en ? 'Security-related technologies that may be applied by infrastructure providers such as Cloudflare or Firebase.' : 'Tecnologias relacionadas com segurança que podem ser aplicadas por prestadores de infraestrutura como Cloudflare ou Firebase.'}</li>
         </ul>
       </LegalSection>
@@ -196,7 +196,7 @@ export function TermsOfUsePage() {
         lead={
           en
             ? 'The essential rules for using circ-coimbra.org and the My CIRC participant area.'
-            : 'As regras essenciais de utilização do circ-coimbra.org e da Área CIRC.'
+            : 'As regras essenciais de utilização do circ-coimbra.org e do My CIRC.'
         }
       />
 

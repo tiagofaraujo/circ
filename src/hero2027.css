@@ -81,6 +81,62 @@
   color: rgba(255, 255, 255, 0.76);
 }
 
+.hero__actions--with-login {
+  align-items: flex-end;
+}
+
+.hero__action-stack {
+  width: min(100%, 330px);
+  display: grid;
+  gap: 10px;
+}
+
+.hero__action-stack .button {
+  width: 100%;
+}
+
+.hero__login-link {
+  min-height: 58px;
+  padding: 11px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: rgba(8, 10, 28, 0.24);
+  color: #ffffff;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.hero__login-link:hover {
+  border-color: rgba(255, 255, 255, 0.78);
+  background: rgba(8, 10, 28, 0.46);
+  transform: translateY(-2px);
+}
+
+.hero__login-link span {
+  display: grid;
+  gap: 3px;
+}
+
+.hero__login-link strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.hero__login-link small {
+  color: rgba(255, 255, 255, 0.70);
+  font-size: 0.74rem;
+}
+
+.hero__login-link b {
+  color: var(--coral);
+  font-size: 1.25rem;
+}
+
 .hero--without-artwork .hero__note {
   max-width: 720px;
   color: rgba(255, 255, 255, 0.70);
@@ -120,5 +176,10 @@
 
   .hero--official.hero--without-artwork .hero__format-list > div {
     min-height: 96px;
+  }
+
+  .hero__actions--with-login,
+  .hero__action-stack {
+    width: 100%;
   }
 }

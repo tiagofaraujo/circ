@@ -97,7 +97,7 @@ export default function RegisterWithPhotoPage() {
       <section className="auth-shell">
         <div className="auth-panel">
           <div className="auth-panel__heading">
-            <p className="eyebrow">{isEnglish ? 'My CIRC · New participant' : 'Área CIRC · Novo participante'}</p>
+            <p className="eyebrow">{isEnglish ? 'My CIRC · New participant' : 'My CIRC · Novo participante'}</p>
             <h1>{isEnglish ? 'Create your CIRC account' : 'Criar conta CIRC'}</h1>
             <p>{isEnglish ? 'Create a secure account to manage your participation in CIRC 2027.' : 'Crie uma conta segura para acompanhar a sua participação no CIRC 2027.'}</p>
           </div>

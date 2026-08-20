@@ -59,7 +59,7 @@ function Footer() {
           <Link to="/participar">{en ? 'Attend' : 'Participar'}</Link>
           <Link to="/parcerias">{en ? 'Partners & Exhibition' : 'Parcerias & Exhibition'}</Link>
           <Link to="/coimbra">Coimbra</Link>
-          <Link to="/conta">{en ? 'My CIRC' : 'Área CIRC'}</Link>
+          <Link to="/conta">My CIRC</Link>
         </div>
 
         <div className="site-footer__column">

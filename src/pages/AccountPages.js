@@ -37,7 +37,7 @@ function AccountShell({ children, title, subtitle }) {
     <main className="account-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant area' : 'Área CIRC · Participante'}</p>
+          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant area' : 'My CIRC · Participante'}</p>
           <h1>{title}</h1>
           <p>{subtitle}</p>
         </div>
@@ -69,7 +69,7 @@ export function LoginPage() {
 
   return (
     <AccountShell
-      title={isEnglish ? 'Welcome to My CIRC' : 'Bem-vindo à Área CIRC'}
+      title={isEnglish ? 'Welcome to My CIRC' : 'Bem-vindo ao My CIRC'}
       subtitle={
         isEnglish
           ? 'Your registration, ticket and CIRC experience in one place.'
@@ -134,7 +134,7 @@ export function AccountOverviewPage() {
   if (!account?.email) {
     return (
       <AccountShell
-        title={isEnglish ? 'My CIRC' : 'Área CIRC'}
+        title="My CIRC"
         subtitle={isEnglish ? 'Sign in to access your participant area.' : 'Entre para aceder à sua área de participante.'}
       >
         <section className="account-empty-state">
@@ -302,7 +302,7 @@ export function AccountProfilePage() {
             <button className="button account-primary-button" type="submit">
               {isEnglish ? 'Save profile' : 'Guardar perfil'}
             </button>
-            <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar à Área CIRC'}</Link>
+            <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
             {saved && <span className="account-save-message">{isEnglish ? 'Saved.' : 'Guardado.'}</span>}
           </div>
         </form>

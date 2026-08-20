@@ -142,8 +142,8 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      eyebrow={isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}
-      title={isEnglish ? 'Sign in to My CIRC' : 'Entrar na Área CIRC'}
+      eyebrow={isEnglish ? 'My CIRC · Participant' : 'My CIRC · Participante'}
+      title={isEnglish ? 'Sign in to My CIRC' : 'Entrar no My CIRC'}
       subtitle={isEnglish ? 'Use your Google account or sign in with email and password.' : 'Utilize a sua conta Google ou entre com email e palavra-passe.'}
       asideTitle={isEnglish ? 'One account for the complete CIRC experience.' : 'Uma conta para toda a experiência CIRC.'}
       asideText={isEnglish ? 'Registration, professional details, digital ticket and, in the future, certificates in one secure account.' : 'Inscrição, dados profissionais, bilhete digital e, futuramente, certificados reunidos num único acesso.'}
@@ -240,7 +240,7 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      eyebrow={isEnglish ? 'My CIRC · New participant' : 'Área CIRC · Novo participante'}
+      eyebrow={isEnglish ? 'My CIRC · New participant' : 'My CIRC · Novo participante'}
       title={isEnglish ? 'Create your CIRC account' : 'Criar conta CIRC'}
       subtitle={isEnglish ? 'Create a secure account to manage your participation in CIRC 2027.' : 'Crie uma conta segura para acompanhar a sua participação no CIRC 2027.'}
       asideTitle={isEnglish ? 'Start now. Complete your profile later.' : 'Comece agora. Complete o perfil depois.'}
@@ -313,7 +313,7 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout
-      eyebrow={isEnglish ? 'My CIRC · Security' : 'Área CIRC · Segurança'}
+      eyebrow={isEnglish ? 'My CIRC · Security' : 'My CIRC · Segurança'}
       title={isEnglish ? 'Reset your password' : 'Recuperar palavra-passe'}
       subtitle={isEnglish ? 'Enter your account email. We will send you secure recovery instructions.' : 'Indique o email da sua conta. Enviaremos as instruções de recuperação.'}
       asideTitle={isEnglish ? 'Recover access securely.' : 'Recupere o acesso com segurança.'}
@@ -365,7 +365,7 @@ export function AuthenticatedAccountPage() {
     <main className="account-page auth-account-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}</p>
+          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'My CIRC · Participante'}</p>
           <h1>{isEnglish ? 'Hello' : 'Olá'}, {displayName}</h1>
           <p>{isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 abril'}</p>
         </div>

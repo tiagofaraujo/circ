@@ -209,7 +209,7 @@ export default function AdminDashboardPage() {
 
       <footer className="admin-footer">
         <p>Pagamentos: guardar apenas estado, montante, método e referência do prestador. Nunca guardar dados de cartão.</p>
-        <Link to="/conta">← Voltar à Área CIRC</Link>
+        <Link to="/conta">← Voltar ao My CIRC</Link>
       </footer>
     </main>
   );

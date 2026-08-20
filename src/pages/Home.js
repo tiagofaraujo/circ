@@ -42,6 +42,8 @@ const content = {
     congressDate: '09—10 ABR',
     congress: 'Congresso Internacional',
     followProgramme: 'Acompanhar o programa',
+    myCircLogin: 'My CIRC · Login',
+    myCircLoginHint: 'Participantes e administração',
     revisit2025: 'Rever a edição de 2025',
     factsLabel: 'Informação principal do CIRC 2027',
     experience: 'Experiência CIRC',
@@ -109,6 +111,8 @@ const content = {
     congressDate: '09—10 APR',
     congress: 'International Congress',
     followProgramme: 'Follow the programme',
+    myCircLogin: 'My CIRC · Login',
+    myCircLoginHint: 'Participants and administration',
     revisit2025: 'Revisit the 2025 edition',
     factsLabel: 'Key CIRC 2027 information',
     experience: 'CIRC Experience',
@@ -166,10 +170,19 @@ function Home() {
             </div>
           </div>
 
-          <div className="hero__actions">
-            <Link className="button button--dark" to="/programa">
-              {copy.followProgramme}
-            </Link>
+          <div className="hero__actions hero__actions--with-login">
+            <div className="hero__action-stack">
+              <Link className="button button--dark" to="/programa">
+                {copy.followProgramme}
+              </Link>
+              <Link className="hero__login-link" to="/login" aria-label={`${copy.myCircLogin} — ${copy.myCircLoginHint}`}>
+                <span>
+                  <strong>{copy.myCircLogin}</strong>
+                  <small>{copy.myCircLoginHint}</small>
+                </span>
+                <b aria-hidden="true">→</b>
+              </Link>
+            </div>
             <Link className="text-link" to="/2025">
               {copy.revisit2025} <span aria-hidden="true">↗</span>
             </Link>

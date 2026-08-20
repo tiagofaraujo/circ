@@ -109,7 +109,7 @@ export default function ParticipantProfileFirebasePage() {
     <main className="account-page participant-profile-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'Área CIRC · Participante'}</p>
+          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'My CIRC · Participante'}</p>
           <h1>{isEnglish ? 'Personal and professional details' : 'Dados pessoais e profissionais'}</h1>
           <p>{isEnglish ? 'Keep the information used for registration and billing up to date.' : 'Mantenha atualizados os dados utilizados na inscrição e faturação.'}</p>
         </div>
@@ -169,7 +169,7 @@ export default function ParticipantProfileFirebasePage() {
 
             <div className="account-form-actions">
               <button className="button account-primary-button" type="submit" disabled={saving}>{saving ? (isEnglish ? 'Saving…' : 'A guardar…') : (isEnglish ? 'Save details' : 'Guardar dados')}</button>
-              <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar à Área CIRC'}</Link>
+              <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
               {saved && <span className="account-save-message">{isEnglish ? 'Saved.' : 'Guardado.'}</span>}
             </div>
           </form>

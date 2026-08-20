@@ -88,7 +88,7 @@ export default function AccountSecurityPage() {
     <main className="account-page account-security-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">{isEnglish ? 'My CIRC · Security' : 'Área CIRC · Segurança'}</p>
+          <p className="eyebrow">{isEnglish ? 'My CIRC · Security' : 'My CIRC · Segurança'}</p>
           <h1>{isEnglish ? 'Account security' : 'Segurança da conta'}</h1>
           <p>{isEnglish ? 'Manage your password and account access.' : 'Gira a palavra-passe e o acesso à sua conta.'}</p>
         </div>
