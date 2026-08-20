@@ -5,6 +5,7 @@ import {
   firebaseConfigured,
   microsoftAuthEnabled,
   getFirebaseAuth,
+  isAdminUser,
 } from './firebaseClient';
 import { deleteParticipantData } from './profileStore';
 
@@ -76,6 +77,7 @@ export function AuthProvider({ children }) {
     microsoftAuthEnabled,
     user,
     loading,
+    isAdmin: isAdminUser(user),
 
     async signInWithEmail(email, password, language = 'pt') {
       const auth = getFirebaseAuth();

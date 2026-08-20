@@ -337,7 +337,7 @@ export function ForgotPasswordPage() {
 export function AuthenticatedAccountPage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
-  const { user, signOut, resendVerification } = useAuth();
+  const { user, isAdmin, signOut, resendVerification } = useAuth();
   const navigate = useNavigate();
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -404,6 +404,15 @@ export function AuthenticatedAccountPage() {
           <p>{user?.emailVerified ? (isEnglish ? 'Email verified.' : 'Email verificado.') : (isEnglish ? 'Email not yet verified.' : 'Email ainda não verificado.')}</p>
           <button className="auth-signout-button" type="button" onClick={handleSignOut} disabled={busy}>{isEnglish ? 'Sign out' : 'Terminar sessão'}</button>
         </article>
+        {isAdmin && (
+          <article className="auth-account-card auth-account-card--admin">
+            <span>04</span>
+            <p className="eyebrow">Administração</p>
+            <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
+            <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
+            <Link to="/admin">{isEnglish ? 'Open administration →' : 'Abrir administração →'}</Link>
+          </article>
+        )}
       </section>
     </main>
   );

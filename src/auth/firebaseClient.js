@@ -2,6 +2,7 @@ const fallbackFirebaseConfig = {
   apiKey: 'AIzaSyB_SQRRtWdODHk0Zll_EmK5NiWmOwUrHd8',
   authDomain: 'circ-coimbra.firebaseapp.com',
   projectId: 'circ-coimbra',
+  storageBucket: '',
   messagingSenderId: '460712299823',
   appId: '1:460712299823:web:9744dcd5c386baa1e3a5da',
 };
@@ -10,6 +11,7 @@ const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || fallbackFirebaseConfig.apiKey,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || fallbackFirebaseConfig.authDomain,
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || fallbackFirebaseConfig.projectId,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || fallbackFirebaseConfig.storageBucket,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || fallbackFirebaseConfig.messagingSenderId,
   appId: process.env.REACT_APP_FIREBASE_APP_ID || fallbackFirebaseConfig.appId,
 };
@@ -22,9 +24,19 @@ export const firebaseConfigured = requiredKeys.every(
 
 // Microsoft stays hidden until the provider has been configured in Firebase.
 export const microsoftAuthEnabled = process.env.REACT_APP_MICROSOFT_AUTH_ENABLED === 'true';
+export const adminEmail = (process.env.REACT_APP_ADMIN_EMAIL || 'circ.chuc@gmail.com').trim().toLowerCase();
+
+export function isAdminUser(user) {
+  return Boolean(
+    user?.emailVerified
+    && user?.email
+    && user.email.trim().toLowerCase() === adminEmail
+  );
+}
 
 let authInstance = null;
 let firestoreInstance = null;
+let storageInstance = null;
 
 function ensureFirebaseApp() {
   if (!firebaseConfigured || typeof window === 'undefined' || !window.firebase) return null;
@@ -45,6 +57,12 @@ export function getFirebaseFirestore() {
   if (!ensureFirebaseApp() || !window.firebase.firestore) return null;
   if (!firestoreInstance) firestoreInstance = window.firebase.firestore();
   return firestoreInstance;
+}
+
+export function getFirebaseStorage() {
+  if (!firebaseConfig.storageBucket || !ensureFirebaseApp() || !window.firebase.storage) return null;
+  if (!storageInstance) storageInstance = window.firebase.storage();
+  return storageInstance;
 }
 
 export function createGoogleProvider() {

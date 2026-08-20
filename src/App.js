@@ -7,6 +7,7 @@ import CookiesConsent from './components/js/CookiesConsent';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoute';
+import AdminRoute from './auth/AdminRoute';
 
 import Home from './pages/Home';
 import {
@@ -31,6 +32,7 @@ import { AccountRegistrationsPage } from './pages/AccountPages';
 import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import {
   AuthenticatedAccountPage,
   ForgotPasswordPage,
@@ -109,6 +111,14 @@ function App() {
                 <ProtectedRoute>
                   <AccountRegistrationsPage />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboardPage />
+                </AdminRoute>
               }
             />
 
