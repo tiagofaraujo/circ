@@ -491,7 +491,28 @@ main {
   margin: 0;
 }
 
+.municipal-support {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.municipal-support span {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.municipal-support img {
+  display: block;
+  width: min(320px, 45vw);
+  height: auto;
+}
+
 .support-strip--page {
+  justify-content: flex-end;
   margin: 72px 0 0;
 }
 
@@ -983,5 +1004,18 @@ main {
   * {
     scroll-behavior: auto !important;
     transition: none !important;
+  }
+}
+
+
+@media (max-width: 780px) {
+  .municipal-support {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .municipal-support img {
+    width: min(300px, 80vw);
   }
 }

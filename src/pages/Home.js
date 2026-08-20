@@ -71,7 +71,7 @@ const content = {
     prepareVisit: 'Preparar a visita',
     congressDateLabel: 'abril 2027 · Congresso',
     organization: 'Organização · Associação Hemisfério Disciplinado',
-    support: 'Com apoio do Município de Coimbra',
+    support: 'Com apoio de',
   },
   en: {
     updates: [
@@ -140,7 +140,7 @@ const content = {
     prepareVisit: 'Plan your visit',
     congressDateLabel: 'April 2027 · Congress',
     organization: 'Organised by · Associação Hemisfério Disciplinado',
-    support: 'With the support of the Municipality of Coimbra',
+    support: 'With the support of',
   },
 };
 
@@ -303,7 +303,10 @@ function Home() {
 
       <section className="support-strip">
         <p>{copy.organization}</p>
-        <p>{copy.support}</p>
+        <div className="municipal-support">
+          <span>{copy.support}</span>
+          <img src="/cmc-logo-color.png" alt="Câmara Municipal de Coimbra" />
+        </div>
       </section>
     </main>
   );

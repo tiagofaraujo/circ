@@ -214,7 +214,12 @@ export function EnhancedPartnersPage() {
         <Link className="button button--dark" to="/contactos">{tx(en, 'Contact CIRC', 'Contactar CIRC')}</Link>
       </section>
 
-      <section className="support-strip support-strip--page"><p>{tx(en, 'With the support of the Municipality of Coimbra', 'Com apoio do Município de Coimbra')}</p></section>
+      <section className="support-strip support-strip--page">
+        <div className="municipal-support">
+          <span>{tx(en, 'With the support of', 'Com apoio de')}</span>
+          <img src="/cmc-logo-color.png" alt="Câmara Municipal de Coimbra" />
+        </div>
+      </section>
     </main>
   );
 }

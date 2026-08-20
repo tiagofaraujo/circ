@@ -94,7 +94,8 @@ function Footer() {
       </div>
 
       <div className="site-footer__support">
-        <span>{en ? 'With the support of the Municipality of Coimbra' : 'Com apoio do Município de Coimbra'}</span>
+        <span>{en ? 'With the support of' : 'Com apoio de'}</span>
+        <img src="/cmc-logo-negative.png" alt="Câmara Municipal de Coimbra" />
       </div>
 
       <div className="site-footer__bottom">

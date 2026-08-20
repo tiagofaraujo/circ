@@ -232,7 +232,10 @@ export function PartnersPage() {
       </section>
 
       <section className="support-strip support-strip--page">
-        <p>{en ? 'With the support of the Municipality of Coimbra' : 'Com apoio do Município de Coimbra'}</p>
+        <div className="municipal-support">
+          <span>{en ? 'With the support of' : 'Com apoio de'}</span>
+          <img src="/cmc-logo-color.png" alt="Câmara Municipal de Coimbra" />
+        </div>
       </section>
     </main>
   );
