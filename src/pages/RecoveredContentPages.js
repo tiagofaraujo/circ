@@ -217,7 +217,7 @@ export function EnhancedPartnersPage() {
       <section className="support-strip support-strip--page">
         <div className="municipal-support">
           <span>{tx(en, 'With the support of', 'Com apoio de')}</span>
-          <img src="/cmc-logo-color.png" alt="Câmara Municipal de Coimbra" />
+          <img src="/cmc-logo-monochrome.png" alt="Câmara Municipal de Coimbra" />
         </div>
       </section>
     </main>

@@ -507,7 +507,7 @@ main {
 
 .municipal-support img {
   display: block;
-  width: min(320px, 45vw);
+  width: min(220px, 42vw);
   height: auto;
 }
 
@@ -1016,6 +1016,6 @@ main {
   }
 
   .municipal-support img {
-    width: min(300px, 80vw);
+    width: min(210px, 72vw);
   }
 }

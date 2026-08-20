@@ -305,7 +305,7 @@ function Home() {
         <p>{copy.organization}</p>
         <div className="municipal-support">
           <span>{copy.support}</span>
-          <img src="/cmc-logo-color.png" alt="Câmara Municipal de Coimbra" />
+          <img src="/cmc-logo-monochrome.png" alt="Câmara Municipal de Coimbra" />
         </div>
       </section>
     </main>

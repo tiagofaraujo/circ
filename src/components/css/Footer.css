@@ -128,7 +128,7 @@
 
 .site-footer__support img {
   display: block;
-  width: min(300px, 50vw);
+  width: min(210px, 42vw);
   height: auto;
   opacity: 0.9;
 }
@@ -206,6 +206,6 @@
   }
 
   .site-footer__support img {
-    width: min(270px, 80vw);
+    width: min(200px, 70vw);
   }
 }
