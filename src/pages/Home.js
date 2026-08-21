@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import SocialConnect from '../components/js/SocialConnect';
+import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const content = {
@@ -44,6 +45,7 @@ const content = {
     followProgramme: 'Acompanhar o programa',
     myCircLogin: 'My CIRC · Login',
     myCircLoginHint: 'Participantes e administração',
+    signedIn: 'Sessão iniciada',
     revisit2025: 'Rever a edição de 2025',
     factsLabel: 'Informação principal do CIRC 2027',
     experience: 'Experiência CIRC',
@@ -113,6 +115,7 @@ const content = {
     followProgramme: 'Follow the programme',
     myCircLogin: 'My CIRC · Login',
     myCircLoginHint: 'Participants and administration',
+    signedIn: 'Signed in',
     revisit2025: 'Revisit the 2025 edition',
     factsLabel: 'Key CIRC 2027 information',
     experience: 'CIRC Experience',
@@ -146,7 +149,17 @@ const content = {
 
 function Home() {
   const { language } = useLanguage();
+  const { user, loading } = useAuth();
   const copy = content[language];
+  const accountIdentity = user?.displayName?.trim()
+    ? user.displayName.trim().split(/\s+/)[0]
+    : user?.email || '';
+  const accountTitle = user ? 'My CIRC' : copy.myCircLogin;
+  const accountHint = loading
+    ? (language === 'en' ? 'Checking session…' : 'A verificar sessão…')
+    : user
+      ? `${copy.signedIn} · ${accountIdentity}`
+      : copy.myCircLoginHint;
 
   return (
     <main>
@@ -175,10 +188,14 @@ function Home() {
               <Link className="button button--dark" to="/programa">
                 {copy.followProgramme}
               </Link>
-              <Link className="hero__login-link" to="/login" aria-label={`${copy.myCircLogin} — ${copy.myCircLoginHint}`}>
+              <Link
+                className={user ? 'hero__login-link is-authenticated' : 'hero__login-link'}
+                to={user ? '/conta' : '/login'}
+                aria-label={`${accountTitle} — ${accountHint}`}
+              >
                 <span>
-                  <strong>{copy.myCircLogin}</strong>
-                  <small>{copy.myCircLoginHint}</small>
+                  <strong>{accountTitle}</strong>
+                  <small>{accountHint}</small>
                 </span>
                 <b aria-hidden="true">→</b>
               </Link>

@@ -116,6 +116,25 @@
   transform: translateY(-2px);
 }
 
+.hero__login-link.is-authenticated {
+  border-color: rgba(115, 224, 173, 0.62);
+  background: rgba(35, 46, 183, 0.42);
+}
+
+.hero__login-link.is-authenticated::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #73e0ad;
+  box-shadow: 0 0 0 4px rgba(115, 224, 173, 0.16);
+}
+
+.hero__login-link.is-authenticated span {
+  margin-right: auto;
+}
+
 .hero__login-link span {
   display: grid;
   gap: 3px;

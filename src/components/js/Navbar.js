@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 import '../css/Navbar.css';
@@ -15,7 +16,12 @@ const navItems = [
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
+  const { user, loading } = useAuth();
   const isEnglish = language === 'en';
+  const accountIdentity = user?.displayName?.trim()
+    ? user.displayName.trim().split(/\s+/)[0]
+    : user?.email || '';
+  const accountState = loading ? '…' : user ? accountIdentity : 'Login';
 
   const closeMenu = () => setIsOpen(false);
 
@@ -73,8 +79,15 @@ function Navbar() {
           </button>
         </div>
 
-        <Link className="header-cta" to="/conta">
-          My CIRC
+        <Link
+          className={user ? 'header-cta is-authenticated' : 'header-cta'}
+          to={user ? '/conta' : '/login'}
+          aria-label={user
+            ? `My CIRC — ${isEnglish ? 'signed in as' : 'sessão iniciada como'} ${accountIdentity}`
+            : 'My CIRC — Login'}
+        >
+          <span>My CIRC</span>
+          <small>{accountState}</small>
         </Link>
         <button
           className={isOpen ? 'menu-toggle is-open' : 'menu-toggle'}
@@ -110,7 +123,9 @@ function Navbar() {
             {isEnglish ? item.en : item.pt}
           </NavLink>
         ))}
-        <Link to="/conta" onClick={closeMenu}>My CIRC</Link>
+        <Link to={user ? '/conta' : '/login'} onClick={closeMenu}>
+          {user ? `My CIRC · ${accountIdentity}` : 'My CIRC · Login'}
+        </Link>
         <Link to="/contactos" onClick={closeMenu}>{isEnglish ? 'Contact' : 'Contactos'}</Link>
       </div>
     </header>
