@@ -1,13 +1,14 @@
 // src/components/js/Prices.js
 import React from 'react';
 import '../css/Prices.css';
+import { useLanguage } from '../../context/LanguageContext';
 
-function PriceValue({ amount, dinnerAmount, note }) {
+function PriceValue({ amount, dinnerAmount, note, dinnerLabel }) {
     return (
         <div className="price-value">
             <span className="price-main">{amount}</span>
             {dinnerAmount && (
-                <span className="price-detail">Com jantar: {dinnerAmount}</span>
+                <span className="price-detail">{dinnerLabel}: {dinnerAmount}</span>
             )}
             {note && <span className="price-note">{note}</span>}
         </div>
@@ -15,13 +16,21 @@ function PriceValue({ amount, dinnerAmount, note }) {
 }
 
 function Prices() {
+    const { language } = useLanguage();
+    const en = language === 'en';
+    const dinnerLabel = en ? 'With dinner' : 'Com jantar';
+    const singlePrice = en ? 'Single price' : 'Preço único';
+    const perCourse = en ? 'Price per course' : 'Preço por curso';
+
     return (
         <section className="prices" aria-labelledby="prices-title">
             <div className="prices-header">
                 <p className="prices-kicker">CIRC 2027</p>
-                <h2 id="prices-title">Taxas de inscrição</h2>
+                <h2 id="prices-title">{en ? 'Registration fees' : 'Taxas de inscrição'}</h2>
                 <p className="prices-opening">
-                    Inscrições a partir de 15 de novembro de 2026
+                    {en
+                        ? 'Registration opens on 15 November 2026'
+                        : 'Inscrições a partir de 15 de novembro de 2026'}
                 </p>
             </div>
 
@@ -29,90 +38,64 @@ function Prices() {
                 <div className="price-table-scroll">
                     <table className="price-table">
                         <caption className="sr-only">
-                            Preços das inscrições, jantar e cursos pré-congresso do CIRC 2027
+                            {en
+                                ? 'CIRC 2027 registration, dinner and pre-congress course fees'
+                                : 'Preços das inscrições, jantar e cursos pré-congresso do CIRC 2027'}
                         </caption>
                         <thead>
                             <tr>
-                                <th scope="col">Modalidade</th>
+                                <th scope="col">{en ? 'Category' : 'Modalidade'}</th>
                                 <th scope="col">
-                                    Até
-                                    <span>31 jan. 2027</span>
+                                    {en ? 'Until' : 'Até'}
+                                    <span>{en ? '31 Jan 2027' : '31 jan. 2027'}</span>
                                 </th>
                                 <th scope="col">
-                                    A partir de
-                                    <span>1 fev. 2027</span>
+                                    {en ? 'From' : 'A partir de'}
+                                    <span>{en ? '1 Feb 2027' : '1 fev. 2027'}</span>
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <th scope="row">Congressistas ULS Coimbra</th>
-                                <td>
-                                    <PriceValue amount="55 €" dinnerAmount="85 €" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="90 €" dinnerAmount="120 €" />
-                                </td>
+                                <th scope="row">{en ? 'ULS Coimbra delegates' : 'Congressistas ULS Coimbra'}</th>
+                                <td><PriceValue amount="55 €" dinnerAmount="85 €" dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="90 €" dinnerAmount="120 €" dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr>
-                                <th scope="row">Congressistas externos</th>
-                                <td>
-                                    <PriceValue amount="95 €" dinnerAmount="125 €" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="150 €" dinnerAmount="180 €" />
-                                </td>
+                                <th scope="row">{en ? 'External delegates' : 'Congressistas externos'}</th>
+                                <td><PriceValue amount="95 €" dinnerAmount="125 €" dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="150 €" dinnerAmount="180 €" dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr>
-                                <th scope="row">Estudantes IMR</th>
-                                <td>
-                                    <PriceValue amount="60 €" dinnerAmount="90 €" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="95 €" dinnerAmount="125 €" />
-                                </td>
+                                <th scope="row">{en ? 'IMR students' : 'Estudantes IMR'}</th>
+                                <td><PriceValue amount="60 €" dinnerAmount="90 €" dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="95 €" dinnerAmount="125 €" dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr>
-                                <th scope="row">Congresso virtual</th>
-                                <td>
-                                    <PriceValue amount="60 €" note="Preço único" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="60 €" note="Preço único" />
-                                </td>
+                                <th scope="row">{en ? 'Virtual congress' : 'Congresso virtual'}</th>
+                                <td><PriceValue amount="60 €" note={singlePrice} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="60 €" note={singlePrice} dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr>
-                                <th scope="row">Jantar extra</th>
-                                <td>
-                                    <PriceValue amount="30 €" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="30 €" />
-                                </td>
+                                <th scope="row">{en ? 'Extra dinner' : 'Jantar extra'}</th>
+                                <td><PriceValue amount="30 €" dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="30 €" dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
-                                    <span className="row-label">Curso pré-congresso</span>
+                                    <span className="row-label">{en ? 'Pre-congress course' : 'Curso pré-congresso'}</span>
                                     ULS Coimbra
                                 </th>
-                                <td>
-                                    <PriceValue amount="20 €" note="Preço por curso" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="20 €" note="Preço por curso" />
-                                </td>
+                                <td><PriceValue amount="20 €" note={perCourse} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="20 €" note={perCourse} dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
-                                    <span className="row-label">Curso pré-congresso</span>
-                                    Participantes externos
+                                    <span className="row-label">{en ? 'Pre-congress course' : 'Curso pré-congresso'}</span>
+                                    {en ? 'External participants' : 'Participantes externos'}
                                 </th>
-                                <td>
-                                    <PriceValue amount="35 €" note="Preço por curso" />
-                                </td>
-                                <td>
-                                    <PriceValue amount="35 €" note="Preço por curso" />
-                                </td>
+                                <td><PriceValue amount="35 €" note={perCourse} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount="35 €" note={perCourse} dinnerLabel={dinnerLabel} /></td>
                             </tr>
                         </tbody>
                     </table>
@@ -120,12 +103,16 @@ function Prices() {
 
                 <div className="price-table-footer">
                     <p>
-                        <strong>Jantar:</strong> suplemento de 30 €, já incluído nos valores
-                        assinalados como «Com jantar».
+                        <strong>{en ? 'Dinner:' : 'Jantar:'}</strong>{' '}
+                        {en
+                            ? '€30 supplement, already included in the amounts marked “With dinner”.'
+                            : 'suplemento de 30 €, já incluído nos valores assinalados como «Com jantar».'}
                     </p>
                     <p>
-                        <strong>Cursos:</strong> o preço é definido pela ligação à ULS Coimbra,
-                        sem tarifa específica para estudantes.
+                        <strong>{en ? 'Courses:' : 'Cursos:'}</strong>{' '}
+                        {en
+                            ? 'the fee is based on the participant’s connection to ULS Coimbra, with no separate student rate.'
+                            : 'o preço é definido pela ligação à ULS Coimbra, sem tarifa específica para estudantes.'}
                     </p>
                 </div>
             </div>
