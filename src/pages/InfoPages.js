@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ContactForm from '../components/js/ContactForm';
+import Prices from '../components/js/Prices';
 import { useLanguage } from '../context/LanguageContext';
 
 function PageHero({ eyebrow, title, lead, status }) {
@@ -139,31 +140,24 @@ export function ParticipatePage() {
       <PageHero
         eyebrow={en ? 'Attend' : 'Participar'}
         title={en ? 'Registration and submissions' : 'Inscrições e trabalhos'}
-        status={en ? 'Not open yet' : 'Ainda não aberto'}
+        status={en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026'}
         lead={
           en
-            ? 'Registration and scientific submissions do not yet have a public opening date. This page will be the official reference for deadlines and conditions for the Pre-Congress Course and CIRC 2027.'
-            : 'As inscrições e a submissão de trabalhos ainda não têm data pública de abertura. Esta página será a referência oficial para prazos e condições do Curso Pré-Congresso e do CIRC 2027.'
+            ? 'The CIRC 2027 registration fees are now available. Registration opens on 15 November 2026, with an early rate until 31 January 2027.'
+            : 'Os valores de inscrição do CIRC 2027 já estão disponíveis. As inscrições abrem a 15 de novembro de 2026, com preço reduzido até 31 de janeiro de 2027.'
         }
       />
 
-      <section className="editorial-grid editorial-grid--three">
+      <Prices />
+
+      <section className="editorial-grid">
         <article className="info-card info-card--course">
           <p className="eyebrow">{en ? '8 April · Pre-Congress Course' : '8 abril · Curso Pré-Congresso'}</p>
-          <h2>{en ? 'Registration to be announced' : 'Inscrição a anunciar'}</h2>
+          <h2>{en ? 'Fees confirmed' : 'Preços confirmados'}</h2>
           <p>
             {en
-              ? 'Registration format, possible capacity limits, conditions and the relationship with congress registration will be announced once defined.'
-              : 'O formato de inscrição, eventuais vagas, condições e relação com a inscrição no congresso serão divulgados quando estiverem definidos.'}
-          </p>
-        </article>
-        <article className="info-card">
-          <p className="eyebrow">{en ? '9–10 April · CIRC 2027' : '9–10 abril · CIRC 2027'}</p>
-          <h2>{en ? 'Registration to be announced' : 'Inscrições a anunciar'}</h2>
-          <p>
-            {en
-              ? 'Categories, fees, conditions and the cancellation policy will be published before registration opens.'
-              : 'Categorias, valores, condições e política de cancelamento serão publicados antes da abertura das inscrições.'}
+              ? 'The fee is defined according to the participant’s connection to ULS Coimbra. The theme, capacity and detailed programme will be announced after final confirmation.'
+              : 'O preço é definido de acordo com a ligação do participante à ULS Coimbra. O tema, as vagas e o programa detalhado serão divulgados após confirmação final.'}
           </p>
         </article>
         <article className="info-card info-card--accent">
@@ -179,12 +173,12 @@ export function ParticipatePage() {
 
       <section className="callout callout--soft">
         <div>
-          <p className="eyebrow">{en ? 'Now' : 'Agora'}</p>
-          <h2>{en ? 'Save 8, 9 and 10 April 2027.' : 'Reserve 8, 9 e 10 de abril de 2027.'}</h2>
+          <p className="eyebrow">{en ? 'Save the Date' : 'Reserve as datas'}</p>
+          <h2>{en ? '8–10 April 2027 · Coimbra' : '8–10 de abril de 2027 · Coimbra'}</h2>
           <p>
             {en
-              ? 'Three days of CIRC: one day of pre-congress training and two days of congress.'
-              : 'Três dias de experiência CIRC, com um dia de formação pré-congresso e dois dias de congresso.'}
+              ? '8 April · Pre-Congress Course · 9–10 April · International Congress.'
+              : '8 abril · Curso Pré-Congresso · 9–10 abril · Congresso Internacional.'}
           </p>
         </div>
       </section>
