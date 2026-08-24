@@ -94,8 +94,27 @@ function Footer() {
       </div>
 
       <div className="site-footer__support">
-        <span>{en ? 'With the support of' : 'Com apoio de'}</span>
-        <img src="/cmc-logo-negative.png" alt="Câmara Municipal de Coimbra" />
+        <span>{en ? 'Institutional partnerships' : 'Parcerias institucionais'}</span>
+        <div className="site-footer__support-logos">
+          <a
+            className="site-footer__support-logo site-footer__support-logo--cmc"
+            href="https://www.cm-coimbra.pt/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={en ? 'Coimbra City Council website' : 'Website da Câmara Municipal de Coimbra'}
+          >
+            <img src="/cmc-logo-negative.png" alt="Câmara Municipal de Coimbra" />
+          </a>
+          <a
+            className="site-footer__support-logo site-footer__support-logo--uls"
+            href="https://www.ulscoimbra.min-saude.pt/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={en ? 'ULS Coimbra website' : 'Website da ULS Coimbra'}
+          >
+            <img src="/uls-coimbra-logo-negative.svg" alt="ULS Coimbra" />
+          </a>
+        </div>
       </div>
 
       <div className="site-footer__bottom">
