@@ -8,6 +8,7 @@ import {
   isAdminUser,
 } from './firebaseClient';
 import { deleteParticipantData } from './profileStore';
+import { setUserPresence } from './presenceStore';
 
 const AuthContext = createContext(null);
 const LEGACY_ACCOUNT_KEY = 'circ_demo_account';
@@ -71,6 +72,31 @@ export function AuthProvider({ children }) {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user || typeof window === 'undefined') return undefined;
+
+    const markActive = () => {
+      if (document.visibilityState === 'visible') {
+        setUserPresence(user, 'online').catch(() => {});
+      }
+    };
+    const handleVisibility = () => {
+      setUserPresence(user, document.visibilityState === 'visible' ? 'online' : 'away').catch(() => {});
+    };
+
+    markActive();
+    const heartbeat = window.setInterval(markActive, 45 * 1000);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', markActive);
+
+    return () => {
+      window.clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', markActive);
+      setUserPresence(user, 'offline').catch(() => {});
+    };
+  }, [user]);
 
   const value = useMemo(() => ({
     configured: firebaseConfigured,
@@ -197,6 +223,9 @@ export function AuthProvider({ children }) {
 
     async signOut() {
       const auth = getFirebaseAuth();
+      if (auth?.currentUser) {
+        await setUserPresence(auth.currentUser, 'offline').catch(() => {});
+      }
       clearLegacyAccount();
       if (auth) await auth.signOut();
       setUser(null);

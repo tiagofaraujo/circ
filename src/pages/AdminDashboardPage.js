@@ -8,6 +8,7 @@ import {
   updatePaymentStatus,
   updateRegistrationStatus,
 } from '../auth/adminStore';
+import { subscribeToUserStats } from '../auth/presenceStore';
 import '../admin.css';
 
 const paymentLabels = {
@@ -70,6 +71,8 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState('');
+  const [userStats, setUserStats] = useState({ total: null, online: null });
+  const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
 
   useEffect(() => subscribeToRegistrations(
     (items) => {
@@ -83,6 +86,14 @@ export default function AdminDashboardPage() {
         ? 'O índice Firestore das inscrições ainda não foi publicado.'
         : 'Não foi possível carregar as inscrições. Confirme a configuração e as regras do Firebase.');
     }
+  ), []);
+
+  useEffect(() => subscribeToUserStats(
+    (stats) => {
+      setUserStats(stats);
+      setUserStatsUnavailable(false);
+    },
+    () => setUserStatsUnavailable(true)
   ), []);
 
   const visibleRegistrations = useMemo(() => {
@@ -144,6 +155,24 @@ export default function AdminDashboardPage() {
           <button type="button" onClick={handleSignOut}>Terminar sessão</button>
         </div>
       </header>
+
+      <section className="admin-user-summary" aria-label="Utilização do My CIRC">
+        <div className="admin-user-summary__intro">
+          <span>My CIRC</span>
+          <small>Utilização da área reservada</small>
+        </div>
+        <div className="admin-user-summary__stat admin-user-summary__stat--accounts">
+          <span>Contas registadas</span>
+          <strong>{userStatsUnavailable ? '—' : (userStats.total ?? '…')}</strong>
+        </div>
+        <div className="admin-user-summary__stat admin-user-summary__stat--online">
+          <span><i aria-hidden="true" />Online agora</span>
+          <strong>{userStatsUnavailable ? '—' : (userStats.online ?? '…')}</strong>
+        </div>
+        <small className="admin-user-summary__note">
+          {userStatsUnavailable ? 'Atividade temporariamente indisponível' : 'Atividade nos últimos 2 minutos'}
+        </small>
+      </section>
 
       <section className="admin-metrics" aria-label="Resumo">
         <article><span>Total</span><strong>{counts.total}</strong><small>inscrições</small></article>
