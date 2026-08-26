@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import SocialConnect from '../components/js/SocialConnect';
-import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const content = {
@@ -43,9 +42,6 @@ const content = {
     congressDate: '09—10 ABR',
     congress: 'Congresso Internacional',
     followProgramme: 'Acompanhar o programa',
-    myCircLogin: 'My CIRC · Login',
-    myCircLoginHint: 'Participantes e administração',
-    signedIn: 'Sessão iniciada',
     revisit2025: 'Rever a edição de 2025',
     factsLabel: 'Informação principal do CIRC 2027',
     officialInfo: 'Informação oficial',
@@ -103,9 +99,6 @@ const content = {
     congressDate: '09—10 APR',
     congress: 'International Congress',
     followProgramme: 'Follow the programme',
-    myCircLogin: 'My CIRC · Login',
-    myCircLoginHint: 'Participants and administration',
-    signedIn: 'Signed in',
     revisit2025: 'Revisit the 2025 edition',
     factsLabel: 'Key CIRC 2027 information',
     officialInfo: 'Official information',
@@ -129,21 +122,30 @@ const content = {
 
 function Home() {
   const { language } = useLanguage();
-  const { user, loading } = useAuth();
   const copy = content[language];
-  const accountIdentity = user?.displayName?.trim()
-    ? user.displayName.trim().split(/\s+/)[0]
-    : user?.email || '';
-  const accountTitle = user ? 'My CIRC' : copy.myCircLogin;
-  const accountHint = loading
-    ? (language === 'en' ? 'Checking session…' : 'A verificar sessão…')
-    : user
-      ? `${copy.signedIn} · ${accountIdentity}`
-      : copy.myCircLoginHint;
 
   return (
     <main>
       <section className="hero hero--official hero--without-artwork" id="save-the-date">
+        <div className="hero__slideshow" aria-hidden="true">
+          <img
+            className="hero__slide hero__slide--auditorium"
+            src="/circ2025/hero-auditorium.webp"
+            alt=""
+            fetchPriority="high"
+          />
+          <img
+            className="hero__slide hero__slide--audience"
+            src="/circ2025/venue-auditorium.webp"
+            alt=""
+          />
+          <img
+            className="hero__slide hero__slide--exhibition"
+            src="/exhibition/exhibition-16.jpg"
+            alt=""
+          />
+        </div>
+
         <div className="hero__copy">
           <p className="eyebrow">{copy.heroEyebrow}</p>
           <h1>
@@ -152,34 +154,40 @@ function Home() {
           </h1>
           <p className="hero__lead">{copy.heroLead}</p>
 
-          <div className="hero__format-list" aria-label={copy.factsLabel}>
-            <div>
-              <span>{copy.courseDate}</span>
+          <div className="hero__date-grid" aria-label={copy.factsLabel}>
+            <Link
+              className="hero__date-card"
+              to="/programa"
+              aria-label={`${copy.courseDate} — ${copy.course}`}
+            >
+              <time className="hero__date" dateTime="2027-04-08">
+                <span>08</span>
+                <small>{language === 'en' ? 'APR' : 'ABR'}</small>
+              </time>
+              <span className="hero__date-rule" aria-hidden="true" />
               <strong>{copy.course}</strong>
-            </div>
-            <div>
-              <span>{copy.congressDate}</span>
+              <span className="hero__date-arrow" aria-hidden="true">↗</span>
+            </Link>
+
+            <Link
+              className="hero__date-card"
+              to="/programa"
+              aria-label={`${copy.congressDate} — ${copy.congress}`}
+            >
+              <time className="hero__date hero__date--range" dateTime="2027-04-09">
+                <span>09—10</span>
+                <small>{language === 'en' ? 'APR' : 'ABR'}</small>
+              </time>
+              <span className="hero__date-rule" aria-hidden="true" />
               <strong>{copy.congress}</strong>
-            </div>
+              <span className="hero__date-arrow" aria-hidden="true">↗</span>
+            </Link>
           </div>
 
-          <div className="hero__actions hero__actions--with-login">
-            <div className="hero__action-stack">
-              <Link className="button button--dark" to="/programa">
-                {copy.followProgramme}
-              </Link>
-              <Link
-                className={user ? 'hero__login-link is-authenticated' : 'hero__login-link'}
-                to={user ? '/conta' : '/login'}
-                aria-label={`${accountTitle} — ${accountHint}`}
-              >
-                <span>
-                  <strong>{accountTitle}</strong>
-                  <small>{accountHint}</small>
-                </span>
-                <b aria-hidden="true">→</b>
-              </Link>
-            </div>
+          <div className="hero__actions">
+            <Link className="button button--dark" to="/programa">
+              {copy.followProgramme}
+            </Link>
             <Link className="text-link" to="/2025">
               {copy.revisit2025} <span aria-hidden="true">↗</span>
             </Link>
