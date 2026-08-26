@@ -420,6 +420,40 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
+.auth-profile-completion {
+  margin-top: 4px;
+}
+
+.auth-profile-completion > div:first-child {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: rgba(20, 24, 70, 0.58);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.auth-profile-completion strong {
+  color: #232eb7;
+  font-size: 0.82rem;
+}
+
+.auth-profile-completion__track {
+  height: 3px;
+  overflow: hidden;
+  background: rgba(35, 46, 183, 0.13);
+}
+
+.auth-profile-completion__track > span {
+  height: 100%;
+  display: block;
+  background: #232eb7;
+  transition: width 220ms ease;
+}
+
 .auth-account-card a {
   margin-top: 18px;
   color: #232eb7;
