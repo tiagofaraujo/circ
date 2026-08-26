@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { getProfessionalProfileCompletion } from '../auth/profileCompletion';
+import { getProfileCompletion } from '../auth/profileCompletion';
 import { loadParticipantProfile, saveParticipantProfile } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../account.css';
@@ -60,8 +60,8 @@ export default function ParticipantProfileFirebasePage() {
     () => professionOptions.find(([value]) => value === form.profession),
     [form.profession]
   );
-  const professionalCompletion = useMemo(
-    () => getProfessionalProfileCompletion(form),
+  const profileCompletion = useMemo(
+    () => getProfileCompletion(form),
     [form]
   );
 
@@ -143,6 +143,21 @@ export default function ParticipantProfileFirebasePage() {
               </p>
             </div>
 
+            {profileCompletion.percentage < 100 && (
+              <div className="profile-overall-completion" role="status" aria-label={isEnglish ? `Profile ${profileCompletion.percentage}% complete` : `Perfil ${profileCompletion.percentage}% completo`}>
+                <div className="profile-overall-completion__heading">
+                  <div>
+                    <span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span>
+                    <small>{isEnglish ? 'Personal, professional and billing details' : 'Dados pessoais, profissionais e de faturação'}</small>
+                  </div>
+                  <strong>{profileCompletion.percentage}%</strong>
+                </div>
+                <div className="profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion.percentage}>
+                  <span style={{ width: `${profileCompletion.percentage}%` }} />
+                </div>
+              </div>
+            )}
+
             <div className="profile-section-heading profile-section-heading--spaced">
               <p className="eyebrow">01</p>
               <h2>{isEnglish ? 'Personal details' : 'Dados pessoais'}</h2>
@@ -157,23 +172,7 @@ export default function ParticipantProfileFirebasePage() {
               <label><span>{isEnglish ? 'Country of residence' : 'País de residência'}</span><input name="country" autoComplete="country-name" value={form.country || ''} onChange={updateField} /></label>
             </div>
 
-            <div className="profile-section-heading profile-section-heading--spaced profile-section-heading--with-completion">
-              <div>
-                <p className="eyebrow">02</p>
-                <h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2>
-              </div>
-              {professionalCompletion.percentage < 100 && (
-                <div className="profile-completion" role="status" aria-label={isEnglish ? `Professional profile ${professionalCompletion.percentage}% complete` : `Perfil profissional ${professionalCompletion.percentage}% completo`}>
-                  <div className="profile-completion__label">
-                    <span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span>
-                    <strong>{professionalCompletion.percentage}%</strong>
-                  </div>
-                  <div className="profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={professionalCompletion.percentage}>
-                    <span style={{ width: `${professionalCompletion.percentage}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
+            <div className="profile-section-heading profile-section-heading--spaced"><p className="eyebrow">02</p><h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2></div>
             <div className="account-form-grid">
               <label><span>{isEnglish ? 'Profession' : 'Profissão'}</span><select name="profession" value={form.profession || 'radiographer'} onChange={updateField}>{professionOptions.map(([value, pt, en]) => <option key={value} value={value}>{isEnglish ? en : pt}</option>)}</select></label>
               <label><span>{isEnglish ? 'Institution / organisation' : 'Instituição / organização'}</span><input name="institution" value={form.institution || ''} onChange={updateField} /></label>

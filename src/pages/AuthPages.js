@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { getProfessionalProfileCompletion } from '../auth/profileCompletion';
+import { getProfileCompletion } from '../auth/profileCompletion';
 import { loadParticipantProfile } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../auth.css';
@@ -347,8 +347,15 @@ export function AuthenticatedAccountPage() {
 
   const isPasswordAccount = user?.providerData?.some((provider) => provider.providerId === 'password');
   const displayName = user?.displayName || user?.email?.split('@')[0] || (isEnglish ? 'Participant' : 'Participante');
-  const professionalCompletion = participantProfile
-    ? getProfessionalProfileCompletion({ country: 'Portugal', profession: 'radiographer', ...participantProfile })
+  const profileCompletion = participantProfile
+    ? getProfileCompletion({
+        country: 'Portugal',
+        profession: 'radiographer',
+        billingCountry: 'Portugal',
+        email: user?.email || '',
+        name: user?.displayName || '',
+        ...participantProfile,
+      })
     : null;
 
   useEffect(() => {
@@ -407,13 +414,13 @@ export function AuthenticatedAccountPage() {
         <article className="auth-account-card">
           <span>02</span>
           <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
-          <h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2>
-          <p>{isEnglish ? 'Complete the information that will be used for registration and congress documentation.' : 'Complete os dados que serão utilizados na inscrição e documentação do congresso.'}</p>
-          {professionalCompletion && professionalCompletion.percentage < 100 && (
-            <div className="auth-profile-completion" aria-label={isEnglish ? `Professional profile ${professionalCompletion.percentage}% complete` : `Perfil profissional ${professionalCompletion.percentage}% completo`}>
-              <div><span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span><strong>{professionalCompletion.percentage}%</strong></div>
-              <div className="auth-profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={professionalCompletion.percentage}>
-                <span style={{ width: `${professionalCompletion.percentage}%` }} />
+          <h2>{isEnglish ? 'Profile details' : 'Dados do perfil'}</h2>
+          <p>{isEnglish ? 'Complete your personal, professional and billing details.' : 'Complete os seus dados pessoais, profissionais e de faturação.'}</p>
+          {profileCompletion && profileCompletion.percentage < 100 && (
+            <div className="auth-profile-completion" aria-label={isEnglish ? `Profile ${profileCompletion.percentage}% complete` : `Perfil ${profileCompletion.percentage}% completo`}>
+              <div><span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span><strong>{profileCompletion.percentage}%</strong></div>
+              <div className="auth-profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion.percentage}>
+                <span style={{ width: `${profileCompletion.percentage}%` }} />
               </div>
             </div>
           )}

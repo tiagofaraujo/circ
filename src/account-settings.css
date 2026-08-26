@@ -52,23 +52,28 @@
   font-weight: 500;
 }
 
-.profile-section-heading--with-completion {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
-  gap: 28px;
-  align-items: end;
+.profile-overall-completion {
+  margin-top: 30px;
+  padding: 17px 20px;
+  border: 1px solid rgba(35, 46, 183, 0.14);
+  background: rgba(35, 46, 183, 0.035);
 }
 
-.profile-completion {
-  padding-bottom: 5px;
-}
-
-.profile-completion__label {
-  margin-bottom: 9px;
+.profile-overall-completion__heading {
+  margin-bottom: 12px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 24px;
+}
+
+.profile-overall-completion__heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-overall-completion__heading span {
   color: var(--ink-soft);
   font-size: 0.72rem;
   font-weight: 700;
@@ -76,10 +81,15 @@
   text-transform: uppercase;
 }
 
-.profile-completion__label strong {
+.profile-overall-completion__heading small {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+}
+
+.profile-overall-completion__heading strong {
   color: var(--blue);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .profile-completion__track,
@@ -261,8 +271,5 @@
     margin-top: 46px;
   }
 
-  .profile-section-heading--with-completion {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
+  .profile-overall-completion { padding: 15px 16px; }
 }
