@@ -365,7 +365,11 @@ export function AuthenticatedAccountPage() {
     <main className="account-page auth-account-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'My CIRC · Participante'}</p>
+          <p className="eyebrow">
+            {isAdmin
+              ? (isEnglish ? 'My CIRC · Administration' : 'My CIRC · Administração')
+              : (isEnglish ? 'My CIRC · Participant' : 'My CIRC · Participante')}
+          </p>
           <h1>{isEnglish ? 'Hello' : 'Olá'}, {displayName}</h1>
           <p>{isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 abril'}</p>
         </div>
@@ -383,22 +387,26 @@ export function AuthenticatedAccountPage() {
       )}
 
       <section className="auth-account-grid">
-        <article className="auth-account-card auth-account-card--primary">
-          <span>01</span>
-          <p className="eyebrow">{isEnglish ? 'Registration' : 'Inscrição'}</p>
-          <h2>{isEnglish ? 'Not open yet' : 'Ainda não aberta'}</h2>
-          <p>{isEnglish ? 'When registration opens, you will be able to start and follow the complete process in this area.' : 'Quando as inscrições forem disponibilizadas, poderá iniciar e acompanhar todo o processo nesta área.'}</p>
-          <Link to="/conta/inscricoes">{isEnglish ? 'See planned options →' : 'Ver opções previstas →'}</Link>
-        </article>
+        {!isAdmin && (
+          <>
+            <article className="auth-account-card auth-account-card--primary">
+              <span>01</span>
+              <p className="eyebrow">{isEnglish ? 'Registration' : 'Inscrição'}</p>
+              <h2>{isEnglish ? 'Not open yet' : 'Ainda não aberta'}</h2>
+              <p>{isEnglish ? 'When registration opens, you will be able to start and follow the complete process in this area.' : 'Quando as inscrições forem disponibilizadas, poderá iniciar e acompanhar todo o processo nesta área.'}</p>
+              <Link to="/conta/inscricoes">{isEnglish ? 'See planned options →' : 'Ver opções previstas →'}</Link>
+            </article>
+            <article className="auth-account-card">
+              <span>02</span>
+              <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
+              <h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2>
+              <p>{isEnglish ? 'Complete the information that will be used for registration and congress documentation.' : 'Complete os dados que serão utilizados na inscrição e documentação do congresso.'}</p>
+              <Link to="/conta/perfil">{isEnglish ? 'Edit profile →' : 'Editar perfil →'}</Link>
+            </article>
+          </>
+        )}
         <article className="auth-account-card">
-          <span>02</span>
-          <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
-          <h2>{isEnglish ? 'Professional details' : 'Dados profissionais'}</h2>
-          <p>{isEnglish ? 'Complete the information that will be used for registration and congress documentation.' : 'Complete os dados que serão utilizados na inscrição e documentação do congresso.'}</p>
-          <Link to="/conta/perfil">{isEnglish ? 'Edit profile →' : 'Editar perfil →'}</Link>
-        </article>
-        <article className="auth-account-card">
-          <span>03</span>
+          <span>{isAdmin ? '01' : '03'}</span>
           <p className="eyebrow">{isEnglish ? 'Account' : 'Conta'}</p>
           <h2>{user?.email}</h2>
           <p>{user?.emailVerified ? (isEnglish ? 'Email verified.' : 'Email verificado.') : (isEnglish ? 'Email not yet verified.' : 'Email ainda não verificado.')}</p>
@@ -406,7 +414,7 @@ export function AuthenticatedAccountPage() {
         </article>
         {isAdmin && (
           <article className="auth-account-card auth-account-card--admin">
-            <span>04</span>
+            <span>02</span>
             <p className="eyebrow">Administração</p>
             <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
             <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
