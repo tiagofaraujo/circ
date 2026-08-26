@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SocialConnect from '../components/js/SocialConnect';
 import { useLanguage } from '../context/LanguageContext';
@@ -59,6 +59,7 @@ const content = {
     venueLocal: 'Local do Congresso',
     venueTitle: 'Um congresso ligado à cidade.',
     venueText: 'O Convento São Francisco recebe o CIRC 2027 num espaço preparado para ciência, formação, exposição e encontro profissional. A informação prática sobre acessos, estadia e restauração será atualizada na página Coimbra.',
+    venuePhotoAlt: 'Exterior do Convento São Francisco, em Coimbra',
     prepareVisit: 'Preparar a visita',
   },
   en: {
@@ -116,34 +117,64 @@ const content = {
     venueLocal: 'Congress Venue',
     venueTitle: 'A congress connected to the city.',
     venueText: 'Convento São Francisco hosts CIRC 2027 in a setting designed for science, education, exhibition and professional exchange. Practical information on access, accommodation and dining will be updated on the Coimbra page.',
+    venuePhotoAlt: 'Exterior of Convento São Francisco in Coimbra',
     prepareVisit: 'Plan your visit',
   },
 };
 
+const heroSlides = [
+  {
+    src: '/circ2025/hero-auditorium.webp',
+    position: 'auditorium',
+  },
+  {
+    src: '/circ2025/venue-auditorium.webp',
+    position: 'audience',
+  },
+  {
+    src: '/exhibition/exhibition-16.jpg',
+    position: 'exhibition',
+  },
+];
+
 function Home() {
   const { language } = useLanguage();
   const copy = content[language];
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    if (reducedMotion.matches) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveSlide((currentSlide) => (currentSlide + 1) % heroSlides.length);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   return (
     <main>
       <section className="hero hero--official hero--without-artwork" id="save-the-date">
         <div className="hero__slideshow" aria-hidden="true">
-          <img
-            className="hero__slide hero__slide--auditorium"
-            src="/circ2025/hero-auditorium.webp"
-            alt=""
-            fetchPriority="high"
-          />
-          <img
-            className="hero__slide hero__slide--audience"
-            src="/circ2025/venue-auditorium.webp"
-            alt=""
-          />
-          <img
-            className="hero__slide hero__slide--exhibition"
-            src="/exhibition/exhibition-16.jpg"
-            alt=""
-          />
+          {heroSlides.map((slide, index) => (
+            <img
+              className={`hero__slide hero__slide--${slide.position}${index === activeSlide ? ' is-active' : ''}`}
+              src={slide.src}
+              alt=""
+              fetchPriority={index === 0 ? 'high' : 'auto'}
+              key={slide.src}
+            />
+          ))}
+        </div>
+
+        <div className="hero__slide-progress" aria-hidden="true">
+          {heroSlides.map((slide, index) => (
+            <span className={index === activeSlide ? 'is-active' : ''} key={slide.src} />
+          ))}
         </div>
 
         <div className="hero__copy">
@@ -254,9 +285,11 @@ function Home() {
         </div>
 
         <div className="venue-section__grid">
-          <div className="venue-panel venue-panel--blue">
-            <span>CIRC</span>
-            <p>Coimbra · Portugal</p>
+          <div className="venue-panel venue-panel--photo" role="img" aria-label={copy.venuePhotoAlt}>
+            <div className="venue-panel__photo-caption">
+              <span>Convento São Francisco</span>
+              <p>Coimbra · Portugal</p>
+            </div>
           </div>
           <div className="venue-panel venue-panel--cream">
             <p className="eyebrow">{copy.venueLocal}</p>

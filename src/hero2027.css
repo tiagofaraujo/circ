@@ -15,7 +15,7 @@
 .hero--official.hero--without-artwork::before {
   content: '';
   position: absolute;
-  z-index: -2;
+  z-index: 1;
   inset: 0;
   background:
     linear-gradient(90deg, rgba(9, 12, 42, 0.94) 0%, rgba(13, 17, 51, 0.84) 38%, rgba(13, 17, 51, 0.42) 68%, rgba(13, 17, 51, 0.24) 100%),
@@ -26,7 +26,7 @@
 .hero--official.hero--without-artwork::after {
   content: '';
   position: absolute;
-  z-index: -1;
+  z-index: 1;
   inset: auto 0 0;
   height: 180px;
   background: linear-gradient(180deg, transparent, rgba(7, 9, 28, 0.52));
@@ -35,7 +35,7 @@
 
 .hero__slideshow {
   position: absolute;
-  z-index: -3;
+  z-index: 0;
   inset: 0;
   overflow: hidden;
   background: #0d1133;
@@ -51,47 +51,138 @@
   object-position: center 52%;
   opacity: 0;
   transform: scale(1.035);
-  animation: hero-slideshow 24s ease-in-out infinite both;
+  transition: opacity 1.25s ease, transform 6.5s linear;
   will-change: opacity, transform;
 }
 
-.hero__slide--auditorium {
-  animation-delay: -1.2s;
+.hero__slide.is-active {
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1.075);
 }
 
 .hero__slide--audience {
-  animation-delay: 6.8s;
   object-position: center center;
 }
 
 .hero__slide--exhibition {
-  animation-delay: 14.8s;
   object-position: center 44%;
 }
 
-@keyframes hero-slideshow {
-  0% {
-    opacity: 0;
-    transform: scale(1.035);
-  }
+.hero__slide-progress {
+  position: absolute;
+  z-index: 3;
+  right: max(34px, calc((100vw - var(--max-width)) / 2 + 48px));
+  bottom: 34px;
+  display: flex;
+  gap: 7px;
+  pointer-events: none;
+}
 
-  5%,
-  31% {
-    opacity: 1;
-  }
+.hero__slide-progress span {
+  width: 28px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.34);
+  transition: width 300ms ease, background 300ms ease;
+}
 
-  40%,
-  100% {
-    opacity: 0;
-    transform: scale(1.085);
-  }
+.hero__slide-progress span.is-active {
+  width: 42px;
+  background: #f58a79;
 }
 
 .hero--without-artwork .hero__copy {
   width: min(100%, 850px);
   padding-right: 0;
   position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hero--official.hero--without-artwork .hero__lead {
+  max-width: 760px;
+  margin: 42px 0 0;
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.hero__date-grid {
+  width: min(100%, 760px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 44px;
+  flex: 0 0 auto;
+}
+
+.hero__date-card {
+  position: relative;
+  min-height: 88px;
+  padding: 14px 18px 14px 21px;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  overflow: hidden;
+  background: rgba(54, 66, 150, 0.56);
+  box-shadow: 0 18px 42px rgba(5, 7, 24, 0.20);
+  color: #ffffff;
+  text-decoration: none;
+  backdrop-filter: blur(14px) saturate(115%);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.hero__date-card:hover {
+  border-color: rgba(255, 255, 255, 0.52);
+  background: rgba(68, 81, 171, 0.72);
+  box-shadow: 0 22px 52px rgba(5, 7, 24, 0.28);
+  color: #ffffff;
+  transform: translateY(-3px);
+}
+
+.venue-panel--photo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 440px;
+  overflow: hidden;
+  background: url('./assets/circ2027/convento-sao-francisco-exterior.webp') 28% center / cover no-repeat;
+  color: #ffffff;
+}
+
+.venue-panel--photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 17, 53, 0.04) 38%, rgba(12, 17, 53, 0.82) 100%);
+  pointer-events: none;
+}
+
+.venue-panel__photo-caption {
+  position: relative;
   z-index: 1;
+}
+
+.venue-panel__photo-caption span {
+  display: block;
+  max-width: 330px;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3.2vw, 3.5rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.venue-panel__photo-caption p {
+  margin: 13px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .hero--official.hero--without-artwork .eyebrow {
@@ -107,37 +198,6 @@
   color: #f06a56;
 }
 
-.hero--official.hero--without-artwork .hero__lead {
-  max-width: 760px;
-  color: rgba(255, 255, 255, 0.90);
-}
-
-.hero__date-grid {
-  width: min(100%, 760px);
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 30px;
-}
-
-.hero__date-card {
-  position: relative;
-  min-height: 88px;
-  padding: 14px 18px 14px 21px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  overflow: hidden;
-  background: rgba(9, 13, 42, 0.54);
-  box-shadow: 0 18px 42px rgba(5, 7, 24, 0.20);
-  color: #ffffff;
-  text-decoration: none;
-  backdrop-filter: blur(14px) saturate(115%);
-  -webkit-backdrop-filter: blur(14px) saturate(115%);
-  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
-}
 
 .hero__date-card::before {
   content: '';
@@ -147,13 +207,6 @@
   background: #f06a56;
 }
 
-.hero__date-card:hover {
-  border-color: rgba(255, 255, 255, 0.46);
-  background: rgba(12, 17, 53, 0.70);
-  box-shadow: 0 22px 52px rgba(5, 7, 24, 0.28);
-  color: #ffffff;
-  transform: translateY(-3px);
-}
 
 .hero__date-card:focus-visible {
   outline: 3px solid rgba(240, 106, 86, 0.70);
@@ -305,6 +358,15 @@
     min-height: 78px;
   }
 
+  .hero__slide-progress {
+    display: none;
+  }
+
+  .venue-panel--photo {
+    min-height: 340px;
+    background-position: 22% center;
+  }
+
   .hero--official.hero--without-artwork .hero__actions {
     width: 100%;
     display: grid;
@@ -337,11 +399,15 @@
   .hero__slide {
     opacity: 0;
     transform: none;
-    animation: none;
+    transition: none;
   }
 
-  .hero__slide--auditorium {
+  .hero__slide.is-active {
     opacity: 1;
+  }
+
+  .hero__slide-progress {
+    display: none;
   }
 
   .hero__date-card,
