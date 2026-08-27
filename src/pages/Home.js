@@ -8,9 +8,9 @@ const content = {
     updates: [
       {
         index: '01',
-        eyebrow: 'Curso Pré-Congresso',
-        title: 'Formação especializada',
-        text: 'Um dia dedicado ao aprofundamento técnico e à atualização profissional. O tema e o programa serão divulgados após confirmação.',
+        eyebrow: '2 Cursos Pré-Congresso',
+        title: 'Manhã + tarde no dia 8',
+        text: 'Dois cursos independentes no dia 8 de abril: um de manhã e outro à tarde. Os temas e programas serão divulgados após confirmação.',
         to: '/programa',
       },
       {
@@ -38,7 +38,7 @@ const content = {
     heroEyebrow: 'Congresso Internacional de Radiologia de Coimbra',
     heroLead: 'Formação, ciência, inovação e encontro profissional no centro de Coimbra.',
     courseDate: '08 ABR',
-    course: 'Curso Pré-Congresso',
+    course: '2 Cursos Pré-Congresso · Manhã + Tarde',
     congressDate: '09—10 ABR',
     congress: 'Congresso Internacional',
     followProgramme: 'Acompanhar o programa',
@@ -58,7 +58,7 @@ const content = {
     posterAlt: 'Cartaz da edição CIRC 2025',
     venueLocal: 'Local do Congresso',
     venueTitle: 'Um congresso ligado à cidade.',
-    venueText: 'O Convento São Francisco recebe o CIRC 2027 num espaço preparado para ciência, formação, exposição e encontro profissional. A informação prática sobre acessos, estadia e restauração será atualizada na página Coimbra.',
+    venueText: 'O Convento São Francisco recebe o Congresso Internacional CIRC 2027 nos dias 9 e 10 de abril. A informação sobre os locais dos dois Cursos Pré-Congresso do dia 8, bem como acessos, estadia e restauração, será atualizada na página Coimbra.',
     venuePhotoAlt: 'Exterior do Convento São Francisco, em Coimbra',
     prepareVisit: 'Preparar a visita',
   },
@@ -66,9 +66,9 @@ const content = {
     updates: [
       {
         index: '01',
-        eyebrow: 'Pre-Congress Course',
-        title: 'Specialised training',
-        text: 'A full day focused on technical development and professional updating. The theme and programme will be published once confirmed.',
+        eyebrow: '2 Pre-Congress Courses',
+        title: 'Morning + afternoon on 8 April',
+        text: 'Two independent courses on 8 April: one in the morning and one in the afternoon. Themes and programmes will be published once confirmed.',
         to: '/programa',
       },
       {
@@ -96,7 +96,7 @@ const content = {
     heroEyebrow: 'Coimbra International Radiology Congress',
     heroLead: 'Education, science, innovation and professional exchange in the heart of Coimbra.',
     courseDate: '08 APR',
-    course: 'Pre-Congress Course',
+    course: '2 Pre-Congress Courses · Morning + Afternoon',
     congressDate: '09—10 APR',
     congress: 'International Congress',
     followProgramme: 'Follow the programme',
@@ -116,7 +116,7 @@ const content = {
     posterAlt: 'Official CIRC 2025 poster',
     venueLocal: 'Congress Venue',
     venueTitle: 'A congress connected to the city.',
-    venueText: 'Convento São Francisco hosts CIRC 2027 in a setting designed for science, education, exhibition and professional exchange. Practical information on access, accommodation and dining will be updated on the Coimbra page.',
+    venueText: 'Convento São Francisco hosts the CIRC 2027 International Congress on 9 and 10 April. Information about the venues for the two Pre-Congress Courses on 8 April, as well as access, accommodation and dining, will be updated on the Coimbra page.',
     venuePhotoAlt: 'Exterior of Convento São Francisco in Coimbra',
     prepareVisit: 'Plan your visit',
   },
