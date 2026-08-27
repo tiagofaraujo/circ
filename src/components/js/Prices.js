@@ -83,7 +83,7 @@ function Prices() {
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
-                                    <span className="row-label">{en ? 'Pre-congress course' : 'Curso pré-congresso'}</span>
+                                    <span className="row-label">{en ? 'Pre-congress courses' : 'Cursos pré-congresso'}</span>
                                     ULS Coimbra
                                 </th>
                                 <td><PriceValue amount="20 €" note={perCourse} dinnerLabel={dinnerLabel} /></td>
@@ -91,7 +91,7 @@ function Prices() {
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
-                                    <span className="row-label">{en ? 'Pre-congress course' : 'Curso pré-congresso'}</span>
+                                    <span className="row-label">{en ? 'Pre-congress courses' : 'Cursos pré-congresso'}</span>
                                     {en ? 'External participants' : 'Participantes externos'}
                                 </th>
                                 <td><PriceValue amount="35 €" note={perCourse} dinnerLabel={dinnerLabel} /></td>
@@ -109,10 +109,10 @@ function Prices() {
                             : 'suplemento de 30 €, já incluído nos valores assinalados como «Com jantar».'}
                     </p>
                     <p>
-                        <strong>{en ? 'Courses:' : 'Cursos:'}</strong>{' '}
+                        <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}
                         {en
-                            ? 'the fee is based on the participant’s connection to ULS Coimbra, with no separate student rate.'
-                            : 'o preço é definido pela ligação à ULS Coimbra, sem tarifa específica para estudantes.'}
+                            ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The stated fee is per course, based on the participant’s connection to ULS Coimbra, with no separate student rate.'
+                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso e depende da ligação à ULS Coimbra, sem tarifa específica para estudantes.'}
                     </p>
                 </div>
             </div>
