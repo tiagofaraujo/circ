@@ -50,8 +50,8 @@ function SocialConnect() {
     const shareData = {
       title: en ? 'CIRC 2027 · 8–10 April · Coimbra' : 'CIRC 2027 · 8–10 abril · Coimbra',
       text: en
-        ? 'CIRC 2027 — 8 April: Pre-Congress Course · 9–10 April: Coimbra International Radiology Congress.'
-        : 'CIRC 2027 — 8 abril: Curso Pré-Congresso · 9–10 abril: Congresso Internacional de Radiologia de Coimbra.',
+        ? 'CIRC 2027 — 8 April: 2 Pre-Congress Courses, morning + afternoon · 9–10 April: Coimbra International Radiology Congress.'
+        : 'CIRC 2027 — 8 abril: 2 Cursos Pré-Congresso, manhã + tarde · 9–10 abril: Congresso Internacional de Radiologia de Coimbra.',
       url: getShareUrl(),
     };
 
