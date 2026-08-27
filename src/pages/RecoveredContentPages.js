@@ -228,7 +228,7 @@ export function EnhancedCoimbraPage() {
         eyebrow="Coimbra"
         title={tx(en, 'Venue, stay and city', 'Local, estadia e cidade')}
         status={tx(en, 'Practical information being updated', 'Informação prática em atualização')}
-        lead={tx(en, 'CIRC 2027 takes place from 8 to 10 April. The congress on 9 and 10 April is confirmed at Convento São Francisco; the specific venue for the Pre-Congress Course on 8 April will be announced after confirmation.', 'O CIRC 2027 decorre entre 8 e 10 de abril. O congresso de 9 e 10 de abril está confirmado no Convento São Francisco; o local específico do Curso Pré-Congresso de 8 de abril será divulgado após confirmação.')}
+        lead={tx(en, 'CIRC 2027 takes place from 8 to 10 April. Two Pre-Congress Courses take place on 8 April — one in the morning and one in the afternoon. The International Congress on 9 and 10 April is confirmed at Convento São Francisco.', 'O CIRC 2027 decorre entre 8 e 10 de abril. No dia 8 realizam-se dois Cursos Pré-Congresso — um de manhã e outro à tarde. O Congresso Internacional de 9 e 10 de abril está confirmado no Convento São Francisco.')}
       />
 
       <section className="venue-feature venue-feature--2027">
@@ -242,6 +242,26 @@ export function EnhancedCoimbraPage() {
           <h2>Convento São Francisco</h2>
           <p>Coimbra · Portugal</p>
           <p>{tx(en, 'Main venue for the International Congress on 9 and 10 April 2027.', 'Local principal do Congresso Internacional nos dias 9 e 10 de abril de 2027.')}</p>
+        </div>
+      </section>
+
+      <section className="course-location-section">
+        <div>
+          <p className="eyebrow">{tx(en, '8 April · Pre-Congress', '8 abril · Pré-Congresso')}</p>
+          <h2>{tx(en, 'Two courses, two training sessions.', 'Dois cursos, dois momentos de formação.')}</h2>
+          <p>{tx(en, 'The venue and room for each course will be published after final confirmation.', 'O local e a sala de cada curso serão publicados após confirmação final.')}</p>
+        </div>
+        <div className="course-session-grid">
+          <article>
+            <span>{tx(en, '08 · Morning', '08 · Manhã')}</span>
+            <strong>{tx(en, 'Morning Course', 'Curso da manhã')}</strong>
+            <small>{tx(en, 'Venue to be confirmed', 'Local a confirmar')}</small>
+          </article>
+          <article>
+            <span>{tx(en, '08 · Afternoon', '08 · Tarde')}</span>
+            <strong>{tx(en, 'Afternoon Course', 'Curso da tarde')}</strong>
+            <small>{tx(en, 'Venue to be confirmed', 'Local a confirmar')}</small>
+          </article>
         </div>
       </section>
 
@@ -356,7 +376,7 @@ export function EnhancedContactPage() {
           <p className="eyebrow">CIRC 2027</p>
           <h2>{tx(en, 'Tell us what you need.', 'Diga-nos do que precisa.')}</h2>
           <p>{tx(en, '8–10 April 2027 · Coimbra', '8–10 abril 2027 · Coimbra')}</p>
-          <p>{tx(en, '8 April · Pre-Congress Course · 9–10 April · International Congress', '8 abril · Curso Pré-Congresso · 9–10 abril · Congresso Internacional')}</p>
+          <p>{tx(en, '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · International Congress', '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · Congresso Internacional')}</p>
           <p className="contact-layout__note">{tx(en, 'When confirmed information is already available on the programme, participation, partnerships or Coimbra pages, those pages remain the official reference.', 'Quando já exista informação confirmada nas páginas Programa, Participar, Parcerias ou Coimbra, essas páginas mantêm-se como referência oficial.')}</p>
         </div>
         <ContactForm />

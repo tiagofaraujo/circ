@@ -48,8 +48,8 @@ function Footer() {
           <strong>{en ? '8–10 April 2027 · Coimbra' : '8–10 abril 2027 · Coimbra'}</strong>
           <small className="site-footer__format">
             {en
-              ? '8 April · 2 Pre-Congress Courses — morning + afternoon · 9–10 April · CIRC 2027'
-              : '8 abril · 2 Cursos Pré-Congresso — manhã + tarde · 9–10 abril · CIRC 2027'}
+              ? '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · CIRC 2027'
+              : '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · CIRC 2027'}
           </small>
         </div>
 

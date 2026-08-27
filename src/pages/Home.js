@@ -8,8 +8,8 @@ const content = {
     updates: [
       {
         index: '01',
-        eyebrow: '2 Cursos Pré-Congresso',
-        title: 'Manhã + tarde no dia 8',
+        eyebrow: 'Dois Cursos Pré-Congresso',
+        title: 'Manhã e tarde no dia 8',
         text: 'Dois cursos independentes no dia 8 de abril: um de manhã e outro à tarde. Os temas e programas serão divulgados após confirmação.',
         to: '/programa',
       },
@@ -38,7 +38,7 @@ const content = {
     heroEyebrow: 'Congresso Internacional de Radiologia de Coimbra',
     heroLead: 'Formação, ciência, inovação e encontro profissional no centro de Coimbra.',
     courseDate: '08 ABR',
-    course: '2 Cursos Pré-Congresso · Manhã + Tarde',
+    course: 'Dois Cursos Pré-Congresso · Manhã e tarde',
     congressDate: '09—10 ABR',
     congress: 'Congresso Internacional',
     followProgramme: 'Acompanhar o programa',
@@ -66,8 +66,8 @@ const content = {
     updates: [
       {
         index: '01',
-        eyebrow: '2 Pre-Congress Courses',
-        title: 'Morning + afternoon on 8 April',
+        eyebrow: 'Two Pre-Congress Courses',
+        title: 'Morning and afternoon on 8 April',
         text: 'Two independent courses on 8 April: one in the morning and one in the afternoon. Themes and programmes will be published once confirmed.',
         to: '/programa',
       },
@@ -96,7 +96,7 @@ const content = {
     heroEyebrow: 'Coimbra International Radiology Congress',
     heroLead: 'Education, science, innovation and professional exchange in the heart of Coimbra.',
     courseDate: '08 APR',
-    course: '2 Pre-Congress Courses · Morning + Afternoon',
+    course: 'Two Pre-Congress Courses · Morning and afternoon',
     congressDate: '09—10 APR',
     congress: 'International Congress',
     followProgramme: 'Follow the programme',

@@ -13,12 +13,12 @@ import Home from './pages/Home';
 import { NotFoundPage } from './pages/InfoPages';
 import {
   EnhancedArchive2025Page,
+  EnhancedCoimbraPage,
   EnhancedContactPage,
   EnhancedPartnersPage,
 } from './pages/RecoveredContentPages';
 import {
   AccountRegistrationsPage2027,
-  CoimbraPage2027,
   EventRegulationPage2027,
   ParticipatePage2027,
   ProgramPage2027,
@@ -68,7 +68,7 @@ function App() {
             <Route path="/programa" element={<ProgramPage2027 />} />
             <Route path="/participar" element={<ParticipatePage2027 />} />
             <Route path="/parcerias" element={<EnhancedPartnersPage />} />
-            <Route path="/coimbra" element={<CoimbraPage2027 />} />
+            <Route path="/coimbra" element={<EnhancedCoimbraPage />} />
             <Route path="/2025" element={<EnhancedArchive2025Page />} />
             <Route path="/organizacao" element={<OrganizationPage2027 />} />
             <Route path="/contactos" element={<EnhancedContactPage />} />

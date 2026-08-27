@@ -166,8 +166,8 @@ export function ProgramPage2027() {
           <h2>{en ? '8–10 April 2027 · Coimbra' : '8–10 de abril de 2027 · Coimbra'}</h2>
           <p>
             {en
-              ? '8 April · 2 Pre-Congress Courses — morning + afternoon · 9–10 April · CIRC 2027'
-              : '8 abril · 2 Cursos Pré-Congresso — manhã + tarde · 9–10 abril · CIRC 2027'}
+              ? '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · CIRC 2027'
+              : '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · CIRC 2027'}
           </p>
         </div>
         <Link className="button button--dark" to="/participar">
@@ -224,8 +224,8 @@ export function ParticipatePage2027() {
           <h2>{en ? '8–10 April 2027 · Coimbra' : '8–10 de abril de 2027 · Coimbra'}</h2>
           <p>
             {en
-              ? '8 April · 2 Pre-Congress Courses — morning + afternoon · 9–10 April · International Congress.'
-              : '8 abril · 2 Cursos Pré-Congresso — manhã + tarde · 9–10 abril · Congresso Internacional.'}
+              ? '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · International Congress.'
+              : '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · Congresso Internacional.'}
           </p>
         </div>
       </section>
@@ -370,8 +370,8 @@ export function AccountRegistrationsPage2027() {
     },
     {
       date: '08',
-      title: en ? 'Both Pre-Congress Courses' : 'Os 2 Cursos Pré-Congresso',
-      text: en ? 'Morning + afternoon courses on the same day.' : 'Curso da manhã + curso da tarde no mesmo dia.',
+      title: en ? 'Both Pre-Congress Courses' : 'Os dois Cursos Pré-Congresso',
+      text: en ? 'Morning and afternoon courses on the same day.' : 'Curso da manhã e curso da tarde no mesmo dia.',
     },
     {
       date: '09—10',
@@ -381,7 +381,7 @@ export function AccountRegistrationsPage2027() {
     {
       date: '08—10',
       title: en ? 'Complete experience' : 'Experiência completa',
-      text: en ? 'Both Pre-Congress Courses + International Congress.' : 'Os 2 Cursos Pré-Congresso + Congresso Internacional.',
+      text: en ? 'Both Pre-Congress Courses and the International Congress.' : 'Os dois Cursos Pré-Congresso e o Congresso Internacional.',
     },
   ];
 
@@ -405,7 +405,7 @@ export function AccountRegistrationsPage2027() {
           <p>{en ? 'Pre-Congress course prices are charged per course. Participants may choose morning, afternoon or both.' : 'Os Cursos Pré-Congresso têm preço por curso. O participante poderá escolher manhã, tarde ou ambos.'}</p>
         </div>
 
-        <div className="account-ticket-grid">
+        <div className="account-ticket-grid account-ticket-grid--courses">
           {options.map((item) => (
             <article className="account-ticket" key={`${item.date}-${item.title}`}>
               <span className="account-ticket__date">{item.date}</span>
