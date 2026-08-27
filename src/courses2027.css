@@ -1,3 +1,7 @@
+.hero__date-card strong {
+  max-width: 220px;
+}
+
 .programme-phases--three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -61,5 +65,16 @@
 
   .course-location-section {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero__date-card strong {
+    max-width: none;
+  }
+
+  .course-structure-note,
+  .course-location-section {
+    padding: 1.4rem;
   }
 }
