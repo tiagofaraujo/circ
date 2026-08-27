@@ -1,0 +1,65 @@
+.programme-phases--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.programme-phase--course-slot {
+  min-height: 100%;
+}
+
+.course-structure-note,
+.course-location-section {
+  margin: 2rem 0 3rem;
+  padding: 2rem;
+  border: 1px solid rgba(35, 46, 183, 0.16);
+  background: rgba(35, 46, 183, 0.035);
+}
+
+.course-structure-note h2,
+.course-location-section h2 {
+  margin-top: 0.35rem;
+}
+
+.course-location-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.course-session-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.course-session-grid article {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(35, 46, 183, 0.18);
+  background: #fff;
+}
+
+.course-session-grid article span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.course-session-grid article strong {
+  font-size: 1.05rem;
+}
+
+.course-session-grid article small {
+  opacity: 0.72;
+}
+
+@media (max-width: 980px) {
+  .programme-phases--three {
+    grid-template-columns: 1fr;
+  }
+
+  .course-location-section {
+    grid-template-columns: 1fr;
+  }
+}
