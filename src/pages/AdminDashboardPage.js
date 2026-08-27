@@ -245,7 +245,7 @@ export default function AdminDashboardPage() {
         {!loading && visibleRegistrations.length > 0 && (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Participante</th><th>Inscrição</th><th>Pagamento</th><th>Valor</th><th className="admin-notes-heading">Observações</th><th>Atualização</th></tr></thead>
+              <thead><tr><th>Participante</th><th className="admin-notes-heading">Observações</th><th>Inscrição</th><th>Pagamento</th><th>Valor</th><th>Atualização</th></tr></thead>
               <tbody>
                 {visibleRegistrations.map((item) => {
                   const savedNote = registrationNotes[item.id] || '';
@@ -256,19 +256,6 @@ export default function AdminDashboardPage() {
                   return (
                   <tr key={item.id}>
                     <td><strong>{item.participantName || 'Sem nome'}</strong><span>{item.participantEmail || '—'}</span><small>{item.id}</small></td>
-                    <td>
-                      <span>{item.registrationType || 'CIRC 2027'}</span>
-                      <select value={item.status || 'draft'} onChange={(event) => changeRegistration(item, event.target.value)} disabled={savingId === `${item.id}:registration`} aria-label={`Estado da inscrição de ${item.participantName || item.participantEmail}`}>
-                        {registrationStatuses.map((status) => <option key={status} value={status}>{registrationLabels[status]}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <select className={`admin-status admin-status--${item.payment?.status || 'pending'}`} value={item.payment?.status || 'pending'} onChange={(event) => changePayment(item, event.target.value)} disabled={savingId === `${item.id}:payment`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>
-                        {paymentStatuses.map((status) => <option key={status} value={status}>{paymentLabels[status]}</option>)}
-                      </select>
-                      <small>{item.payment?.method || 'Método não indicado'}</small>
-                    </td>
-                    <td><strong>{formatMoney(item.payment?.amountCents, item.payment?.currency)}</strong><small>{item.payment?.reference || 'Sem referência'}</small></td>
                     <td className="admin-notes-cell">
                       <label className="admin-note-field">
                         <span className="sr-only">Observações sobre {item.participantName || item.participantEmail}</span>
@@ -288,6 +275,19 @@ export default function AdminDashboardPage() {
                         </button>
                       </div>
                     </td>
+                    <td>
+                      <span>{item.registrationType || 'CIRC 2027'}</span>
+                      <select value={item.status || 'draft'} onChange={(event) => changeRegistration(item, event.target.value)} disabled={savingId === `${item.id}:registration`} aria-label={`Estado da inscrição de ${item.participantName || item.participantEmail}`}>
+                        {registrationStatuses.map((status) => <option key={status} value={status}>{registrationLabels[status]}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select className={`admin-status admin-status--${item.payment?.status || 'pending'}`} value={item.payment?.status || 'pending'} onChange={(event) => changePayment(item, event.target.value)} disabled={savingId === `${item.id}:payment`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>
+                        {paymentStatuses.map((status) => <option key={status} value={status}>{paymentLabels[status]}</option>)}
+                      </select>
+                      <small>{item.payment?.method || 'Método não indicado'}</small>
+                    </td>
+                    <td><strong>{formatMoney(item.payment?.amountCents, item.payment?.currency)}</strong><small>{item.payment?.reference || 'Sem referência'}</small></td>
                     <td><span>{formatDate(item.updatedAt || item.createdAt)}</span><small>{Number(item.documentCount || 0)} documento(s)</small></td>
                   </tr>
                   );
