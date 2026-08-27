@@ -4,8 +4,10 @@ import { useAuth } from '../auth/AuthContext';
 import {
   paymentStatuses,
   registrationStatuses,
+  subscribeToRegistrationNotes,
   subscribeToRegistrations,
   updatePaymentStatus,
+  updateRegistrationNote,
   updateRegistrationStatus,
 } from '../auth/adminStore';
 import { subscribeToUserStats } from '../auth/presenceStore';
@@ -40,8 +42,8 @@ function csvCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
-function exportRegistrations(registrations) {
-  const header = ['ID', 'Nome', 'Email', 'Tipo', 'Estado da inscrição', 'Estado do pagamento', 'Valor', 'Moeda', 'Referência'];
+function exportRegistrations(registrations, registrationNotes) {
+  const header = ['ID', 'Nome', 'Email', 'Tipo', 'Estado da inscrição', 'Estado do pagamento', 'Valor', 'Moeda', 'Referência', 'Observações'];
   const rows = registrations.map((item) => [
     item.id,
     item.participantName,
@@ -52,6 +54,7 @@ function exportRegistrations(registrations) {
     Number(item.payment?.amountCents || 0) / 100,
     item.payment?.currency || 'EUR',
     item.payment?.reference || '',
+    registrationNotes[item.id] || '',
   ]);
   const csv = `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(';')).join('\n')}`;
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -71,6 +74,8 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState('');
+  const [registrationNotes, setRegistrationNotes] = useState({});
+  const [noteDrafts, setNoteDrafts] = useState({});
   const [userStats, setUserStats] = useState({ total: null, online: null });
   const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
 
@@ -88,6 +93,11 @@ export default function AdminDashboardPage() {
     }
   ), []);
 
+  useEffect(() => subscribeToRegistrationNotes(
+    setRegistrationNotes,
+    () => setError('Não foi possível carregar as observações administrativas.')
+  ), []);
+
   useEffect(() => subscribeToUserStats(
     (stats) => {
       setUserStats(stats);
@@ -100,10 +110,10 @@ export default function AdminDashboardPage() {
     const needle = query.trim().toLowerCase();
     return registrations.filter((item) => {
       const matchesPayment = paymentFilter === 'all' || (item.payment?.status || 'pending') === paymentFilter;
-      const haystack = `${item.id} ${item.participantName || ''} ${item.participantEmail || ''} ${item.registrationType || ''}`.toLowerCase();
+      const haystack = `${item.id} ${item.participantName || ''} ${item.participantEmail || ''} ${item.registrationType || ''} ${registrationNotes[item.id] || ''}`.toLowerCase();
       return matchesPayment && (!needle || haystack.includes(needle));
     });
-  }, [paymentFilter, query, registrations]);
+  }, [paymentFilter, query, registrationNotes, registrations]);
 
   const counts = useMemo(() => ({
     total: registrations.length,
@@ -131,6 +141,32 @@ export default function AdminDashboardPage() {
       await updateRegistrationStatus(user, registration, status);
     } catch (updateError) {
       setError('Não foi possível atualizar a inscrição. A alteração não foi guardada.');
+    } finally {
+      setSavingId('');
+    }
+  };
+
+  const changeNoteDraft = (registrationId, value) => {
+    setNoteDrafts((current) => ({ ...current, [registrationId]: value }));
+  };
+
+  const saveRegistrationNote = async (registration) => {
+    const previousNote = String(registrationNotes[registration.id] || '').trim();
+    const nextNote = String(noteDrafts[registration.id] ?? previousNote).trim();
+    if (nextNote === previousNote) return;
+
+    setSavingId(`${registration.id}:note`);
+    setError('');
+    try {
+      await updateRegistrationNote(user, registration, nextNote, previousNote);
+      setRegistrationNotes((current) => ({ ...current, [registration.id]: nextNote }));
+      setNoteDrafts((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[registration.id];
+        return nextDrafts;
+      });
+    } catch (updateError) {
+      setError('Não foi possível guardar a observação. Tente novamente.');
     } finally {
       setSavingId('');
     }
@@ -194,7 +230,7 @@ export default function AdminDashboardPage() {
               {paymentStatuses.map((status) => <option key={status} value={status}>{paymentLabels[status]}</option>)}
             </select>
           </label>
-          <button type="button" className="admin-export" onClick={() => exportRegistrations(visibleRegistrations)} disabled={!visibleRegistrations.length}>Exportar CSV</button>
+          <button type="button" className="admin-export" onClick={() => exportRegistrations(visibleRegistrations, registrationNotes)} disabled={!visibleRegistrations.length}>Exportar CSV</button>
         </div>
 
         {error && <div className="admin-alert" role="alert">{error}</div>}
@@ -209,9 +245,15 @@ export default function AdminDashboardPage() {
         {!loading && visibleRegistrations.length > 0 && (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Participante</th><th>Inscrição</th><th>Pagamento</th><th>Valor</th><th>Atualização</th></tr></thead>
+              <thead><tr><th>Participante</th><th>Inscrição</th><th>Pagamento</th><th>Valor</th><th className="admin-notes-heading">Observações</th><th>Atualização</th></tr></thead>
               <tbody>
-                {visibleRegistrations.map((item) => (
+                {visibleRegistrations.map((item) => {
+                  const savedNote = registrationNotes[item.id] || '';
+                  const noteValue = noteDrafts[item.id] ?? savedNote;
+                  const noteChanged = noteValue.trim() !== savedNote.trim();
+                  const noteSaving = savingId === `${item.id}:note`;
+
+                  return (
                   <tr key={item.id}>
                     <td><strong>{item.participantName || 'Sem nome'}</strong><span>{item.participantEmail || '—'}</span><small>{item.id}</small></td>
                     <td>
@@ -227,9 +269,29 @@ export default function AdminDashboardPage() {
                       <small>{item.payment?.method || 'Método não indicado'}</small>
                     </td>
                     <td><strong>{formatMoney(item.payment?.amountCents, item.payment?.currency)}</strong><small>{item.payment?.reference || 'Sem referência'}</small></td>
+                    <td className="admin-notes-cell">
+                      <label className="admin-note-field">
+                        <span className="sr-only">Observações sobre {item.participantName || item.participantEmail}</span>
+                        <textarea
+                          value={noteValue}
+                          onChange={(event) => changeNoteDraft(item.id, event.target.value)}
+                          maxLength="500"
+                          rows="3"
+                          placeholder="Adicionar observação interna…"
+                          disabled={noteSaving}
+                        />
+                      </label>
+                      <div className="admin-note-actions">
+                        <small>{noteValue.length}/500</small>
+                        <button type="button" onClick={() => saveRegistrationNote(item)} disabled={!noteChanged || noteSaving}>
+                          {noteSaving ? 'A guardar…' : noteChanged ? 'Guardar' : 'Guardado'}
+                        </button>
+                      </div>
+                    </td>
                     <td><span>{formatDate(item.updatedAt || item.createdAt)}</span><small>{Number(item.documentCount || 0)} documento(s)</small></td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

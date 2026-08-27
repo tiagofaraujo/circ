@@ -154,7 +154,7 @@
 .admin-empty p { margin: 10px 0 0; color: var(--ink-soft); }
 
 .admin-table-wrap { margin-top: 24px; overflow-x: auto; border: 1px solid var(--line); }
-.admin-table { width: 100%; min-width: 1100px; border-collapse: collapse; text-align: left; }
+.admin-table { width: 100%; min-width: 1400px; border-collapse: collapse; text-align: left; }
 .admin-table th { padding: 15px 18px; border-bottom: 1px solid var(--line); background: var(--blue); color: var(--white); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; }
 .admin-table td { padding: 18px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); vertical-align: top; }
 .admin-table tbody tr:last-child td { border-bottom: 0; }
@@ -165,6 +165,37 @@
 .admin-table td > span { margin-bottom: 6px; }
 .admin-table td > small { margin-top: 6px; color: var(--ink-soft); }
 .admin-table select { width: 100%; min-width: 170px; margin-top: 8px; }
+.admin-notes-heading,
+.admin-notes-cell { min-width: 270px; width: 290px; }
+.admin-note-field { display: block; }
+.admin-note-field textarea {
+  width: 100%;
+  min-height: 82px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.admin-note-field textarea:focus { outline: 2px solid rgba(35, 46, 183, 0.24); outline-offset: 1px; }
+.admin-note-actions { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-note-actions small { color: var(--ink-soft); font-size: 0.7rem; }
+.admin-note-actions button {
+  padding: 5px 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.admin-note-actions button:disabled { border-bottom-color: transparent; color: var(--ink-soft); cursor: default; }
 .admin-status--paid { border-color: rgba(25, 116, 75, 0.4) !important; color: #176942 !important; }
 .admin-status--pending,
 .admin-status--awaiting_confirmation { border-color: rgba(194, 123, 0, 0.46) !important; color: #80520c !important; }
