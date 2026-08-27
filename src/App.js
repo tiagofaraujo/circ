@@ -10,25 +10,25 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import AdminRoute from './auth/AdminRoute';
 
 import Home from './pages/Home';
-import {
-  NotFoundPage,
-  ParticipatePage,
-  ProgramPage,
-} from './pages/InfoPages';
+import { NotFoundPage } from './pages/InfoPages';
 import {
   EnhancedArchive2025Page,
-  EnhancedCoimbraPage,
   EnhancedContactPage,
   EnhancedPartnersPage,
 } from './pages/RecoveredContentPages';
+import {
+  AccountRegistrationsPage2027,
+  CoimbraPage2027,
+  EventRegulationPage2027,
+  ParticipatePage2027,
+  ProgramPage2027,
+} from './pages/Event2027Pages';
 import OrganizationPage2027 from './pages/OrganizationPage2027';
 import {
   CookiesPolicyPage,
-  EventRegulationPage,
   PrivacyPolicyPage,
   TermsOfUsePage,
 } from './pages/LegalPages';
-import { AccountRegistrationsPage } from './pages/AccountPages';
 import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
@@ -65,10 +65,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/2027" element={<Navigate to="/" replace />} />
-            <Route path="/programa" element={<ProgramPage />} />
-            <Route path="/participar" element={<ParticipatePage />} />
+            <Route path="/programa" element={<ProgramPage2027 />} />
+            <Route path="/participar" element={<ParticipatePage2027 />} />
             <Route path="/parcerias" element={<EnhancedPartnersPage />} />
-            <Route path="/coimbra" element={<EnhancedCoimbraPage />} />
+            <Route path="/coimbra" element={<CoimbraPage2027 />} />
             <Route path="/2025" element={<EnhancedArchive2025Page />} />
             <Route path="/organizacao" element={<OrganizationPage2027 />} />
             <Route path="/contactos" element={<EnhancedContactPage />} />
@@ -76,7 +76,7 @@ function App() {
             <Route path="/privacidade" element={<PrivacyPolicyPage />} />
             <Route path="/cookies" element={<CookiesPolicyPage />} />
             <Route path="/termos" element={<TermsOfUsePage />} />
-            <Route path="/regulamento" element={<EventRegulationPage />} />
+            <Route path="/regulamento" element={<EventRegulationPage2027 />} />
 
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registar" element={<RegisterWithPhotoPage />} />
@@ -109,7 +109,7 @@ function App() {
               path="/conta/inscricoes"
               element={
                 <ProtectedRoute>
-                  <AccountRegistrationsPage />
+                  <AccountRegistrationsPage2027 />
                 </ProtectedRoute>
               }
             />
