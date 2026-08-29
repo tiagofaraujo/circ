@@ -125,6 +125,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.registration-choice-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .registration-choice {
   position: relative;
   min-height: 175px;
@@ -226,6 +230,49 @@
   align-items: baseline;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.registration-step--restricted {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.registration-course-restriction {
+  margin-left: 56px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 15px;
+  align-items: start;
+  border: 1px solid rgba(23, 27, 84, 0.16);
+  background: rgba(23, 27, 84, 0.045);
+}
+
+.registration-course-restriction > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(23, 27, 84, 0.18);
+  border-radius: 50%;
+  color: var(--coral);
+  font-weight: 800;
+}
+
+.registration-course-restriction strong {
+  display: block;
+  color: var(--blue);
+  font-size: 0.76rem;
+  font-weight: 820;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.registration-course-restriction p {
+  max-width: 610px;
+  margin: 7px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.55;
 }
 
 .registration-course-affiliation {
@@ -712,6 +759,10 @@
     grid-template-columns: 1fr;
   }
 
+  .registration-choice-grid--two {
+    grid-template-columns: 1fr;
+  }
+
   .registration-choice {
     min-height: 142px;
   }
@@ -722,7 +773,8 @@
 
   .registration-step__lock-note,
   .registration-course-note,
-  .registration-course-affiliation {
+  .registration-course-affiliation,
+  .registration-course-restriction {
     margin-left: 46px;
   }
 

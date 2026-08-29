@@ -22,6 +22,7 @@ export async function saveAdminTestRegistration(user, selection) {
   const auditRef = db.collection('auditLogs').doc();
   const participantName = user.displayName || user.email?.split('@')[0] || 'Administrador CIRC';
   const amountCents = Math.round(Number(selection.total || 0) * 100);
+  const studentProfile = selection.profile === 'student';
   const batch = db.batch();
 
   batch.set(registrationRef, {
@@ -37,8 +38,8 @@ export async function saveAdminTestRegistration(user, selection) {
       profile: selection.profile,
       courseAffiliation: selection.courseAffiliation || '',
       congressMode: selection.congressMode,
-      morningCourse: Boolean(selection.morningCourse),
-      afternoonCourse: Boolean(selection.afternoonCourse),
+      morningCourse: !studentProfile && Boolean(selection.morningCourse),
+      afternoonCourse: !studentProfile && Boolean(selection.afternoonCourse),
       dinner: Boolean(selection.dinner),
       ratePeriod: selection.period,
     },

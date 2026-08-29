@@ -38,8 +38,8 @@ function Prices() {
 
             <div className="price-guide" aria-label={en ? 'How the registration price is calculated' : 'Como é calculado o preço da inscrição'}>
                 <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante IMR.'}</p></div></article>
-                <article><span>02</span><div><strong>{en ? 'Congress format' : 'Formato do congresso'}</strong><p>{en ? 'In person, virtual or courses only.' : 'Presencial, virtual ou apenas cursos.'}</p></div></article>
-                <article><span>03</span><div><strong>{en ? 'Pre-Congress Courses' : 'Cursos Pré-Congresso'}</strong><p>{en ? 'Morning and afternoon are added separately.' : 'Manhã e tarde são adicionadas separadamente.'}</p></div></article>
+                <article><span>02</span><div><strong>{en ? 'Congress format' : 'Formato do congresso'}</strong><p>{en ? 'In person or virtual; courses-only is available to professionals.' : 'Presencial ou virtual; apenas cursos está disponível para profissionais.'}</p></div></article>
+                <article><span>03</span><div><strong>{en ? 'Pre-Congress Courses' : 'Cursos Pré-Congresso'}</strong><p>{en ? 'Morning and afternoon, exclusively for professionals.' : 'Manhã e tarde, exclusivamente para profissionais.'}</p></div></article>
                 <article><span>04</span><div><strong>{en ? 'Optional dinner' : 'Jantar opcional'}</strong><p>{en ? '€30, available with in-person registration.' : '30 €, disponível com a inscrição presencial.'}</p></div></article>
             </div>
 
@@ -101,7 +101,7 @@ function Prices() {
                             <tr className="course-row">
                                 <th scope="row">
                                     <span className="row-label">{en ? 'Pre-congress courses' : 'Cursos pré-congresso'}</span>
-                                    {en ? 'External participants' : 'Participantes externos'}
+                                    {en ? 'External professionals' : 'Profissionais externos'}
                                 </th>
                                 <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} dinnerLabel={dinnerLabel} /></td>
                                 <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} dinnerLabel={dinnerLabel} /></td>
@@ -120,8 +120,8 @@ function Prices() {
                     <p>
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}
                         {en
-                            ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The stated fee is per course, based on the participant’s connection to ULS Coimbra, with no separate student rate.'
-                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso e depende da ligação à ULS Coimbra, sem tarifa específica para estudantes.'}
+                            ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The fee is per course. IMR students are not eligible to register for the Pre-Congress Courses.'
+                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso. Os estudantes IMR não têm acesso à inscrição nos Cursos Pré-Congresso.'}
                     </p>
                 </div>
                 <div className="price-simulator-link">
