@@ -103,7 +103,7 @@ function Footer() {
             rel="noopener noreferrer"
             aria-label={en ? 'Portuguese Government website' : 'Website do Governo de Portugal'}
           >
-            <img src="/republica-portuguesa-logo-negative.svg" alt="República Portuguesa" />
+            <img src="/governo-portugal-logo.webp" alt="Governo de Portugal" />
           </a>
           <a
             className="site-footer__support-logo site-footer__support-logo--sns"
