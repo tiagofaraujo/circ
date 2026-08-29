@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import SocialConnect from '../components/js/SocialConnect';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -139,8 +140,13 @@ const heroSlides = [
 
 function Home() {
   const { language } = useLanguage();
+  const { user, loading } = useAuth();
   const copy = content[language];
   const [activeSlide, setActiveSlide] = useState(0);
+  const isEnglish = language === 'en';
+  const accountIdentity = user?.displayName?.trim()
+    ? user.displayName.trim().split(/\s+/)[0]
+    : user?.email || '';
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -223,6 +229,31 @@ function Home() {
               {copy.revisit2025} <span aria-hidden="true">↗</span>
             </Link>
           </div>
+
+          <Link
+            className={`hero__mobile-account${user ? ' is-authenticated' : ''}`}
+            to={user ? '/conta' : '/login'}
+            aria-label={user
+              ? `${isEnglish ? 'Open My CIRC account for' : 'Abrir conta My CIRC de'} ${accountIdentity}`
+              : (isEnglish ? 'Sign in to My CIRC' : 'Entrar no My CIRC')}
+          >
+            <span className="hero__mobile-account-mark" aria-hidden="true">
+              <i />
+              MY
+            </span>
+            <span className="hero__mobile-account-copy">
+              <small>My CIRC</small>
+              <strong>
+                {loading
+                  ? (isEnglish ? 'Checking session…' : 'A verificar sessão…')
+                  : user
+                    ? (isEnglish ? `Signed in · ${accountIdentity}` : `Sessão iniciada · ${accountIdentity}`)
+                    : (isEnglish ? 'Sign in to your account' : 'Entrar na área reservada')}
+              </strong>
+              {!user && !loading && <span>{isEnglish ? 'Registration, profile and documents' : 'Inscrições, perfil e documentos'}</span>}
+            </span>
+            <span className="hero__mobile-account-arrow" aria-hidden="true">→</span>
+          </Link>
         </div>
       </section>
 
