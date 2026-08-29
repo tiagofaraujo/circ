@@ -32,7 +32,8 @@ export function calculateRegistrationTotal({
   congressMode,
   morningCourse,
   afternoonCourse,
-  dinner,
+  dinnerQuantity = 0,
+  dinner = false,
   period,
 }) {
   const congress = getCongressRate(profile, congressMode, period);
@@ -41,7 +42,11 @@ export function calculateRegistrationTotal({
     ? 0
     : Number(Boolean(morningCourse)) + Number(Boolean(afternoonCourse));
   const courses = courseUnit * courseCount;
-  const dinnerAmount = congressMode === 'onsite' && dinner ? DINNER_RATE : 0;
+  const normalizedDinnerQuantity = Math.max(
+    0,
+    Math.floor(Number(dinnerQuantity || (dinner ? 1 : 0)) || 0)
+  );
+  const dinnerAmount = normalizedDinnerQuantity * DINNER_RATE;
 
   return {
     congress,
@@ -49,6 +54,7 @@ export function calculateRegistrationTotal({
     courseCount,
     courses,
     dinner: dinnerAmount,
+    dinnerQuantity: normalizedDinnerQuantity,
     total: congress + courses + dinnerAmount,
   };
 }

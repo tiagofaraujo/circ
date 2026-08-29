@@ -62,14 +62,10 @@ function RegistrationBuilder() {
   const [congressMode, setCongressMode] = useState('');
   const [morningCourse, setMorningCourse] = useState(false);
   const [afternoonCourse, setAfternoonCourse] = useState(false);
-  const [dinner, setDinner] = useState(false);
+  const [dinnerQuantity, setDinnerQuantity] = useState(0);
   const [submissionState, setSubmissionState] = useState('idle');
   const [submissionError, setSubmissionError] = useState('');
   const period = getRegistrationPeriod();
-
-  useEffect(() => {
-    if (congressMode !== 'onsite') setDinner(false);
-  }, [congressMode]);
 
   useEffect(() => {
     if (profile === 'uls') {
@@ -93,16 +89,16 @@ function RegistrationBuilder() {
     congressMode,
     morningCourse,
     afternoonCourse,
-    dinner,
+    dinnerQuantity,
     period,
-  }), [afternoonCourse, congressMode, courseAffiliation, dinner, morningCourse, period, profile]);
+  }), [afternoonCourse, congressMode, courseAffiliation, dinnerQuantity, morningCourse, period, profile]);
 
   const profileLabels = {
     uls: en ? 'ULS Coimbra delegate' : 'Congressista ULS Coimbra',
     external: en ? 'External delegate' : 'Congressista externo',
     student: en ? 'IMR student' : 'Estudante IMR',
   };
-  const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse);
+  const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse || dinnerQuantity);
   const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
   const coursesReady = Boolean(profile && profile !== 'student' && courseAffiliation);
   const hasCourse = profile !== 'student' && (morningCourse || afternoonCourse);
@@ -125,7 +121,7 @@ function RegistrationBuilder() {
         congressMode,
         morningCourse,
         afternoonCourse,
-        dinner,
+        dinnerQuantity,
         period,
         total: totals.total,
       });
@@ -286,7 +282,7 @@ function RegistrationBuilder() {
             )}
           </section>
 
-          <section className={`registration-step registration-step--compact${congressMode !== 'onsite' ? ' is-locked' : ''}`} aria-labelledby="registration-dinner-title">
+          <section className="registration-step registration-step--compact" aria-labelledby="registration-dinner-title">
             <div className="registration-step__heading">
               <span>04</span>
               <div>
@@ -294,12 +290,35 @@ function RegistrationBuilder() {
                 <h2 id="registration-dinner-title">{en ? 'Congress dinner' : 'Jantar do congresso'}</h2>
               </div>
             </div>
-            <label className={`registration-dinner${dinner ? ' is-selected' : ''}${congressMode !== 'onsite' ? ' is-disabled' : ''}`}>
-              <input type="checkbox" checked={dinner} disabled={congressMode !== 'onsite'} onChange={(event) => setDinner(event.target.checked)} />
-              <span><strong>{en ? 'Add dinner' : 'Adicionar jantar'}</strong><small>{en ? 'Available with in-person congress registration.' : 'Disponível com a inscrição presencial no congresso.'}</small></span>
-              <b>+ {formatEuro(30)}</b>
-              <i aria-hidden="true" />
-            </label>
+            <div className={`registration-dinner-quantity${dinnerQuantity > 0 ? ' is-selected' : ''}`}>
+              <span className="registration-dinner-quantity__copy">
+                <strong>{en ? 'Dinner tickets' : 'Bilhetes para o jantar'}</strong>
+                <small>{en ? 'Available with every registration category · €30 per person.' : 'Disponível em todas as modalidades · 30 € por pessoa.'}</small>
+              </span>
+              <b>{dinnerQuantity > 0 ? formatEuro(totals.dinner) : `${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`}</b>
+              <div className="registration-quantity" role="group" aria-label={en ? 'Number of dinner tickets' : 'Número de bilhetes para o jantar'}>
+                <button
+                  type="button"
+                  onClick={() => setDinnerQuantity((current) => Math.max(0, current - 1))}
+                  disabled={dinnerQuantity === 0}
+                  aria-label={en ? 'Remove one dinner ticket' : 'Remover um bilhete de jantar'}
+                >−</button>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                  value={dinnerQuantity}
+                  onChange={(event) => setDinnerQuantity(Math.max(0, Math.floor(Number(event.target.value) || 0)))}
+                  aria-label={en ? 'Dinner ticket quantity' : 'Quantidade de bilhetes para o jantar'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setDinnerQuantity((current) => current + 1)}
+                  aria-label={en ? 'Add one dinner ticket' : 'Adicionar um bilhete de jantar'}
+                >+</button>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -322,7 +341,13 @@ function RegistrationBuilder() {
             )}
             {morningCourse && <SummaryLine label={en ? 'Morning course' : 'Curso da manhã'} detail={en ? '8 April' : '8 abril'} amount={totals.courseUnit} />}
             {afternoonCourse && <SummaryLine label={en ? 'Afternoon course' : 'Curso da tarde'} detail={en ? '8 April' : '8 abril'} amount={totals.courseUnit} />}
-            {totals.dinner > 0 && <SummaryLine label={en ? 'Congress dinner' : 'Jantar do congresso'} amount={totals.dinner} />}
+            {totals.dinner > 0 && (
+              <SummaryLine
+                label={`${en ? 'Congress dinner' : 'Jantar do congresso'} × ${totals.dinnerQuantity}`}
+                detail={`${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`}
+                amount={totals.dinner}
+              />
+            )}
           </ul>
 
           {!hasSelection && <p className="registration-summary__empty">{en ? 'Choose your participation options to calculate the total.' : 'Escolha as opções de participação para calcular o total.'}</p>}

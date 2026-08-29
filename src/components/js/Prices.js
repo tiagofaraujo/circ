@@ -23,6 +23,7 @@ function Prices() {
     const dinnerLabel = en ? 'With dinner' : 'Com jantar';
     const singlePrice = en ? 'Single price' : 'Preço único';
     const perCourse = en ? 'Price per course' : 'Preço por curso';
+    const perPerson = en ? 'Price per person' : 'Preço por pessoa';
 
     return (
         <section className="prices" aria-labelledby="prices-title">
@@ -40,7 +41,7 @@ function Prices() {
                 <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante IMR.'}</p></div></article>
                 <article><span>02</span><div><strong>{en ? 'Congress format' : 'Formato do congresso'}</strong><p>{en ? 'In person or virtual; courses-only is available to professionals.' : 'Presencial ou virtual; apenas cursos está disponível para profissionais.'}</p></div></article>
                 <article><span>03</span><div><strong>{en ? 'Pre-Congress Courses' : 'Cursos Pré-Congresso'}</strong><p>{en ? 'Morning and afternoon, exclusively for professionals.' : 'Manhã e tarde, exclusivamente para profissionais.'}</p></div></article>
-                <article><span>04</span><div><strong>{en ? 'Optional dinner' : 'Jantar opcional'}</strong><p>{en ? '€30, available with in-person registration.' : '30 €, disponível com a inscrição presencial.'}</p></div></article>
+                <article><span>04</span><div><strong>{en ? 'Congress dinner' : 'Jantar do congresso'}</strong><p>{en ? 'Choose the quantity · €30 per person, with every category.' : 'Escolha a quantidade · 30 € por pessoa, em qualquer modalidade.'}</p></div></article>
             </div>
 
             <div className="price-table-card">
@@ -86,9 +87,9 @@ function Prices() {
                                 <td><PriceValue amount={formatEuro(VIRTUAL_CONGRESS_RATE)} note={singlePrice} dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr>
-                                <th scope="row">{en ? 'Extra dinner' : 'Jantar extra'}</th>
-                                <td><PriceValue amount={formatEuro(DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
+                                <th scope="row">{en ? 'Congress dinner' : 'Jantar do congresso'}</th>
+                                <td><PriceValue amount={formatEuro(DINNER_RATE)} note={perPerson} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(DINNER_RATE)} note={perPerson} dinnerLabel={dinnerLabel} /></td>
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
@@ -114,8 +115,8 @@ function Prices() {
                     <p>
                         <strong>{en ? 'Dinner:' : 'Jantar:'}</strong>{' '}
                         {en
-                            ? '€30 supplement, already included in the amounts marked “With dinner”.'
-                            : 'suplemento de 30 €, já incluído nos valores assinalados como «Com jantar».'}
+                            ? '€30 per person. One or more dinner tickets may be added to any registration category. The amounts marked “With dinner” include one ticket.'
+                            : '30 € por pessoa. Pode adicionar um ou mais bilhetes de jantar a qualquer modalidade de inscrição. Os valores assinalados como «Com jantar» incluem um bilhete.'}
                     </p>
                     <p>
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}

@@ -514,6 +514,100 @@
   white-space: nowrap;
 }
 
+.registration-dinner-quantity {
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(23, 27, 84, 0.18);
+  background: #fffdfa;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.registration-dinner-quantity.is-selected {
+  border-color: var(--blue);
+  background: rgba(35, 46, 183, 0.07);
+}
+
+.registration-dinner-quantity__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.registration-dinner-quantity__copy strong {
+  color: var(--blue);
+}
+
+.registration-dinner-quantity__copy small {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.registration-dinner-quantity > b {
+  color: var(--coral);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.registration-quantity {
+  display: grid;
+  grid-template-columns: 36px 48px 36px;
+  min-height: 38px;
+  border: 1px solid rgba(23, 27, 84, 0.22);
+  background: #ffffff;
+}
+
+.registration-quantity button,
+.registration-quantity input {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--blue);
+  font: inherit;
+  text-align: center;
+}
+
+.registration-quantity button {
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.registration-quantity button:first-child {
+  border-right: 1px solid rgba(23, 27, 84, 0.14);
+}
+
+.registration-quantity button:last-child {
+  border-left: 1px solid rgba(23, 27, 84, 0.14);
+}
+
+.registration-quantity button:disabled {
+  color: rgba(23, 27, 84, 0.28);
+  cursor: default;
+}
+
+.registration-quantity input {
+  width: 48px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  -moz-appearance: textfield;
+}
+
+.registration-quantity input::-webkit-outer-spin-button,
+.registration-quantity input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.registration-quantity:focus-within {
+  outline: 2px solid rgba(35, 46, 183, 0.24);
+  outline-offset: 2px;
+}
+
 .registration-summary {
   position: sticky;
   top: 112px;
@@ -814,5 +908,18 @@
   .registration-dinner > i {
     grid-column: 2;
     grid-row: 1 / span 2;
+  }
+
+  .registration-dinner-quantity {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+  }
+
+  .registration-dinner-quantity__copy {
+    grid-column: 1 / -1;
+  }
+
+  .registration-dinner-quantity > b {
+    font-size: 0.82rem;
   }
 }

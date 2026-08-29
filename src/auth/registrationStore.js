@@ -40,7 +40,8 @@ export async function saveAdminTestRegistration(user, selection) {
       congressMode: selection.congressMode,
       morningCourse: !studentProfile && Boolean(selection.morningCourse),
       afternoonCourse: !studentProfile && Boolean(selection.afternoonCourse),
-      dinner: Boolean(selection.dinner),
+      dinner: Number(selection.dinnerQuantity || 0) > 0,
+      dinnerQuantity: Math.max(0, Math.floor(Number(selection.dinnerQuantity || 0))),
       ratePeriod: selection.period,
     },
     payment: {
