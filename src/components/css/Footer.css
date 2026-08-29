@@ -163,11 +163,7 @@
 }
 
 .site-footer__support-logo--government {
-  width: clamp(160px, 17vw, 195px);
-}
-
-.site-footer__support-logo--government img {
-  filter: brightness(0) invert(1);
+  width: clamp(190px, 20vw, 230px);
 }
 
 .site-footer__support-logo--sns {
