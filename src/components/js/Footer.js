@@ -97,13 +97,22 @@ function Footer() {
         <span>{en ? 'Institutional partnerships' : 'Parcerias institucionais'}</span>
         <div className="site-footer__support-logos">
           <a
-            className="site-footer__support-logo site-footer__support-logo--cmc"
-            href="https://www.cm-coimbra.pt/"
+            className="site-footer__support-logo site-footer__support-logo--government"
+            href="https://www.portugal.gov.pt/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={en ? 'Coimbra City Council website' : 'Website da Câmara Municipal de Coimbra'}
+            aria-label={en ? 'Portuguese Government website' : 'Website do Governo de Portugal'}
           >
-            <img src="/cmc-logo-negative.png" alt="Câmara Municipal de Coimbra" />
+            <img src="/republica-portuguesa-logo-negative.svg" alt="República Portuguesa" />
+          </a>
+          <a
+            className="site-footer__support-logo site-footer__support-logo--sns"
+            href="https://www.sns.gov.pt/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={en ? 'Portuguese National Health Service website' : 'Website do Serviço Nacional de Saúde'}
+          >
+            <img src="/sns-logo-negative.svg" alt="Serviço Nacional de Saúde" />
           </a>
           <a
             className="site-footer__support-logo site-footer__support-logo--uls"
@@ -113,6 +122,24 @@ function Footer() {
             aria-label={en ? 'ULS Coimbra website' : 'Website da ULS Coimbra'}
           >
             <img src="/uls-coimbra-logo-negative.svg" alt="ULS Coimbra" />
+          </a>
+          <a
+            className="site-footer__support-logo site-footer__support-logo--cmc"
+            href="https://www.cm-coimbra.pt/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={en ? 'Coimbra City Council website' : 'Website da Câmara Municipal de Coimbra'}
+          >
+            <img src="/cmc-logo-negative.png" alt="Câmara Municipal de Coimbra" />
+          </a>
+          <a
+            className="site-footer__support-logo site-footer__support-logo--convento"
+            href="https://coimbraconvento.pt/pt/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={en ? 'Convento São Francisco website' : 'Website do Convento São Francisco'}
+          >
+            <img src="/convento-sao-francisco-logo.svg" alt="Convento São Francisco · Coimbra Cultura e Congressos" />
           </a>
         </div>
       </div>

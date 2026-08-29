@@ -112,9 +112,9 @@
   margin: 0 auto;
   padding: 24px 48px;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 18px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 20px;
   border-top: 1px solid rgba(239, 232, 223, 0.14);
   color: rgba(239, 232, 223, 0.66);
 }
@@ -129,13 +129,17 @@
 .site-footer__support-logos {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 30px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 28px 34px;
+  width: 100%;
 }
 
 .site-footer__support-logo {
   display: flex;
   align-items: center;
+  justify-content: center;
+  min-height: 62px;
   opacity: 0.9;
   transition: opacity 180ms ease;
 }
@@ -151,11 +155,23 @@
 }
 
 .site-footer__support-logo--cmc {
-  width: clamp(170px, 18vw, 205px);
+  width: clamp(155px, 16vw, 190px);
 }
 
 .site-footer__support-logo--uls {
-  width: clamp(205px, 22vw, 250px);
+  width: clamp(185px, 19vw, 220px);
+}
+
+.site-footer__support-logo--government {
+  width: clamp(160px, 17vw, 195px);
+}
+
+.site-footer__support-logo--sns {
+  width: clamp(170px, 18vw, 205px);
+}
+
+.site-footer__support-logo--convento {
+  width: clamp(145px, 15vw, 175px);
 }
 
 .site-footer__bottom {
@@ -231,9 +247,11 @@
   }
 
   .site-footer__support-logos {
-    width: 100%;
     justify-content: flex-start;
-    flex-wrap: wrap;
     gap: 22px;
+  }
+
+  .site-footer__support-logo {
+    min-height: 52px;
   }
 }
