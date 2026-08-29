@@ -188,6 +188,7 @@ export default function AdminDashboardPage() {
         <div className="admin-session">
           <span>Administrador verificado</span>
           <strong>{user?.email}</strong>
+          <Link className="admin-test-link" to="/conta/inscricoes">Testar uma inscrição →</Link>
           <button type="button" onClick={handleSignOut}>Terminar sessão</button>
         </div>
       </header>
@@ -255,7 +256,12 @@ export default function AdminDashboardPage() {
 
                   return (
                   <tr key={item.id}>
-                    <td><strong>{item.participantName || 'Sem nome'}</strong><span>{item.participantEmail || '—'}</span><small>{item.id}</small></td>
+                    <td>
+                      {item.isTest && <span className="admin-test-badge">TESTE</span>}
+                      <strong>{item.participantName || 'Sem nome'}</strong>
+                      <span>{item.participantEmail || '—'}</span>
+                      <small>{item.id}</small>
+                    </td>
                     <td>
                       <span>{item.registrationType || 'CIRC 2027'}</span>
                       <select value={item.status || 'draft'} onChange={(event) => changeRegistration(item, event.target.value)} disabled={savingId === `${item.id}:registration`} aria-label={`Estado da inscrição de ${item.participantName || item.participantEmail}`}>

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
+import { saveAdminTestRegistration } from '../../auth/registrationStore';
 import { useLanguage } from '../../context/LanguageContext';
 import {
   calculateRegistrationTotal,
@@ -53,6 +55,7 @@ function SummaryLine({ label, detail, amount }) {
 
 function RegistrationBuilder() {
   const { language } = useLanguage();
+  const { user, isAdmin } = useAuth();
   const en = language === 'en';
   const [profile, setProfile] = useState('');
   const [courseAffiliation, setCourseAffiliation] = useState('');
@@ -60,6 +63,8 @@ function RegistrationBuilder() {
   const [morningCourse, setMorningCourse] = useState(false);
   const [afternoonCourse, setAfternoonCourse] = useState(false);
   const [dinner, setDinner] = useState(false);
+  const [submissionState, setSubmissionState] = useState('idle');
+  const [submissionError, setSubmissionError] = useState('');
   const period = getRegistrationPeriod();
 
   useEffect(() => {
@@ -90,6 +95,38 @@ function RegistrationBuilder() {
   const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse);
   const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
   const coursesReady = Boolean(profile && courseAffiliation);
+  const hasCourse = morningCourse || afternoonCourse;
+  const testSelectionReady = Boolean(
+    profile
+    && congressMode
+    && (congressMode !== 'courses-only' || hasCourse)
+    && (!hasCourse || courseAffiliation)
+  );
+
+  const submitTestRegistration = async () => {
+    if (!isAdmin || !testSelectionReady || submissionState === 'saving') return;
+
+    setSubmissionState('saving');
+    setSubmissionError('');
+    try {
+      await saveAdminTestRegistration(user, {
+        profile,
+        courseAffiliation,
+        congressMode,
+        morningCourse,
+        afternoonCourse,
+        dinner,
+        period,
+        total: totals.total,
+      });
+      setSubmissionState('saved');
+    } catch (error) {
+      setSubmissionState('error');
+      setSubmissionError(en
+        ? 'The test registration could not be saved. Check the Firebase rules.'
+        : 'Não foi possível guardar a inscrição de teste. Confirme as regras do Firebase.');
+    }
+  };
 
   return (
     <div className="registration-builder">
@@ -296,7 +333,27 @@ function RegistrationBuilder() {
           </div>
           <small className="registration-summary__tax">{en ? 'Final price confirmed before payment.' : 'Preço final confirmado antes do pagamento.'}</small>
 
-          <button type="button" disabled>{en ? 'Registration opens 15 November' : 'Inscrições abrem a 15 de novembro'}</button>
+          {isAdmin ? (
+            <div className="registration-summary__test-mode">
+              <span>{en ? 'Administrator test mode' : 'Modo de teste administrativo'}</span>
+              <small>{en ? 'Creates a test record. No payment will be requested.' : 'Cria um registo identificado como teste. Não será solicitado qualquer pagamento.'}</small>
+              <button type="button" onClick={submitTestRegistration} disabled={!testSelectionReady || submissionState === 'saving'}>
+                {submissionState === 'saving'
+                  ? (en ? 'Saving test…' : 'A guardar teste…')
+                  : (en ? 'Create test registration' : 'Criar inscrição de teste')}
+              </button>
+              {!testSelectionReady && <small className="registration-summary__test-hint">{en ? 'Complete the required choices above.' : 'Complete as escolhas obrigatórias acima.'}</small>}
+              {submissionState === 'saved' && (
+                <div className="registration-summary__success" role="status">
+                  <strong>{en ? 'Test registration saved.' : 'Inscrição de teste guardada.'}</strong>
+                  <Link to="/admin">{en ? 'View in admin panel' : 'Ver no painel de administração'} →</Link>
+                </div>
+              )}
+              {submissionError && <p className="registration-summary__error" role="alert">{submissionError}</p>}
+            </div>
+          ) : (
+            <button type="button" disabled>{en ? 'Registration opens 15 November' : 'Inscrições abrem a 15 de novembro'}</button>
+          )}
           <Link to="/conta/perfil">{en ? 'Review profile details' : 'Rever dados do perfil'} <span aria-hidden="true">→</span></Link>
         </aside>
       </div>
