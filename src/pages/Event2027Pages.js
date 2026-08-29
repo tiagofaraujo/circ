@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Prices from '../components/js/Prices';
+import RegistrationBuilder from '../components/js/RegistrationBuilder';
 import { useLanguage } from '../context/LanguageContext';
 import '../courses2027.css';
 import '../account.css';
@@ -357,41 +358,13 @@ export function AccountRegistrationsPage2027() {
   const { language } = useLanguage();
   const en = language === 'en';
 
-  const options = [
-    {
-      date: en ? '08 · AM' : '08 · MANHÃ',
-      title: en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã',
-      text: en ? 'Independent morning course. Programme and capacity to be announced.' : 'Curso autónomo de manhã. Programa e lotação a anunciar.',
-    },
-    {
-      date: en ? '08 · PM' : '08 · TARDE',
-      title: en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde',
-      text: en ? 'Independent afternoon course. Programme and capacity to be announced.' : 'Curso autónomo à tarde. Programa e lotação a anunciar.',
-    },
-    {
-      date: '08',
-      title: en ? 'Both Pre-Congress Courses' : 'Os dois Cursos Pré-Congresso',
-      text: en ? 'Morning and afternoon courses on the same day.' : 'Curso da manhã e curso da tarde no mesmo dia.',
-    },
-    {
-      date: '09—10',
-      title: 'CIRC 2027',
-      text: en ? 'Two days of scientific programme and professional exchange.' : 'Dois dias de programa científico e encontro profissional.',
-    },
-    {
-      date: '08—10',
-      title: en ? 'Complete experience' : 'Experiência completa',
-      text: en ? 'Both Pre-Congress Courses and the International Congress.' : 'Os dois Cursos Pré-Congresso e o Congresso Internacional.',
-    },
-  ];
-
   return (
     <main className="account-page">
       <section className="account-hero">
         <div>
           <p className="eyebrow">My CIRC · {en ? 'Registration' : 'Inscrição'}</p>
-          <h1>{en ? 'Registration options' : 'Opções de inscrição'}</h1>
-          <p>{en ? 'The registration structure already reflects the two Pre-Congress Courses on 8 April.' : 'A estrutura de inscrição já reflete os dois Cursos Pré-Congresso do dia 8 de abril.'}</p>
+          <h1>{en ? 'Build your registration' : 'Construa a sua inscrição'}</h1>
+          <p>{en ? 'Choose each component and see the estimated total immediately.' : 'Escolha cada componente e consulte imediatamente o total estimado.'}</p>
         </div>
         <div className="account-hero__mark" aria-hidden="true">
           <span>CIRC</span>
@@ -402,23 +375,10 @@ export function AccountRegistrationsPage2027() {
       <section className="account-registration-section">
         <div className="account-registration-alert">
           <span className="account-status account-status--neutral">{en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026'}</span>
-          <p>{en ? 'Pre-Congress course prices are charged per course. Participants may choose morning, afternoon or both.' : 'Os Cursos Pré-Congresso têm preço por curso. O participante poderá escolher manhã, tarde ou ambos.'}</p>
+          <p>{en ? 'Use the simulator now. Your choices will only become a registration after confirmation and payment.' : 'Utilize já o simulador. As escolhas só se tornam uma inscrição após confirmação e pagamento.'}</p>
         </div>
-
-        <div className="account-ticket-grid account-ticket-grid--courses">
-          {options.map((item) => (
-            <article className="account-ticket" key={`${item.date}-${item.title}`}>
-              <span className="account-ticket__date">{item.date}</span>
-              <h2>{item.title}</h2>
-              <p>{item.text}</p>
-            </article>
-          ))}
-        </div>
-
-        <div className="account-form-actions">
-          <Link className="button account-primary-button" to="/participar">{en ? 'View fees' : 'Consultar preços'}</Link>
-          <Link className="text-link" to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
-        </div>
+        <RegistrationBuilder />
+        <div className="account-form-actions"><Link className="text-link" to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link></div>
       </section>
     </main>
   );

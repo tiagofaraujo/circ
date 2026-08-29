@@ -45,6 +45,47 @@
     box-shadow: 0 16px 42px rgba(23, 27, 84, 0.1);
 }
 
+.price-guide {
+    max-width: 1120px;
+    margin: 0 auto 1rem;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid rgba(23, 27, 84, 0.16);
+    border-left: 1px solid rgba(23, 27, 84, 0.16);
+    text-align: left;
+}
+
+.price-guide article {
+    min-height: 118px;
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    border-right: 1px solid rgba(23, 27, 84, 0.16);
+    border-bottom: 1px solid rgba(23, 27, 84, 0.16);
+    background: rgba(255, 255, 255, 0.38);
+}
+
+.price-guide article > span {
+    color: #e55041;
+    font-size: 0.67rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.price-guide strong {
+    display: block;
+    color: #171b54;
+    font-size: 0.83rem;
+}
+
+.price-guide p {
+    margin: 7px 0 0;
+    color: #696c7c;
+    font-size: 0.7rem;
+    line-height: 1.45;
+}
+
 .price-table-scroll {
     overflow-x: auto;
 }
@@ -181,6 +222,43 @@
     color: #171b54;
 }
 
+.price-simulator-link {
+    padding: 1.15rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    border-top: 1px solid rgba(23, 27, 84, 0.12);
+    background: #171b54;
+    color: #ffffff;
+    text-align: left;
+}
+
+.price-simulator-link > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.price-simulator-link strong {
+    font-size: 0.9rem;
+}
+
+.price-simulator-link > div span {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.72rem;
+}
+
+.price-simulator-link a {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -201,6 +279,10 @@
 
     .price-table-card {
         border-radius: 12px;
+    }
+
+    .price-guide {
+        grid-template-columns: 1fr 1fr;
     }
 
     .price-table th,
@@ -253,5 +335,20 @@
 
     .price-table-footer p {
         font-size: 0.75rem;
+    }
+
+    .price-simulator-link {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .price-simulator-link a {
+        text-align: center;
+    }
+}
+
+@media (max-width: 430px) {
+    .price-guide {
+        grid-template-columns: 1fr;
     }
 }
