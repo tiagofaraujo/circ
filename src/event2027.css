@@ -242,6 +242,32 @@
   border-top: 4px solid var(--coral);
 }
 
+.submission-deadline-list {
+  margin-top: 28px;
+  border-top: 1px solid rgba(20, 24, 70, 0.16);
+}
+
+.submission-deadline-list > div {
+  padding: 16px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid rgba(20, 24, 70, 0.16);
+}
+
+.submission-deadline-list span {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.submission-deadline-list strong {
+  flex: 0 0 auto;
+  color: var(--blue);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
 .venue-feature__course {
   color: var(--coral);
 }

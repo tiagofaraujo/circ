@@ -210,12 +210,21 @@ export function ParticipatePage2027() {
         </article>
         <article className="info-card info-card--accent">
           <p className="eyebrow">{en ? 'Scientific submissions' : 'Trabalhos científicos'}</p>
-          <h2>{en ? 'Guidelines in preparation' : 'Regulamento em preparação'}</h2>
-          <p>
-            {en
-              ? 'Deadlines, formats, evaluation criteria and information about oral communications and posters will be published once approved.'
-              : 'Prazos, formatos, critérios de avaliação e informação sobre comunicações e posters serão disponibilizados quando aprovados.'}
-          </p>
+          <h2>{en ? 'Two formats, two deadlines' : 'Duas tipologias, dois prazos'}</h2>
+          <div className="submission-deadline-list">
+            <div>
+              <span>{en ? 'Opening' : 'Abertura'}</span>
+              <strong>{en ? '15 Nov. 2026' : '15 nov. 2026'}</strong>
+            </div>
+            <div>
+              <span>{en ? 'Abstracts · Free communications' : 'Abstracts · Comunicações livres'}</span>
+              <strong>{en ? 'By 15 Jan. 2027' : 'Até 15 jan. 2027'}</strong>
+            </div>
+            <div>
+              <span>{en ? 'Posters' : 'Posters'}</span>
+              <strong>{en ? 'By 28 Feb. 2027' : 'Até 28 fev. 2027'}</strong>
+            </div>
+          </div>
         </article>
       </section>
 

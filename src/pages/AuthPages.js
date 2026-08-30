@@ -415,7 +415,7 @@ export function AuthenticatedAccountPage() {
             </article>
             <article className="auth-account-card auth-account-card--submissions">
               <span>02</span>
-              <div className="auth-account-card__status">{isEnglish ? 'In preparation' : 'Em preparação'}</div>
+              <div className="auth-account-card__status">{isEnglish ? 'Opens 15 Nov.' : 'Abre 15 nov.'}</div>
               <p className="eyebrow">{isEnglish ? 'Scientific submissions' : 'Submissões científicas'}</p>
               <h2>{isEnglish ? 'Your work. One clear path.' : 'O seu trabalho. Um percurso claro.'}</h2>
               <p>{isEnglish ? 'Prepare your abstract, organise the authors and follow every stage of the scientific review.' : 'Prepare o resumo, organize os autores e acompanhe cada etapa da avaliação científica.'}</p>
