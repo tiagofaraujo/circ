@@ -829,6 +829,168 @@
   line-height: 1.4;
 }
 
+.registration-builder-loading {
+  min-height: 260px;
+  padding: 60px 30px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.48);
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  font-size: 0.82rem;
+}
+
+.registration-builder__progress--addons {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.registration-existing {
+  margin-bottom: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(35, 46, 183, 0.25);
+  background: #fffdfa;
+  box-shadow: 0 14px 34px rgba(23, 27, 84, 0.07);
+}
+
+.registration-existing__status {
+  padding: 11px 18px;
+  background: var(--blue);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.registration-existing__status span {
+  color: #d9dcff;
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.registration-existing__status strong {
+  padding: 4px 7px;
+  border: 1px solid #ff8b7b;
+  color: #ff8b7b;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.registration-existing__main {
+  padding: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.8fr);
+  gap: 36px;
+  align-items: end;
+}
+
+.registration-existing__main h2 {
+  margin: 7px 0 10px;
+  color: var(--blue);
+  font-size: clamp(1.8rem, 3vw, 3.1rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.registration-existing__main > div > p:last-child {
+  max-width: 680px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.registration-existing__main dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+}
+
+.registration-existing__main dl > div {
+  min-width: 0;
+  padding: 14px;
+  border-right: 1px solid var(--line);
+}
+
+.registration-existing__main dl > div:last-child {
+  border-right: 0;
+}
+
+.registration-existing__main dt {
+  min-height: 26px;
+  color: var(--ink-soft);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.registration-existing__main dd {
+  margin: 7px 0 0;
+  color: var(--blue);
+  font-size: 0.73rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.registration-existing__main dd.is-paid {
+  color: #176942;
+}
+
+.registration-addon-history {
+  padding: 28px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.registration-addon-history h2 {
+  margin: 5px 0 20px;
+  color: var(--blue);
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.registration-addon-history ul {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.registration-addon-history li {
+  padding: 14px 0;
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.72rem;
+}
+
+.registration-addon-history li > span:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.registration-addon-history li small {
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 0.56rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.registration-addon-history li b {
+  color: var(--coral);
+}
+
+.registration-summary--addons ul {
+  min-height: 88px;
+}
+
 @media (max-width: 1080px) {
   .registration-builder__layout {
     grid-template-columns: 1fr;
@@ -836,6 +998,10 @@
 
   .registration-summary {
     position: static;
+  }
+
+  .registration-existing__main {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -847,6 +1013,40 @@
 
   .registration-builder__progress span::after {
     display: none;
+  }
+
+  .registration-builder__progress--addons {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-existing__main {
+    padding: 22px;
+  }
+
+  .registration-existing__main dl {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-existing__main dl > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .registration-existing__main dl > div:last-child {
+    border-bottom: 0;
+  }
+
+  .registration-existing__main dt {
+    min-height: 0;
+  }
+
+  .registration-addon-history li {
+    grid-template-columns: 1fr auto;
+  }
+
+  .registration-addon-history li > span:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .registration-choice-grid--three {

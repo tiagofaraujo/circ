@@ -47,7 +47,7 @@ function LegalSection({ title, children }) {
 function LegalMeta({ en }) {
   return (
     <div className="legal-meta">
-      <span>{en ? 'Last updated · 27 August 2026' : 'Última atualização · 27 agosto 2026'}</span>
+      <span>{en ? 'Last updated · 30 August 2026' : 'Última atualização · 30 agosto 2026'}</span>
       <span>circ-coimbra.org</span>
       <span>Associação Hemisfério Disciplinado · NIF 517 072 262</span>
     </div>
@@ -326,6 +326,7 @@ export function EventRegulationPage2027() {
 
       <LegalSection title={en ? '1. Registration' : '1. Inscrição'}>
         <ul>
+          <li>{en ? 'Each participant may hold only one primary registration for CIRC 2027. A second in-person, virtual or courses-only registration cannot be created for the same account.' : 'Cada participante pode ter apenas uma inscrição principal no CIRC 2027. Não é possível criar uma segunda inscrição presencial, virtual ou apenas para cursos com a mesma conta.'}</li>
           <li>{en ? 'Registration may be subject to capacity limits and category-specific conditions.' : 'A inscrição poderá estar sujeita a limites de lotação e condições específicas por categoria.'}</li>
           <li>{en ? 'The participant is responsible for checking personal, professional and invoicing details before confirmation.' : 'O participante é responsável por confirmar os dados pessoais, profissionais e de faturação antes da validação.'}</li>
           <li>{en ? 'Where a reduced or specific category depends on professional or student status, proof may be requested.' : 'Quando uma categoria reduzida ou específica dependa de condição profissional ou de estudante, poderá ser solicitado comprovativo.'}</li>
@@ -338,6 +339,11 @@ export function EventRegulationPage2027() {
           {en
             ? 'CIRC 2027 comprises two independent Pre-Congress Courses on 8 April — one in the morning and one in the afternoon — and the International Congress on 9 and 10 April. Registration options may distinguish between either course separately, both courses, the congress and the complete experience. Access credentials, tickets or QR codes are personal and may not be transferred unless the final regulation expressly allows a formal substitution process.'
             : 'O CIRC 2027 integra dois Cursos Pré-Congresso independentes no dia 8 de abril — um de manhã e outro à tarde — e o Congresso Internacional nos dias 9 e 10. As modalidades de inscrição poderão distinguir cada curso separadamente, os dois cursos, o congresso e a experiência completa. Credenciais de acesso, bilhetes ou QR codes são pessoais e não podem ser transmitidos, salvo se o regulamento final permitir expressamente um processo formal de substituição.'}
+        </p>
+        <p>
+          {en
+            ? 'After the primary registration is paid, available courses and additional dinner tickets may be purchased through supplementary orders linked to the same registration. Each course may be added only once; dinner tickets may be added in the required quantity. Each supplementary order may have its own payment and invoicing document.'
+            : 'Depois de paga a inscrição principal, os cursos ainda disponíveis e bilhetes adicionais para o jantar podem ser adquiridos através de pedidos complementares associados à mesma inscrição. Cada curso só pode ser acrescentado uma vez; os bilhetes de jantar podem ser adicionados na quantidade pretendida. Cada pedido complementar poderá ter pagamento e documento de faturação próprios.'}
         </p>
       </LegalSection>
 
@@ -384,7 +390,7 @@ export function AccountRegistrationsPage2027() {
       <section className="account-registration-section">
         <div className="account-registration-alert">
           <span className="account-status account-status--neutral">{en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026'}</span>
-          <p>{en ? 'Use the simulator now. Your choices will only become a registration after confirmation and payment.' : 'Utilize já o simulador. As escolhas só se tornam uma inscrição após confirmação e pagamento.'}</p>
+          <p>{en ? 'Each participant has one primary registration. Courses and dinner tickets can be added later without creating a second registration.' : 'Cada participante terá uma única inscrição principal. Os cursos e bilhetes de jantar poderão ser acrescentados mais tarde, sem criar uma segunda inscrição.'}</p>
         </div>
         <RegistrationBuilder />
         <div className="account-form-actions"><Link className="text-link" to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link></div>

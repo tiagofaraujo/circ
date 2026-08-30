@@ -43,7 +43,7 @@ function csvCell(value) {
 }
 
 function exportRegistrations(registrations, registrationNotes) {
-  const header = ['ID', 'Nome', 'Email', 'Tipo', 'Estado da inscrição', 'Estado do pagamento', 'Valor', 'Moeda', 'Referência', 'Observações'];
+  const header = ['ID', 'Nome', 'Email', 'Tipo', 'Estado da inscrição', 'Estado do pagamento', 'Valor principal', 'Moeda', 'Referência', 'Curso manhã', 'Curso tarde', 'Jantares totais', 'Pedidos complementares', 'Observações'];
   const rows = registrations.map((item) => [
     item.id,
     item.participantName,
@@ -54,6 +54,10 @@ function exportRegistrations(registrations, registrationNotes) {
     Number(item.payment?.amountCents || 0) / 100,
     item.payment?.currency || 'EUR',
     item.payment?.reference || '',
+    item.entitlements?.morningCourse ? 'Sim' : 'Não',
+    item.entitlements?.afternoonCourse ? 'Sim' : 'Não',
+    Number(item.entitlements?.dinnerQuantity || 0),
+    Number(item.addOnOrderCount || 0),
     registrationNotes[item.id] || '',
   ]);
   const csv = `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(';')).join('\n')}`;
@@ -264,6 +268,15 @@ export default function AdminDashboardPage() {
                     </td>
                     <td>
                       <span>{item.registrationType || 'CIRC 2027'}</span>
+                      {item.entitlements && (
+                        <small className="admin-registration-entitlements">
+                          {[
+                            item.entitlements.morningCourse ? 'Curso manhã' : '',
+                            item.entitlements.afternoonCourse ? 'Curso tarde' : '',
+                            Number(item.entitlements.dinnerQuantity || 0) > 0 ? `${item.entitlements.dinnerQuantity} jantar(es)` : '',
+                          ].filter(Boolean).join(' · ') || 'Sem complementos'}
+                        </small>
+                      )}
                       <select value={item.status || 'draft'} onChange={(event) => changeRegistration(item, event.target.value)} disabled={savingId === `${item.id}:registration`} aria-label={`Estado da inscrição de ${item.participantName || item.participantEmail}`}>
                         {registrationStatuses.map((status) => <option key={status} value={status}>{registrationLabels[status]}</option>)}
                       </select>

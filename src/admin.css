@@ -49,6 +49,7 @@
 .admin-session span { color: rgba(255, 255, 255, 0.68); }
 .admin-session button { margin-top: 18px; padding: 0; align-self: flex-start; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--white); cursor: pointer; }
 .admin-test-link { margin-top: 14px; align-self: flex-start; color: var(--white); font-size: 0.76rem; font-weight: 750; text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, 0.7); }
+.admin-registration-entitlements { margin: 7px 0 3px; color: #535998; font-weight: 750; line-height: 1.35; }
 .admin-test-badge { width: max-content; margin: 0 0 9px !important; padding: 4px 7px; background: rgba(229, 80, 65, 0.12); color: #b83a2d; font-size: 0.62rem; font-weight: 850; letter-spacing: 0.1em; }
 
 .admin-user-summary {

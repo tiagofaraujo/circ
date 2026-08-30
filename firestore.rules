@@ -30,6 +30,11 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /registrationOrders/{orderId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
     match /payments/{paymentId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create, update, delete: if isAdmin();

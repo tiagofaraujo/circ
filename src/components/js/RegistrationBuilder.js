@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { saveAdminTestRegistration } from '../../auth/registrationStore';
+import {
+  saveAdminTestAddOnOrder,
+  saveAdminTestRegistration,
+  subscribeToAdminTestAddOnOrders,
+  subscribeToAdminTestRegistration,
+} from '../../auth/registrationStore';
 import { useLanguage } from '../../context/LanguageContext';
 import {
   calculateRegistrationTotal,
@@ -53,6 +58,202 @@ function SummaryLine({ label, detail, amount }) {
   );
 }
 
+function registrationModeLabel(mode, en) {
+  if (mode === 'onsite') return en ? 'CIRC 2027 · In person' : 'CIRC 2027 · Presencial';
+  if (mode === 'virtual') return en ? 'CIRC 2027 · Virtual' : 'CIRC 2027 · Virtual';
+  return en ? 'Pre-Congress Courses only' : 'Apenas Cursos Pré-Congresso';
+}
+
+function ExistingRegistrationAddOns({ registration, orders, user, en, period }) {
+  const primary = registration.selection || {};
+  const entitlements = registration.entitlements || {
+    congressMode: primary.congressMode || '',
+    morningCourse: Boolean(primary.morningCourse),
+    afternoonCourse: Boolean(primary.afternoonCourse),
+    dinnerQuantity: Math.max(0, Number(primary.dinnerQuantity || 0)),
+  };
+  const studentProfile = primary.profile === 'student';
+  const courseReady = !studentProfile && Boolean(primary.courseAffiliation);
+  const [morningCourse, setMorningCourse] = useState(false);
+  const [afternoonCourse, setAfternoonCourse] = useState(false);
+  const [dinnerQuantity, setDinnerQuantity] = useState(0);
+  const [orderState, setOrderState] = useState('idle');
+  const [orderError, setOrderError] = useState('');
+
+  useEffect(() => {
+    if (entitlements.morningCourse) setMorningCourse(false);
+    if (entitlements.afternoonCourse) setAfternoonCourse(false);
+  }, [entitlements.afternoonCourse, entitlements.morningCourse]);
+
+  const totals = useMemo(() => calculateRegistrationTotal({
+    profile: primary.profile,
+    courseAffiliation: primary.courseAffiliation,
+    congressMode: '',
+    morningCourse,
+    afternoonCourse,
+    dinnerQuantity,
+    period,
+  }), [afternoonCourse, dinnerQuantity, morningCourse, period, primary.courseAffiliation, primary.profile]);
+  const hasAdditions = Boolean(morningCourse || afternoonCourse || dinnerQuantity > 0);
+  const paymentStatus = registration.payment?.status || 'pending';
+  const paymentLabel = paymentStatus === 'paid'
+    ? (en ? 'Paid' : 'Paga')
+    : (en ? 'Awaiting payment validation' : 'A aguardar validação do pagamento');
+
+  const submitAddOnOrder = async () => {
+    if (!hasAdditions || orderState === 'saving') return;
+    setOrderState('saving');
+    setOrderError('');
+    try {
+      await saveAdminTestAddOnOrder(user, { morningCourse, afternoonCourse, dinnerQuantity });
+      setMorningCourse(false);
+      setAfternoonCourse(false);
+      setDinnerQuantity(0);
+      setOrderState('saved');
+    } catch (error) {
+      setOrderState('error');
+      setOrderError(en
+        ? 'The supplementary test order could not be saved. Confirm the Firebase rules for registrationOrders.'
+        : 'Não foi possível guardar o pedido complementar de teste. Confirme as regras do Firebase para registrationOrders.');
+    }
+  };
+
+  return (
+    <div className="registration-builder registration-builder--addons">
+      <div className="registration-builder__progress registration-builder__progress--addons" aria-label={en ? 'Registration and supplements' : 'Inscrição e complementos'}>
+        <span className="is-complete"><b>✓</b>{en ? 'Primary registration' : 'Inscrição principal'}</span>
+        <span className="is-current"><b>2</b>{en ? 'Add supplements' : 'Adicionar complementos'}</span>
+        <span><b>3</b>{en ? 'Separate payment' : 'Pagamento separado'}</span>
+      </div>
+
+      <section className="registration-existing" aria-labelledby="registration-existing-title">
+        <div className="registration-existing__status">
+          <span>{en ? 'Single primary registration' : 'Inscrição principal única'}</span>
+          {registration.isTest && <strong>TESTE</strong>}
+        </div>
+        <div className="registration-existing__main">
+          <div>
+            <p className="eyebrow">{registration.id}</p>
+            <h2 id="registration-existing-title">{registrationModeLabel(primary.congressMode, en)}</h2>
+            <p>{en ? 'A second primary registration is blocked. You may still add available courses and any number of dinner tickets below.' : 'Está bloqueada a criação de uma segunda inscrição principal. Pode continuar a acrescentar cursos disponíveis e a quantidade de jantares pretendida.'}</p>
+          </div>
+          <dl>
+            <div><dt>{en ? 'Main payment' : 'Pagamento principal'}</dt><dd className={`is-${paymentStatus}`}>{paymentLabel}</dd></div>
+            <div><dt>{en ? 'Original amount' : 'Valor original'}</dt><dd>{formatEuro(Number(registration.payment?.amountCents || 0) / 100)}</dd></div>
+            <div><dt>{en ? 'Supplementary orders' : 'Pedidos complementares'}</dt><dd>{orders.length}</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <div className="registration-builder__layout">
+        <div className="registration-builder__main">
+          <section className={`registration-step${studentProfile ? ' registration-step--restricted' : ''}`} aria-labelledby="registration-addon-courses-title">
+            <div className="registration-step__heading">
+              <span>01</span>
+              <div>
+                <p>{en ? '8 April · Optional supplement' : '8 abril · Complemento opcional'}</p>
+                <h2 id="registration-addon-courses-title">{studentProfile ? (en ? 'Courses are not available for students' : 'Cursos não disponíveis para estudantes') : (en ? 'Add an available course' : 'Acrescente um curso disponível')}</h2>
+              </div>
+            </div>
+            {studentProfile ? (
+              <div className="registration-course-restriction" role="note">
+                <span aria-hidden="true">—</span>
+                <div><strong>{en ? 'Reserved for professionals' : 'Reservado a profissionais'}</strong><p>{en ? 'Dinner tickets remain available below.' : 'Os bilhetes para o jantar continuam disponíveis abaixo.'}</p></div>
+              </div>
+            ) : (
+              <div className="registration-toggle-list">
+                <ToggleCard
+                  checked={Boolean(entitlements.morningCourse || morningCourse)}
+                  disabled={!courseReady || Boolean(entitlements.morningCourse)}
+                  onChange={setMorningCourse}
+                  date="08"
+                  period={en ? 'AM' : 'MANHÃ'}
+                  title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
+                  text={entitlements.morningCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
+                  price={entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
+                />
+                <ToggleCard
+                  checked={Boolean(entitlements.afternoonCourse || afternoonCourse)}
+                  disabled={!courseReady || Boolean(entitlements.afternoonCourse)}
+                  onChange={setAfternoonCourse}
+                  date="08"
+                  period={en ? 'PM' : 'TARDE'}
+                  title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
+                  text={entitlements.afternoonCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
+                  price={entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
+                />
+              </div>
+            )}
+          </section>
+
+          <section className="registration-step registration-step--compact" aria-labelledby="registration-addon-dinner-title">
+            <div className="registration-step__heading">
+              <span>02</span>
+              <div>
+                <p>{en ? 'Always available · Any quantity' : 'Sempre disponível · Qualquer quantidade'}</p>
+                <h2 id="registration-addon-dinner-title">{en ? 'Additional dinner tickets' : 'Bilhetes adicionais para o jantar'}</h2>
+              </div>
+            </div>
+            <div className={`registration-dinner-quantity${dinnerQuantity > 0 ? ' is-selected' : ''}`}>
+              <span className="registration-dinner-quantity__copy">
+                <strong>{en ? 'How many tickets would you like to add?' : 'Quantos bilhetes pretende acrescentar?'}</strong>
+                <small>{en ? `${entitlements.dinnerQuantity || 0} ticket(s) already associated · €30 per person.` : `${entitlements.dinnerQuantity || 0} bilhete(s) já associado(s) · 30 € por pessoa.`}</small>
+              </span>
+              <b>{dinnerQuantity > 0 ? formatEuro(totals.dinner) : `${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`}</b>
+              <div className="registration-quantity" role="group" aria-label={en ? 'Additional dinner tickets' : 'Bilhetes de jantar adicionais'}>
+                <button type="button" onClick={() => setDinnerQuantity((current) => Math.max(0, current - 1))} disabled={dinnerQuantity === 0}>−</button>
+                <input type="number" min="0" step="1" inputMode="numeric" value={dinnerQuantity} onChange={(event) => setDinnerQuantity(Math.max(0, Math.floor(Number(event.target.value) || 0)))} aria-label={en ? 'Additional dinner ticket quantity' : 'Quantidade adicional de bilhetes para o jantar'} />
+                <button type="button" onClick={() => setDinnerQuantity((current) => current + 1)}>+</button>
+              </div>
+            </div>
+          </section>
+
+          {orders.length > 0 && (
+            <section className="registration-addon-history" aria-labelledby="registration-addon-history-title">
+              <div><p className="eyebrow">{en ? 'History' : 'Histórico'}</p><h2 id="registration-addon-history-title">{en ? 'Supplementary orders' : 'Pedidos complementares'}</h2></div>
+              <ul>
+                {orders.map((order, index) => (
+                  <li key={order.id}>
+                    <span><strong>#{String(index + 1).padStart(2, '0')}</strong><small>{order.id}</small></span>
+                    <span>{[
+                      order.items?.morningCourse ? (en ? 'Morning course' : 'Curso manhã') : '',
+                      order.items?.afternoonCourse ? (en ? 'Afternoon course' : 'Curso tarde') : '',
+                      Number(order.items?.dinnerQuantity || 0) > 0 ? `${order.items.dinnerQuantity} ${en ? 'dinner ticket(s)' : 'jantar(es)'}` : '',
+                    ].filter(Boolean).join(' · ')}</span>
+                    <b>{formatEuro(Number(order.payment?.amountCents || 0) / 100)}</b>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+
+        <aside className="registration-summary registration-summary--addons" aria-live="polite">
+          <div className="registration-summary__rate"><span>{en ? 'New supplement' : 'Novo complemento'}</span><strong>{en ? 'Separate order' : 'Pedido separado'}</strong></div>
+          <p className="registration-summary__eyebrow">{en ? 'To be added' : 'A acrescentar'}</p>
+          <h2>{en ? 'Supplement summary' : 'Resumo do complemento'}</h2>
+          <ul>
+            {morningCourse && <SummaryLine label={en ? 'Morning course' : 'Curso da manhã'} detail={en ? 'Added once' : 'Adicionado uma vez'} amount={totals.courseUnit} />}
+            {afternoonCourse && <SummaryLine label={en ? 'Afternoon course' : 'Curso da tarde'} detail={en ? 'Added once' : 'Adicionado uma vez'} amount={totals.courseUnit} />}
+            {totals.dinner > 0 && <SummaryLine label={`${en ? 'Dinner tickets' : 'Bilhetes de jantar'} × ${dinnerQuantity}`} detail={`${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`} amount={totals.dinner} />}
+          </ul>
+          {!hasAdditions && <p className="registration-summary__empty">{en ? 'Select a course or the number of dinner tickets to create a supplementary order.' : 'Selecione um curso ou a quantidade de jantares para criar um pedido complementar.'}</p>}
+          <div className="registration-summary__total"><span>{en ? 'New order total' : 'Total do novo pedido'}</span><strong>{formatEuro(totals.total)}</strong></div>
+          <small className="registration-summary__tax">{en ? 'This does not alter the original payment or invoice.' : 'Não altera o pagamento nem a fatura da inscrição original.'}</small>
+          <div className="registration-summary__test-mode">
+            <span>{en ? 'Administrator test mode' : 'Modo de teste administrativo'}</span>
+            <small>{en ? 'Creates a separate supplementary order linked to the same registration.' : 'Cria um pedido complementar separado, associado à mesma inscrição.'}</small>
+            <button type="button" onClick={submitAddOnOrder} disabled={!hasAdditions || orderState === 'saving'}>{orderState === 'saving' ? (en ? 'Saving…' : 'A guardar…') : (en ? 'Create supplementary test order' : 'Criar pedido complementar de teste')}</button>
+            {orderState === 'saved' && <div className="registration-summary__success" role="status"><strong>{en ? 'Supplementary order saved.' : 'Pedido complementar guardado.'}</strong><Link to="/admin">{en ? 'View primary registration' : 'Ver inscrição principal'} →</Link></div>}
+            {orderError && <p className="registration-summary__error" role="alert">{orderError}</p>}
+          </div>
+          <Link to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'} <span aria-hidden="true">→</span></Link>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 function RegistrationBuilder() {
   const { language } = useLanguage();
   const { user, isAdmin } = useAuth();
@@ -65,7 +266,26 @@ function RegistrationBuilder() {
   const [dinnerQuantity, setDinnerQuantity] = useState(0);
   const [submissionState, setSubmissionState] = useState('idle');
   const [submissionError, setSubmissionError] = useState('');
+  const [existingRegistration, setExistingRegistration] = useState(null);
+  const [existingOrders, setExistingOrders] = useState([]);
+  const [registrationLookupDone, setRegistrationLookupDone] = useState(!isAdmin);
   const period = getRegistrationPeriod();
+
+  useEffect(() => {
+    if (!isAdmin || !user) {
+      setRegistrationLookupDone(true);
+      return undefined;
+    }
+
+    setRegistrationLookupDone(false);
+    const unsubscribeRegistration = subscribeToAdminTestRegistration(
+      user,
+      (registration) => { setExistingRegistration(registration); setRegistrationLookupDone(true); },
+      () => { setRegistrationLookupDone(true); setSubmissionError(en ? 'Could not check the existing registration.' : 'Não foi possível verificar a inscrição existente.'); }
+    );
+    const unsubscribeOrders = subscribeToAdminTestAddOnOrders(user, setExistingOrders, () => setExistingOrders([]));
+    return () => { unsubscribeRegistration(); unsubscribeOrders(); };
+  }, [en, isAdmin, user]);
 
   useEffect(() => {
     if (profile === 'uls') {
@@ -128,11 +348,19 @@ function RegistrationBuilder() {
       setSubmissionState('saved');
     } catch (error) {
       setSubmissionState('error');
-      setSubmissionError(en
-        ? 'The test registration could not be saved. Check the Firebase rules.'
-        : 'Não foi possível guardar a inscrição de teste. Confirme as regras do Firebase.');
+      setSubmissionError(error?.message === 'registrations/already-exists'
+        ? (en ? 'A primary registration already exists for this participant.' : 'Este participante já possui uma inscrição principal.')
+        : (en ? 'The test registration could not be saved. Check the Firebase rules.' : 'Não foi possível guardar a inscrição de teste. Confirme as regras do Firebase.'));
     }
   };
+
+  if (isAdmin && !registrationLookupDone) {
+    return <div className="registration-builder-loading" role="status">{en ? 'Checking your registration…' : 'A verificar a sua inscrição…'}</div>;
+  }
+
+  if (isAdmin && existingRegistration) {
+    return <ExistingRegistrationAddOns registration={existingRegistration} orders={existingOrders} user={user} en={en} period={period} />;
+  }
 
   return (
     <div className="registration-builder">
