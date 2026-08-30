@@ -403,31 +403,43 @@ export function AuthenticatedAccountPage() {
         </section>
       )}
 
-      <section className="auth-account-grid">
-        <article className="auth-account-card auth-account-card--primary">
-          <span>01</span>
-          <p className="eyebrow">{isEnglish ? 'Registration' : 'Inscrição'}</p>
-          <h2>{isEnglish ? 'Not open yet' : 'Ainda não aberta'}</h2>
-          <p>{isEnglish ? 'When registration opens, you will be able to start and follow the complete process in this area.' : 'Quando as inscrições forem disponibilizadas, poderá iniciar e acompanhar todo o processo nesta área.'}</p>
-          <Link to="/conta/inscricoes">{isEnglish ? 'See planned options →' : 'Ver opções previstas →'}</Link>
-        </article>
+      <section className={`auth-account-grid${isAdmin ? ' auth-account-grid--admin' : ''}`}>
+        {!isAdmin && (
+          <>
+            <article className="auth-account-card auth-account-card--primary">
+              <span>01</span>
+              <p className="eyebrow">{isEnglish ? 'Registration' : 'Inscrição'}</p>
+              <h2>{isEnglish ? 'Not open yet' : 'Ainda não aberta'}</h2>
+              <p>{isEnglish ? 'When registration opens, you will be able to start and follow the complete process in this area.' : 'Quando as inscrições forem disponibilizadas, poderá iniciar e acompanhar todo o processo nesta área.'}</p>
+              <Link to="/conta/inscricoes">{isEnglish ? 'See planned options →' : 'Ver opções previstas →'}</Link>
+            </article>
+            <article className="auth-account-card auth-account-card--submissions">
+              <span>02</span>
+              <div className="auth-account-card__status">{isEnglish ? 'In preparation' : 'Em preparação'}</div>
+              <p className="eyebrow">{isEnglish ? 'Scientific submissions' : 'Submissões científicas'}</p>
+              <h2>{isEnglish ? 'Your work. One clear path.' : 'O seu trabalho. Um percurso claro.'}</h2>
+              <p>{isEnglish ? 'Prepare your abstract, organise the authors and follow every stage of the scientific review.' : 'Prepare o resumo, organize os autores e acompanhe cada etapa da avaliação científica.'}</p>
+              <Link to="/conta/submissoes">{isEnglish ? 'Enter the submission centre →' : 'Entrar no centro de submissões →'}</Link>
+            </article>
+            <article className="auth-account-card">
+              <span>03</span>
+              <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
+              <h2>{isEnglish ? 'Profile details' : 'Dados do perfil'}</h2>
+              <p>{isEnglish ? 'Complete your personal, professional and billing details.' : 'Complete os seus dados pessoais, profissionais e de faturação.'}</p>
+              {profileCompletion && profileCompletion.percentage < 100 && (
+                <div className="auth-profile-completion" aria-label={isEnglish ? `Profile ${profileCompletion.percentage}% complete` : `Perfil ${profileCompletion.percentage}% completo`}>
+                  <div><span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span><strong>{profileCompletion.percentage}%</strong></div>
+                  <div className="auth-profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion.percentage}>
+                    <span style={{ width: `${profileCompletion.percentage}%` }} />
+                  </div>
+                </div>
+              )}
+              <Link to="/conta/perfil">{isEnglish ? 'Edit profile →' : 'Editar perfil →'}</Link>
+            </article>
+          </>
+        )}
         <article className="auth-account-card">
-          <span>02</span>
-          <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
-          <h2>{isEnglish ? 'Profile details' : 'Dados do perfil'}</h2>
-          <p>{isEnglish ? 'Complete your personal, professional and billing details.' : 'Complete os seus dados pessoais, profissionais e de faturação.'}</p>
-          {profileCompletion && profileCompletion.percentage < 100 && (
-            <div className="auth-profile-completion" aria-label={isEnglish ? `Profile ${profileCompletion.percentage}% complete` : `Perfil ${profileCompletion.percentage}% completo`}>
-              <div><span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span><strong>{profileCompletion.percentage}%</strong></div>
-              <div className="auth-profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion.percentage}>
-                <span style={{ width: `${profileCompletion.percentage}%` }} />
-              </div>
-            </div>
-          )}
-          <Link to="/conta/perfil">{isEnglish ? 'Edit profile →' : 'Editar perfil →'}</Link>
-        </article>
-        <article className="auth-account-card">
-          <span>03</span>
+          <span>{isAdmin ? '01' : '04'}</span>
           <p className="eyebrow">{isEnglish ? 'Account' : 'Conta'}</p>
           <h2>{user?.email}</h2>
           <p>{user?.emailVerified ? (isEnglish ? 'Email verified.' : 'Email verificado.') : (isEnglish ? 'Email not yet verified.' : 'Email ainda não verificado.')}</p>
@@ -435,7 +447,7 @@ export function AuthenticatedAccountPage() {
         </article>
         {isAdmin && (
           <article className="auth-account-card auth-account-card--admin">
-            <span>04</span>
+            <span>02</span>
             <p className="eyebrow">Administração</p>
             <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
             <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>

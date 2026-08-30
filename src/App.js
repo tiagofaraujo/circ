@@ -33,6 +33,7 @@ import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePa
 import AccountSecurityPage from './pages/AccountSecurityPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import {
   AuthenticatedAccountPage,
   ForgotPasswordPage,
@@ -110,6 +111,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AccountRegistrationsPage2027 />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/conta/submissoes"
+              element={
+                <ProtectedRoute>
+                  <ScientificSubmissionsPage />
                 </ProtectedRoute>
               }
             />
