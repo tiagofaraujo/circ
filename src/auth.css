@@ -505,6 +505,12 @@
   color: #fff;
 }
 
+.auth-account-card .auth-account-card__secondary-link {
+  margin-top: 9px;
+  color: rgba(35, 46, 183, 0.72);
+  font-size: 0.86rem;
+}
+
 .auth-signout-button {
   width: fit-content;
   margin-top: 18px;

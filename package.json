@@ -19,6 +19,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "dev": "HOST=0.0.0.0 PORT=4173 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

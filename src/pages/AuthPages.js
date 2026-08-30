@@ -452,6 +452,7 @@ export function AuthenticatedAccountPage() {
             <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
             <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
             <Link to="/admin">{isEnglish ? 'Open administration →' : 'Abrir administração →'}</Link>
+            <Link className="auth-account-card__secondary-link" to="/conta/submissoes">{isEnglish ? 'Test submissions →' : 'Testar submissões →'}</Link>
           </article>
         )}
       </section>

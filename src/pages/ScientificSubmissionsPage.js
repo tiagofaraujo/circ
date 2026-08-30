@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
 
@@ -39,6 +40,38 @@ const content = {
     preparationTitle: 'Tudo pronto antes de começar.',
     preparationText: 'O perfil do autor será reutilizado para reduzir o preenchimento e manter os dados consistentes.',
     checklist: ['Dados pessoais e profissionais', 'Título provisório', 'Autores e afiliações', 'Conteúdo do resumo'],
+    testMode: 'Modo de teste administrativo',
+    testModeText: 'Esta simulação não envia dados para o Firebase nem para a Comissão. Os trabalhos ficam guardados apenas neste navegador e podem ser eliminados no final.',
+    startTest: 'Criar trabalho de teste',
+    testHint: 'Simulação disponível apenas para administração',
+    formEyebrow: 'Nova submissão · Teste',
+    formTitle: 'Construa o trabalho passo a passo.',
+    close: 'Fechar teste',
+    typeLabel: 'Escolha a tipologia',
+    oralType: 'Abstract · Comunicação livre',
+    oralTypeHint: 'Prazo oficial · 15 janeiro 2027',
+    posterType: 'Poster',
+    posterTypeHint: 'Prazo oficial · 28 fevereiro 2027',
+    identityLabel: 'Identificação do trabalho',
+    titleLabel: 'Título do trabalho',
+    titlePlaceholder: 'Introduza um título claro e objetivo',
+    authorsLabel: 'Autores',
+    authorsPlaceholder: 'Um autor por linha, pela ordem de apresentação',
+    contentLabel: 'Conteúdo científico',
+    affiliationLabel: 'Instituição ou afiliação principal',
+    affiliationPlaceholder: 'Ex.: ULS Coimbra',
+    abstractLabel: 'Texto do resumo',
+    abstractPlaceholder: 'Escreva aqui o conteúdo científico para testar a experiência de submissão.',
+    reviewLabel: 'Revisão e envio',
+    reviewText: 'Confirme os dados. Neste modo, “Submeter teste” cria apenas um registo local identificado como demonstração.',
+    saveDraft: 'Guardar rascunho',
+    submitTest: 'Submeter teste',
+    savedMessage: 'O trabalho de teste foi guardado neste navegador.',
+    submittedMessage: 'Submissão de teste concluída. Nenhum dado foi enviado para o Firebase.',
+    draftStatus: 'Rascunho · Teste',
+    submittedStatus: 'Submetido · Teste',
+    removeTest: 'Eliminar teste',
+    workCount: 'trabalho(s) de teste',
     back: 'Voltar ao My CIRC',
   },
   en: {
@@ -76,6 +109,38 @@ const content = {
     preparationTitle: 'Everything ready before you begin.',
     preparationText: 'The author profile will be reused to reduce data entry and keep information consistent.',
     checklist: ['Personal and professional details', 'Working title', 'Authors and affiliations', 'Abstract content'],
+    testMode: 'Administrative test mode',
+    testModeText: 'This simulation does not send data to Firebase or the Committee. Submissions are stored only in this browser and can be deleted afterwards.',
+    startTest: 'Create test submission',
+    testHint: 'Simulation available to administration only',
+    formEyebrow: 'New submission · Test',
+    formTitle: 'Build the work step by step.',
+    close: 'Close test',
+    typeLabel: 'Choose the submission type',
+    oralType: 'Abstract · Free communication',
+    oralTypeHint: 'Official deadline · 15 January 2027',
+    posterType: 'Poster',
+    posterTypeHint: 'Official deadline · 28 February 2027',
+    identityLabel: 'Work identification',
+    titleLabel: 'Work title',
+    titlePlaceholder: 'Enter a clear, objective title',
+    authorsLabel: 'Authors',
+    authorsPlaceholder: 'One author per line, in presentation order',
+    contentLabel: 'Scientific content',
+    affiliationLabel: 'Main institution or affiliation',
+    affiliationPlaceholder: 'E.g. ULS Coimbra',
+    abstractLabel: 'Abstract text',
+    abstractPlaceholder: 'Write the scientific content here to test the submission experience.',
+    reviewLabel: 'Review and submission',
+    reviewText: 'Confirm the details. In this mode, “Submit test” creates only a local record identified as a demonstration.',
+    saveDraft: 'Save draft',
+    submitTest: 'Submit test',
+    savedMessage: 'The test submission was saved in this browser.',
+    submittedMessage: 'Test submission completed. No data was sent to Firebase.',
+    draftStatus: 'Draft · Test',
+    submittedStatus: 'Submitted · Test',
+    removeTest: 'Delete test',
+    workCount: 'test submission(s)',
     back: 'Back to My CIRC',
   },
 };
@@ -94,9 +159,140 @@ function DocumentMark() {
   );
 }
 
+const emptyTestForm = {
+  type: 'oral',
+  title: '',
+  authors: '',
+  affiliation: '',
+  abstract: '',
+};
+
+function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
+  const [form, setForm] = useState({ ...emptyTestForm, authors: initialAuthor || '' });
+
+  const updateField = (field) => (event) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const save = (status) => {
+    if (!form.title.trim() || !form.authors.trim() || !form.abstract.trim()) return;
+    onSave({
+      ...form,
+      title: form.title.trim(),
+      authors: form.authors.trim(),
+      affiliation: form.affiliation.trim(),
+      abstract: form.abstract.trim(),
+    }, status);
+  };
+
+  return (
+    <section className="submissions-composer" aria-labelledby="submissions-composer-title">
+      <header className="submissions-composer__header">
+        <div>
+          <p className="eyebrow">{t.formEyebrow}</p>
+          <h2 id="submissions-composer-title">{t.formTitle}</h2>
+        </div>
+        <button type="button" onClick={onClose}>{t.close} ×</button>
+      </header>
+
+      <form onSubmit={(event) => { event.preventDefault(); save('submitted'); }}>
+        <fieldset className="submissions-form-step">
+          <legend><span>01</span>{t.typeLabel}</legend>
+          <div className="submissions-type-grid">
+            <label className={form.type === 'oral' ? 'is-selected' : ''}>
+              <input type="radio" name="submission-type" value="oral" checked={form.type === 'oral'} onChange={updateField('type')} />
+              <span><strong>{t.oralType}</strong><small>{t.oralTypeHint}</small></span>
+              <i aria-hidden="true">{form.type === 'oral' ? '✓' : ''}</i>
+            </label>
+            <label className={form.type === 'poster' ? 'is-selected' : ''}>
+              <input type="radio" name="submission-type" value="poster" checked={form.type === 'poster'} onChange={updateField('type')} />
+              <span><strong>{t.posterType}</strong><small>{t.posterTypeHint}</small></span>
+              <i aria-hidden="true">{form.type === 'poster' ? '✓' : ''}</i>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset className="submissions-form-step">
+          <legend><span>02</span>{t.identityLabel}</legend>
+          <label>
+            <span>{t.titleLabel}</span>
+            <input value={form.title} onChange={updateField('title')} placeholder={t.titlePlaceholder} required />
+          </label>
+          <label>
+            <span>{t.authorsLabel}</span>
+            <textarea rows="4" value={form.authors} onChange={updateField('authors')} placeholder={t.authorsPlaceholder} required />
+          </label>
+        </fieldset>
+
+        <fieldset className="submissions-form-step">
+          <legend><span>03</span>{t.contentLabel}</legend>
+          <label>
+            <span>{t.affiliationLabel}</span>
+            <input value={form.affiliation} onChange={updateField('affiliation')} placeholder={t.affiliationPlaceholder} />
+          </label>
+          <label>
+            <span>{t.abstractLabel}</span>
+            <textarea rows="9" value={form.abstract} onChange={updateField('abstract')} placeholder={t.abstractPlaceholder} required />
+          </label>
+        </fieldset>
+
+        <fieldset className="submissions-form-step submissions-form-step--review">
+          <legend><span>04</span>{t.reviewLabel}</legend>
+          <div className="submissions-review-card">
+            <div><small>{t.typeLabel}</small><strong>{form.type === 'oral' ? t.oralType : t.posterType}</strong></div>
+            <div><small>{t.titleLabel}</small><strong>{form.title || '—'}</strong></div>
+            <div><small>{t.authorsLabel}</small><strong>{form.authors || '—'}</strong></div>
+          </div>
+          <p>{t.reviewText}</p>
+          <div className="submissions-form-actions">
+            <button type="button" onClick={() => save('draft')} disabled={!form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{t.saveDraft}</button>
+            <button type="submit" disabled={!form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{t.submitTest} →</button>
+          </div>
+        </fieldset>
+      </form>
+    </section>
+  );
+}
+
 export default function ScientificSubmissionsPage() {
   const { language } = useLanguage();
+  const { user, isAdmin } = useAuth();
   const t = content[language === 'en' ? 'en' : 'pt'];
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [testSubmissions, setTestSubmissions] = useState([]);
+  const [notice, setNotice] = useState('');
+  const storageKey = useMemo(() => `circ_submission_test_${user?.uid || 'admin'}`, [user]);
+
+  useEffect(() => {
+    if (!isAdmin || typeof window === 'undefined') return;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
+      setTestSubmissions(Array.isArray(saved) ? saved : []);
+    } catch (error) {
+      setTestSubmissions([]);
+    }
+  }, [isAdmin, storageKey]);
+
+  const saveTestSubmission = (form, status) => {
+    const record = {
+      ...form,
+      id: `TEST-${String(Date.now()).slice(-6)}`,
+      status,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [record, ...testSubmissions];
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+    setTestSubmissions(next);
+    setComposerOpen(false);
+    setNotice(status === 'draft' ? t.savedMessage : t.submittedMessage);
+    window.setTimeout(() => setNotice(''), 6000);
+  };
+
+  const removeTestSubmission = (id) => {
+    const next = testSubmissions.filter((submission) => submission.id !== id);
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+    setTestSubmissions(next);
+  };
 
   return (
     <main className="submissions-page">
@@ -115,6 +311,15 @@ export default function ScientificSubmissionsPage() {
         </aside>
       </section>
 
+      {isAdmin && (
+        <section className="submissions-test-banner" role="status">
+          <span>TEST</span>
+          <div><strong>{t.testMode}</strong><p>{t.testModeText}</p></div>
+        </section>
+      )}
+
+      {notice && <div className="submissions-test-notice" role="status">✓ {notice}</div>}
+
       <section className="submissions-desk">
         <div className="submissions-desk__intro">
           <div>
@@ -131,10 +336,19 @@ export default function ScientificSubmissionsPage() {
             <div><dt>{t.posterDeadlineLabel}</dt><dd>{t.posterDeadlineValue}</dd></div>
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
-          <button type="button" disabled aria-describedby="submissions-new-hint">{t.newWork}<span>＋</span></button>
-          <small id="submissions-new-hint">{t.newWorkHint}</small>
+          <button type="button" disabled={!isAdmin} onClick={() => setComposerOpen(true)} aria-describedby="submissions-new-hint">{isAdmin ? t.startTest : t.newWork}<span>＋</span></button>
+          <small id="submissions-new-hint">{isAdmin ? t.testHint : t.newWorkHint}</small>
         </div>
       </section>
+
+      {isAdmin && composerOpen && (
+        <TestSubmissionForm
+          t={t}
+          initialAuthor={user?.displayName || user?.email || ''}
+          onClose={() => setComposerOpen(false)}
+          onSave={saveTestSubmission}
+        />
+      )}
 
       <section className="submissions-journey">
         <header>
@@ -152,14 +366,34 @@ export default function ScientificSubmissionsPage() {
       </section>
 
       <section className="submissions-lower-grid">
-        <article className="submissions-empty">
-          <div className="submissions-empty__mark" aria-hidden="true"><span /><span /><span /></div>
-          <div>
-            <p className="eyebrow">{t.worksEyebrow}</p>
-            <h2>{t.worksTitle}</h2>
-            <p>{t.worksText}</p>
-          </div>
-        </article>
+        {isAdmin && testSubmissions.length > 0 ? (
+          <article className="submissions-test-list">
+            <header><div><p className="eyebrow">{t.worksEyebrow}</p><h2>{testSubmissions.length} {t.workCount}</h2></div><span>LOCAL</span></header>
+            <div>
+              {testSubmissions.map((submission) => (
+                <article key={submission.id}>
+                  <div className="submissions-test-list__topline">
+                    <span>{submission.id}</span>
+                    <strong className={`is-${submission.status}`}>{submission.status === 'draft' ? t.draftStatus : t.submittedStatus}</strong>
+                  </div>
+                  <p>{submission.type === 'oral' ? t.oralType : t.posterType}</p>
+                  <h3>{submission.title}</h3>
+                  <small>{submission.authors.split('\n').join(' · ')}</small>
+                  <button type="button" onClick={() => removeTestSubmission(submission.id)}>{t.removeTest}</button>
+                </article>
+              ))}
+            </div>
+          </article>
+        ) : (
+          <article className="submissions-empty">
+            <div className="submissions-empty__mark" aria-hidden="true"><span /><span /><span /></div>
+            <div>
+              <p className="eyebrow">{t.worksEyebrow}</p>
+              <h2>{t.worksTitle}</h2>
+              <p>{t.worksText}</p>
+            </div>
+          </article>
+        )}
         <article className="submissions-preparation">
           <p className="eyebrow">{t.preparationEyebrow}</p>
           <h2>{t.preparationTitle}</h2>
