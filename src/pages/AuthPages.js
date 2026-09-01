@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
-import { loadParticipantProfile } from '../auth/profileStore';
+import { loadParticipantProfileResult } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../auth.css';
 
@@ -161,7 +161,7 @@ export function LoginPage() {
 
       <form className="auth-form" onSubmit={handleEmailLogin}>
         <label htmlFor="login-email">Email</label>
-        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'name@institution.org' : 'nome@instituicao.pt'} required />
+        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
 
         <div className="auth-password-row">
           <label htmlFor="login-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
@@ -262,7 +262,8 @@ export function RegisterPage() {
         <input id="register-name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
 
         <label htmlFor="register-email">Email</label>
-        <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} aria-describedby="register-email-help" required />
+        <small id="register-email-help" className="auth-help">{isEnglish ? 'Personal and institutional email addresses are accepted.' : 'São aceites endereços de email pessoais e institucionais.'}</small>
 
         <label htmlFor="register-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
         <div className="auth-password-field">
@@ -324,7 +325,7 @@ export function ForgotPasswordPage() {
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
       <form className="auth-form" onSubmit={handleReset}>
         <label htmlFor="reset-email">Email</label>
-        <input id="reset-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input id="reset-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
 
         {sent && <div className="auth-notice auth-notice--success" role="status">{isEnglish ? 'If an account exists for this address, you will receive an email with recovery instructions.' : 'Se existir uma conta associada a este endereço, receberá um email com as instruções de recuperação.'}</div>}
         {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
@@ -344,10 +345,11 @@ export function AuthenticatedAccountPage() {
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [participantProfile, setParticipantProfile] = useState(null);
+  const [profileLoadState, setProfileLoadState] = useState('loading');
 
   const isPasswordAccount = user?.providerData?.some((provider) => provider.providerId === 'password');
   const displayName = user?.displayName || user?.email?.split('@')[0] || (isEnglish ? 'Participant' : 'Participante');
-  const profileCompletion = participantProfile
+  const profileCompletion = profileLoadState === 'ready' && participantProfile
     ? getProfileCompletion({
         country: 'Portugal',
         profession: 'radiographer',
@@ -360,10 +362,33 @@ export function AuthenticatedAccountPage() {
 
   useEffect(() => {
     let active = true;
-    loadParticipantProfile(user).then((profile) => {
-      if (active) setParticipantProfile(profile);
-    });
-    return () => { active = false; };
+    let retryTimer;
+
+    setParticipantProfile(null);
+    setProfileLoadState('loading');
+
+    const loadProfile = async (attempt = 0) => {
+      const result = await loadParticipantProfileResult(user);
+      if (!active) return;
+
+      if (!result.remoteAvailable && attempt < 2) {
+        retryTimer = window.setTimeout(
+          () => loadProfile(attempt + 1),
+          350 * (attempt + 1)
+        );
+        return;
+      }
+
+      setParticipantProfile(result.profile);
+      setProfileLoadState(result.remoteAvailable ? 'ready' : 'unavailable');
+    };
+
+    loadProfile();
+
+    return () => {
+      active = false;
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, [user]);
 
   const handleSignOut = async () => {
