@@ -161,7 +161,7 @@ export function LoginPage() {
 
       <form className="auth-form" onSubmit={handleEmailLogin}>
         <label htmlFor="login-email">Email</label>
-        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'name@institution.org' : 'nome@instituicao.pt'} required />
+        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
 
         <div className="auth-password-row">
           <label htmlFor="login-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
@@ -262,7 +262,8 @@ export function RegisterPage() {
         <input id="register-name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
 
         <label htmlFor="register-email">Email</label>
-        <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} aria-describedby="register-email-help" required />
+        <small id="register-email-help" className="auth-help">{isEnglish ? 'Personal and institutional email addresses are accepted.' : 'São aceites endereços de email pessoais e institucionais.'}</small>
 
         <label htmlFor="register-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
         <div className="auth-password-field">
@@ -324,7 +325,7 @@ export function ForgotPasswordPage() {
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
       <form className="auth-form" onSubmit={handleReset}>
         <label htmlFor="reset-email">Email</label>
-        <input id="reset-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input id="reset-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
 
         {sent && <div className="auth-notice auth-notice--success" role="status">{isEnglish ? 'If an account exists for this address, you will receive an email with recovery instructions.' : 'Se existir uma conta associada a este endereço, receberá um email com as instruções de recuperação.'}</div>}
         {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
