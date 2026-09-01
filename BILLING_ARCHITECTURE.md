@@ -124,6 +124,42 @@ GET   /api/url_for_print/{id}
 PATCH /api/email/document
 ```
 
+## Evidência documental — edição 2025
+
+Foram analisadas quatro faturas originais da edição anterior. Os dados pessoais dos clientes não são transpostos para o projeto; apenas se registam as características fiscais e operacionais relevantes.
+
+| Elemento observado | Modelo de 2025 | Consequência para 2027 |
+|---|---|---|
+| Tipo e numeração | Fatura `FT 2025/n` | A série de 2027 tem de ser criada/confirmada antes da ativação |
+| IVA | Taxa única de 23% nos exemplos | Usar 23% apenas após reconfirmação contabilística para cada artigo |
+| Vencimento | Igual à data de emissão | Pode servir de predefinição, sujeita a confirmação |
+| Cursos | Cada curso é uma linha/artigo autónomo | Manhã e tarde devem manter códigos e linhas independentes |
+| Jantar | Artigo autónomo, com quantidade | Permite faturar um ou vários jantares no mesmo pedido |
+| Formalidades | Original, ATCUD, QR e referência ao software certificado | Devem ser produzidas pelo TOConline, nunca pelo frontend |
+
+Os exemplos históricos mostram:
+
+- dois cursos na mesma fatura, cada um com o seu código e linha;
+- uma fatura com apenas um curso;
+- uma fatura autónoma de jantar;
+- valores históricos de 40,00 € por curso e 35,01 € por jantar, que **não** devem ser reutilizados como preços de 2027.
+
+Não foi fornecido qualquer recibo `RC` nem fatura-recibo `FR`. Assim, estes documentos confirmam o modelo de artigos e a utilização de `FT`, mas não demonstram como o recebimento foi fiscalmente liquidado em 2025.
+
+## Mapeamento proposto de artigos para 2027
+
+O backend deve construir as linhas a partir do snapshot imutável do pedido, sem aceitar descrições ou preços livres enviados pelo navegador:
+
+| Chave interna | Artigo TOConline | Quantidade |
+|---|---|---:|
+| `congress_in_person` | Inscrição presencial CIRC 2027 | 1 |
+| `congress_virtual` | Inscrição virtual CIRC 2027 | 1 |
+| `course_morning` | Curso Pré-Congresso — manhã | 0 ou 1 |
+| `course_afternoon` | Curso Pré-Congresso — tarde | 0 ou 1 |
+| `dinner` | Jantar CIRC 2027 | 0 ou mais |
+
+Os códigos TOConline, preços líquidos/brutos e taxa de IVA ficam numa configuração privada e versionada do backend. Pedidos complementares reutilizam os mesmos artigos; nunca criam uma segunda inscrição principal.
+
 ## Proteções obrigatórias
 
 - Transação Firestore para criar um único `billingJobs/{paymentId}`.
@@ -140,9 +176,9 @@ PATCH /api/email/document
 
 1. Emitir `FT + RC` ou `FR`?
 2. O documento é emitido para todos os pagamentos ou apenas quando o participante pede faturação?
-3. Qual é a série documental exclusiva do CIRC 2027?
-4. Qual é o enquadramento de IVA e a respetiva menção legal?
-5. Quais são os códigos/designações dos serviços: congresso, curso e jantar?
+3. Qual é a série documental exclusiva do CIRC 2027? Em 2025 foi usada a série `2025`.
+4. Confirma-se a taxa de IVA de 23% observada em 2025 para todos os artigos de 2027?
+5. Quais são os códigos definitivos dos cinco artigos de 2027: congresso presencial, congresso virtual, curso da manhã, curso da tarde e jantar?
 6. Que caixa/conta e meios de pagamento do TOConline correspondem a transferência, MB WAY, Multibanco e cartão?
 7. Como tratar participantes sem NIF ou com número fiscal estrangeiro?
 8. O email sai automaticamente pelo TOConline e com que remetente/assunto?
