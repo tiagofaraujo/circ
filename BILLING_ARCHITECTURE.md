@@ -2,7 +2,7 @@
 
 ## Estado desta fase
 
-Esta é a base técnica da integração. **A emissão real permanece desativada** até serem confirmados pelo contabilista o tipo de documento, a série, o enquadramento de IVA, os artigos/serviços e as contas de caixa.
+Esta é a base técnica da integração. O documento automático definido para a plataforma é a **fatura-recibo (`FR`)**. **A emissão real permanece desativada** até serem confirmados pelo contabilista a série, o enquadramento de IVA, os artigos/serviços e as contas de caixa.
 
 O segredo da API apresentado durante a configuração deve ser revogado e substituído antes de qualquer teste. Nenhuma credencial TOConline pode ser guardada no React, no Firestore, no GitHub ou em ficheiros `.env` versionados.
 
@@ -11,7 +11,8 @@ O segredo da API apresentado durante a configuração deve ser revogado e substi
 - O frontend Cloudflare nunca comunica diretamente com o TOConline.
 - A integração corre em Cloud Functions for Firebase de 2.ª geração, no mesmo projeto do Firestore.
 - As credenciais OAuth e os tokens são guardados no Google Cloud Secret Manager.
-- Uma confirmação de pagamento cria uma ordem de faturação; não emite diretamente no navegador.
+- Apenas um pagamento confirmado pela plataforma cria uma ordem de faturação; nunca se emite diretamente no navegador.
+- O fluxo automático emite exclusivamente `FR`; não emite `FT`, `RC` nem fatura simplificada.
 - Cada pagamento origina, no máximo, um processo fiscal, mesmo que um evento seja entregue mais de uma vez.
 - Registos de teste e pagamentos de valor zero nunca são enviados ao TOConline.
 - Um reembolso ou cancelamento nunca anula automaticamente um documento fiscal: fica pendente de validação administrativa/contabilística.
@@ -19,13 +20,11 @@ O segredo da API apresentado durante a configuração deve ser revogado e substi
 ## Fluxo
 
 1. O pagamento em `payments/{paymentId}` muda para `paid`.
-2. Uma função verifica a inscrição/pedido complementar, o montante e se é um registo real.
+2. Uma função confirma que o pagamento foi liquidado pelo prestador, valida a inscrição/pedido complementar, o montante e se é um registo real.
 3. É criado `billingJobs/{paymentId}`, usando o ID do pagamento como chave de idempotência.
 4. O perfil de faturação é copiado para um snapshot imutável no pedido.
 5. O backend procura/cria o cliente no TOConline, com controlo de duplicação por NIF.
-6. O backend emite o documento aprovado:
-   - `FT` e posteriormente `RC`, quando existe fatura antes do pagamento; ou
-   - `FR`, quando o contabilista confirmar que a operação deve ser faturada e recebida no mesmo momento.
+6. O backend emite uma única `FR`, com a data efetiva do pagamento.
 7. O PDF finalizado é obtido através da API e guardado em Storage privado.
 8. O TOConline envia o documento por email, se esta opção estiver ativa.
 9. O resultado é registado em `billingDocuments/{paymentId}` e em `auditLogs`.
@@ -65,6 +64,7 @@ eventId, paymentId, registrationId, orderId?, userId,
 sourceType: registration | supplementary,
 status, billingMode, attempts,
 amountCents, currency, paymentMethod,
+paymentProvider, providerTransactionId, paidAt,
 billingSnapshot,
 missingFields,
 externalReference,
@@ -79,9 +79,9 @@ O participante pode ler apenas os próprios documentos. Apenas o backend escreve
 
 ```text
 eventId, paymentId, registrationId, orderId?, userId,
-documentType, documentNumber, series,
+documentType: FR, documentNumber, series,
 amountCents, currency, status,
-tocOnlineCustomerId, tocOnlineSalesDocumentId, tocOnlineReceiptId?,
+tocOnlineCustomerId, tocOnlineSalesDocumentId,
 storagePath, fileName, issuedAt, emailedAt?,
 createdAt, updatedAt
 ```
@@ -119,25 +119,26 @@ Rotas relevantes confirmadas na documentação disponibilizada:
 ```text
 POST  /api/customers
 POST  /api/v1/commercial_sales_documents
-POST  /api/v1/commercial_sales_receipts
 GET   /api/url_for_print/{id}
 PATCH /api/email/document
 ```
 
-## Regra documental proposta
+## Regra documental definida
 
-A interface do TOConline confirma a disponibilidade de `Fatura-recibo` e `Fatura simplificada`. Para o CIRC, a escolha automática deve ser:
+O fluxo automático do CIRC emite exclusivamente **fatura-recibo (`FR`)** porque o documento só é criado depois de a plataforma confirmar o pagamento.
 
-| Situação | Documento |
+| Condição | Resultado |
 |---|---|
-| Pagamento confirmado e emissão na mesma data | `FR` — fatura-recibo |
-| Fatura emitida antes do pagamento | `FT`, seguida de `RC` quando o pagamento for confirmado |
-| Pagamento registado numa data diferente da emissão | `FT + RC`, com revisão das datas |
-| Fatura simplificada | Não utilizar no fluxo automático |
+| Pagamento confirmado pelo prestador e perfil de faturação completo | Criar uma única `FR` |
+| Pagamento pendente, falhado, cancelado ou de valor zero | Não criar documento |
+| Perfil de faturação incompleto | Estado `blocked_profile`; não emitir |
+| Registo de teste | Não emitir |
+| Reembolso ou correção posterior | `manual_review`; nunca anular automaticamente |
+| Fatura, recibo ou fatura simplificada | Fora do fluxo automático da plataforma |
 
-A fatura simplificada não será o documento padrão: as prestações de serviços podem ultrapassar o limite legal aplicável e o CIRC necessita de um modelo uniforme com identificação e morada de faturação. Mesmo quando o valor isolado permitir uma fatura simplificada, o backend continuará a emitir `FR` ou `FT + RC`.
+A emissão deve ocorrer imediatamente após a confirmação do pagamento. O registo guarda `paidAt` como data efetiva do recebimento e `providerTransactionId` como prova técnica da operação. A data em que um administrador consulta ou altera o registo não substitui `paidAt`.
 
-Para impedir documentos com datas incorretas, o pagamento deve guardar `paidAt` como a data efetiva do recebimento. A data em que o administrador altera o estado para “Pago” não pode substituir automaticamente a data real do pagamento.
+Se uma falha impedir a emissão na data correta, o pedido fica em `manual_review`; o sistema não muda automaticamente para outro tipo documental.
 
 A série apresentada nas capturas continua selecionada como `2025`. Nenhum teste ou emissão de 2027 pode avançar enquanto a série correta não estiver criada e selecionada no TOConline.
 
@@ -191,11 +192,9 @@ Os códigos TOConline, preços líquidos/brutos e taxa de IVA ficam numa configu
 
 ## Decisões necessárias antes da emissão real
 
-1. O contabilista confirma a regra proposta: `FR` apenas quando emissão e pagamento coincidirem; nos restantes casos, `FT + RC`?
-2. O documento é emitido para todos os pagamentos ou apenas quando o participante pede faturação?
-3. Qual é a série documental exclusiva do CIRC 2027? Em 2025 foi usada a série `2025`.
-4. Confirma-se a taxa de IVA de 23% observada em 2025 para todos os artigos de 2027?
-5. Quais são os códigos definitivos dos cinco artigos de 2027: congresso presencial, congresso virtual, curso da manhã, curso da tarde e jantar?
-6. Que caixa/conta e meios de pagamento do TOConline correspondem a transferência, MB WAY, Multibanco e cartão?
-7. Como tratar participantes sem NIF ou com número fiscal estrangeiro?
-8. O email sai automaticamente pelo TOConline e com que remetente/assunto?
+1. Qual é a série documental exclusiva de faturas-recibo do CIRC 2027? Em 2025 foi usada a série `2025`.
+2. Confirma-se a taxa de IVA de 23% observada em 2025 para todos os artigos de 2027?
+3. Quais são os códigos definitivos dos cinco artigos de 2027: congresso presencial, congresso virtual, curso da manhã, curso da tarde e jantar?
+4. Que caixa/conta e meios de pagamento do TOConline correspondem aos métodos aceites na plataforma?
+5. Como tratar participantes sem NIF ou com número fiscal estrangeiro?
+6. O email sai automaticamente pelo TOConline e com que remetente/assunto?
