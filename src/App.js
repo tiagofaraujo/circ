@@ -33,6 +33,8 @@ import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePa
 import AccountSecurityPage from './pages/AccountSecurityPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
+import AdminSecretariatPage from './pages/AdminSecretariatPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import {
   AuthenticatedAccountPage,
@@ -127,6 +129,22 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminDashboardPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/submissoes"
+              element={
+                <AdminRoute>
+                  <AdminSubmissionsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/secretariado"
+              element={
+                <AdminRoute>
+                  <AdminSecretariatPage />
                 </AdminRoute>
               }
             />

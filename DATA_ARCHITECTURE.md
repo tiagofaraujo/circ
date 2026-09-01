@@ -19,10 +19,28 @@ Perfil do participante: nome, email, contacto, instituição, profissão e dados
 eventId, userId, participantName, participantEmail,
 registrationType, status,
 payment: { status, amountCents, currency, method, reference, updatedAt, updatedBy },
+attendance: {
+  day_2027_04_08: { eventDay, checkedIn, checkedInAt, checkedInBy },
+  day_2027_04_09: { eventDay, checkedIn, checkedInAt, checkedInBy },
+  day_2027_04_10: { eventDay, checkedIn, checkedInAt, checkedInBy }
+},
+credential: { delivered, deliveredAt, deliveredBy },
 documentCount, consentVersion, createdAt, updatedAt
 ```
 
 O objeto `payment` é um resumo para o painel. O registo financeiro detalhado fica em `payments`.
+Os registos de presença são separados por dia e cada operação identifica o utilizador do Secretariado. A entrega da credencial é única por participante.
+
+### `submissions/{submissionId}`
+
+```text
+eventId, code, userId, contactName, contactEmail,
+type, title, authors, affiliation, abstract, status, isTest,
+review: { note, updatedAt, updatedBy },
+createdAt, updatedAt, submittedAt, createdBy
+```
+
+O autor consulta apenas os próprios trabalhos. Depois da submissão, a decisão e a nota editorial são geridas apenas por administradores verificados. Os registos de teste usam `isTest: true` e um código iniciado por `TEST-`.
 
 ### `payments/{registrationId}`
 
@@ -34,7 +52,7 @@ Metadados sem conteúdo binário: `eventId`, `registrationId`, `userId`, `type`,
 
 ### `auditLogs/{logId}`
 
-Registo imutável das alterações administrativas: ação, inscrição, valor anterior, valor novo, utilizador administrador e data/hora do servidor.
+Registo imutável das alterações administrativas: ação, inscrição ou submissão, valor anterior, valor novo, utilizador administrador e data/hora do servidor. Inclui decisões científicas, check-ins, reversões e entrega de credenciais.
 
 ## Pastas privadas no Storage
 

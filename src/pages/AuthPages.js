@@ -471,14 +471,29 @@ export function AuthenticatedAccountPage() {
           <button className="auth-signout-button" type="button" onClick={handleSignOut} disabled={busy}>{isEnglish ? 'Sign out' : 'Terminar sessão'}</button>
         </article>
         {isAdmin && (
-          <article className="auth-account-card auth-account-card--admin">
-            <span>02</span>
-            <p className="eyebrow">Administração</p>
-            <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
-            <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
-            <Link to="/admin">{isEnglish ? 'Open administration →' : 'Abrir administração →'}</Link>
-            <Link className="auth-account-card__secondary-link" to="/conta/submissoes">{isEnglish ? 'Test submissions →' : 'Testar submissões →'}</Link>
-          </article>
+          <>
+            <article className="auth-account-card auth-account-card--admin">
+              <span>02</span>
+              <p className="eyebrow">Administração</p>
+              <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
+              <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
+              <Link to="/admin">{isEnglish ? 'Open registrations →' : 'Abrir inscrições →'}</Link>
+            </article>
+            <article className="auth-account-card auth-account-card--admin-submissions">
+              <span>03</span>
+              <p className="eyebrow">Comissão Científica</p>
+              <h2>{isEnglish ? 'Submission management' : 'Gestão de submissões'}</h2>
+              <p>{isEnglish ? 'Review scientific work, follow each stage and record decisions.' : 'Consulte trabalhos científicos, acompanhe cada etapa e registe decisões.'}</p>
+              <Link to="/admin/submissoes">{isEnglish ? 'Open submissions →' : 'Abrir submissões →'}</Link>
+            </article>
+            <article className="auth-account-card auth-account-card--admin-secretariat">
+              <span>04</span>
+              <p className="eyebrow">Operação no local</p>
+              <h2>{isEnglish ? 'Event desk' : 'Secretariado'}</h2>
+              <p>{isEnglish ? 'Check in participants, deliver credentials and follow attendance live.' : 'Faça o check-in, registe a entrega de credenciais e acompanhe as presenças.'}</p>
+              <Link to="/admin/secretariado">{isEnglish ? 'Open event desk →' : 'Abrir secretariado →'}</Link>
+            </article>
+          </>
         )}
       </section>
     </main>

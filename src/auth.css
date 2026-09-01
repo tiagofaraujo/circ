@@ -505,6 +505,24 @@
   color: #fff;
 }
 
+.auth-account-card--admin-submissions {
+  background: linear-gradient(135deg, rgba(35, 46, 183, 0.075), rgba(255, 255, 255, 0.28));
+}
+
+.auth-account-card--admin { background: var(--paper-deep); }
+
+.auth-account-card--admin-secretariat {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.auth-account-card--admin-secretariat p,
+.auth-account-card--admin-secretariat .eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.auth-account-card--admin-secretariat a { color: var(--white); }
+
 .auth-account-card .auth-account-card__secondary-link {
   margin-top: 9px;
   color: rgba(35, 46, 183, 0.72);

@@ -45,6 +45,28 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /submissions/{submissionId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (
+        signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.eventId == 'circ-2027'
+        && request.resource.data.status in ['draft', 'submitted']
+      );
+      allow update: if isAdmin() || (
+        signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && resource.data.status == 'draft'
+        && request.resource.data.status in ['draft', 'submitted']
+      );
+      allow delete: if isAdmin() || (
+        signedIn()
+        && resource.data.userId == request.auth.uid
+        && resource.data.status == 'draft'
+      );
+    }
+
     match /auditLogs/{logId} {
       allow read, create: if isAdmin();
       allow update, delete: if false;

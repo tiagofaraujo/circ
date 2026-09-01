@@ -1,6 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import {
+  deleteAdminTestSubmission,
+  saveAdminTestSubmission,
+  subscribeToSubmissions,
+} from '../auth/adminOperationsStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
 
@@ -41,7 +46,7 @@ const content = {
     preparationText: 'O perfil do autor será reutilizado para reduzir o preenchimento e manter os dados consistentes.',
     checklist: ['Dados pessoais e profissionais', 'Título provisório', 'Autores e afiliações', 'Conteúdo do resumo'],
     testMode: 'Modo de teste administrativo',
-    testModeText: 'Esta simulação não envia dados para o Firebase nem para a Comissão. Os trabalhos ficam guardados apenas neste navegador e podem ser eliminados no final.',
+    testModeText: 'Esta simulação cria um registo de teste no Firebase, visível apenas na administração e claramente separado das submissões reais.',
     startTest: 'Criar trabalho de teste',
     testHint: 'Simulação disponível apenas para administração',
     formEyebrow: 'Nova submissão · Teste',
@@ -63,11 +68,11 @@ const content = {
     abstractLabel: 'Texto do resumo',
     abstractPlaceholder: 'Escreva aqui o conteúdo científico para testar a experiência de submissão.',
     reviewLabel: 'Revisão e envio',
-    reviewText: 'Confirme os dados. Neste modo, “Submeter teste” cria apenas um registo local identificado como demonstração.',
+    reviewText: 'Confirme os dados. Neste modo, “Submeter teste” cria um registo Firebase identificado como demonstração.',
     saveDraft: 'Guardar rascunho',
     submitTest: 'Submeter teste',
-    savedMessage: 'O trabalho de teste foi guardado neste navegador.',
-    submittedMessage: 'Submissão de teste concluída. Nenhum dado foi enviado para o Firebase.',
+    savedMessage: 'O rascunho de teste foi guardado e já está disponível na administração.',
+    submittedMessage: 'Submissão de teste concluída e disponível na Gestão de Submissões.',
     draftStatus: 'Rascunho · Teste',
     submittedStatus: 'Submetido · Teste',
     removeTest: 'Eliminar teste',
@@ -110,7 +115,7 @@ const content = {
     preparationText: 'The author profile will be reused to reduce data entry and keep information consistent.',
     checklist: ['Personal and professional details', 'Working title', 'Authors and affiliations', 'Abstract content'],
     testMode: 'Administrative test mode',
-    testModeText: 'This simulation does not send data to Firebase or the Committee. Submissions are stored only in this browser and can be deleted afterwards.',
+    testModeText: 'This simulation creates a test record in Firebase, visible only to administration and clearly separated from real submissions.',
     startTest: 'Create test submission',
     testHint: 'Simulation available to administration only',
     formEyebrow: 'New submission · Test',
@@ -132,11 +137,11 @@ const content = {
     abstractLabel: 'Abstract text',
     abstractPlaceholder: 'Write the scientific content here to test the submission experience.',
     reviewLabel: 'Review and submission',
-    reviewText: 'Confirm the details. In this mode, “Submit test” creates only a local record identified as a demonstration.',
+    reviewText: 'Confirm the details. In this mode, “Submit test” creates a Firebase record identified as a demonstration.',
     saveDraft: 'Save draft',
     submitTest: 'Submit test',
-    savedMessage: 'The test submission was saved in this browser.',
-    submittedMessage: 'Test submission completed. No data was sent to Firebase.',
+    savedMessage: 'The test draft was saved and is now available in administration.',
+    submittedMessage: 'Test submission completed and available in Submission Management.',
     draftStatus: 'Draft · Test',
     submittedStatus: 'Submitted · Test',
     removeTest: 'Delete test',
@@ -169,20 +174,26 @@ const emptyTestForm = {
 
 function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
   const [form, setForm] = useState({ ...emptyTestForm, authors: initialAuthor || '' });
+  const [saving, setSaving] = useState(false);
 
   const updateField = (field) => (event) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const save = (status) => {
-    if (!form.title.trim() || !form.authors.trim() || !form.abstract.trim()) return;
-    onSave({
-      ...form,
-      title: form.title.trim(),
-      authors: form.authors.trim(),
-      affiliation: form.affiliation.trim(),
-      abstract: form.abstract.trim(),
-    }, status);
+  const save = async (status) => {
+    if (saving || !form.title.trim() || !form.authors.trim() || !form.abstract.trim()) return;
+    setSaving(true);
+    try {
+      await onSave({
+        ...form,
+        title: form.title.trim(),
+        authors: form.authors.trim(),
+        affiliation: form.affiliation.trim(),
+        abstract: form.abstract.trim(),
+      }, status);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -192,7 +203,7 @@ function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
           <p className="eyebrow">{t.formEyebrow}</p>
           <h2 id="submissions-composer-title">{t.formTitle}</h2>
         </div>
-        <button type="button" onClick={onClose}>{t.close} ×</button>
+        <button type="button" onClick={onClose} disabled={saving}>{t.close} ×</button>
       </header>
 
       <form onSubmit={(event) => { event.preventDefault(); save('submitted'); }}>
@@ -245,8 +256,8 @@ function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
           </div>
           <p>{t.reviewText}</p>
           <div className="submissions-form-actions">
-            <button type="button" onClick={() => save('draft')} disabled={!form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{t.saveDraft}</button>
-            <button type="submit" disabled={!form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{t.submitTest} →</button>
+            <button type="button" onClick={() => save('draft')} disabled={saving || !form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{saving ? '…' : t.saveDraft}</button>
+            <button type="submit" disabled={saving || !form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{saving ? '…' : t.submitTest} →</button>
           </div>
         </fieldset>
       </form>
@@ -261,37 +272,32 @@ export default function ScientificSubmissionsPage() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [testSubmissions, setTestSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
-  const storageKey = useMemo(() => `circ_submission_test_${user?.uid || 'admin'}`, [user]);
 
   useEffect(() => {
-    if (!isAdmin || typeof window === 'undefined') return;
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
-      setTestSubmissions(Array.isArray(saved) ? saved : []);
-    } catch (error) {
-      setTestSubmissions([]);
-    }
-  }, [isAdmin, storageKey]);
+    if (!isAdmin || !user) return undefined;
+    return subscribeToSubmissions(
+      (items) => setTestSubmissions(items.filter((item) => item.isTest && item.userId === user.uid)),
+      () => setNotice(language === 'en' ? 'Unable to load Firebase test submissions.' : 'Não foi possível carregar as submissões de teste do Firebase.')
+    );
+  }, [isAdmin, language, user]);
 
-  const saveTestSubmission = (form, status) => {
-    const record = {
-      ...form,
-      id: `TEST-${String(Date.now()).slice(-6)}`,
-      status,
-      createdAt: new Date().toISOString(),
-    };
-    const next = [record, ...testSubmissions];
-    window.localStorage.setItem(storageKey, JSON.stringify(next));
-    setTestSubmissions(next);
-    setComposerOpen(false);
-    setNotice(status === 'draft' ? t.savedMessage : t.submittedMessage);
-    window.setTimeout(() => setNotice(''), 6000);
+  const saveTestSubmission = async (form, status) => {
+    try {
+      await saveAdminTestSubmission(user, form, status);
+      setComposerOpen(false);
+      setNotice(status === 'draft' ? t.savedMessage : t.submittedMessage);
+      window.setTimeout(() => setNotice(''), 6000);
+    } catch (error) {
+      setNotice(language === 'en' ? 'The test submission could not be saved.' : 'Não foi possível guardar a submissão de teste.');
+    }
   };
 
-  const removeTestSubmission = (id) => {
-    const next = testSubmissions.filter((submission) => submission.id !== id);
-    window.localStorage.setItem(storageKey, JSON.stringify(next));
-    setTestSubmissions(next);
+  const removeTestSubmission = async (submission) => {
+    try {
+      await deleteAdminTestSubmission(user, submission);
+    } catch (error) {
+      setNotice(language === 'en' ? 'The test submission could not be deleted.' : 'Não foi possível eliminar a submissão de teste.');
+    }
   };
 
   return (
@@ -373,13 +379,13 @@ export default function ScientificSubmissionsPage() {
               {testSubmissions.map((submission) => (
                 <article key={submission.id}>
                   <div className="submissions-test-list__topline">
-                    <span>{submission.id}</span>
+                    <span>{submission.code || submission.id}</span>
                     <strong className={`is-${submission.status}`}>{submission.status === 'draft' ? t.draftStatus : t.submittedStatus}</strong>
                   </div>
                   <p>{submission.type === 'oral' ? t.oralType : t.posterType}</p>
                   <h3>{submission.title}</h3>
                   <small>{submission.authors.split('\n').join(' · ')}</small>
-                  <button type="button" onClick={() => removeTestSubmission(submission.id)}>{t.removeTest}</button>
+                  <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
                 </article>
               ))}
             </div>
