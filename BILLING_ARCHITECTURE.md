@@ -124,6 +124,23 @@ GET   /api/url_for_print/{id}
 PATCH /api/email/document
 ```
 
+## Regra documental proposta
+
+A interface do TOConline confirma a disponibilidade de `Fatura-recibo` e `Fatura simplificada`. Para o CIRC, a escolha automática deve ser:
+
+| Situação | Documento |
+|---|---|
+| Pagamento confirmado e emissão na mesma data | `FR` — fatura-recibo |
+| Fatura emitida antes do pagamento | `FT`, seguida de `RC` quando o pagamento for confirmado |
+| Pagamento registado numa data diferente da emissão | `FT + RC`, com revisão das datas |
+| Fatura simplificada | Não utilizar no fluxo automático |
+
+A fatura simplificada não será o documento padrão: as prestações de serviços podem ultrapassar o limite legal aplicável e o CIRC necessita de um modelo uniforme com identificação e morada de faturação. Mesmo quando o valor isolado permitir uma fatura simplificada, o backend continuará a emitir `FR` ou `FT + RC`.
+
+Para impedir documentos com datas incorretas, o pagamento deve guardar `paidAt` como a data efetiva do recebimento. A data em que o administrador altera o estado para “Pago” não pode substituir automaticamente a data real do pagamento.
+
+A série apresentada nas capturas continua selecionada como `2025`. Nenhum teste ou emissão de 2027 pode avançar enquanto a série correta não estiver criada e selecionada no TOConline.
+
 ## Evidência documental — edição 2025
 
 Foram analisadas quatro faturas originais da edição anterior. Os dados pessoais dos clientes não são transpostos para o projeto; apenas se registam as características fiscais e operacionais relevantes.
@@ -174,7 +191,7 @@ Os códigos TOConline, preços líquidos/brutos e taxa de IVA ficam numa configu
 
 ## Decisões necessárias antes da emissão real
 
-1. Emitir `FT + RC` ou `FR`?
+1. O contabilista confirma a regra proposta: `FR` apenas quando emissão e pagamento coincidirem; nos restantes casos, `FT + RC`?
 2. O documento é emitido para todos os pagamentos ou apenas quando o participante pede faturação?
 3. Qual é a série documental exclusiva do CIRC 2027? Em 2025 foi usada a série `2025`.
 4. Confirma-se a taxa de IVA de 23% observada em 2025 para todos os artigos de 2027?
