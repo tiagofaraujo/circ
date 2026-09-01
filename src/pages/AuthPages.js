@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
-import { loadParticipantProfile } from '../auth/profileStore';
+import { loadParticipantProfileResult } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../auth.css';
 
@@ -344,10 +344,11 @@ export function AuthenticatedAccountPage() {
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [participantProfile, setParticipantProfile] = useState(null);
+  const [profileLoadState, setProfileLoadState] = useState('loading');
 
   const isPasswordAccount = user?.providerData?.some((provider) => provider.providerId === 'password');
   const displayName = user?.displayName || user?.email?.split('@')[0] || (isEnglish ? 'Participant' : 'Participante');
-  const profileCompletion = participantProfile
+  const profileCompletion = profileLoadState === 'ready' && participantProfile
     ? getProfileCompletion({
         country: 'Portugal',
         profession: 'radiographer',
@@ -360,10 +361,33 @@ export function AuthenticatedAccountPage() {
 
   useEffect(() => {
     let active = true;
-    loadParticipantProfile(user).then((profile) => {
-      if (active) setParticipantProfile(profile);
-    });
-    return () => { active = false; };
+    let retryTimer;
+
+    setParticipantProfile(null);
+    setProfileLoadState('loading');
+
+    const loadProfile = async (attempt = 0) => {
+      const result = await loadParticipantProfileResult(user);
+      if (!active) return;
+
+      if (!result.remoteAvailable && attempt < 2) {
+        retryTimer = window.setTimeout(
+          () => loadProfile(attempt + 1),
+          350 * (attempt + 1)
+        );
+        return;
+      }
+
+      setParticipantProfile(result.profile);
+      setProfileLoadState(result.remoteAvailable ? 'ready' : 'unavailable');
+    };
+
+    loadProfile();
+
+    return () => {
+      active = false;
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, [user]);
 
   const handleSignOut = async () => {
