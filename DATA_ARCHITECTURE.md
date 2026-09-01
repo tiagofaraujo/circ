@@ -13,6 +13,14 @@
 
 Perfil do participante: nome, email, contacto, instituição, profissão e dados de faturação estritamente necessários. O documento pertence ao UID autenticado.
 
+O campo administrativo `roles` é opcional e só pode ser alterado pela conta administradora principal:
+
+```text
+roles: { submissions: true, secretariat: true }
+```
+
+Cada função concede apenas o módulo correspondente. O próprio utilizador não pode atribuir nem alterar as suas permissões. Durante os testes, `araujotiagofc@gmail.com` tem acesso à Gestão de Submissões e `tiago_araujo@hotmail.com` ao Secretariado; depois, as atribuições devem ser feitas através de `roles` e as exceções temporárias removidas.
+
 ### `registrations/{registrationId}`
 
 ```text
@@ -42,6 +50,8 @@ createdAt, updatedAt, submittedAt, createdBy
 
 O autor consulta apenas os próprios trabalhos. Depois da submissão, a decisão e a nota editorial são geridas apenas por administradores verificados. Os registos de teste usam `isTest: true` e um código iniciado por `TEST-`.
 
+O perfil `submissions` pode consultar todos os trabalhos e alterar apenas `status`, `review` e `updatedAt`. Não tem acesso à gestão de inscrições, pagamentos ou Secretariado.
+
 ### `payments/{registrationId}`
 
 Estado, montante em cêntimos, moeda, método, referência externa e quem confirmou. Não guardar número de cartão, CVV, credenciais bancárias ou payloads integrais do prestador de pagamentos.
@@ -53,6 +63,8 @@ Metadados sem conteúdo binário: `eventId`, `registrationId`, `userId`, `type`,
 ### `auditLogs/{logId}`
 
 Registo imutável das alterações administrativas: ação, inscrição ou submissão, valor anterior, valor novo, utilizador administrador e data/hora do servidor. Inclui decisões científicas, check-ins, reversões e entrega de credenciais.
+
+O perfil `secretariat` pode consultar as inscrições e alterar apenas `attendance`, `credential` e `updatedAt`. Não pode alterar pagamentos, preços, inscrições ou submissões científicas.
 
 ## Pastas privadas no Storage
 

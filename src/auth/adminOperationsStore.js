@@ -116,7 +116,7 @@ export async function deleteAdminTestSubmission(user, submission) {
 }
 
 export async function updateSubmissionReview(user, submission, status, decisionNote = '') {
-  if (!isAdminUser(user)) throw new Error('submissions/admin-only');
+  if (!user) throw new Error('submissions/auth-required');
   if (!submissionStatuses.includes(status)) throw new Error('submissions/invalid-status');
 
   const normalizedNote = String(decisionNote || '').trim();
@@ -149,7 +149,7 @@ export async function updateSubmissionReview(user, submission, status, decisionN
 }
 
 export async function updateParticipantCheckIn(user, registration, eventDay, checkedIn) {
-  if (!isAdminUser(user)) throw new Error('secretariat/admin-only');
+  if (!user) throw new Error('secretariat/auth-required');
   if (!['2027-04-08', '2027-04-09', '2027-04-10'].includes(eventDay)) throw new Error('secretariat/invalid-day');
 
   const db = dbOrThrow();
@@ -183,7 +183,7 @@ export async function updateParticipantCheckIn(user, registration, eventDay, che
 }
 
 export async function updateCredentialDelivery(user, registration, delivered) {
-  if (!isAdminUser(user)) throw new Error('secretariat/admin-only');
+  if (!user) throw new Error('secretariat/auth-required');
 
   const db = dbOrThrow();
   const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();

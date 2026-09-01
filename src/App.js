@@ -127,7 +127,7 @@ function App() {
             <Route
               path="/admin"
               element={
-                <AdminRoute>
+                <AdminRoute permission="registrations">
                   <AdminDashboardPage />
                 </AdminRoute>
               }
@@ -135,7 +135,7 @@ function App() {
             <Route
               path="/admin/submissoes"
               element={
-                <AdminRoute>
+                <AdminRoute permission="submissions">
                   <AdminSubmissionsPage />
                 </AdminRoute>
               }
@@ -143,7 +143,7 @@ function App() {
             <Route
               path="/admin/secretariado"
               element={
-                <AdminRoute>
+                <AdminRoute permission="secretariat">
                   <AdminSecretariatPage />
                 </AdminRoute>
               }

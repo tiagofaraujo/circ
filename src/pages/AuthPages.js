@@ -340,7 +340,7 @@ export function ForgotPasswordPage() {
 export function AuthenticatedAccountPage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
-  const { user, isAdmin, signOut, resendVerification } = useAuth();
+  const { user, access, signOut, resendVerification } = useAuth();
   const navigate = useNavigate();
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -349,6 +349,16 @@ export function AuthenticatedAccountPage() {
 
   const isPasswordAccount = user?.providerData?.some((provider) => provider.providerId === 'password');
   const displayName = user?.displayName || user?.email?.split('@')[0] || (isEnglish ? 'Participant' : 'Participante');
+  const isBackOffice = Boolean(access?.hasBackOfficeAccess);
+  const areaLabel = access?.isAdmin
+    ? (isEnglish ? 'Administration' : 'Administração')
+    : access?.canManageSubmissions && access?.canUseSecretariat
+      ? (isEnglish ? 'Event operations' : 'Operação do evento')
+      : access?.canManageSubmissions
+        ? (isEnglish ? 'Scientific Committee' : 'Comissão Científica')
+        : access?.canUseSecretariat
+          ? (isEnglish ? 'Event desk' : 'Secretariado')
+          : (isEnglish ? 'Participant' : 'Participante');
   const profileCompletion = profileLoadState === 'ready' && participantProfile
     ? getProfileCompletion({
         country: 'Portugal',
@@ -363,6 +373,12 @@ export function AuthenticatedAccountPage() {
   useEffect(() => {
     let active = true;
     let retryTimer;
+
+    if (isBackOffice) {
+      setParticipantProfile(null);
+      setProfileLoadState('ready');
+      return undefined;
+    }
 
     setParticipantProfile(null);
     setProfileLoadState('loading');
@@ -389,7 +405,7 @@ export function AuthenticatedAccountPage() {
       active = false;
       if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [user]);
+  }, [isBackOffice, user]);
 
   const handleSignOut = async () => {
     setBusy(true);
@@ -411,7 +427,7 @@ export function AuthenticatedAccountPage() {
     <main className="account-page auth-account-page">
       <section className="account-hero">
         <div>
-          <p className="eyebrow">{isEnglish ? 'My CIRC · Participant' : 'My CIRC · Participante'}</p>
+          <p className="eyebrow">My CIRC · {areaLabel}</p>
           <h1>{isEnglish ? 'Hello' : 'Olá'}, {displayName}</h1>
           <p>{isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 abril'}</p>
         </div>
@@ -428,8 +444,8 @@ export function AuthenticatedAccountPage() {
         </section>
       )}
 
-      <section className={`auth-account-grid${isAdmin ? ' auth-account-grid--admin' : ''}`}>
-        {!isAdmin && (
+      <section className={`auth-account-grid${isBackOffice ? ' auth-account-grid--admin' : ''}`}>
+        {!isBackOffice && (
           <>
             <article className="auth-account-card auth-account-card--primary">
               <span>01</span>
@@ -464,36 +480,38 @@ export function AuthenticatedAccountPage() {
           </>
         )}
         <article className="auth-account-card">
-          <span>{isAdmin ? '01' : '04'}</span>
+          <span>{isBackOffice ? '01' : '04'}</span>
           <p className="eyebrow">{isEnglish ? 'Account' : 'Conta'}</p>
           <h2>{user?.email}</h2>
           <p>{user?.emailVerified ? (isEnglish ? 'Email verified.' : 'Email verificado.') : (isEnglish ? 'Email not yet verified.' : 'Email ainda não verificado.')}</p>
           <button className="auth-signout-button" type="button" onClick={handleSignOut} disabled={busy}>{isEnglish ? 'Sign out' : 'Terminar sessão'}</button>
         </article>
-        {isAdmin && (
-          <>
-            <article className="auth-account-card auth-account-card--admin">
-              <span>02</span>
-              <p className="eyebrow">Administração</p>
-              <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
-              <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
-              <Link to="/admin">{isEnglish ? 'Open registrations →' : 'Abrir inscrições →'}</Link>
-            </article>
-            <article className="auth-account-card auth-account-card--admin-submissions">
-              <span>03</span>
-              <p className="eyebrow">Comissão Científica</p>
-              <h2>{isEnglish ? 'Submission management' : 'Gestão de submissões'}</h2>
-              <p>{isEnglish ? 'Review scientific work, follow each stage and record decisions.' : 'Consulte trabalhos científicos, acompanhe cada etapa e registe decisões.'}</p>
-              <Link to="/admin/submissoes">{isEnglish ? 'Open submissions →' : 'Abrir submissões →'}</Link>
-            </article>
-            <article className="auth-account-card auth-account-card--admin-secretariat">
-              <span>04</span>
-              <p className="eyebrow">Operação no local</p>
-              <h2>{isEnglish ? 'Event desk' : 'Secretariado'}</h2>
-              <p>{isEnglish ? 'Check in participants, deliver credentials and follow attendance live.' : 'Faça o check-in, registe a entrega de credenciais e acompanhe as presenças.'}</p>
-              <Link to="/admin/secretariado">{isEnglish ? 'Open event desk →' : 'Abrir secretariado →'}</Link>
-            </article>
-          </>
+        {access?.canManageRegistrations && (
+          <article className="auth-account-card auth-account-card--admin">
+            <span>02</span>
+            <p className="eyebrow">Administração</p>
+            <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
+            <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
+            <Link to="/admin">{isEnglish ? 'Open registrations →' : 'Abrir inscrições →'}</Link>
+          </article>
+        )}
+        {access?.canManageSubmissions && (
+          <article className="auth-account-card auth-account-card--admin-submissions">
+            <span>{access?.canManageRegistrations ? '03' : '02'}</span>
+            <p className="eyebrow">Comissão Científica</p>
+            <h2>{isEnglish ? 'Submission management' : 'Gestão de submissões'}</h2>
+            <p>{isEnglish ? 'Review scientific work, follow each stage and record decisions.' : 'Consulte trabalhos científicos, acompanhe cada etapa e registe decisões.'}</p>
+            <Link to="/admin/submissoes">{isEnglish ? 'Open submissions →' : 'Abrir submissões →'}</Link>
+          </article>
+        )}
+        {access?.canUseSecretariat && (
+          <article className="auth-account-card auth-account-card--admin-secretariat">
+            <span>{access?.canManageRegistrations ? '04' : access?.canManageSubmissions ? '03' : '02'}</span>
+            <p className="eyebrow">Operação no local</p>
+            <h2>{isEnglish ? 'Event desk' : 'Secretariado'}</h2>
+            <p>{isEnglish ? 'Check in participants, deliver credentials and follow attendance live.' : 'Faça o check-in, registe a entrega de credenciais e acompanhe as presenças.'}</p>
+            <Link to="/admin/secretariado">{isEnglish ? 'Open event desk →' : 'Abrir secretariado →'}</Link>
+          </article>
         )}
       </section>
     </main>

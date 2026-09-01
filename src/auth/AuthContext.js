@@ -5,6 +5,8 @@ import {
   firebaseConfigured,
   microsoftAuthEnabled,
   getFirebaseAuth,
+  getFirebaseFirestore,
+  getUserAccess,
   isAdminUser,
 } from './firebaseClient';
 import { deleteParticipantData } from './profileStore';
@@ -55,6 +57,8 @@ function applyAuthLanguage(auth, language = 'pt') {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [accountRoles, setAccountRoles] = useState({});
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -72,6 +76,33 @@ export function AuthProvider({ children }) {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setAccountRoles({});
+      setRolesLoading(false);
+      return undefined;
+    }
+
+    const db = getFirebaseFirestore();
+    if (!db) {
+      setAccountRoles({});
+      setRolesLoading(false);
+      return undefined;
+    }
+
+    setRolesLoading(true);
+    return db.collection('users').doc(user.uid).onSnapshot(
+      (snapshot) => {
+        setAccountRoles(snapshot.data()?.roles || {});
+        setRolesLoading(false);
+      },
+      () => {
+        setAccountRoles({});
+        setRolesLoading(false);
+      }
+    );
+  }, [user]);
 
   useEffect(() => {
     if (!user || typeof window === 'undefined') return undefined;
@@ -98,12 +129,16 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
-  const value = useMemo(() => ({
-    configured: firebaseConfigured,
-    microsoftAuthEnabled,
-    user,
-    loading,
-    isAdmin: isAdminUser(user),
+  const value = useMemo(() => {
+    const access = getUserAccess(user, accountRoles);
+
+    return {
+      configured: firebaseConfigured,
+      microsoftAuthEnabled,
+      user,
+      loading: loading || rolesLoading,
+      access,
+      isAdmin: isAdminUser(user),
 
     async signInWithEmail(email, password, language = 'pt') {
       const auth = getFirebaseAuth();
@@ -230,7 +265,8 @@ export function AuthProvider({ children }) {
       if (auth) await auth.signOut();
       setUser(null);
     },
-  }), [loading, user]);
+    };
+  }, [accountRoles, loading, rolesLoading, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

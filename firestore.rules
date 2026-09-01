@@ -9,15 +9,53 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
+    function hasVerifiedEmail() {
       return signedIn()
         && request.auth.token.email_verified == true
+        && request.auth.token.email != null;
+    }
+
+    function isAdmin() {
+      return hasVerifiedEmail()
         && request.auth.token.email == 'circ.chuc@gmail.com';
+    }
+
+    function hasStoredRole(role) {
+      return hasVerifiedEmail()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('roles', {}).get(role, false) == true;
+    }
+
+    function canManageSubmissions() {
+      return isAdmin()
+        || hasStoredRole('submissions')
+        || (hasVerifiedEmail() && request.auth.token.email == 'araujotiagofc@gmail.com');
+    }
+
+    function canUseSecretariat() {
+      return isAdmin()
+        || hasStoredRole('secretariat')
+        || (hasVerifiedEmail() && request.auth.token.email == 'tiago_araujo@hotmail.com');
+    }
+
+    function hasOwnAuditActor() {
+      return request.resource.data.actor.uid == request.auth.uid
+        && request.resource.data.actor.email == request.auth.token.email
+        && request.resource.data.eventId == 'circ-2027';
     }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (
+        isOwner(userId)
+        && !request.resource.data.keys().hasAny(['roles'])
+      );
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
+      );
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /events/{eventId} {
@@ -26,8 +64,15 @@ service cloud.firestore {
     }
 
     match /registrations/{registrationId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin()
+        || canUseSecretariat()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        canUseSecretariat()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['attendance', 'credential', 'updatedAt'])
+      );
     }
 
     match /registrationOrders/{orderId} {
@@ -46,20 +91,39 @@ service cloud.firestore {
     }
 
     match /submissions/{submissionId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if canManageSubmissions()
+        || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if isAdmin() || (
         signedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.eventId == 'circ-2027'
         && request.resource.data.status in ['draft', 'submitted']
       );
-      allow update: if isAdmin() || (
-        signedIn()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && resource.data.status == 'draft'
-        && request.resource.data.status in ['draft', 'submitted']
-      );
+      allow update: if isAdmin()
+        || (
+          canManageSubmissions()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'review', 'updatedAt'])
+          && request.resource.data.status in [
+            'draft',
+            'submitted',
+            'under_review',
+            'revisions',
+            'accepted',
+            'rejected'
+          ]
+          && request.resource.data.review.note is string
+          && request.resource.data.review.note.size() <= 1000
+          && request.resource.data.review.updatedBy.uid == request.auth.uid
+          && request.resource.data.review.updatedBy.email == request.auth.token.email
+        )
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && resource.data.status == 'draft'
+          && request.resource.data.status in ['draft', 'submitted']
+        );
       allow delete: if isAdmin() || (
         signedIn()
         && resource.data.userId == request.auth.uid
@@ -68,7 +132,25 @@ service cloud.firestore {
     }
 
     match /auditLogs/{logId} {
-      allow read, create: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        || (
+          canManageSubmissions()
+          && hasOwnAuditActor()
+          && request.resource.data.submissionId is string
+          && request.resource.data.action == 'submission.review.updated'
+        )
+        || (
+          canUseSecretariat()
+          && hasOwnAuditActor()
+          && request.resource.data.registrationId is string
+          && request.resource.data.action in [
+            'attendance.checkin.completed',
+            'attendance.checkin.reverted',
+            'credential.delivered',
+            'credential.delivery.reverted'
+          ]
+        );
       allow update, delete: if false;
     }
 
