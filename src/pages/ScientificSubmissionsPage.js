@@ -53,6 +53,10 @@ const content = {
     formTitle: 'Construa o trabalho passo a passo.',
     close: 'Fechar teste',
     typeLabel: 'Escolha a tipologia',
+    exampleLabel: 'Exemplos para teste',
+    exampleText: 'Preencha automaticamente o formulário com dados científicos fictícios.',
+    loadOralExample: 'Preencher comunicação livre',
+    loadPosterExample: 'Preencher poster',
     oralType: 'Abstract · Comunicação livre',
     oralTypeHint: 'Prazo oficial · 15 janeiro 2027',
     posterType: 'Poster',
@@ -122,6 +126,10 @@ const content = {
     formTitle: 'Build the work step by step.',
     close: 'Close test',
     typeLabel: 'Choose the submission type',
+    exampleLabel: 'Test examples',
+    exampleText: 'Automatically complete the form with fictional scientific data.',
+    loadOralExample: 'Complete free communication',
+    loadPosterExample: 'Complete poster',
     oralType: 'Abstract · Free communication',
     oralTypeHint: 'Official deadline · 15 January 2027',
     posterType: 'Poster',
@@ -164,20 +172,58 @@ function DocumentMark() {
   );
 }
 
-const emptyTestForm = {
-  type: 'oral',
-  title: '',
-  authors: '',
-  affiliation: '',
-  abstract: '',
+const testExampleDefinitions = {
+  pt: {
+    oral: {
+      title: 'Otimização da dose em tomografia computorizada pediátrica através de protocolos adaptados ao peso',
+      coAuthors: ['Ana Martins', 'Miguel Costa'],
+      affiliation: 'Serviço de Imagem Médica, Unidade Local de Saúde de Coimbra',
+      abstract: 'Introdução: A redução da dose em tomografia computorizada pediátrica exige protocolos ajustados à dimensão corporal, sem comprometer a qualidade diagnóstica.\n\nObjetivo: Avaliar o impacto de um protocolo baseado no peso sobre o CTDIvol, o DLP e a qualidade da imagem.\n\nMateriais e métodos: Foram analisados, para efeito desta simulação, 120 exames abdominais pediátricos, comparando um protocolo convencional com parâmetros automáticos ajustados ao peso. Dois observadores avaliaram a qualidade da imagem numa escala de cinco pontos.\n\nResultados: O protocolo adaptado reduziu o DLP mediano em 31%, mantendo qualidade diagnóstica em 96% dos exames e elevada concordância interobservador.\n\nConclusão: A adaptação dos parâmetros ao peso poderá reduzir significativamente a exposição à radiação, preservando a qualidade necessária ao diagnóstico.',
+    },
+    poster: {
+      title: 'Redução de artefactos metálicos em ressonância magnética musculoesquelética: experiência de um centro',
+      coAuthors: ['Joana Ribeiro', 'Pedro Almeida'],
+      affiliation: 'Serviço de Imagem Médica, Unidade Local de Saúde de Coimbra',
+      abstract: 'Introdução: Os implantes ortopédicos podem limitar a avaliação por ressonância magnética devido a distorção geométrica e perda de sinal.\n\nObjetivo: Comparar uma abordagem convencional com um protocolo otimizado para redução de artefactos metálicos.\n\nMateriais e métodos: Nesta amostra fictícia foram considerados 48 exames musculoesqueléticos realizados em doentes com material ortopédico. O protocolo otimizado combinou maior largura de banda, voxel reduzido e técnicas específicas de redução de artefactos.\n\nResultados: Verificou-se uma redução média de 38% na área de distorção e uma melhoria da confiança diagnóstica, com um aumento de 12% no tempo de aquisição.\n\nConclusão: A combinação de parâmetros adaptados poderá melhorar a avaliação dos tecidos adjacentes ao implante, mantendo um tempo de exame clinicamente aceitável.',
+    },
+  },
+  en: {
+    oral: {
+      title: 'Paediatric computed tomography dose optimisation using weight-adapted protocols',
+      coAuthors: ['Ana Martins', 'Miguel Costa'],
+      affiliation: 'Medical Imaging Department, Coimbra Local Health Unit',
+      abstract: 'Introduction: Dose reduction in paediatric computed tomography requires protocols adapted to body size without compromising diagnostic quality.\n\nObjective: To assess the impact of a weight-based protocol on CTDIvol, DLP and image quality.\n\nMaterials and methods: For this simulation, 120 paediatric abdominal examinations were analysed, comparing a conventional protocol with automatically adjusted weight-based parameters. Two observers assessed image quality on a five-point scale.\n\nResults: The adapted protocol reduced median DLP by 31%, while maintaining diagnostic quality in 96% of examinations and high interobserver agreement.\n\nConclusion: Weight-adapted parameters may significantly reduce radiation exposure while preserving the image quality required for diagnosis.',
+    },
+    poster: {
+      title: 'Metal artefact reduction in musculoskeletal magnetic resonance imaging: a single-centre experience',
+      coAuthors: ['Joana Ribeiro', 'Pedro Almeida'],
+      affiliation: 'Medical Imaging Department, Coimbra Local Health Unit',
+      abstract: 'Introduction: Orthopaedic implants may limit magnetic resonance assessment because of geometric distortion and signal loss.\n\nObjective: To compare a conventional approach with an optimised metal artefact reduction protocol.\n\nMaterials and methods: This fictional sample included 48 musculoskeletal examinations performed in patients with orthopaedic hardware. The optimised protocol combined higher bandwidth, smaller voxels and dedicated artefact reduction techniques.\n\nResults: The mean distortion area decreased by 38% and diagnostic confidence improved, with a 12% increase in acquisition time.\n\nConclusion: Combining adapted parameters may improve assessment of tissues adjacent to an implant while maintaining a clinically acceptable examination time.',
+    },
+  },
 };
 
-function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
-  const [form, setForm] = useState({ ...emptyTestForm, authors: initialAuthor || '' });
+function createTestExample(language, type, initialAuthor) {
+  const definition = testExampleDefinitions[language === 'en' ? 'en' : 'pt'][type];
+  return {
+    type,
+    title: definition.title,
+    authors: [initialAuthor || 'Autor de teste', ...definition.coAuthors].join('\n'),
+    affiliation: definition.affiliation,
+    abstract: definition.abstract,
+  };
+}
+
+function TestSubmissionForm({ t, language, initialAuthor, onClose, onSave }) {
+  const [form, setForm] = useState(() => createTestExample(language, 'oral', initialAuthor));
   const [saving, setSaving] = useState(false);
 
   const updateField = (field) => (event) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const loadExample = (type) => {
+    setForm(createTestExample(language, type, initialAuthor));
   };
 
   const save = async (status) => {
@@ -209,6 +255,16 @@ function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
       <form onSubmit={(event) => { event.preventDefault(); save('submitted'); }}>
         <fieldset className="submissions-form-step">
           <legend><span>01</span>{t.typeLabel}</legend>
+          <div className="submissions-example-tools">
+            <div>
+              <strong>{t.exampleLabel}</strong>
+              <small>{t.exampleText}</small>
+            </div>
+            <div>
+              <button type="button" onClick={() => loadExample('oral')} disabled={saving}>{t.loadOralExample}</button>
+              <button type="button" onClick={() => loadExample('poster')} disabled={saving}>{t.loadPosterExample}</button>
+            </div>
+          </div>
           <div className="submissions-type-grid">
             <label className={form.type === 'oral' ? 'is-selected' : ''}>
               <input type="radio" name="submission-type" value="oral" checked={form.type === 'oral'} onChange={updateField('type')} />
@@ -351,6 +407,7 @@ export default function ScientificSubmissionsPage() {
       {canTestSubmissions && composerOpen && (
         <TestSubmissionForm
           t={t}
+          language={language}
           initialAuthor={user?.displayName || user?.email || ''}
           onClose={() => setComposerOpen(false)}
           onSave={saveTestSubmission}
