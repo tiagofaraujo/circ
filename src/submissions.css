@@ -356,6 +356,59 @@
   letter-spacing: 0.08em;
 }
 
+.submissions-example-tools {
+  padding: 16px;
+  border-left: 3px solid var(--coral);
+  display: grid;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.submissions-example-tools > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.submissions-example-tools strong {
+  color: var(--blue);
+  font-size: 0.82rem;
+}
+
+.submissions-example-tools small {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.submissions-example-tools > div:last-child {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.submissions-example-tools button {
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid rgba(35, 46, 183, 0.28);
+  background: transparent;
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.submissions-example-tools button:hover,
+.submissions-example-tools button:focus-visible {
+  border-color: var(--blue);
+  background: rgba(35, 46, 183, 0.07);
+}
+
+.submissions-example-tools button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .submissions-form-step > label {
   display: grid;
   gap: 9px;
