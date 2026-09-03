@@ -19,7 +19,7 @@ O campo administrativo `roles` é opcional e só pode ser alterado pela conta ad
 roles: { submissions: true, submissionTesting: true, secretariat: true }
 ```
 
-Cada função concede apenas o módulo correspondente. O próprio utilizador não pode atribuir nem alterar as suas permissões. Durante os testes, `araujotiagofc@gmail.com`, `acbdgomes@gmail.com` e `afsilvacarvalho@gmail.com` têm acesso à Gestão de Submissões e podem criar e eliminar as suas próprias submissões de teste. `tiago_araujo@hotmail.com` tem acesso ao Secretariado. Todas estas permissões exigem que o email da conta esteja verificado. Depois, as atribuições devem ser feitas através de `roles` e as exceções temporárias removidas.
+Cada função concede apenas o módulo correspondente e é cumulativa com o perfil normal de participante. O próprio utilizador não pode atribuir nem alterar as suas permissões. Durante os testes, `araujotiagofc@gmail.com`, `acbdgomes@gmail.com` e `afsilvacarvalho@gmail.com` mantêm acesso ao perfil, inscrição, trabalhos e documentos pessoais; em simultâneo, têm acesso à Gestão de Submissões e podem criar e eliminar as suas próprias submissões de teste. `tiago_araujo@hotmail.com` tem acesso ao Secretariado. Todas estas permissões exigem que o email da conta esteja verificado. Depois, as atribuições devem ser feitas através de `roles` e as exceções temporárias removidas.
 
 ### `registrations/{registrationId}`
 
