@@ -27,7 +27,15 @@ export const microsoftAuthEnabled = process.env.REACT_APP_MICROSOFT_AUTH_ENABLED
 export const adminEmail = (process.env.REACT_APP_ADMIN_EMAIL || 'circ.chuc@gmail.com').trim().toLowerCase();
 
 // Temporary test assignments. Future assignments live in users/{uid}.roles.
-export const submissionsManagerEmails = ['araujotiagofc@gmail.com'];
+export const submissionsManagerEmails = [
+  'araujotiagofc@gmail.com',
+  'acbdgomes@gmail.com',
+  'afsilvacarvalho@gmail.com',
+];
+export const submissionTesterEmails = [
+  'acbdgomes@gmail.com',
+  'afsilvacarvalho@gmail.com',
+];
 export const secretariatEmails = ['tiago_araujo@hotmail.com'];
 
 export function isAdminUser(user) {
@@ -52,12 +60,21 @@ export function getUserAccess(user, storedRoles = {}) {
     || (verified && storedRoles?.secretariat === true)
     || (verified && secretariatEmails.includes(email))
   );
+  const canTestSubmissions = Boolean(
+    canManageSubmissions
+    && (
+      isAdmin
+      || (verified && storedRoles?.submissionTesting === true)
+      || (verified && submissionTesterEmails.includes(email))
+    )
+  );
   const canManageRegistrations = isAdmin;
 
   return {
     isAdmin,
     canManageRegistrations,
     canManageSubmissions,
+    canTestSubmissions,
     canUseSecretariat,
     hasBackOfficeAccess: canManageRegistrations || canManageSubmissions || canUseSecretariat,
   };

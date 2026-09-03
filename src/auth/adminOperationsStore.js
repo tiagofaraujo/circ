@@ -50,8 +50,8 @@ export function subscribeToSubmissions(onData, onError) {
     );
 }
 
-export async function saveAdminTestSubmission(user, form, status) {
-  if (!isAdminUser(user)) throw new Error('submissions/admin-only');
+export async function saveAdminTestSubmission(user, form, status, hasTestPermission = false) {
+  if (!user || !hasTestPermission) throw new Error('submissions/test-not-allowed');
   if (!['draft', 'submitted'].includes(status)) throw new Error('submissions/invalid-status');
 
   const db = dbOrThrow();
@@ -94,8 +94,11 @@ export async function saveAdminTestSubmission(user, form, status) {
   return submissionRef.id;
 }
 
-export async function deleteAdminTestSubmission(user, submission) {
-  if (!isAdminUser(user) || !submission?.isTest) throw new Error('submissions/delete-not-allowed');
+export async function deleteAdminTestSubmission(user, submission, hasTestPermission = false) {
+  const canDeleteOwnTest = hasTestPermission && submission?.userId === user?.uid;
+  if (!user || !submission?.isTest || (!isAdminUser(user) && !canDeleteOwnTest)) {
+    throw new Error('submissions/delete-not-allowed');
+  }
 
   const db = dbOrThrow();
   const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();

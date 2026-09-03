@@ -267,23 +267,24 @@ function TestSubmissionForm({ t, initialAuthor, onClose, onSave }) {
 
 export default function ScientificSubmissionsPage() {
   const { language } = useLanguage();
-  const { user, isAdmin } = useAuth();
+  const { user, access } = useAuth();
   const t = content[language === 'en' ? 'en' : 'pt'];
+  const canTestSubmissions = Boolean(access?.canTestSubmissions);
   const [composerOpen, setComposerOpen] = useState(false);
   const [testSubmissions, setTestSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    if (!isAdmin || !user) return undefined;
+    if (!canTestSubmissions || !user) return undefined;
     return subscribeToSubmissions(
       (items) => setTestSubmissions(items.filter((item) => item.isTest && item.userId === user.uid)),
       () => setNotice(language === 'en' ? 'Unable to load Firebase test submissions.' : 'Não foi possível carregar as submissões de teste do Firebase.')
     );
-  }, [isAdmin, language, user]);
+  }, [canTestSubmissions, language, user]);
 
   const saveTestSubmission = async (form, status) => {
     try {
-      await saveAdminTestSubmission(user, form, status);
+      await saveAdminTestSubmission(user, form, status, canTestSubmissions);
       setComposerOpen(false);
       setNotice(status === 'draft' ? t.savedMessage : t.submittedMessage);
       window.setTimeout(() => setNotice(''), 6000);
@@ -294,7 +295,7 @@ export default function ScientificSubmissionsPage() {
 
   const removeTestSubmission = async (submission) => {
     try {
-      await deleteAdminTestSubmission(user, submission);
+      await deleteAdminTestSubmission(user, submission, canTestSubmissions);
     } catch (error) {
       setNotice(language === 'en' ? 'The test submission could not be deleted.' : 'Não foi possível eliminar a submissão de teste.');
     }
@@ -317,7 +318,7 @@ export default function ScientificSubmissionsPage() {
         </aside>
       </section>
 
-      {isAdmin && (
+      {canTestSubmissions && (
         <section className="submissions-test-banner" role="status">
           <span>TEST</span>
           <div><strong>{t.testMode}</strong><p>{t.testModeText}</p></div>
@@ -342,12 +343,12 @@ export default function ScientificSubmissionsPage() {
             <div><dt>{t.posterDeadlineLabel}</dt><dd>{t.posterDeadlineValue}</dd></div>
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
-          <button type="button" disabled={!isAdmin} onClick={() => setComposerOpen(true)} aria-describedby="submissions-new-hint">{isAdmin ? t.startTest : t.newWork}<span>＋</span></button>
-          <small id="submissions-new-hint">{isAdmin ? t.testHint : t.newWorkHint}</small>
+          <button type="button" disabled={!canTestSubmissions} onClick={() => setComposerOpen(true)} aria-describedby="submissions-new-hint">{canTestSubmissions ? t.startTest : t.newWork}<span>＋</span></button>
+          <small id="submissions-new-hint">{canTestSubmissions ? t.testHint : t.newWorkHint}</small>
         </div>
       </section>
 
-      {isAdmin && composerOpen && (
+      {canTestSubmissions && composerOpen && (
         <TestSubmissionForm
           t={t}
           initialAuthor={user?.displayName || user?.email || ''}
@@ -372,7 +373,7 @@ export default function ScientificSubmissionsPage() {
       </section>
 
       <section className="submissions-lower-grid">
-        {isAdmin && testSubmissions.length > 0 ? (
+        {canTestSubmissions && testSubmissions.length > 0 ? (
           <article className="submissions-test-list">
             <header><div><p className="eyebrow">{t.worksEyebrow}</p><h2>{testSubmissions.length} {t.workCount}</h2></div><span>LOCAL</span></header>
             <div>

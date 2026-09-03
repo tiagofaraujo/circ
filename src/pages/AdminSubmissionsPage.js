@@ -57,7 +57,7 @@ function exportSubmissions(items) {
 }
 
 export default function AdminSubmissionsPage() {
-  const { user } = useAuth();
+  const { user, access } = useAuth();
   const [submissions, setSubmissions] = useState([]);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -122,7 +122,9 @@ export default function AdminSubmissionsPage() {
         <div className="admin-session admin-session--quiet">
           <span>Comissão e gestão</span>
           <strong>{user?.email}</strong>
-          <Link className="admin-test-link" to="/conta/submissoes">Criar submissão de teste →</Link>
+          {access?.canTestSubmissions && (
+            <Link className="admin-test-link" to="/conta/submissoes">Criar submissão de teste →</Link>
+          )}
         </div>
       </header>
 
