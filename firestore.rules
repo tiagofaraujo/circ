@@ -47,6 +47,7 @@ service cloud.firestore {
           || (
             hasVerifiedEmail()
             && request.auth.token.email in [
+              'araujotiagofc@gmail.com',
               'acbdgomes@gmail.com',
               'afsilvacarvalho@gmail.com'
             ]
