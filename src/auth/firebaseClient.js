@@ -33,6 +33,7 @@ export const submissionsManagerEmails = [
   'afsilvacarvalho@gmail.com',
 ];
 export const submissionTesterEmails = [
+  'araujotiagofc@gmail.com',
   'acbdgomes@gmail.com',
   'afsilvacarvalho@gmail.com',
 ];
