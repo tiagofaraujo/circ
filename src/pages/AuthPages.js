@@ -350,12 +350,24 @@ export function AuthenticatedAccountPage() {
   const isPasswordAccount = user?.providerData?.some((provider) => provider.providerId === 'password');
   const displayName = user?.displayName || user?.email?.split('@')[0] || (isEnglish ? 'Participant' : 'Participante');
   const isBackOffice = Boolean(access?.hasBackOfficeAccess);
+  const showParticipantArea = !isBackOffice || (
+    access?.canManageSubmissions
+    && !access?.isAdmin
+  );
+  const administrativeModules = [
+    access?.canManageRegistrations && 'registrations',
+    access?.canManageSubmissions && 'submissions',
+    access?.canUseSecretariat && 'secretariat',
+  ].filter(Boolean);
+  const administrativeCardNumber = (module) => String(
+    (showParticipantArea ? 4 : 1) + administrativeModules.indexOf(module) + 1
+  ).padStart(2, '0');
   const areaLabel = access?.isAdmin
     ? (isEnglish ? 'Administration' : 'Administração')
     : access?.canManageSubmissions && access?.canUseSecretariat
       ? (isEnglish ? 'Event operations' : 'Operação do evento')
       : access?.canManageSubmissions
-        ? (isEnglish ? 'Scientific Committee' : 'Comissão Científica')
+        ? (isEnglish ? 'Participant · Scientific Committee' : 'Participante · Comissão Científica')
         : access?.canUseSecretariat
           ? (isEnglish ? 'Event desk' : 'Secretariado')
           : (isEnglish ? 'Participant' : 'Participante');
@@ -374,7 +386,7 @@ export function AuthenticatedAccountPage() {
     let active = true;
     let retryTimer;
 
-    if (isBackOffice) {
+    if (!showParticipantArea) {
       setParticipantProfile(null);
       setProfileLoadState('ready');
       return undefined;
@@ -405,7 +417,7 @@ export function AuthenticatedAccountPage() {
       active = false;
       if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [isBackOffice, user]);
+  }, [showParticipantArea, user]);
 
   const handleSignOut = async () => {
     setBusy(true);
@@ -445,7 +457,7 @@ export function AuthenticatedAccountPage() {
       )}
 
       <section className={`auth-account-grid${isBackOffice ? ' auth-account-grid--admin' : ''}`}>
-        {!isBackOffice && (
+        {showParticipantArea && (
           <>
             <article className="auth-account-card auth-account-card--primary">
               <span>01</span>
@@ -480,7 +492,7 @@ export function AuthenticatedAccountPage() {
           </>
         )}
         <article className="auth-account-card">
-          <span>{isBackOffice ? '01' : '04'}</span>
+          <span>{showParticipantArea ? '04' : '01'}</span>
           <p className="eyebrow">{isEnglish ? 'Account' : 'Conta'}</p>
           <h2>{user?.email}</h2>
           <p>{user?.emailVerified ? (isEnglish ? 'Email verified.' : 'Email verificado.') : (isEnglish ? 'Email not yet verified.' : 'Email ainda não verificado.')}</p>
@@ -488,7 +500,7 @@ export function AuthenticatedAccountPage() {
         </article>
         {access?.canManageRegistrations && (
           <article className="auth-account-card auth-account-card--admin">
-            <span>02</span>
+            <span>{administrativeCardNumber('registrations')}</span>
             <p className="eyebrow">Administração</p>
             <h2>{isEnglish ? 'Registration management' : 'Gestão de inscrições'}</h2>
             <p>{isEnglish ? 'Review participants, registration status and payment status.' : 'Consulte participantes, estado da inscrição e estado do pagamento.'}</p>
@@ -497,7 +509,7 @@ export function AuthenticatedAccountPage() {
         )}
         {access?.canManageSubmissions && (
           <article className="auth-account-card auth-account-card--admin-submissions">
-            <span>{access?.canManageRegistrations ? '03' : '02'}</span>
+            <span>{administrativeCardNumber('submissions')}</span>
             <p className="eyebrow">Comissão Científica</p>
             <h2>{isEnglish ? 'Submission management' : 'Gestão de submissões'}</h2>
             <p>{isEnglish ? 'Review scientific work, follow each stage and record decisions.' : 'Consulte trabalhos científicos, acompanhe cada etapa e registe decisões.'}</p>
@@ -506,7 +518,7 @@ export function AuthenticatedAccountPage() {
         )}
         {access?.canUseSecretariat && (
           <article className="auth-account-card auth-account-card--admin-secretariat">
-            <span>{access?.canManageRegistrations ? '04' : access?.canManageSubmissions ? '03' : '02'}</span>
+            <span>{administrativeCardNumber('secretariat')}</span>
             <p className="eyebrow">Operação no local</p>
             <h2>{isEnglish ? 'Event desk' : 'Secretariado'}</h2>
             <p>{isEnglish ? 'Check in participants, deliver credentials and follow attendance live.' : 'Faça o check-in, registe a entrega de credenciais e acompanhe as presenças.'}</p>
