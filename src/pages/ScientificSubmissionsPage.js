@@ -53,10 +53,6 @@ const content = {
     formTitle: 'Construa o trabalho passo a passo.',
     close: 'Fechar teste',
     typeLabel: 'Escolha a tipologia',
-    exampleLabel: 'Exemplos para teste',
-    exampleText: 'Preencha automaticamente o formulário com dados científicos fictícios.',
-    loadOralExample: 'Preencher comunicação livre',
-    loadPosterExample: 'Preencher poster',
     oralType: 'Abstract · Comunicação livre',
     oralTypeHint: 'Prazo oficial · 15 janeiro 2027',
     posterType: 'Poster',
@@ -126,10 +122,6 @@ const content = {
     formTitle: 'Build the work step by step.',
     close: 'Close test',
     typeLabel: 'Choose the submission type',
-    exampleLabel: 'Test examples',
-    exampleText: 'Automatically complete the form with fictional scientific data.',
-    loadOralExample: 'Complete free communication',
-    loadPosterExample: 'Complete poster',
     oralType: 'Abstract · Free communication',
     oralTypeHint: 'Official deadline · 15 January 2027',
     posterType: 'Poster',
@@ -222,7 +214,7 @@ function TestSubmissionForm({ t, language, initialAuthor, onClose, onSave }) {
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const loadExample = (type) => {
+  const selectType = (type) => {
     setForm(createTestExample(language, type, initialAuthor));
   };
 
@@ -255,24 +247,14 @@ function TestSubmissionForm({ t, language, initialAuthor, onClose, onSave }) {
       <form onSubmit={(event) => { event.preventDefault(); save('submitted'); }}>
         <fieldset className="submissions-form-step">
           <legend><span>01</span>{t.typeLabel}</legend>
-          <div className="submissions-example-tools">
-            <div>
-              <strong>{t.exampleLabel}</strong>
-              <small>{t.exampleText}</small>
-            </div>
-            <div>
-              <button type="button" onClick={() => loadExample('oral')} disabled={saving}>{t.loadOralExample}</button>
-              <button type="button" onClick={() => loadExample('poster')} disabled={saving}>{t.loadPosterExample}</button>
-            </div>
-          </div>
           <div className="submissions-type-grid">
             <label className={form.type === 'oral' ? 'is-selected' : ''}>
-              <input type="radio" name="submission-type" value="oral" checked={form.type === 'oral'} onChange={updateField('type')} />
+              <input type="radio" name="submission-type" value="oral" checked={form.type === 'oral'} onChange={() => selectType('oral')} />
               <span><strong>{t.oralType}</strong><small>{t.oralTypeHint}</small></span>
               <i aria-hidden="true">{form.type === 'oral' ? '✓' : ''}</i>
             </label>
             <label className={form.type === 'poster' ? 'is-selected' : ''}>
-              <input type="radio" name="submission-type" value="poster" checked={form.type === 'poster'} onChange={updateField('type')} />
+              <input type="radio" name="submission-type" value="poster" checked={form.type === 'poster'} onChange={() => selectType('poster')} />
               <span><strong>{t.posterType}</strong><small>{t.posterTypeHint}</small></span>
               <i aria-hidden="true">{form.type === 'poster' ? '✓' : ''}</i>
             </label>
