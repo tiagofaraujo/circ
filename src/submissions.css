@@ -369,6 +369,32 @@
   text-transform: uppercase;
 }
 
+.submissions-abstract-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.submissions-abstract-grid label {
+  display: grid;
+  gap: 9px;
+}
+
+.submissions-abstract-grid label > span {
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.submissions-abstract-grid textarea {
+  min-height: 118px;
+}
+
+.submissions-abstract-grid__keywords input {
+  min-height: 51px;
+}
+
 .submissions-form-step input,
 .submissions-form-step textarea {
   width: 100%;
