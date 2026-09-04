@@ -516,7 +516,7 @@ export function AuthenticatedAccountPage() {
         <section className="auth-verification-banner">
           <div>
             <strong>{isEnglish ? 'Confirm your email address.' : 'Confirme o seu endereço de email.'}</strong>
-            <p>{isEnglish ? `We sent a verification message to ${user.email}. Verification adds an extra layer of security to your account.` : `Enviámos uma mensagem de verificação para ${user.email}. A confirmação reforça a segurança da sua conta.`}</p>
+            <p>{isEnglish ? `We sent a verification message to ${user.email}. Check your inbox and spam folder. Verification adds an extra layer of security to your account.` : `Enviámos uma mensagem de verificação para ${user.email}. Verifique a caixa de entrada e a pasta de spam. A confirmação reforça a segurança da sua conta.`}</p>
           </div>
           <button type="button" onClick={handleVerification} disabled={busy}>{verificationSent ? (isEnglish ? 'Verification email sent' : 'Email reenviado') : (isEnglish ? 'Resend verification' : 'Reenviar verificação')}</button>
         </section>
