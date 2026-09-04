@@ -1,4 +1,9 @@
 import { getFirebaseFirestore, isAdminUser } from './firebaseClient';
+import {
+  abstractSectionsToText,
+  hasCompleteAbstractSections,
+  normalizeAbstractSections,
+} from './submissionAbstract';
 
 export const submissionStatuses = ['draft', 'submitted', 'under_review', 'revisions', 'accepted', 'rejected'];
 
@@ -54,6 +59,11 @@ export async function saveAdminTestSubmission(user, form, status, hasTestPermiss
   if (!user || !hasTestPermission) throw new Error('submissions/test-not-allowed');
   if (!['draft', 'submitted'].includes(status)) throw new Error('submissions/invalid-status');
 
+  const abstractSections = normalizeAbstractSections(form.abstractSections);
+  if (status === 'submitted' && !hasCompleteAbstractSections(abstractSections)) {
+    throw new Error('submissions/incomplete-abstract');
+  }
+
   const db = dbOrThrow();
   const submissionRef = db.collection('submissions').doc();
   const auditRef = db.collection('auditLogs').doc();
@@ -72,7 +82,8 @@ export async function saveAdminTestSubmission(user, form, status, hasTestPermiss
     title: form.title,
     authors: form.authors,
     affiliation: form.affiliation || '',
-    abstract: form.abstract,
+    abstractSections,
+    abstract: abstractSectionsToText(abstractSections),
     status,
     isTest: true,
     createdAt: timestamp,
