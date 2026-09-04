@@ -195,8 +195,16 @@ export function AuthProvider({ children }) {
     async sendPasswordReset(email, language = 'pt') {
       const auth = getFirebaseAuth();
       if (!auth) throw new Error('auth/not-configured');
+
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      if (!normalizedEmail) {
+        const invalidEmailError = new Error('auth/invalid-email');
+        invalidEmailError.code = 'auth/invalid-email';
+        throw invalidEmailError;
+      }
+
       applyAuthLanguage(auth, language);
-      return auth.sendPasswordResetEmail(email.trim());
+      return auth.sendPasswordResetEmail(normalizedEmail);
     },
 
     async resendVerification(language = 'pt') {
