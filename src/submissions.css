@@ -662,6 +662,15 @@
   line-height: 1.45;
 }
 
+.submissions-test-list__timestamp {
+  margin-top: 10px;
+  display: block;
+  color: var(--blue);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .submissions-test-list article > button {
   margin-top: 17px;
   padding: 0;
