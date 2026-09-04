@@ -122,7 +122,25 @@
   color: var(--ink);
   font: inherit;
 }
-.admin-submission__status small { margin-top: auto; padding-top: 12px; color: var(--ink-soft); }
+.admin-submission__timestamps {
+  margin-top: auto;
+  padding-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+.admin-submission__timestamps small {
+  display: grid;
+  gap: 2px;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.admin-submission__timestamps strong {
+  color: var(--blue);
+  font-size: 0.58rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
 .submission-status--submitted { border-color: rgba(194, 123, 0, 0.46) !important; color: #80520c !important; }
 .submission-status--under_review,
 .submission-status--revisions { border-color: rgba(35, 46, 183, 0.38) !important; color: var(--blue) !important; }
