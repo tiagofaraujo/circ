@@ -165,7 +165,7 @@ export function LoginPage() {
 
         <div className="auth-password-row">
           <label htmlFor="login-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
-          <Link to="/recuperar-password">{isEnglish ? 'Forgot password?' : 'Esqueceu-se?'}</Link>
+          <Link to="/recuperar-password" state={{ email }}>{isEnglish ? 'Forgot password?' : 'Esqueceu-se?'}</Link>
         </div>
         <div className="auth-password-field">
           <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isEnglish ? 'Your password' : 'A sua palavra-passe'} required />
@@ -294,25 +294,63 @@ export function ForgotPasswordPage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
   const { configured, sendPasswordReset } = useAuth();
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const initialEmail = typeof location.state?.email === 'string' ? location.state.email : '';
+  const [email, setEmail] = useState(initialEmail);
+  const [sentTo, setSentTo] = useState('');
+  const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  const handleEmailChange = (event) => {
+    setEmail(event.target.value);
+    setSentTo('');
+    setError('');
+  };
 
   const handleReset = async (event) => {
     event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
     setError('');
-    setSent(false);
+    setSentTo('');
+
+    if (!normalizedEmail) {
+      setError(isEnglish ? 'Enter a valid email address.' : 'Introduza um endereço de email válido.');
+      return;
+    }
+
     setBusy(true);
     try {
-      await sendPasswordReset(email, language);
-      setSent(true);
+      await sendPasswordReset(normalizedEmail, language);
+      setSentTo(normalizedEmail);
+      setCooldown(30);
     } catch (authError) {
-      setError(authErrorMessage(authError, isEnglish));
+      if (getErrorCode(authError) === 'auth/user-not-found') {
+        setSentTo(normalizedEmail);
+        setCooldown(30);
+      } else {
+        setError(authErrorMessage(authError, isEnglish));
+      }
     } finally {
       setBusy(false);
     }
   };
+
+  const buttonLabel = busy
+    ? (isEnglish ? 'Sending…' : 'A enviar…')
+    : cooldown > 0
+      ? (isEnglish ? `Send again in ${cooldown}s` : `Novo envio disponível em ${cooldown}s`)
+      : sentTo
+        ? (isEnglish ? 'Send again' : 'Enviar novamente')
+        : (isEnglish ? 'Send instructions' : 'Enviar instruções');
 
   return (
     <AuthLayout
@@ -325,12 +363,40 @@ export function ForgotPasswordPage() {
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
       <form className="auth-form" onSubmit={handleReset}>
         <label htmlFor="reset-email">Email</label>
-        <input id="reset-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
+        <input
+          id="reset-email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          value={email}
+          onChange={handleEmailChange}
+          placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'}
+          aria-describedby="reset-email-help"
+          disabled={busy}
+          required
+        />
+        <p className="auth-help" id="reset-email-help">
+          {isEnglish
+            ? 'This recovery applies to accounts created with email and password. If you registered with Google, use “Continue with Google”.'
+            : 'Esta recuperação aplica-se a contas criadas com email e palavra-passe. Se utilizou o Google, entre através de “Continuar com Google”.'}
+        </p>
 
-        {sent && <div className="auth-notice auth-notice--success" role="status">{isEnglish ? 'If an account exists for this address, you will receive an email with recovery instructions.' : 'Se existir uma conta associada a este endereço, receberá um email com as instruções de recuperação.'}</div>}
+        {sentTo && (
+          <div className="auth-notice auth-notice--success" role="status" aria-live="polite">
+            <strong>{isEnglish ? 'Request received' : 'Pedido recebido'}</strong>
+            <span>
+              {isEnglish
+                ? `If an account exists for ${sentTo}, an email with a secure reset link will be sent.`
+                : `Se existir uma conta associada a ${sentTo}, será enviado um email com uma ligação segura.`}
+            </span>
+            <span>{isEnglish ? 'Check your inbox and spam folder.' : 'Verifique a caixa de entrada e a pasta de spam.'}</span>
+          </div>
+        )}
         {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
 
-        <button className="auth-primary-button" type="submit" disabled={busy || !configured}>{busy ? (isEnglish ? 'Sending…' : 'A enviar…') : (isEnglish ? 'Send instructions' : 'Enviar instruções')}</button>
+        <button className="auth-primary-button" type="submit" disabled={busy || !configured || cooldown > 0}>
+          {buttonLabel}
+        </button>
       </form>
       <p className="auth-switch"><Link to="/login">{isEnglish ? '← Back to sign in' : '← Voltar ao login'}</Link></p>
     </AuthLayout>
