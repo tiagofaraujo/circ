@@ -173,6 +173,37 @@
 .admin-submission__content > div,
 .admin-submission__content > label { display: flex; flex-direction: column; }
 .admin-submission__content p { margin: 0; color: var(--ink-soft); line-height: 1.65; white-space: pre-line; }
+
+.admin-submission__abstract {
+  min-width: 0;
+}
+
+.admin-submission__abstract-sections {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.admin-submission__abstract-sections section {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-submission__abstract-sections h3 {
+  margin: 0 0 7px;
+  color: var(--blue);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.admin-submission__abstract-sections p {
+  overflow-wrap: anywhere;
+}
+
+.admin-submission__abstract-legacy {
+  padding-top: 2px;
+}
 .admin-submission__content label { grid-column: 1 / -1; }
 .admin-submission__content textarea {
   min-height: 120px;
