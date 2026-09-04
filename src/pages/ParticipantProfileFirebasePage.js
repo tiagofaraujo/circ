@@ -106,7 +106,7 @@ export default function ParticipantProfileFirebasePage() {
       const savedProfile = await saveParticipantProfile(user, next);
       setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
-    } catch (error) {
+    } catch {
       setSaveError(
         isEnglish
           ? 'The profile could not be saved to the database. Check your connection and try again.'
