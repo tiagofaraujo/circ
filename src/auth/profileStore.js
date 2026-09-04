@@ -1,4 +1,5 @@
 import { getFirebaseFirestore } from './firebaseClient';
+import { normalizeParticipantProfile } from './profileCompletion';
 
 const LOCAL_KEY = 'circ_demo_account';
 
@@ -41,23 +42,40 @@ function writeLocalProfile(profile) {
 }
 
 function userBaseProfile(user) {
-  return {
+  const profile = {
     firebaseUid: user?.uid || '',
-    email: user?.email || '',
-    name: user?.displayName || '',
     photoURL: user?.photoURL || '',
     demoAccess: false,
   };
+
+  // Empty authentication values must never erase a name or email stored in Firestore.
+  if (user?.email) profile.email = user.email;
+  if (user?.displayName) profile.name = user.displayName;
+
+  return profile;
 }
 
 function serviceNotReady(error) {
   const code = error?.code || '';
-  return ['failed-precondition', 'not-found', 'unavailable'].includes(code);
+  return [
+    'failed-precondition',
+    'not-found',
+    'unavailable',
+    'deadline-exceeded',
+    'network-request-failed',
+  ].includes(code);
+}
+
+function profileSaveError(error) {
+  if (error?.code) return error;
+  const nextError = new Error('profile/save-failed');
+  nextError.code = 'profile/save-failed';
+  return nextError;
 }
 
 export async function loadParticipantProfileResult(user) {
   const local = readLocalProfile();
-  const base = { ...local, ...userBaseProfile(user) };
+  const base = normalizeParticipantProfile({ ...local, ...userBaseProfile(user) });
 
   if (!user?.uid) {
     return { profile: base, remoteAvailable: false, source: 'local' };
@@ -69,18 +87,20 @@ export async function loadParticipantProfileResult(user) {
   }
 
   try {
-    const snapshot = await db.collection('users').doc(user.uid).get();
+    // A server read prevents an old empty browser cache from being mistaken for
+    // the definitive profile and producing the misleading 36% result.
+    const snapshot = await db.collection('users').doc(user.uid).get({ source: 'server' });
     if (!snapshot.exists) {
       return { profile: base, remoteAvailable: true, source: 'empty' };
     }
 
     const remote = snapshot.data() || {};
-    const merged = {
+    const merged = normalizeParticipantProfile({
       ...local,
       ...remote,
       ...userBaseProfile(user),
       photoURL: user?.photoURL || '',
-    };
+    });
     writeLocalProfile(merged);
 
     return { profile: merged, remoteAvailable: true, source: 'firestore' };
@@ -88,7 +108,7 @@ export async function loadParticipantProfileResult(user) {
     return {
       profile: base,
       remoteAvailable: false,
-      source: 'fallback',
+      source: serviceNotReady(error) ? 'unavailable' : 'error',
       errorCode: error?.code || 'unknown',
     };
   }
@@ -101,35 +121,38 @@ export async function loadParticipantProfile(user) {
 
 export async function saveParticipantProfile(user, profile) {
   if (!user?.uid) throw new Error('auth/user-not-found');
-  const next = {
+
+  const next = normalizeParticipantProfile({
     ...profile,
     firebaseUid: user.uid,
     email: user.email || profile.email || '',
     name: profile.name || user.displayName || '',
     photoURL: user.photoURL || '',
     demoAccess: false,
-  };
+  });
 
-  writeLocalProfile(next);
-
-  let remoteSaved = false;
   const db = getFirebaseFirestore();
-  if (db) {
-    try {
-      await db.collection('users').doc(user.uid).set(
-        {
-          ...next,
-          updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-      remoteSaved = true;
-    } catch (error) {
-      if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
-    }
+  if (!db) {
+    const unavailableError = new Error('profile/storage-unavailable');
+    unavailableError.code = 'profile/storage-unavailable';
+    throw unavailableError;
   }
 
-  return { ...next, __remoteSaved: remoteSaved };
+  try {
+    await db.collection('users').doc(user.uid).set(
+      {
+        ...next,
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    // Never report "Saved" when Firestore rejected or could not persist the profile.
+    throw profileSaveError(error);
+  }
+
+  writeLocalProfile(next);
+  return { ...next, __remoteSaved: true };
 }
 
 export async function deleteParticipantData(user) {
