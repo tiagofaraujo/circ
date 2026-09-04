@@ -68,6 +68,46 @@ service cloud.firestore {
         && request.resource.data.eventId == 'circ-2027';
     }
 
+    function hasValidInitialSubmissionTimestamps() {
+      return request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.status == 'draft'
+            && request.resource.data.submittedAt == null
+          )
+          || (
+            request.resource.data.status == 'submitted'
+            && request.resource.data.submittedAt == request.time
+          )
+        );
+    }
+
+    function isValidAuthorSubmissionUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'type',
+          'title',
+          'authors',
+          'affiliation',
+          'abstract',
+          'status',
+          'updatedAt',
+          'submittedAt'
+        ])
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.status == 'draft'
+            && request.resource.data.submittedAt == resource.data.submittedAt
+          )
+          || (
+            request.resource.data.status == 'submitted'
+            && request.resource.data.submittedAt == request.time
+          )
+        );
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || (
@@ -123,6 +163,7 @@ service cloud.firestore {
           && request.resource.data.eventId == 'circ-2027'
           && request.resource.data.get('isTest', false) == true
           && request.resource.data.status in ['draft', 'submitted']
+          && hasValidInitialSubmissionTimestamps()
         )
         || (
           signedIn()
@@ -130,6 +171,7 @@ service cloud.firestore {
           && request.resource.data.eventId == 'circ-2027'
           && request.resource.data.get('isTest', false) == false
           && request.resource.data.status in ['draft', 'submitted']
+          && hasValidInitialSubmissionTimestamps()
         );
       allow update: if isAdmin()
         || (
@@ -155,6 +197,7 @@ service cloud.firestore {
           && request.resource.data.userId == request.auth.uid
           && resource.data.status == 'draft'
           && request.resource.data.status in ['draft', 'submitted']
+          && isValidAuthorSubmissionUpdate()
         );
       allow delete: if isAdmin()
         || (
