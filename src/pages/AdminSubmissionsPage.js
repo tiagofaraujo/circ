@@ -6,6 +6,7 @@ import {
   subscribeToSubmissions,
   updateSubmissionReview,
 } from '../auth/adminOperationsStore';
+import { normalizeAbstractSections } from '../auth/submissionAbstract';
 import AdminModuleNav from '../components/AdminModuleNav';
 import '../admin.css';
 import '../adminOperations.css';
@@ -24,6 +25,32 @@ const typeLabels = {
   poster: 'Poster',
 };
 
+const abstractSectionLabels = [
+  ['introduction', 'Introdução'],
+  ['objective', 'Objetivo'],
+  ['methods', 'Métodos'],
+  ['results', 'Resultados'],
+  ['conclusion', 'Conclusão'],
+  ['keywords', 'Palavras-chave'],
+];
+
+function getAbstractItems(submission) {
+  if (submission.abstractSections && typeof submission.abstractSections === 'object') {
+    const sections = normalizeAbstractSections(submission.abstractSections);
+    return abstractSectionLabels.map(([key, label]) => ({
+      key,
+      label,
+      value: sections[key] || '—',
+    }));
+  }
+
+  return [{
+    key: 'legacy',
+    label: 'Resumo',
+    value: submission.abstract || 'Resumo não disponível.',
+  }];
+}
+
 function formatDate(value) {
   const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return '—';
@@ -35,19 +62,47 @@ function csvCell(value) {
 }
 
 function exportSubmissions(items) {
-  const header = ['Código', 'Tipologia', 'Título', 'Autor de contacto', 'Email', 'Autores', 'Instituição', 'Estado', 'Submetido em', 'Última atualização'];
-  const rows = items.map((item) => [
-    item.code || item.id,
-    typeLabels[item.type] || item.type,
-    item.title,
-    item.contactName,
-    item.contactEmail,
-    String(item.authors || '').replace(/\n/g, ' · '),
-    item.affiliation,
-    statusLabels[item.status] || item.status,
-    formatDate(item.submittedAt),
-    formatDate(item.updatedAt || item.createdAt),
-  ]);
+  const header = [
+    'Código',
+    'Tipologia',
+    'Título',
+    'Autor de contacto',
+    'Email',
+    'Autores',
+    'Instituição',
+    'Introdução',
+    'Objetivo',
+    'Métodos',
+    'Resultados',
+    'Conclusão',
+    'Palavras-chave',
+    'Resumo legado',
+    'Estado',
+    'Submetido em',
+    'Última atualização',
+  ];
+  const rows = items.map((item) => {
+    const sections = normalizeAbstractSections(item.abstractSections);
+    return [
+      item.code || item.id,
+      typeLabels[item.type] || item.type,
+      item.title,
+      item.contactName,
+      item.contactEmail,
+      String(item.authors || '').replace(/\n/g, ' · '),
+      item.affiliation,
+      sections.introduction,
+      sections.objective,
+      sections.methods,
+      sections.results,
+      sections.conclusion,
+      sections.keywords,
+      item.abstractSections ? '' : item.abstract,
+      statusLabels[item.status] || item.status,
+      formatDate(item.submittedAt),
+      formatDate(item.updatedAt || item.createdAt),
+    ];
+  });
   const csv = `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(';')).join('\n')}`;
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const anchor = document.createElement('a');
@@ -86,7 +141,8 @@ export default function AdminSubmissionsPage() {
     return submissions.filter((item) => {
       const matchesType = typeFilter === 'all' || item.type === typeFilter;
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-      const haystack = `${item.code || item.id} ${item.title || ''} ${item.contactName || ''} ${item.contactEmail || ''} ${item.authors || ''} ${item.affiliation || ''}`.toLowerCase();
+      const abstractText = Object.values(normalizeAbstractSections(item.abstractSections)).join(' ');
+      const haystack = `${item.code || item.id} ${item.title || ''} ${item.contactName || ''} ${item.contactEmail || ''} ${item.authors || ''} ${item.affiliation || ''} ${abstractText} ${item.abstract || ''}`.toLowerCase();
       return matchesType && matchesStatus && (!needle || haystack.includes(needle));
     });
   }, [query, statusFilter, submissions, typeFilter]);
@@ -222,9 +278,16 @@ export default function AdminSubmissionsPage() {
                         <span>Autores</span>
                         <p>{String(submission.authors || '—').split('\n').map((author, index) => <React.Fragment key={`${author}-${index}`}>{author}<br /></React.Fragment>)}</p>
                       </div>
-                      <div>
-                        <span>Resumo</span>
-                        <p>{submission.abstract || 'Resumo não disponível.'}</p>
+                      <div className="admin-submission__abstract">
+                        <span>{submission.abstractSections ? 'Resumo estruturado' : 'Resumo'}</span>
+                        <div className="admin-submission__abstract-sections">
+                          {getAbstractItems(submission).map((section) => (
+                            <section key={section.key}>
+                              <h3>{section.label}</h3>
+                              <p>{section.value}</p>
+                            </section>
+                          ))}
+                        </div>
                       </div>
                       <label>
                         <span>Nota da Comissão Científica</span>
