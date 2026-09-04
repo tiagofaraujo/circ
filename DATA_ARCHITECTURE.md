@@ -43,12 +43,16 @@ Os registos de presença são separados por dia e cada operação identifica o u
 
 ```text
 eventId, code, userId, contactName, contactEmail,
-type, title, authors, affiliation, abstract, status, isTest,
+type, title, authors, affiliation,
+abstractSections: {
+  introduction, objective, methods, results, conclusion, keywords
+},
+abstract, status, isTest,
 review: { note, updatedAt, updatedBy },
 createdAt, updatedAt, submittedAt, createdBy
 ```
 
-O autor consulta apenas os próprios trabalhos. Depois da submissão, a decisão e a nota editorial são geridas apenas por administradores verificados. Os registos de teste usam `isTest: true` e um código iniciado por `TEST-`.
+O resumo é guardado por secções em `abstractSections`: Introdução, Objetivo, Métodos, Resultados, Conclusão e Palavras-chave. O campo `abstract` conserva a versão corrida para pesquisa e compatibilidade com registos antigos. O autor consulta apenas os próprios trabalhos. Depois da submissão, a decisão e a nota editorial são geridas apenas por administradores verificados. Os registos de teste usam `isTest: true` e um código iniciado por `TEST-`.
 
 O perfil `submissions` pode consultar todos os trabalhos e alterar apenas `status`, `review` e `updatedAt`. Não tem acesso à gestão de inscrições, pagamentos ou Secretariado.
 
