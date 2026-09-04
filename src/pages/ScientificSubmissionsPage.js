@@ -77,6 +77,10 @@ const content = {
     submittedStatus: 'Submetido · Teste',
     removeTest: 'Eliminar teste',
     workCount: 'trabalho(s) de teste',
+    submittedAtLabel: 'Submetido em',
+    draftAtLabel: 'Rascunho criado em',
+    recordedAtLabel: 'Registado em',
+    datePending: 'A registar data e hora…',
     back: 'Voltar ao My CIRC',
   },
   en: {
@@ -146,9 +150,39 @@ const content = {
     submittedStatus: 'Submitted · Test',
     removeTest: 'Delete test',
     workCount: 'test submission(s)',
+    submittedAtLabel: 'Submitted on',
+    draftAtLabel: 'Draft created on',
+    recordedAtLabel: 'Recorded on',
+    datePending: 'Recording date and time…',
     back: 'Back to My CIRC',
   },
 };
+
+function dateFromValue(value) {
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function submissionDateMeta(submission, language, t) {
+  const isDraft = submission.status === 'draft';
+  const value = submission.submittedAt || (isDraft ? submission.createdAt : submission.updatedAt || submission.createdAt);
+  const date = dateFromValue(value);
+  const label = submission.submittedAt
+    ? t.submittedAtLabel
+    : isDraft
+      ? t.draftAtLabel
+      : t.recordedAtLabel;
+
+  return {
+    dateTime: date?.toISOString(),
+    text: date
+      ? `${label} ${new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'pt-PT', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }).format(date)}`
+      : t.datePending,
+  };
+}
 
 function DocumentMark() {
   return (
@@ -385,6 +419,9 @@ export default function ScientificSubmissionsPage() {
                   <p>{submission.type === 'oral' ? t.oralType : t.posterType}</p>
                   <h3>{submission.title}</h3>
                   <small>{submission.authors.split('\n').join(' · ')}</small>
+                  <time className="submissions-test-list__timestamp" dateTime={submissionDateMeta(submission, language, t).dateTime}>
+                    {submissionDateMeta(submission, language, t).text}
+                  </time>
                   <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
                 </article>
               ))}
