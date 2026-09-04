@@ -474,7 +474,7 @@ export function AuthenticatedAccountPage() {
       }
 
       setParticipantProfile(result.profile);
-      setProfileLoadState(result.remoteAvailable ? 'ready' : 'unavailable');
+      setProfileLoadState(result.source === 'firestore' ? 'ready' : result.source);
     };
 
     loadProfile();
@@ -545,7 +545,7 @@ export function AuthenticatedAccountPage() {
               <p className="eyebrow">{isEnglish ? 'Profile' : 'Perfil'}</p>
               <h2>{isEnglish ? 'Profile details' : 'Dados do perfil'}</h2>
               <p>{isEnglish ? 'Complete your personal, professional and billing details.' : 'Complete os seus dados pessoais, profissionais e de faturação.'}</p>
-              {profileCompletion && profileCompletion.percentage < 100 && (
+              {profileCompletion && (
                 <div className="auth-profile-completion" aria-label={isEnglish ? `Profile ${profileCompletion.percentage}% complete` : `Perfil ${profileCompletion.percentage}% completo`}>
                   <div><span>{isEnglish ? 'Profile complete' : 'Perfil completo'}</span><strong>{profileCompletion.percentage}%</strong></div>
                   <div className="auth-profile-completion__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion.percentage}>
