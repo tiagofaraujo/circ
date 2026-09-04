@@ -71,7 +71,6 @@ service cloud.firestore {
     function hasValidInitialSubmissionTimestamps() {
       return request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && hasValidAbstractSections()
         && (
           (
             request.resource.data.status == 'draft'
@@ -143,6 +142,7 @@ service cloud.firestore {
         ])
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt == request.time
+        && hasValidAbstractSections()
         && (
           (
             request.resource.data.status == 'draft'
