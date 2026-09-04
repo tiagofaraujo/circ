@@ -6,6 +6,10 @@ import {
   saveAdminTestSubmission,
   subscribeToSubmissions,
 } from '../auth/adminOperationsStore';
+import {
+  hasCompleteAbstractSections,
+  normalizeAbstractSections,
+} from '../auth/submissionAbstract';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
 
@@ -65,8 +69,19 @@ const content = {
     contentLabel: 'Conteúdo científico',
     affiliationLabel: 'Instituição ou afiliação principal',
     affiliationPlaceholder: 'Ex.: ULS Coimbra',
-    abstractLabel: 'Texto do resumo',
-    abstractPlaceholder: 'Escreva aqui o conteúdo científico para testar a experiência de submissão.',
+    introductionLabel: 'Introdução',
+    introductionPlaceholder: 'Enquadramento e relevância do tema.',
+    objectiveLabel: 'Objetivo',
+    objectivePlaceholder: 'Defina de forma clara o objetivo principal do trabalho.',
+    methodsLabel: 'Métodos',
+    methodsPlaceholder: 'Descreva o desenho do estudo, amostra, procedimentos e análise.',
+    resultsLabel: 'Resultados',
+    resultsPlaceholder: 'Apresente os resultados principais de forma objetiva.',
+    conclusionLabel: 'Conclusão',
+    conclusionPlaceholder: 'Sintetize a principal conclusão e a sua relevância.',
+    keywordsLabel: 'Palavras-chave',
+    keywordsPlaceholder: 'Ex.: Radiologia; Ressonância magnética; Diagnóstico',
+    sectionsComplete: 'As seis secções do resumo estão preenchidas.',
     reviewLabel: 'Revisão e envio',
     reviewText: 'Confirme os dados. Neste modo, “Submeter teste” cria um registo Firebase identificado como demonstração.',
     saveDraft: 'Guardar rascunho',
@@ -138,8 +153,19 @@ const content = {
     contentLabel: 'Scientific content',
     affiliationLabel: 'Main institution or affiliation',
     affiliationPlaceholder: 'E.g. ULS Coimbra',
-    abstractLabel: 'Abstract text',
-    abstractPlaceholder: 'Write the scientific content here to test the submission experience.',
+    introductionLabel: 'Introduction',
+    introductionPlaceholder: 'Set out the context and relevance of the topic.',
+    objectiveLabel: 'Objective',
+    objectivePlaceholder: 'Clearly define the main objective of the work.',
+    methodsLabel: 'Methods',
+    methodsPlaceholder: 'Describe the study design, sample, procedures and analysis.',
+    resultsLabel: 'Results',
+    resultsPlaceholder: 'Present the main results objectively.',
+    conclusionLabel: 'Conclusion',
+    conclusionPlaceholder: 'Summarise the main conclusion and its relevance.',
+    keywordsLabel: 'Keywords',
+    keywordsPlaceholder: 'E.g. Radiology; Magnetic resonance imaging; Diagnosis',
+    sectionsComplete: 'All six abstract sections are complete.',
     reviewLabel: 'Review and submission',
     reviewText: 'Confirm the details. In this mode, “Submit test” creates a Firebase record identified as a demonstration.',
     saveDraft: 'Save draft',
@@ -203,7 +229,12 @@ const emptyTestForm = {
   title: '',
   authors: '',
   affiliation: '',
-  abstract: '',
+  introduction: '',
+  objective: '',
+  methods: '',
+  results: '',
+  conclusion: '',
+  keywords: '',
 };
 
 function TestSubmissionForm({ t, onClose, onSave }) {
@@ -214,8 +245,18 @@ function TestSubmissionForm({ t, onClose, onSave }) {
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
+  const canSaveDraft = Boolean(form.title.trim() && form.authors.trim());
+  const canSubmit = canSaveDraft && hasCompleteAbstractSections(form);
+  const abstractFields = [
+    ['introduction', t.introductionLabel, t.introductionPlaceholder, 4],
+    ['objective', t.objectiveLabel, t.objectivePlaceholder, 3],
+    ['methods', t.methodsLabel, t.methodsPlaceholder, 5],
+    ['results', t.resultsLabel, t.resultsPlaceholder, 5],
+    ['conclusion', t.conclusionLabel, t.conclusionPlaceholder, 4],
+  ];
+
   const save = async (status) => {
-    if (saving || !form.title.trim() || !form.authors.trim() || !form.abstract.trim()) return;
+    if (saving || (status === 'draft' ? !canSaveDraft : !canSubmit)) return;
     setSaving(true);
     try {
       await onSave({
@@ -223,7 +264,7 @@ function TestSubmissionForm({ t, onClose, onSave }) {
         title: form.title.trim(),
         authors: form.authors.trim(),
         affiliation: form.affiliation.trim(),
-        abstract: form.abstract.trim(),
+        abstractSections: normalizeAbstractSections(form),
       }, status);
     } finally {
       setSaving(false);
@@ -275,10 +316,18 @@ function TestSubmissionForm({ t, onClose, onSave }) {
             <span>{t.affiliationLabel}</span>
             <input value={form.affiliation} onChange={updateField('affiliation')} placeholder={t.affiliationPlaceholder} />
           </label>
-          <label>
-            <span>{t.abstractLabel}</span>
-            <textarea rows="9" value={form.abstract} onChange={updateField('abstract')} placeholder={t.abstractPlaceholder} required />
-          </label>
+          <div className="submissions-abstract-grid">
+            {abstractFields.map(([field, label, placeholder, rows]) => (
+              <label key={field}>
+                <span>{label}</span>
+                <textarea rows={rows} value={form[field]} onChange={updateField(field)} placeholder={placeholder} required />
+              </label>
+            ))}
+            <label className="submissions-abstract-grid__keywords">
+              <span>{t.keywordsLabel}</span>
+              <input value={form.keywords} onChange={updateField('keywords')} placeholder={t.keywordsPlaceholder} required />
+            </label>
+          </div>
         </fieldset>
 
         <fieldset className="submissions-form-step submissions-form-step--review">
@@ -287,11 +336,12 @@ function TestSubmissionForm({ t, onClose, onSave }) {
             <div><small>{t.typeLabel}</small><strong>{form.type === 'oral' ? t.oralType : t.posterType}</strong></div>
             <div><small>{t.titleLabel}</small><strong>{form.title || '—'}</strong></div>
             <div><small>{t.authorsLabel}</small><strong>{form.authors || '—'}</strong></div>
+            <div><small>{t.contentLabel}</small><strong>{canSubmit ? t.sectionsComplete : '—'}</strong></div>
           </div>
           <p>{t.reviewText}</p>
           <div className="submissions-form-actions">
-            <button type="button" onClick={() => save('draft')} disabled={saving || !form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{saving ? '…' : t.saveDraft}</button>
-            <button type="submit" disabled={saving || !form.title.trim() || !form.authors.trim() || !form.abstract.trim()}>{saving ? '…' : t.submitTest} →</button>
+            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : t.saveDraft}</button>
+            <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitTest} →</button>
           </div>
         </fieldset>
       </form>
