@@ -35,7 +35,7 @@ function csvCell(value) {
 }
 
 function exportSubmissions(items) {
-  const header = ['Código', 'Tipologia', 'Título', 'Autor de contacto', 'Email', 'Autores', 'Instituição', 'Estado', 'Atualização'];
+  const header = ['Código', 'Tipologia', 'Título', 'Autor de contacto', 'Email', 'Autores', 'Instituição', 'Estado', 'Submetido em', 'Última atualização'];
   const rows = items.map((item) => [
     item.code || item.id,
     typeLabels[item.type] || item.type,
@@ -45,6 +45,7 @@ function exportSubmissions(items) {
     String(item.authors || '').replace(/\n/g, ' · '),
     item.affiliation,
     statusLabels[item.status] || item.status,
+    formatDate(item.submittedAt),
     formatDate(item.updatedAt || item.createdAt),
   ]);
   const csv = `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(';')).join('\n')}`;
@@ -176,6 +177,8 @@ export default function AdminSubmissionsPage() {
               const currentStatus = statusDrafts[submission.id] || submission.status || 'draft';
               const currentNote = noteDrafts[submission.id] ?? submission.review?.note ?? '';
               const changed = currentStatus !== (submission.status || 'draft') || currentNote.trim() !== String(submission.review?.note || '').trim();
+              const submittedAt = submission.submittedAt
+                || (submission.status !== 'draft' ? submission.createdAt : null);
 
               return (
                 <article className="admin-submission" key={submission.id}>
@@ -199,7 +202,16 @@ export default function AdminSubmissionsPage() {
                       <select className={`submission-status submission-status--${currentStatus}`} value={currentStatus} onChange={(event) => setStatusDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} disabled={savingId === submission.id}>
                         {submissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
                       </select>
-                      <small>Atualizado {formatDate(submission.updatedAt || submission.createdAt)}</small>
+                      <div className="admin-submission__timestamps">
+                        <small>
+                          <strong>{submittedAt ? 'Submetido em' : 'Rascunho criado em'}</strong>
+                          {formatDate(submittedAt || submission.createdAt)}
+                        </small>
+                        <small>
+                          <strong>Última atualização</strong>
+                          {formatDate(submission.updatedAt || submission.createdAt)}
+                        </small>
+                      </div>
                     </label>
                   </div>
 
