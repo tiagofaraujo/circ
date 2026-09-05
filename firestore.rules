@@ -9,15 +9,163 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
+    function hasVerifiedEmail() {
       return signedIn()
         && request.auth.token.email_verified == true
+        && request.auth.token.email != null;
+    }
+
+    function isAdmin() {
+      return hasVerifiedEmail()
         && request.auth.token.email == 'circ.chuc@gmail.com';
+    }
+
+    function hasStoredRole(role) {
+      return hasVerifiedEmail()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('roles', {}).get(role, false) == true;
+    }
+
+    function canManageSubmissions() {
+      return isAdmin()
+        || (
+          hasVerifiedEmail()
+          && request.auth.token.email in [
+            'araujotiagofc@gmail.com',
+            'acbdgomes@gmail.com',
+            'afsilvacarvalho@gmail.com'
+          ]
+        )
+        || hasStoredRole('submissions');
+    }
+
+    function canTestSubmissions() {
+      return canManageSubmissions()
+        && (
+          isAdmin()
+          || (
+            hasVerifiedEmail()
+            && request.auth.token.email in [
+              'araujotiagofc@gmail.com',
+              'acbdgomes@gmail.com',
+              'afsilvacarvalho@gmail.com'
+            ]
+          )
+          || hasStoredRole('submissionTesting')
+        );
+    }
+
+    function canUseSecretariat() {
+      return isAdmin()
+        || hasStoredRole('secretariat')
+        || (hasVerifiedEmail() && request.auth.token.email == 'tiago_araujo@hotmail.com');
+    }
+
+    function hasOwnAuditActor() {
+      return request.resource.data.actor.uid == request.auth.uid
+        && request.resource.data.actor.email == request.auth.token.email
+        && request.resource.data.eventId == 'circ-2027';
+    }
+
+    function hasValidInitialSubmissionTimestamps() {
+      return request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.status == 'draft'
+            && request.resource.data.submittedAt == null
+          )
+          || (
+            request.resource.data.status == 'submitted'
+            && request.resource.data.submittedAt == request.time
+          )
+        );
+    }
+
+    function hasValidAbstractSections() {
+      return request.resource.data.abstractSections is map
+        && request.resource.data.abstractSections.keys().hasAll([
+          'introduction',
+          'objective',
+          'methods',
+          'results',
+          'conclusion',
+          'keywords'
+        ])
+        && request.resource.data.abstractSections.keys().hasOnly([
+          'introduction',
+          'objective',
+          'methods',
+          'results',
+          'conclusion',
+          'keywords'
+        ])
+        && request.resource.data.abstractSections.introduction is string
+        && request.resource.data.abstractSections.objective is string
+        && request.resource.data.abstractSections.methods is string
+        && request.resource.data.abstractSections.results is string
+        && request.resource.data.abstractSections.conclusion is string
+        && request.resource.data.abstractSections.keywords is string
+        && request.resource.data.abstractSections.introduction.size() <= 2500
+        && request.resource.data.abstractSections.objective.size() <= 1500
+        && request.resource.data.abstractSections.methods.size() <= 3000
+        && request.resource.data.abstractSections.results.size() <= 3000
+        && request.resource.data.abstractSections.conclusion.size() <= 2000
+        && request.resource.data.abstractSections.keywords.size() <= 500
+        && request.resource.data.abstract is string
+        && request.resource.data.abstract.size() <= 15000
+        && (
+          request.resource.data.status == 'draft'
+          || (
+            request.resource.data.abstractSections.introduction.size() > 0
+            && request.resource.data.abstractSections.objective.size() > 0
+            && request.resource.data.abstractSections.methods.size() > 0
+            && request.resource.data.abstractSections.results.size() > 0
+            && request.resource.data.abstractSections.conclusion.size() > 0
+            && request.resource.data.abstractSections.keywords.size() > 0
+          )
+        );
+    }
+
+    function isValidAuthorSubmissionUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'type',
+          'title',
+          'authors',
+          'affiliation',
+          'abstract',
+          'abstractSections',
+          'status',
+          'updatedAt',
+          'submittedAt'
+        ])
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && hasValidAbstractSections()
+        && (
+          (
+            request.resource.data.status == 'draft'
+            && request.resource.data.submittedAt == resource.data.submittedAt
+          )
+          || (
+            request.resource.data.status == 'submitted'
+            && request.resource.data.submittedAt == request.time
+          )
+        );
     }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (
+        isOwner(userId)
+        && !request.resource.data.keys().hasAny(['roles'])
+      );
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
+      );
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /events/{eventId} {
@@ -26,8 +174,15 @@ service cloud.firestore {
     }
 
     match /registrations/{registrationId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin()
+        || canUseSecretariat()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        canUseSecretariat()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['attendance', 'credential', 'updatedAt'])
+      );
     }
 
     match /registrationOrders/{orderId} {
@@ -45,8 +200,97 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /submissions/{submissionId} {
+      allow read: if canManageSubmissions()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin()
+        || (
+          canTestSubmissions()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.eventId == 'circ-2027'
+          && request.resource.data.get('isTest', false) == true
+          && request.resource.data.status in ['draft', 'submitted']
+          && hasValidAbstractSections()
+          && hasValidInitialSubmissionTimestamps()
+        )
+        || (
+          signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.eventId == 'circ-2027'
+          && request.resource.data.get('isTest', false) == false
+          && request.resource.data.status in ['draft', 'submitted']
+          && hasValidAbstractSections()
+          && hasValidInitialSubmissionTimestamps()
+        );
+      allow update: if isAdmin()
+        || (
+          canManageSubmissions()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'review', 'updatedAt'])
+          && request.resource.data.status in [
+            'draft',
+            'submitted',
+            'under_review',
+            'revisions',
+            'accepted',
+            'rejected'
+          ]
+          && request.resource.data.review.note is string
+          && request.resource.data.review.note.size() <= 1000
+          && request.resource.data.review.updatedBy.uid == request.auth.uid
+          && request.resource.data.review.updatedBy.email == request.auth.token.email
+        )
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && resource.data.status == 'draft'
+          && request.resource.data.status in ['draft', 'submitted']
+          && isValidAuthorSubmissionUpdate()
+        );
+      allow delete: if isAdmin()
+        || (
+          canTestSubmissions()
+          && resource.data.userId == request.auth.uid
+          && resource.data.get('isTest', false) == true
+        )
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && resource.data.get('isTest', false) == false
+          && resource.data.status == 'draft'
+        );
+    }
+
     match /auditLogs/{logId} {
-      allow read, create: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        || (
+          canManageSubmissions()
+          && hasOwnAuditActor()
+          && request.resource.data.submissionId is string
+          && request.resource.data.action == 'submission.review.updated'
+        )
+        || (
+          canTestSubmissions()
+          && hasOwnAuditActor()
+          && request.resource.data.submissionId is string
+          && request.resource.data.action in [
+            'submission.test.created',
+            'submission.test.deleted'
+          ]
+        )
+        || (
+          canUseSecretariat()
+          && hasOwnAuditActor()
+          && request.resource.data.registrationId is string
+          && request.resource.data.action in [
+            'attendance.checkin.completed',
+            'attendance.checkin.reverted',
+            'credential.delivered',
+            'credential.delivery.reverted'
+          ]
+        );
       allow update, delete: if false;
     }
 

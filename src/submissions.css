@@ -369,6 +369,32 @@
   text-transform: uppercase;
 }
 
+.submissions-abstract-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.submissions-abstract-grid label {
+  display: grid;
+  gap: 9px;
+}
+
+.submissions-abstract-grid label > span {
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.submissions-abstract-grid textarea {
+  min-height: 118px;
+}
+
+.submissions-abstract-grid__keywords input {
+  min-height: 51px;
+}
+
 .submissions-form-step input,
 .submissions-form-step textarea {
   width: 100%;
@@ -662,6 +688,129 @@
   line-height: 1.45;
 }
 
+.submissions-test-list__timestamp {
+  margin-top: 10px;
+  display: block;
+  color: var(--blue);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.submissions-work-details {
+  margin-top: 18px;
+  border-top: 1px solid rgba(20, 24, 70, 0.16);
+}
+
+.submissions-work-details summary {
+  padding: 15px 0 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.submissions-work-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.submissions-work-details summary i {
+  font-size: 1.1rem;
+  font-style: normal;
+  transition: transform 160ms ease;
+}
+
+.submissions-work-details[open] summary i {
+  transform: rotate(45deg);
+}
+
+.submissions-work-details__content {
+  padding-top: 20px;
+}
+
+.submissions-work-details__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid rgba(20, 24, 70, 0.14);
+  border-left: 1px solid rgba(20, 24, 70, 0.14);
+}
+
+.submissions-work-details__meta > div {
+  min-width: 0;
+  padding: 15px;
+  border-right: 1px solid rgba(20, 24, 70, 0.14);
+  border-bottom: 1px solid rgba(20, 24, 70, 0.14);
+}
+
+.submissions-work-details__meta span,
+.submissions-work-details__abstract > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.submissions-work-details__meta p,
+.submissions-work-details__abstract p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.submissions-work-details__abstract {
+  margin-top: 24px;
+}
+
+.submissions-work-details__abstract section {
+  padding: 14px 0;
+  border-top: 1px solid rgba(20, 24, 70, 0.14);
+}
+
+.submissions-work-details__abstract h4 {
+  margin: 0 0 7px;
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.submissions-work-details__actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.submissions-work-details__actions button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--blue);
+  background: var(--blue);
+  color: white;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.submissions-work-details__actions button:last-child:not(:first-child) {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
 .submissions-test-list article > button {
   margin-top: 17px;
   padding: 0;
@@ -838,6 +987,14 @@
 
   .submissions-preparation {
     min-height: auto;
+  }
+
+  .submissions-work-details__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .submissions-work-details__actions button {
+    width: 100%;
   }
 }
 
