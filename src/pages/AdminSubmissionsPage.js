@@ -7,6 +7,7 @@ import {
   updateSubmissionReview,
 } from '../auth/adminOperationsStore';
 import { normalizeAbstractSections } from '../auth/submissionAbstract';
+import { exportSubmissionPdf } from '../auth/submissionPdf';
 import AdminModuleNav from '../components/AdminModuleNav';
 import '../admin.css';
 import '../adminOperations.css';
@@ -168,6 +169,15 @@ export default function AdminSubmissionsPage() {
     }
   };
 
+  const exportPdf = (submission) => {
+    setError('');
+    try {
+      exportSubmissionPdf(submission, { language: 'pt' });
+    } catch (exportError) {
+      setError('Não foi possível abrir o PDF. Confirme se o navegador bloqueou a nova janela.');
+    }
+  };
+
   return (
     <main className="admin-page">
       <header className="admin-header">
@@ -294,9 +304,14 @@ export default function AdminSubmissionsPage() {
                         <textarea rows="5" maxLength="1000" value={currentNote} onChange={(event) => setNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} placeholder="Registe aqui observações internas, pedido de revisão ou fundamento da decisão…" disabled={savingId === submission.id} />
                         <small>{currentNote.length}/1000</small>
                       </label>
-                      <button type="button" onClick={() => saveReview(submission)} disabled={!changed || savingId === submission.id}>
-                        {savingId === submission.id ? 'A guardar…' : changed ? 'Guardar decisão' : 'Decisão guardada'}
-                      </button>
+                      <div className="admin-submission__actions">
+                        <button type="button" className="admin-submission__pdf" onClick={() => exportPdf(submission)}>
+                          Exportar PDF
+                        </button>
+                        <button type="button" className="admin-submission__save" onClick={() => saveReview(submission)} disabled={!changed || savingId === submission.id}>
+                          {savingId === submission.id ? 'A guardar…' : changed ? 'Guardar decisão' : 'Decisão guardada'}
+                        </button>
+                      </div>
                     </div>
                   </details>
                 </article>
