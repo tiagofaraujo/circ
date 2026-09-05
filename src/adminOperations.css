@@ -122,6 +122,17 @@
   color: var(--ink);
   font: inherit;
 }
+.admin-submission__status-feedback {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+.admin-submission__status-feedback.is-saving { color: #80520c; }
+.admin-submission__status-feedback.is-saved { color: #176942; }
+.admin-submission__status-feedback.is-error { color: #8c2119; }
+
 .admin-submission__timestamps {
   margin-top: auto;
   padding-top: 16px;
