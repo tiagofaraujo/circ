@@ -199,6 +199,25 @@ const content = {
   },
 };
 
+const authorStatusLabels = {
+  pt: {
+    draft: 'Rascunho',
+    submitted: 'Submetido',
+    under_review: 'Em revisão',
+    revisions: 'Revisões pedidas',
+    accepted: 'Aceite',
+    rejected: 'Não aceite',
+  },
+  en: {
+    draft: 'Draft',
+    submitted: 'Submitted',
+    under_review: 'Under review',
+    revisions: 'Revisions requested',
+    accepted: 'Accepted',
+    rejected: 'Not accepted',
+  },
+};
+
 function dateFromValue(value) {
   const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? date : null;
@@ -519,8 +538,8 @@ export default function ScientificSubmissionsPage() {
                   <div className="submissions-test-list__topline">
                     <span>{submission.isTest ? 'TESTE · ' : ''}{submission.code || submission.id}</span>
                     <strong className={'is-' + submission.status}>
-                      {submission.status === 'draft' ? t.draftStatus : t.submittedStatus}
-                      {submission.isTest ? ' · Teste' : ''}
+                      {authorStatusLabels[language === 'en' ? 'en' : 'pt'][submission.status] || submission.status || '—'}
+                      {submission.isTest ? (language === 'en' ? ' · Test' : ' · Teste') : ''}
                     </strong>
                   </div>
                   <p>{submission.type === 'oral' ? t.oralType : t.posterType}</p>
