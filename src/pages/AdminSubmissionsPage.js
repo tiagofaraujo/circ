@@ -121,6 +121,7 @@ export default function AdminSubmissionsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [noteDrafts, setNoteDrafts] = useState({});
   const [statusDrafts, setStatusDrafts] = useState({});
+  const [statusFeedbacks, setStatusFeedbacks] = useState({});
   const [savingId, setSavingId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -155,6 +156,61 @@ export default function AdminSubmissionsPage() {
     accepted: submissions.filter((item) => item.status === 'accepted').length,
   }), [submissions]);
 
+  useEffect(() => {
+    setStatusDrafts((current) => {
+      const next = { ...current };
+      let didChange = false;
+
+      submissions.forEach((submission) => {
+        if (next[submission.id] === (submission.status || 'draft')) {
+          delete next[submission.id];
+          didChange = true;
+        }
+      });
+
+      return didChange ? next : current;
+    });
+  }, [submissions]);
+
+  const saveStatus = async (submission, nextStatus) => {
+    const previousStatus = statusDrafts[submission.id] || submission.status || 'draft';
+
+    if (nextStatus === previousStatus) return;
+
+    setStatusDrafts((current) => ({ ...current, [submission.id]: nextStatus }));
+    setStatusFeedbacks((current) => ({
+      ...current,
+      [submission.id]: { kind: 'saving', text: 'A guardar…' },
+    }));
+    setSavingId(submission.id);
+    setError('');
+
+    try {
+      await updateSubmissionReview(
+        user,
+        submission,
+        nextStatus,
+        submission.review?.note || ''
+      );
+      setStatusFeedbacks((current) => ({
+        ...current,
+        [submission.id]: { kind: 'saved', text: 'Estado guardado' },
+      }));
+    } catch (updateError) {
+      setStatusDrafts((current) => ({
+        ...current,
+        [submission.id]: previousStatus,
+      }));
+      setStatusFeedbacks((current) => ({
+        ...current,
+        [submission.id]: { kind: 'error', text: 'Erro ao guardar' },
+      }));
+      setError('Não foi possível guardar o estado científico. A alteração não foi registada.');
+    } finally {
+      setSavingId('');
+    }
+  };
+
   const saveReview = async (submission) => {
     const status = statusDrafts[submission.id] || submission.status || 'draft';
     const note = noteDrafts[submission.id] ?? submission.review?.note ?? '';
@@ -162,7 +218,15 @@ export default function AdminSubmissionsPage() {
     setError('');
     try {
       await updateSubmissionReview(user, submission, status, note);
+      setStatusFeedbacks((current) => ({
+        ...current,
+        [submission.id]: { kind: 'saved', text: 'Decisão guardada' },
+      }));
     } catch (updateError) {
+      setStatusFeedbacks((current) => ({
+        ...current,
+        [submission.id]: { kind: 'error', text: 'Erro ao guardar' },
+      }));
       setError('Não foi possível guardar a decisão. A alteração não foi registada.');
     } finally {
       setSavingId('');
@@ -265,9 +329,15 @@ export default function AdminSubmissionsPage() {
                     </div>
                     <label className="admin-submission__status">
                       <span>Estado científico</span>
-                      <select className={`submission-status submission-status--${currentStatus}`} value={currentStatus} onChange={(event) => setStatusDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} disabled={savingId === submission.id}>
+                      <select className={`submission-status submission-status--${currentStatus}`} value={currentStatus} onChange={(event) => saveStatus(submission, event.target.value)} disabled={savingId === submission.id}>
                         {submissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
                       </select>
+                      <small
+                        className={`admin-submission__status-feedback ${statusFeedbacks[submission.id]?.kind ? `is-${statusFeedbacks[submission.id].kind}` : ''}`}
+                        aria-live="polite"
+                      >
+                        {statusFeedbacks[submission.id]?.text || 'Guardado automaticamente'}
+                      </small>
                       <div className="admin-submission__timestamps">
                         <small>
                           <strong>{submittedAt ? 'Submetido em' : 'Rascunho criado em'}</strong>
