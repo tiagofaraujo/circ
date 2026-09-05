@@ -4,12 +4,13 @@ import { useAuth } from '../auth/AuthContext';
 import {
   deleteAdminTestSubmission,
   saveAdminTestSubmission,
-  subscribeToSubmissions,
+  subscribeToUserSubmissions,
 } from '../auth/adminOperationsStore';
 import {
   hasCompleteAbstractSections,
   normalizeAbstractSections,
 } from '../auth/submissionAbstract';
+import { exportSubmissionPdf } from '../auth/submissionPdf';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
 
@@ -88,10 +89,17 @@ const content = {
     submitTest: 'Submeter teste',
     savedMessage: 'O rascunho de teste foi guardado e já está disponível na administração.',
     submittedMessage: 'Submissão de teste concluída e disponível na Gestão de Submissões.',
-    draftStatus: 'Rascunho · Teste',
-    submittedStatus: 'Submetido · Teste',
+    draftStatus: 'Rascunho',
+    submittedStatus: 'Submetido',
     removeTest: 'Eliminar teste',
-    workCount: 'trabalho(s) de teste',
+    viewSubmission: 'Consultar submissão',
+    exportPdf: 'Exportar PDF',
+    pdfError: 'Não foi possível abrir o documento. Confirme se o navegador bloqueou a nova janela.',
+    contactLabel: 'Autor de contacto',
+    emailLabel: 'Email',
+    abstractDetailLabel: 'Resumo submetido',
+    abstractUnavailable: 'Resumo não disponível.',
+    workCount: 'trabalho(s)',
     submittedAtLabel: 'Submetido em',
     draftAtLabel: 'Rascunho criado em',
     recordedAtLabel: 'Registado em',
@@ -172,10 +180,17 @@ const content = {
     submitTest: 'Submit test',
     savedMessage: 'The test draft was saved and is now available in administration.',
     submittedMessage: 'Test submission completed and available in Submission Management.',
-    draftStatus: 'Draft · Test',
-    submittedStatus: 'Submitted · Test',
+    draftStatus: 'Draft',
+    submittedStatus: 'Submitted',
     removeTest: 'Delete test',
-    workCount: 'test submission(s)',
+    viewSubmission: 'View submission',
+    exportPdf: 'Export PDF',
+    pdfError: 'The document could not be opened. Check whether the browser blocked the new window.',
+    contactLabel: 'Contact author',
+    emailLabel: 'Email',
+    abstractDetailLabel: 'Submitted abstract',
+    abstractUnavailable: 'Abstract unavailable.',
+    workCount: 'submission(s)',
     submittedAtLabel: 'Submitted on',
     draftAtLabel: 'Draft created on',
     recordedAtLabel: 'Recorded on',
@@ -208,6 +223,30 @@ function submissionDateMeta(submission, language, t) {
         }).format(date)}`
       : t.datePending,
   };
+}
+
+function submissionAbstractItems(submission, t) {
+  if (submission.abstractSections && typeof submission.abstractSections === 'object') {
+    const sections = normalizeAbstractSections(submission.abstractSections);
+    return [
+      ['introduction', t.introductionLabel],
+      ['objective', t.objectiveLabel],
+      ['methods', t.methodsLabel],
+      ['results', t.resultsLabel],
+      ['conclusion', t.conclusionLabel],
+      ['keywords', t.keywordsLabel],
+    ].map(([key, label]) => ({
+      key,
+      label,
+      value: sections[key] || '—',
+    }));
+  }
+
+  return [{
+    key: 'legacy',
+    label: t.abstractDetailLabel,
+    value: submission.abstract || t.abstractUnavailable,
+  }];
 }
 
 function DocumentMark() {
@@ -355,16 +394,17 @@ export default function ScientificSubmissionsPage() {
   const t = content[language === 'en' ? 'en' : 'pt'];
   const canTestSubmissions = Boolean(access?.canTestSubmissions);
   const [composerOpen, setComposerOpen] = useState(false);
-  const [testSubmissions, setTestSubmissions] = useState([]);
+  const [ownSubmissions, setOwnSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    if (!canTestSubmissions || !user) return undefined;
-    return subscribeToSubmissions(
-      (items) => setTestSubmissions(items.filter((item) => item.isTest && item.userId === user.uid)),
-      () => setNotice(language === 'en' ? 'Unable to load Firebase test submissions.' : 'Não foi possível carregar as submissões de teste do Firebase.')
+    if (!user) return undefined;
+    return subscribeToUserSubmissions(
+      user.uid,
+      setOwnSubmissions,
+      () => setNotice(language === 'en' ? 'Unable to load your submissions.' : 'Não foi possível carregar as suas submissões.')
     );
-  }, [canTestSubmissions, language, user]);
+  }, [language, user]);
 
   const saveTestSubmission = async (form, status) => {
     try {
@@ -382,6 +422,14 @@ export default function ScientificSubmissionsPage() {
       await deleteAdminTestSubmission(user, submission, canTestSubmissions);
     } catch (error) {
       setNotice(language === 'en' ? 'The test submission could not be deleted.' : 'Não foi possível eliminar a submissão de teste.');
+    }
+  };
+
+  const exportPdf = (submission) => {
+    try {
+      exportSubmissionPdf(submission, { language });
+    } catch (error) {
+      setNotice(t.pdfError);
     }
   };
 
@@ -456,23 +504,61 @@ export default function ScientificSubmissionsPage() {
       </section>
 
       <section className="submissions-lower-grid">
-        {canTestSubmissions && testSubmissions.length > 0 ? (
+        {ownSubmissions.length > 0 ? (
           <article className="submissions-test-list">
-            <header><div><p className="eyebrow">{t.worksEyebrow}</p><h2>{testSubmissions.length} {t.workCount}</h2></div><span>LOCAL</span></header>
+            <header>
+              <div>
+                <p className="eyebrow">{t.worksEyebrow}</p>
+                <h2>{ownSubmissions.length} {t.workCount}</h2>
+              </div>
+              <span>MY CIRC</span>
+            </header>
             <div>
-              {testSubmissions.map((submission) => (
+              {ownSubmissions.map((submission) => (
                 <article key={submission.id}>
                   <div className="submissions-test-list__topline">
-                    <span>{submission.code || submission.id}</span>
-                    <strong className={`is-${submission.status}`}>{submission.status === 'draft' ? t.draftStatus : t.submittedStatus}</strong>
+                    <span>{submission.isTest ? 'TESTE · ' : ''}{submission.code || submission.id}</span>
+                    <strong className={'is-' + submission.status}>
+                      {submission.status === 'draft' ? t.draftStatus : t.submittedStatus}
+                      {submission.isTest ? ' · Teste' : ''}
+                    </strong>
                   </div>
                   <p>{submission.type === 'oral' ? t.oralType : t.posterType}</p>
                   <h3>{submission.title}</h3>
-                  <small>{submission.authors.split('\n').join(' · ')}</small>
+                  <small>{String(submission.authors || '').split('\n').join(' · ')}</small>
                   <time className="submissions-test-list__timestamp" dateTime={submissionDateMeta(submission, language, t).dateTime}>
                     {submissionDateMeta(submission, language, t).text}
                   </time>
-                  <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
+
+                  <details className="submissions-work-details">
+                    <summary>
+                      <span>{t.viewSubmission}</span>
+                      <i aria-hidden="true">＋</i>
+                    </summary>
+                    <div className="submissions-work-details__content">
+                      <div className="submissions-work-details__meta">
+                        <div><span>{t.authorsLabel}</span><p>{submission.authors || '—'}</p></div>
+                        <div><span>{t.affiliationLabel}</span><p>{submission.affiliation || '—'}</p></div>
+                        <div><span>{t.contactLabel}</span><p>{submission.contactName || '—'}</p></div>
+                        <div><span>{t.emailLabel}</span><p>{submission.contactEmail || '—'}</p></div>
+                      </div>
+                      <div className="submissions-work-details__abstract">
+                        <span>{t.abstractDetailLabel}</span>
+                        {submissionAbstractItems(submission, t).map((section) => (
+                          <section key={section.key}>
+                            <h4>{section.label}</h4>
+                            <p>{section.value}</p>
+                          </section>
+                        ))}
+                      </div>
+                      <div className="submissions-work-details__actions">
+                        <button type="button" onClick={() => exportPdf(submission)}>{t.exportPdf}</button>
+                        {canTestSubmissions && submission.isTest && (
+                          <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
+                        )}
+                      </div>
+                    </div>
+                  </details>
                 </article>
               ))}
             </div>
