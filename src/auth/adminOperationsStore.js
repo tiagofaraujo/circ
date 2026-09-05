@@ -55,6 +55,27 @@ export function subscribeToSubmissions(onData, onError) {
     );
 }
 
+
+export function subscribeToUserSubmissions(userId, onData, onError) {
+  let db;
+  try {
+    if (!userId) throw new Error('submissions/auth-required');
+    db = dbOrThrow();
+  } catch (error) {
+    onError(error);
+    return () => {};
+  }
+
+  return db.collection('submissions')
+    .where('eventId', '==', 'circ-2027')
+    .where('userId', '==', userId)
+    .limit(100)
+    .onSnapshot(
+      (snapshot) => onData(sortNewest(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))),
+      onError
+    );
+}
+
 export async function saveAdminTestSubmission(user, form, status, hasTestPermission = false) {
   if (!user || !hasTestPermission) throw new Error('submissions/test-not-allowed');
   if (!['draft', 'submitted'].includes(status)) throw new Error('submissions/invalid-status');
