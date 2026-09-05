@@ -217,19 +217,39 @@
   line-height: 1.5;
 }
 .admin-submission__content label small { margin-top: 6px; align-self: flex-end; color: var(--ink-soft); }
-.admin-submission__content > button {
-  grid-column: 2;
-  justify-self: end;
+.admin-submission__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-submission__actions button {
   min-height: 46px;
   padding: 0 22px;
-  border: 0;
-  background: var(--blue);
-  color: var(--white);
+  border: 1px solid var(--blue);
   font: inherit;
   font-weight: 750;
   cursor: pointer;
 }
-.admin-submission__content > button:disabled { background: rgba(20, 24, 70, 0.12); color: var(--ink-soft); cursor: default; }
+
+.admin-submission__pdf {
+  background: transparent;
+  color: var(--blue);
+}
+
+.admin-submission__save {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.admin-submission__actions button:disabled {
+  border-color: rgba(20, 24, 70, 0.12);
+  background: rgba(20, 24, 70, 0.12);
+  color: var(--ink-soft);
+  cursor: default;
+}
 
 .secretariat-days {
   margin: 28px 0 0;
@@ -409,8 +429,12 @@
   .admin-submission__status small { margin-top: 12px; }
   .admin-submission__content { grid-template-columns: 1fr; }
   .admin-submission__content label,
-  .admin-submission__content > button { grid-column: auto; }
-  .admin-submission__content > button { width: 100%; justify-self: stretch; }
+  .admin-submission__actions { grid-column: auto; }
+  .admin-submission__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .admin-submission__actions button { width: 100%; }
   .secretariat-days { grid-template-columns: 1fr; }
   .secretariat-days button { min-height: 72px; }
   .secretariat-dashboard { grid-template-columns: 1fr; }
