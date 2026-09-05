@@ -56,6 +56,8 @@ O resumo é guardado por secções em `abstractSections`: Introdução, Objetivo
 
 O perfil `submissions` pode consultar todos os trabalhos e alterar apenas `status`, `review` e `updatedAt`. Não tem acesso à gestão de inscrições, pagamentos ou Secretariado.
 
+Cada PDF de submissão é composto no navegador a partir do registo autorizado no Firestore. Não é criada uma cópia permanente no Storage e as notas internas da Comissão Científica não são incluídas no documento exportado. O participante só consegue gerar PDFs dos próprios trabalhos; os gestores podem gerar os PDFs das submissões a que têm acesso.
+
 ### `payments/{registrationId}`
 
 Estado, montante em cêntimos, moeda, método, referência externa e quem confirmou. Não guardar número de cartão, CVV, credenciais bancárias ou payloads integrais do prestador de pagamentos.
