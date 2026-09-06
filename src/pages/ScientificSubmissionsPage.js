@@ -617,6 +617,12 @@ export default function ScientificSubmissionsPage() {
                     {submissionDateMeta(submission, language, t).text}
                   </time>
 
+                  {canTestSubmissions && submission.isTest && submission.status === 'draft' && (
+                    <button type="button" onClick={() => editTestSubmission(submission)}>
+                      {t.editDraft} →
+                    </button>
+                  )}
+
                   <details className="submissions-work-details">
                     <summary>
                       <span>{t.viewSubmission}</span>
@@ -639,9 +645,6 @@ export default function ScientificSubmissionsPage() {
                         ))}
                       </div>
                       <div className="submissions-work-details__actions">
-                        {canTestSubmissions && submission.isTest && submission.status === 'draft' && (
-                          <button type="button" onClick={() => editTestSubmission(submission)}>{t.editDraft}</button>
-                        )}
                         <button type="button" onClick={() => exportPdf(submission)}>{t.exportPdf}</button>
                         {canTestSubmissions && submission.isTest && (
                           <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
