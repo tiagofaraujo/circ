@@ -126,6 +126,53 @@ export async function saveAdminTestSubmission(user, form, status, hasTestPermiss
   return submissionRef.id;
 }
 
+export async function updateAdminTestSubmission(user, submission, form, status, hasTestPermission = false) {
+  const canEditOwnTest = hasTestPermission
+    && submission?.isTest === true
+    && submission?.userId === user?.uid
+    && submission?.status === 'draft';
+
+  if (!user || !canEditOwnTest) throw new Error('submissions/edit-not-allowed');
+  if (!['draft', 'submitted'].includes(status)) throw new Error('submissions/invalid-status');
+
+  const abstractSections = normalizeAbstractSections(form.abstractSections);
+  if (status === 'submitted' && !hasCompleteAbstractSections(abstractSections)) {
+    throw new Error('submissions/incomplete-abstract');
+  }
+
+  const db = dbOrThrow();
+  const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
+  const changedBy = actor(user);
+  const batch = db.batch();
+
+  batch.update(db.collection('submissions').doc(submission.id), {
+    type: form.type,
+    title: form.title,
+    authors: form.authors,
+    affiliation: form.affiliation || '',
+    abstractSections,
+    abstract: abstractSectionsToText(abstractSections),
+    status,
+    updatedAt: timestamp,
+    submittedAt: status === 'submitted' ? timestamp : null,
+  });
+  batch.set(db.collection('auditLogs').doc(), {
+    action: status === 'submitted'
+      ? 'submission.test.submitted'
+      : 'submission.test.updated',
+    eventId: submission.eventId || 'circ-2027',
+    submissionId: submission.id,
+    submissionCode: submission.code || '',
+    before: submission.status || 'draft',
+    after: status,
+    actor: changedBy,
+    createdAt: timestamp,
+  });
+
+  await batch.commit();
+  return submission.id;
+}
+
 export async function deleteAdminTestSubmission(user, submission, hasTestPermission = false) {
   const canDeleteOwnTest = hasTestPermission && submission?.userId === user?.uid;
   if (!user || !submission?.isTest || (!isAdminUser(user) && !canDeleteOwnTest)) {
