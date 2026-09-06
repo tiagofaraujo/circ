@@ -3,6 +3,10 @@
   background: var(--paper, #efe8df) !important;
 }
 
+.my-circ-sidebar {
+  background: var(--paper, #efe8df) !important;
+}
+
 .my-circ-sidebar__management {
   margin-top: 24px;
   padding-top: 20px;
