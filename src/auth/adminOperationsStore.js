@@ -142,10 +142,8 @@ export async function updateAdminTestSubmission(user, submission, form, status, 
 
   const db = dbOrThrow();
   const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
-  const changedBy = actor(user);
-  const batch = db.batch();
 
-  batch.update(db.collection('submissions').doc(submission.id), {
+  await db.collection('submissions').doc(submission.id).update({
     type: form.type,
     title: form.title,
     authors: form.authors,
@@ -156,20 +154,6 @@ export async function updateAdminTestSubmission(user, submission, form, status, 
     updatedAt: timestamp,
     submittedAt: status === 'submitted' ? timestamp : null,
   });
-  batch.set(db.collection('auditLogs').doc(), {
-    action: status === 'submitted'
-      ? 'submission.test.submitted'
-      : 'submission.test.updated',
-    eventId: submission.eventId || 'circ-2027',
-    submissionId: submission.id,
-    submissionCode: submission.code || '',
-    before: submission.status || 'draft',
-    after: status,
-    actor: changedBy,
-    createdAt: timestamp,
-  });
-
-  await batch.commit();
   return submission.id;
 }
 
