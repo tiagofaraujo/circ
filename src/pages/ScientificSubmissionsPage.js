@@ -5,6 +5,7 @@ import {
   deleteAdminTestSubmission,
   saveAdminTestSubmission,
   subscribeToUserSubmissions,
+  updateAdminTestSubmission,
 } from '../auth/adminOperationsStore';
 import {
   hasCompleteAbstractSections,
@@ -86,11 +87,16 @@ const content = {
     reviewLabel: 'Revisão e envio',
     reviewText: 'Confirme os dados. Neste modo, “Submeter teste” cria um registo Firebase identificado como demonstração.',
     saveDraft: 'Guardar rascunho',
+    updateDraft: 'Atualizar rascunho',
     submitTest: 'Submeter teste',
     savedMessage: 'O rascunho de teste foi guardado e já está disponível na administração.',
+    draftUpdatedMessage: 'O rascunho de teste foi atualizado.',
     submittedMessage: 'Submissão de teste concluída e disponível na Gestão de Submissões.',
     draftStatus: 'Rascunho',
     submittedStatus: 'Submetido',
+    editDraft: 'Editar rascunho',
+    editFormEyebrow: 'Editar submissão · Rascunho',
+    editFormTitle: 'Continue o trabalho e submeta quando estiver pronto.',
     removeTest: 'Eliminar teste',
     viewSubmission: 'Consultar submissão',
     exportPdf: 'Exportar PDF',
@@ -177,11 +183,16 @@ const content = {
     reviewLabel: 'Review and submission',
     reviewText: 'Confirm the details. In this mode, “Submit test” creates a Firebase record identified as a demonstration.',
     saveDraft: 'Save draft',
+    updateDraft: 'Update draft',
     submitTest: 'Submit test',
     savedMessage: 'The test draft was saved and is now available in administration.',
+    draftUpdatedMessage: 'The test draft was updated.',
     submittedMessage: 'Test submission completed and available in Submission Management.',
     draftStatus: 'Draft',
     submittedStatus: 'Submitted',
+    editDraft: 'Edit draft',
+    editFormEyebrow: 'Edit submission · Draft',
+    editFormTitle: 'Continue the work and submit it when ready.',
     removeTest: 'Delete test',
     viewSubmission: 'View submission',
     exportPdf: 'Export PDF',
@@ -295,8 +306,21 @@ const emptyTestForm = {
   keywords: '',
 };
 
-function TestSubmissionForm({ t, onClose, onSave }) {
-  const [form, setForm] = useState({ ...emptyTestForm });
+function testFormFromSubmission(submission) {
+  if (!submission) return { ...emptyTestForm };
+
+  const sections = normalizeAbstractSections(submission.abstractSections);
+  return {
+    type: submission.type || 'oral',
+    title: submission.title || '',
+    authors: submission.authors || '',
+    affiliation: submission.affiliation || '',
+    ...sections,
+  };
+}
+
+function TestSubmissionForm({ t, onClose, onSave, submission }) {
+  const [form, setForm] = useState(() => testFormFromSubmission(submission));
   const [saving, setSaving] = useState(false);
 
   const updateField = (field) => (event) => {
@@ -333,8 +357,8 @@ function TestSubmissionForm({ t, onClose, onSave }) {
     <section className="submissions-composer" aria-labelledby="submissions-composer-title">
       <header className="submissions-composer__header">
         <div>
-          <p className="eyebrow">{t.formEyebrow}</p>
-          <h2 id="submissions-composer-title">{t.formTitle}</h2>
+          <p className="eyebrow">{submission ? t.editFormEyebrow : t.formEyebrow}</p>
+          <h2 id="submissions-composer-title">{submission ? t.editFormTitle : t.formTitle}</h2>
         </div>
         <button type="button" onClick={onClose} disabled={saving}>{t.close} ×</button>
       </header>
@@ -398,7 +422,7 @@ function TestSubmissionForm({ t, onClose, onSave }) {
           </div>
           <p>{t.reviewText}</p>
           <div className="submissions-form-actions">
-            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : t.saveDraft}</button>
+            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : submission ? t.updateDraft : t.saveDraft}</button>
             <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitTest} →</button>
           </div>
         </fieldset>
@@ -413,6 +437,7 @@ export default function ScientificSubmissionsPage() {
   const t = content[language === 'en' ? 'en' : 'pt'];
   const canTestSubmissions = Boolean(access?.canTestSubmissions);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingSubmission, setEditingSubmission] = useState(null);
   const [ownSubmissions, setOwnSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
 
@@ -425,11 +450,52 @@ export default function ScientificSubmissionsPage() {
     );
   }, [language, user]);
 
+  const openNewTestSubmission = () => {
+    setEditingSubmission(null);
+    setComposerOpen(true);
+  };
+
+  const editTestSubmission = (submission) => {
+    if (!submission?.isTest || submission.status !== 'draft') return;
+    setEditingSubmission(submission);
+    setComposerOpen(true);
+    window.setTimeout(() => {
+      document.getElementById('submissions-composer-title')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 0);
+  };
+
+  const closeComposer = () => {
+    setComposerOpen(false);
+    setEditingSubmission(null);
+  };
+
   const saveTestSubmission = async (form, status) => {
+    const isEditing = Boolean(editingSubmission);
+
     try {
-      await saveAdminTestSubmission(user, form, status, canTestSubmissions);
-      setComposerOpen(false);
-      setNotice(status === 'draft' ? t.savedMessage : t.submittedMessage);
+      if (isEditing) {
+        await updateAdminTestSubmission(
+          user,
+          editingSubmission,
+          form,
+          status,
+          canTestSubmissions
+        );
+      } else {
+        await saveAdminTestSubmission(user, form, status, canTestSubmissions);
+      }
+
+      closeComposer();
+      setNotice(
+        status === 'submitted'
+          ? t.submittedMessage
+          : isEditing
+            ? t.draftUpdatedMessage
+            : t.savedMessage
+      );
       window.setTimeout(() => setNotice(''), 6000);
     } catch (error) {
       setNotice(language === 'en' ? 'The test submission could not be saved.' : 'Não foi possível guardar a submissão de teste.');
@@ -494,15 +560,17 @@ export default function ScientificSubmissionsPage() {
             <div><dt>{t.posterDeadlineLabel}</dt><dd>{t.posterDeadlineValue}</dd></div>
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
-          <button type="button" disabled={!canTestSubmissions} onClick={() => setComposerOpen(true)} aria-describedby="submissions-new-hint">{canTestSubmissions ? t.startTest : t.newWork}<span>＋</span></button>
+          <button type="button" disabled={!canTestSubmissions} onClick={openNewTestSubmission} aria-describedby="submissions-new-hint">{canTestSubmissions ? t.startTest : t.newWork}<span>＋</span></button>
           <small id="submissions-new-hint">{canTestSubmissions ? t.testHint : t.newWorkHint}</small>
         </div>
       </section>
 
       {canTestSubmissions && composerOpen && (
         <TestSubmissionForm
+          key={editingSubmission?.id || 'new-test-submission'}
           t={t}
-          onClose={() => setComposerOpen(false)}
+          submission={editingSubmission}
+          onClose={closeComposer}
           onSave={saveTestSubmission}
         />
       )}
@@ -571,6 +639,9 @@ export default function ScientificSubmissionsPage() {
                         ))}
                       </div>
                       <div className="submissions-work-details__actions">
+                        {canTestSubmissions && submission.isTest && submission.status === 'draft' && (
+                          <button type="button" onClick={() => editTestSubmission(submission)}>{t.editDraft}</button>
+                        )}
                         <button type="button" onClick={() => exportPdf(submission)}>{t.exportPdf}</button>
                         {canTestSubmissions && submission.isTest && (
                           <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
