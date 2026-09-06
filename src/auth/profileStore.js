@@ -128,7 +128,6 @@ function writeLocalProfile(profile) {
     demoAccess: false,
   };
 
-  // Sensitive billing and identity fields are deliberately not persisted in localStorage.
   delete safeProfile.taxNumber;
   delete safeProfile.mobile;
   delete safeProfile.dateOfBirth;
@@ -148,7 +147,6 @@ function userBaseProfile(user) {
     demoAccess: false,
   };
 
-  // Empty authentication values must never erase a name or email stored in Firestore.
   if (user?.email) profile.email = user.email;
   if (user?.displayName) profile.name = user.displayName;
 
@@ -217,9 +215,7 @@ export async function loadParticipantProfileResult(user) {
     const merged = mergeProfileSources(local, cached, remote, authProfile);
     const recalculatedCompletion = getProfileCompletion(merged);
     const completion = bestCompletion(merged, recalculatedCompletion);
-    const remoteRecalculated = getProfileCompletion(
-      mergeProfileSources(remote, authProfile)
-    );
+    const remoteRecalculated = getProfileCompletion(mergeProfileSources(remote, authProfile));
     const remoteCompletion = bestCompletion(remote, remoteRecalculated);
 
     if (completion.completed > remoteCompletion.completed) {
@@ -236,8 +232,6 @@ export async function loadParticipantProfileResult(user) {
           { merge: true }
         );
       } catch (recoveryError) {
-        // Keep the recovered result for this session even if the background
-        // migration cannot be written immediately.
       }
     }
 
