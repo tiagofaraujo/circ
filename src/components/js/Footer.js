@@ -75,7 +75,6 @@ function Footer() {
           <Link to="/2025">CIRC 2025</Link>
           <Link to="/regulamento">{en ? 'Event Regulation' : 'Regulamento do Evento'}</Link>
           <Link to="/privacidade">{en ? 'Privacy Policy' : 'Política de Privacidade'}</Link>
-          <Link to="/eliminar-conta">{en ? 'Delete My CIRC account' : 'Eliminar conta My CIRC'}</Link>
           <Link to="/cookies">{en ? 'Cookie Policy' : 'Política de Cookies'}</Link>
           <Link to="/termos">{en ? 'Terms of Use' : 'Termos de Utilização'}</Link>
         </div>

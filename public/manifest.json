@@ -1,54 +1,25 @@
 {
-  "id": "/",
   "short_name": "CIRC 2027",
   "name": "CIRC — Congresso Internacional de Radiologia de Coimbra",
-  "description": "Aplicação oficial do CIRC — Congresso Internacional de Radiologia de Coimbra.",
-  "lang": "pt-PT",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "theme_color": "#232eb7",
-  "background_color": "#efe8df",
-  "categories": ["medical", "education", "events"],
-  "prefer_related_applications": false,
-  "shortcuts": [
-    {
-      "name": "Programa",
-      "short_name": "Programa",
-      "description": "Consultar o programa do CIRC 2027",
-      "url": "/programa"
-    },
-    {
-      "name": "Participar",
-      "short_name": "Participar",
-      "description": "Inscrições e informação para participação",
-      "url": "/participar"
-    },
-    {
-      "name": "My CIRC",
-      "short_name": "My CIRC",
-      "description": "Aceder à área pessoal CIRC",
-      "url": "/conta"
-    }
-  ],
   "icons": [
     {
-      "src": "/favicon.ico",
+      "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     },
     {
-      "src": "/logo192.png",
+      "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any"
+      "sizes": "192x192"
     },
     {
-      "src": "/logo512.png",
+      "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any"
+      "sizes": "512x512"
     }
-  ]
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#232eb7",
+  "background_color": "#efe8df"
 }

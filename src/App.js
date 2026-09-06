@@ -29,7 +29,6 @@ import {
   PrivacyPolicyPage,
   TermsOfUsePage,
 } from './pages/LegalPages';
-import AccountDeletionPage from './pages/AccountDeletionPage';
 import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
@@ -79,7 +78,6 @@ function App() {
             <Route path="/cookies" element={<CookiesPolicyPage />} />
             <Route path="/termos" element={<TermsOfUsePage />} />
             <Route path="/regulamento" element={<EventRegulationPage2027 />} />
-            <Route path="/eliminar-conta" element={<AccountDeletionPage />} />
 
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registar" element={<RegisterWithPhotoPage />} />
@@ -149,7 +147,6 @@ function App() {
             <Route path="/privacy-policy" element={<Navigate to="/privacidade" replace />} />
             <Route path="/terms-of-use" element={<Navigate to="/termos" replace />} />
             <Route path="/cookies-policy" element={<Navigate to="/cookies" replace />} />
-            <Route path="/delete-account" element={<Navigate to="/eliminar-conta" replace />} />
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
