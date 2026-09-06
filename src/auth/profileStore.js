@@ -23,6 +23,35 @@ function isFilled(value) {
   return String(value ?? '').trim().length > 0;
 }
 
+function validStoredCompletion(value) {
+  if (!value || typeof value !== 'object') return null;
+
+  const completed = Number(value.completed);
+  const total = Number(value.total);
+  const percentage = Number(value.percentage);
+
+  if (!Number.isFinite(completed) || !Number.isFinite(total) || !Number.isFinite(percentage)) return null;
+  if (total <= 0 || completed < 0 || completed > total) return null;
+  if (percentage < 0 || percentage > 100) return null;
+
+  return {
+    completed,
+    total,
+    percentage: Math.round(percentage),
+  };
+}
+
+function bestCompletion(profile, recalculated) {
+  const stored = validStoredCompletion(profile?.profileCompletion);
+  if (!stored) return recalculated;
+
+  // profileCompletion is written together with the profile on every successful
+  // save. Keep the strongest trustworthy result so a reconstructed profile
+  // (for example one missing sensitive fields from local cache) cannot regress
+  // a profile that Firestore already recorded as complete.
+  return stored.percentage > recalculated.percentage ? stored : recalculated;
+}
+
 function localProfileForUser(user) {
   const local = readLocalProfile();
   const expectedUid = user?.uid || user?.firebaseUid || '';
@@ -72,7 +101,8 @@ function readLocalProfile() {
 function writeLocalProfile(profile) {
   if (typeof window === 'undefined') return;
   const existing = localProfileForUser(profile);
-  const completion = getProfileCompletion(profile);
+  const recalculated = getProfileCompletion(profile);
+  const completion = bestCompletion(profile, recalculated);
   const safeProfile = {
     ...existing,
     firebaseUid: profile.firebaseUid || existing.firebaseUid || '',
@@ -176,10 +206,12 @@ export async function loadParticipantProfileResult(user) {
     const snapshot = await documentRef.get({ source: 'server' });
     const remote = snapshot.exists ? snapshot.data() || {} : {};
     const merged = mergeProfileSources(local, cached, remote, authProfile);
-    const completion = getProfileCompletion(merged);
-    const remoteCompletion = getProfileCompletion(
+    const recalculatedCompletion = getProfileCompletion(merged);
+    const completion = bestCompletion(remote, recalculatedCompletion);
+    const remoteRecalculated = getProfileCompletion(
       mergeProfileSources(remote, authProfile)
     );
+    const remoteCompletion = bestCompletion(remote, remoteRecalculated);
 
     if (completion.completed > remoteCompletion.completed) {
       try {
@@ -200,7 +232,7 @@ export async function loadParticipantProfileResult(user) {
       }
     }
 
-    writeLocalProfile(merged);
+    writeLocalProfile({ ...merged, profileCompletion: completion });
 
     if (!snapshot.exists && completion.completed <= baseCompletion.completed) {
       return {
@@ -219,8 +251,9 @@ export async function loadParticipantProfileResult(user) {
     };
   } catch (error) {
     const fallback = mergeProfileSources(local, cached, authProfile);
-    const completion = getProfileCompletion(fallback);
-    writeLocalProfile(fallback);
+    const recalculated = getProfileCompletion(fallback);
+    const completion = bestCompletion(cached, recalculated);
+    writeLocalProfile({ ...fallback, profileCompletion: completion });
 
     return {
       profile: fallback,
@@ -273,7 +306,7 @@ export async function saveParticipantProfile(user, profile) {
     throw profileSaveError(error);
   }
 
-  writeLocalProfile(next);
+  writeLocalProfile({ ...next, profileCompletion: completion });
   return { ...next, profileCompletion: completion, __remoteSaved: true };
 }
 
