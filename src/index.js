@@ -22,4 +22,12 @@ root.render(
   </React.StrictMode>
 );
 
+if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+      console.error('CIRC service worker registration failed:', error);
+    });
+  });
+}
+
 reportWebVitals();
