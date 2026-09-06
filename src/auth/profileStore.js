@@ -215,9 +215,7 @@ export async function loadParticipantProfileResult(user) {
     const merged = mergeProfileSources(local, cached, remote, authProfile);
     const recalculatedCompletion = getProfileCompletion(merged);
     const completion = bestCompletion(merged, recalculatedCompletion);
-    const remoteRecalculated = getProfileCompletion(
-      mergeProfileSources(remote, authProfile)
-    );
+    const remoteRecalculated = getProfileCompletion(mergeProfileSources(remote, authProfile));
     const remoteCompletion = bestCompletion(remote, remoteRecalculated);
 
     if (completion.completed > remoteCompletion.completed) {
