@@ -68,6 +68,7 @@ function ScrollToTop() {
 function App() {
   const { pathname } = useLocation();
   const isPersonalArea = pathname === '/conta' || pathname.startsWith('/conta/')
+    || pathname === '/admin' || pathname.startsWith('/admin/')
     || ['/login', '/registar', '/recuperar-password'].includes(pathname);
   const Frame = isPersonalArea ? MyCircShell : React.Fragment;
 
