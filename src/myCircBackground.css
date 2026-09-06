@@ -1,0 +1,4 @@
+.App--personal,
+.my-circ-app {
+  background: var(--paper, #efe8df) !important;
+}
