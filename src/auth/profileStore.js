@@ -1,7 +1,64 @@
 import { getFirebaseFirestore } from './firebaseClient';
-import { normalizeParticipantProfile } from './profileCompletion';
+import { getProfileCompletion, normalizeParticipantProfile } from './profileCompletion';
 
 const LOCAL_KEY = 'circ_demo_account';
+const PROFILE_FIELDS = [
+  'name',
+  'email',
+  'dateOfBirth',
+  'gender',
+  'taxNumber',
+  'mobile',
+  'country',
+  'profession',
+  'institution',
+  'professionalId',
+  'billingAddress',
+  'billingPostalCode',
+  'billingCity',
+  'billingCountry',
+];
+
+function isFilled(value) {
+  return String(value ?? '').trim().length > 0;
+}
+
+function localProfileForUser(user) {
+  const local = readLocalProfile();
+  const expectedUid = user?.uid || user?.firebaseUid || '';
+  const expectedEmail = String(user?.email || '').trim().toLowerCase();
+  const localUid = local?.firebaseUid || '';
+  const localEmail = String(local?.email || '').trim().toLowerCase();
+
+  if (expectedUid && localUid && expectedUid !== localUid) return {};
+  if (expectedEmail && localEmail && expectedEmail !== localEmail) return {};
+  return local;
+}
+
+function mergeProfileSources(...sources) {
+  const validSources = sources.filter((source) => source && typeof source === 'object');
+  const normalizedSources = validSources.map((source) => normalizeParticipantProfile(source));
+  const merged = Object.assign({}, ...validSources);
+
+  PROFILE_FIELDS.forEach((field) => {
+    for (let index = normalizedSources.length - 1; index >= 0; index -= 1) {
+      const value = normalizedSources[index][field];
+      if (isFilled(value)) {
+        merged[field] = value;
+        return;
+      }
+    }
+  });
+
+  return normalizeParticipantProfile(merged);
+}
+
+function profileFieldsForStorage(profile) {
+  return PROFILE_FIELDS.reduce((fields, field) => {
+    if (isFilled(profile[field])) fields[field] = profile[field];
+    return fields;
+  }, {});
+}
 
 function readLocalProfile() {
   if (typeof window === 'undefined') return {};
@@ -14,7 +71,8 @@ function readLocalProfile() {
 
 function writeLocalProfile(profile) {
   if (typeof window === 'undefined') return;
-  const existing = readLocalProfile();
+  const existing = localProfileForUser(profile);
+  const completion = getProfileCompletion(profile);
   const safeProfile = {
     ...existing,
     firebaseUid: profile.firebaseUid || existing.firebaseUid || '',
@@ -25,6 +83,7 @@ function writeLocalProfile(profile) {
     professionLabel: profile.professionLabel || existing.professionLabel || '',
     institution: profile.institution || existing.institution || '',
     professionalId: profile.professionalId || existing.professionalId || '',
+    profileCompletionPercentage: completion.percentage,
     demoAccess: false,
   };
 
@@ -74,41 +133,100 @@ function profileSaveError(error) {
 }
 
 export async function loadParticipantProfileResult(user) {
-  const local = readLocalProfile();
-  const base = normalizeParticipantProfile({ ...local, ...userBaseProfile(user) });
+  const local = normalizeParticipantProfile(localProfileForUser(user));
+  const authProfile = userBaseProfile(user);
+  const base = mergeProfileSources(local, authProfile);
+  const baseCompletion = getProfileCompletion(base);
 
   if (!user?.uid) {
-    return { profile: base, remoteAvailable: false, source: 'local' };
+    return {
+      profile: base,
+      completion: baseCompletion,
+      remoteAvailable: false,
+      source: 'local',
+    };
   }
 
   const db = getFirebaseFirestore();
   if (!db) {
-    return { profile: base, remoteAvailable: false, source: 'unavailable' };
+    return {
+      profile: base,
+      completion: baseCompletion,
+      remoteAvailable: false,
+      source: 'unavailable',
+    };
+  }
+
+  const documentRef = db.collection('users').doc(user.uid);
+  let cached = {};
+  let cachedExists = false;
+
+  try {
+    const cachedSnapshot = await documentRef.get({ source: 'cache' });
+    cachedExists = cachedSnapshot.exists;
+    if (cachedExists) cached = cachedSnapshot.data() || {};
+  } catch (error) {
+    cached = {};
   }
 
   try {
-    // A server read prevents an old empty browser cache from being mistaken for
-    // the definitive profile and producing the misleading 36% result.
-    const snapshot = await db.collection('users').doc(user.uid).get({ source: 'server' });
-    if (!snapshot.exists) {
-      return { profile: base, remoteAvailable: true, source: 'empty' };
+    // Compare server, Firestore cache and the verified legacy profile field by
+    // field. Empty remote values must not erase completed fields from another
+    // trustworthy source — that produced the recurring 5/14 (36%) result.
+    const snapshot = await documentRef.get({ source: 'server' });
+    const remote = snapshot.exists ? snapshot.data() || {} : {};
+    const merged = mergeProfileSources(local, cached, remote, authProfile);
+    const completion = getProfileCompletion(merged);
+    const remoteCompletion = getProfileCompletion(
+      mergeProfileSources(remote, authProfile)
+    );
+
+    if (completion.completed > remoteCompletion.completed) {
+      try {
+        await documentRef.set(
+          {
+            ...profileFieldsForStorage(merged),
+            profileCompletion: {
+              ...completion,
+              schemaVersion: 1,
+            },
+            profileRecoveredAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (recoveryError) {
+        // The recovered profile remains usable in this session even if a
+        // transient write failure prevents the background migration.
+      }
     }
 
-    const remote = snapshot.data() || {};
-    const merged = normalizeParticipantProfile({
-      ...local,
-      ...remote,
-      ...userBaseProfile(user),
-      photoURL: user?.photoURL || '',
-    });
     writeLocalProfile(merged);
 
-    return { profile: merged, remoteAvailable: true, source: 'firestore' };
-  } catch (error) {
+    if (!snapshot.exists && completion.completed <= baseCompletion.completed) {
+      return {
+        profile: merged,
+        completion,
+        remoteAvailable: true,
+        source: 'empty',
+      };
+    }
+
     return {
-      profile: base,
+      profile: merged,
+      completion,
+      remoteAvailable: true,
+      source: 'firestore',
+    };
+  } catch (error) {
+    const fallback = mergeProfileSources(local, cached, authProfile);
+    const completion = getProfileCompletion(fallback);
+    writeLocalProfile(fallback);
+
+    return {
+      profile: fallback,
+      completion,
       remoteAvailable: false,
-      source: serviceNotReady(error) ? 'unavailable' : 'error',
+      source: cachedExists ? 'cache' : (completion.percentage === 100 ? 'local' : (serviceNotReady(error) ? 'unavailable' : 'error')),
       errorCode: error?.code || 'unknown',
     };
   }
@@ -122,14 +240,14 @@ export async function loadParticipantProfile(user) {
 export async function saveParticipantProfile(user, profile) {
   if (!user?.uid) throw new Error('auth/user-not-found');
 
-  const next = normalizeParticipantProfile({
-    ...profile,
+  const next = mergeProfileSources(profile, {
     firebaseUid: user.uid,
     email: user.email || profile.email || '',
     name: profile.name || user.displayName || '',
     photoURL: user.photoURL || '',
     demoAccess: false,
   });
+  const completion = getProfileCompletion(next);
 
   const db = getFirebaseFirestore();
   if (!db) {
@@ -142,6 +260,10 @@ export async function saveParticipantProfile(user, profile) {
     await db.collection('users').doc(user.uid).set(
       {
         ...next,
+        profileCompletion: {
+          ...completion,
+          schemaVersion: 1,
+        },
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -152,7 +274,7 @@ export async function saveParticipantProfile(user, profile) {
   }
 
   writeLocalProfile(next);
-  return { ...next, __remoteSaved: true };
+  return { ...next, profileCompletion: completion, __remoteSaved: true };
 }
 
 export async function deleteParticipantData(user) {
