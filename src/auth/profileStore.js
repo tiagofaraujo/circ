@@ -25,20 +25,12 @@ function isFilled(value) {
 
 function validStoredCompletion(value) {
   if (!value || typeof value !== 'object') return null;
-
   const completed = Number(value.completed);
   const total = Number(value.total);
   const percentage = Number(value.percentage);
-
   if (!Number.isFinite(completed) || !Number.isFinite(total) || !Number.isFinite(percentage)) return null;
-  if (total <= 0 || completed < 0 || completed > total) return null;
-  if (percentage < 0 || percentage > 100) return null;
-
-  return {
-    completed,
-    total,
-    percentage: Math.round(percentage),
-  };
+  if (total <= 0 || completed < 0 || completed > total || percentage < 0 || percentage > 100) return null;
+  return { completed, total, percentage: Math.round(percentage) };
 }
 
 function validStoredPercentage(value, total = 14) {
@@ -53,9 +45,11 @@ function validStoredPercentage(value, total = 14) {
 }
 
 function bestCompletion(profile, recalculated) {
-  const stored = validStoredCompletion(profile?.profileCompletion);
-  const cached = validStoredPercentage(profile?.profileCompletionPercentage, recalculated.total || 14);
-  const candidates = [recalculated, stored, cached].filter(Boolean);
+  const candidates = [
+    recalculated,
+    validStoredCompletion(profile?.profileCompletion),
+    validStoredPercentage(profile?.profileCompletionPercentage, recalculated.total || 14),
+  ].filter(Boolean);
 
   return candidates.reduce(
     (best, candidate) => candidate.percentage > best.percentage ? candidate : best,
@@ -69,7 +63,6 @@ function localProfileForUser(user) {
   const expectedEmail = String(user?.email || '').trim().toLowerCase();
   const localUid = local?.firebaseUid || '';
   const localEmail = String(local?.email || '').trim().toLowerCase();
-
   if (expectedUid && localUid && expectedUid !== localUid) return {};
   if (expectedEmail && localEmail && expectedEmail !== localEmail) return {};
   return local;
@@ -112,8 +105,7 @@ function readLocalProfile() {
 function writeLocalProfile(profile) {
   if (typeof window === 'undefined') return;
   const existing = localProfileForUser(profile);
-  const recalculated = getProfileCompletion(profile);
-  const completion = bestCompletion(profile, recalculated);
+  const completion = bestCompletion(profile, getProfileCompletion(profile));
   const safeProfile = {
     ...existing,
     firebaseUid: profile.firebaseUid || existing.firebaseUid || '',
@@ -136,7 +128,6 @@ function writeLocalProfile(profile) {
   delete safeProfile.billingPostalCode;
   delete safeProfile.billingCity;
   delete safeProfile.billingCountry;
-
   window.localStorage.setItem(LOCAL_KEY, JSON.stringify(safeProfile));
 }
 
@@ -146,22 +137,14 @@ function userBaseProfile(user) {
     photoURL: user?.photoURL || '',
     demoAccess: false,
   };
-
   if (user?.email) profile.email = user.email;
   if (user?.displayName) profile.name = user.displayName;
-
   return profile;
 }
 
 function serviceNotReady(error) {
   const code = error?.code || '';
-  return [
-    'failed-precondition',
-    'not-found',
-    'unavailable',
-    'deadline-exceeded',
-    'network-request-failed',
-  ].includes(code);
+  return ['failed-precondition', 'not-found', 'unavailable', 'deadline-exceeded', 'network-request-failed'].includes(code);
 }
 
 function profileSaveError(error) {
@@ -175,26 +158,15 @@ export async function loadParticipantProfileResult(user) {
   const local = normalizeParticipantProfile(localProfileForUser(user));
   const authProfile = userBaseProfile(user);
   const base = mergeProfileSources(local, authProfile);
-  const baseRecalculated = getProfileCompletion(base);
-  const baseCompletion = bestCompletion(base, baseRecalculated);
+  const baseCompletion = bestCompletion(base, getProfileCompletion(base));
 
   if (!user?.uid) {
-    return {
-      profile: base,
-      completion: baseCompletion,
-      remoteAvailable: false,
-      source: 'local',
-    };
+    return { profile: base, completion: baseCompletion, remoteAvailable: false, source: 'local' };
   }
 
   const db = getFirebaseFirestore();
   if (!db) {
-    return {
-      profile: base,
-      completion: baseCompletion,
-      remoteAvailable: false,
-      source: 'unavailable',
-    };
+    return { profile: base, completion: baseCompletion, remoteAvailable: false, source: 'unavailable' };
   }
 
   const documentRef = db.collection('users').doc(user.uid);
@@ -213,20 +185,16 @@ export async function loadParticipantProfileResult(user) {
     const snapshot = await documentRef.get({ source: 'server' });
     const remote = snapshot.exists ? snapshot.data() || {} : {};
     const merged = mergeProfileSources(local, cached, remote, authProfile);
-    const recalculatedCompletion = getProfileCompletion(merged);
-    const completion = bestCompletion(merged, recalculatedCompletion);
-    const remoteRecalculated = getProfileCompletion(mergeProfileSources(remote, authProfile));
-    const remoteCompletion = bestCompletion(remote, remoteRecalculated);
+    const completion = bestCompletion(merged, getProfileCompletion(merged));
+    const remoteProfile = mergeProfileSources(remote, authProfile);
+    const remoteCompletion = bestCompletion(remote, getProfileCompletion(remoteProfile));
 
     if (completion.completed > remoteCompletion.completed) {
       try {
         await documentRef.set(
           {
             ...profileFieldsForStorage(merged),
-            profileCompletion: {
-              ...completion,
-              schemaVersion: 1,
-            },
+            profileCompletion: { ...completion, schemaVersion: 1 },
             profileRecoveredAt: window.firebase.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
@@ -238,26 +206,14 @@ export async function loadParticipantProfileResult(user) {
     writeLocalProfile({ ...merged, profileCompletion: completion });
 
     if (!snapshot.exists && completion.completed <= baseCompletion.completed) {
-      return {
-        profile: merged,
-        completion,
-        remoteAvailable: true,
-        source: 'empty',
-      };
+      return { profile: merged, completion, remoteAvailable: true, source: 'empty' };
     }
 
-    return {
-      profile: merged,
-      completion,
-      remoteAvailable: true,
-      source: 'firestore',
-    };
+    return { profile: merged, completion, remoteAvailable: true, source: 'firestore' };
   } catch (error) {
     const fallback = mergeProfileSources(local, cached, authProfile);
-    const recalculated = getProfileCompletion(fallback);
-    const completion = bestCompletion(fallback, recalculated);
+    const completion = bestCompletion(fallback, getProfileCompletion(fallback));
     writeLocalProfile({ ...fallback, profileCompletion: completion });
-
     return {
       profile: fallback,
       completion,
@@ -284,7 +240,6 @@ export async function saveParticipantProfile(user, profile) {
     demoAccess: false,
   });
   const completion = getProfileCompletion(next);
-
   const db = getFirebaseFirestore();
   if (!db) {
     const unavailableError = new Error('profile/storage-unavailable');
@@ -296,10 +251,7 @@ export async function saveParticipantProfile(user, profile) {
     await db.collection('users').doc(user.uid).set(
       {
         ...next,
-        profileCompletion: {
-          ...completion,
-          schemaVersion: 1,
-        },
+        profileCompletion: { ...completion, schemaVersion: 1 },
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -314,7 +266,6 @@ export async function saveParticipantProfile(user, profile) {
 
 export async function deleteParticipantData(user) {
   if (!user?.uid) return;
-
   const db = getFirebaseFirestore();
   if (db) {
     try {
@@ -323,6 +274,5 @@ export async function deleteParticipantData(user) {
       if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
     }
   }
-
   if (typeof window !== 'undefined') window.localStorage.removeItem(LOCAL_KEY);
 }
