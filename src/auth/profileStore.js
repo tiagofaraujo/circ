@@ -41,15 +41,26 @@ function validStoredCompletion(value) {
   };
 }
 
+function validStoredPercentage(value, total = 14) {
+  const percentage = Number(value);
+  if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) return null;
+  const rounded = Math.round(percentage);
+  return {
+    completed: Math.round((rounded / 100) * total),
+    total,
+    percentage: rounded,
+  };
+}
+
 function bestCompletion(profile, recalculated) {
   const stored = validStoredCompletion(profile?.profileCompletion);
-  if (!stored) return recalculated;
+  const cached = validStoredPercentage(profile?.profileCompletionPercentage, recalculated.total || 14);
+  const candidates = [recalculated, stored, cached].filter(Boolean);
 
-  // profileCompletion is written together with the profile on every successful
-  // save. Keep the strongest trustworthy result so a reconstructed profile
-  // (for example one missing sensitive fields from local cache) cannot regress
-  // a profile that Firestore already recorded as complete.
-  return stored.percentage > recalculated.percentage ? stored : recalculated;
+  return candidates.reduce(
+    (best, candidate) => candidate.percentage > best.percentage ? candidate : best,
+    recalculated
+  );
 }
 
 function localProfileForUser(user) {
@@ -117,7 +128,6 @@ function writeLocalProfile(profile) {
     demoAccess: false,
   };
 
-  // Sensitive billing and identity fields are deliberately not persisted in localStorage.
   delete safeProfile.taxNumber;
   delete safeProfile.mobile;
   delete safeProfile.dateOfBirth;
@@ -137,7 +147,6 @@ function userBaseProfile(user) {
     demoAccess: false,
   };
 
-  // Empty authentication values must never erase a name or email stored in Firestore.
   if (user?.email) profile.email = user.email;
   if (user?.displayName) profile.name = user.displayName;
 
@@ -166,7 +175,8 @@ export async function loadParticipantProfileResult(user) {
   const local = normalizeParticipantProfile(localProfileForUser(user));
   const authProfile = userBaseProfile(user);
   const base = mergeProfileSources(local, authProfile);
-  const baseCompletion = getProfileCompletion(base);
+  const baseRecalculated = getProfileCompletion(base);
+  const baseCompletion = bestCompletion(base, baseRecalculated);
 
   if (!user?.uid) {
     return {
@@ -200,14 +210,11 @@ export async function loadParticipantProfileResult(user) {
   }
 
   try {
-    // Compare server, Firestore cache and the verified legacy profile field by
-    // field. Empty remote values must not erase completed fields from another
-    // trustworthy source — that produced the recurring 5/14 (36%) result.
     const snapshot = await documentRef.get({ source: 'server' });
     const remote = snapshot.exists ? snapshot.data() || {} : {};
     const merged = mergeProfileSources(local, cached, remote, authProfile);
     const recalculatedCompletion = getProfileCompletion(merged);
-    const completion = bestCompletion(remote, recalculatedCompletion);
+    const completion = bestCompletion(merged, recalculatedCompletion);
     const remoteRecalculated = getProfileCompletion(
       mergeProfileSources(remote, authProfile)
     );
@@ -227,8 +234,6 @@ export async function loadParticipantProfileResult(user) {
           { merge: true }
         );
       } catch (recoveryError) {
-        // The recovered profile remains usable in this session even if a
-        // transient write failure prevents the background migration.
       }
     }
 
@@ -252,7 +257,7 @@ export async function loadParticipantProfileResult(user) {
   } catch (error) {
     const fallback = mergeProfileSources(local, cached, authProfile);
     const recalculated = getProfileCompletion(fallback);
-    const completion = bestCompletion(cached, recalculated);
+    const completion = bestCompletion(fallback, recalculated);
     writeLocalProfile({ ...fallback, profileCompletion: completion });
 
     return {
@@ -302,7 +307,6 @@ export async function saveParticipantProfile(user, profile) {
       { merge: true }
     );
   } catch (error) {
-    // Never report "Saved" when Firestore rejected or could not persist the profile.
     throw profileSaveError(error);
   }
 
