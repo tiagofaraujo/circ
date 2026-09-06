@@ -6,6 +6,7 @@ import {
 } from './submissionAbstract';
 
 export const submissionStatuses = ['draft', 'submitted', 'under_review', 'revisions', 'accepted', 'rejected'];
+export const reviewSubmissionStatuses = submissionStatuses.filter((status) => status !== 'draft');
 
 export function attendanceKey(eventDay) {
   return `day_${String(eventDay || '').replace(/-/g, '_')}`;
@@ -48,9 +49,14 @@ export function subscribeToSubmissions(onData, onError) {
 
   return db.collection('submissions')
     .where('eventId', '==', 'circ-2027')
+    .where('status', 'in', reviewSubmissionStatuses)
     .limit(500)
     .onSnapshot(
-      (snapshot) => onData(sortNewest(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))),
+      (snapshot) => onData(sortNewest(
+        snapshot.docs
+          .map((item) => ({ id: item.id, ...item.data() }))
+          .filter((item) => item.status !== 'draft')
+      )),
       onError
     );
 }
