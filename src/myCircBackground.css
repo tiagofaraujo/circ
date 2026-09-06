@@ -3,7 +3,8 @@
   background: var(--paper, #efe8df) !important;
 }
 
-.my-circ-sidebar {
+.my-circ-sidebar,
+.my-circ-topbar {
   background: var(--paper, #efe8df) !important;
 }
 
