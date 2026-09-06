@@ -2,3 +2,19 @@
 .my-circ-app {
   background: var(--paper, #efe8df) !important;
 }
+
+.my-circ-sidebar__management {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--app-line);
+}
+
+.my-circ-sidebar__management > .my-circ-label {
+  margin-bottom: 10px;
+  padding: 0 16px;
+}
+
+.my-circ-app .admin-page {
+  max-width: none;
+  padding: 0 0 48px;
+}
