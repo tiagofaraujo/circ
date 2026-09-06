@@ -8,6 +8,18 @@
   background: var(--paper, #efe8df) !important;
 }
 
+.my-circ-avatar {
+  overflow: hidden;
+}
+
+.my-circ-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
 .my-circ-sidebar__management {
   margin-top: 24px;
   padding-top: 20px;
