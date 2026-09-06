@@ -277,6 +277,8 @@ service cloud.firestore {
           && request.resource.data.submissionId is string
           && request.resource.data.action in [
             'submission.test.created',
+            'submission.test.updated',
+            'submission.test.submitted',
             'submission.test.deleted'
           ]
         )
