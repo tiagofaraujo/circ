@@ -590,7 +590,7 @@ export default function ScientificSubmissionsPage() {
         </div>
       </section>
 
-      <section className="submissions-lower-grid">
+      <section className="submissions-lower-grid" id="my-works">
         {ownSubmissions.length > 0 ? (
           <article className="submissions-test-list">
             <header>

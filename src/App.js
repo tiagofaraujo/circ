@@ -36,8 +36,10 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminSecretariatPage from './pages/AdminSecretariatPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
+import MyCircHome from './pages/MyCircHome';
+import MyCircShell from './components/MyCircShell';
+import { MyCircInstallProvider } from './pwa/MyCircInstall';
 import {
-  AuthenticatedAccountPage,
   ForgotPasswordPage,
   LoginPage,
 } from './pages/AuthPages';
@@ -46,27 +48,41 @@ import './App.css';
 import './event2027.css';
 import './hero2027.css';
 import './photo2025.css';
+import './myCircApp.css';
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [pathname]);
+    const frame = window.requestAnimationFrame(() => {
+      const target = hash === '#my-works' ? document.getElementById('my-works') : null;
+      if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+      else window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, hash]);
 
   return null;
 }
 
 function App() {
+  const { pathname } = useLocation();
+  const isPersonalArea = pathname === '/conta' || pathname.startsWith('/conta/')
+    || ['/login', '/registar', '/recuperar-password'].includes(pathname);
+  const Frame = isPersonalArea ? MyCircShell : React.Fragment;
+
   return (
     <LanguageProvider>
       <AuthProvider>
-        <div className="App">
+        <MyCircInstallProvider>
+        <div className={`App${isPersonalArea ? ' App--personal' : ''}`}>
           <ScrollToTop />
-          <Navbar />
+          {!isPersonalArea && <Navbar />}
 
+          <Frame>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/app" element={<Navigate to="/conta" replace />} />
             <Route path="/2027" element={<Navigate to="/" replace />} />
             <Route path="/programa" element={<ProgramPage2027 />} />
             <Route path="/participar" element={<ParticipatePage2027 />} />
@@ -88,10 +104,11 @@ function App() {
               path="/conta"
               element={
                 <ProtectedRoute>
-                  <AuthenticatedAccountPage />
+                  <MyCircHome />
                 </ProtectedRoute>
               }
             />
+            <Route path="/conta/programa" element={<ProtectedRoute><ProgramPage2027 /></ProtectedRoute>} />
             <Route
               path="/conta/perfil"
               element={
@@ -168,10 +185,12 @@ function App() {
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          </Frame>
 
-          <Footer />
+          {!isPersonalArea && <Footer />}
           <CookiesConsent />
         </div>
+        </MyCircInstallProvider>
       </AuthProvider>
     </LanguageProvider>
   );
