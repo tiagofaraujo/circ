@@ -30,7 +30,7 @@ function LegalSection({ title, children }) {
 function LegalMeta({ en }) {
   return (
     <div className="legal-meta">
-      <span>{en ? 'Last updated · 19 August 2026' : 'Última atualização · 19 agosto 2026'}</span>
+      <span>{en ? 'Last updated · 6 September 2026' : 'Última atualização · 6 setembro 2026'}</span>
       <span>circ-coimbra.org</span>
       <span>Associação Hemisfério Disciplinado · NIF 517 072 262</span>
     </div>
@@ -55,8 +55,8 @@ export function PrivacyPolicyPage() {
 
       <div className="legal-intro">
         {en
-          ? 'This policy modernises the privacy information from the former CIRC website and reflects the current website architecture. It will be reviewed again before registrations and payments for CIRC 2027 open.'
-          : 'Esta política atualiza a informação de privacidade do antigo website CIRC e reflete a arquitetura atual do site. Será novamente revista antes da abertura das inscrições e pagamentos do CIRC 2027.'}
+          ? 'This policy reflects the current My CIRC account and participant-profile architecture. It will be reviewed again whenever registration, payment, scientific-submission, certificate or analytics services are activated or materially changed.'
+          : 'Esta política reflete a arquitetura atual da conta e do perfil de participante My CIRC. Será novamente revista sempre que sejam ativados ou materialmente alterados serviços de inscrição, pagamento, submissões científicas, certificados ou analítica.'}
       </div>
 
       <LegalSection title={en ? '1. Who is responsible for the data' : '1. Quem é responsável pelos dados'}>
@@ -71,18 +71,22 @@ export function PrivacyPolicyPage() {
       <LegalSection title={en ? '2. Data we may process' : '2. Dados que podemos tratar'}>
         <ul>
           <li>{en ? 'Contact form: name, email address, subject and message.' : 'Formulário de contacto: nome, endereço de email, assunto e mensagem.'}</li>
-          <li>{en ? 'My CIRC account: email address, account identifier and, where provided by the user or Google, name and profile photograph.' : 'Conta My CIRC: endereço de email, identificador da conta e, quando fornecidos pelo utilizador ou pela conta Google, nome e fotografia de perfil.'}</li>
-          <li>{en ? 'Authentication security data processed by the authentication provider, which may include device/browser information and IP address for security and abuse prevention.' : 'Dados técnicos de segurança tratados pelo fornecedor de autenticação, que podem incluir informação do dispositivo/browser e endereço IP para segurança e prevenção de abuso.'}</li>
-          <li>{en ? 'Future registration data: professional, institutional, attendance, invoicing and payment information, once registration services are activated.' : 'Futuros dados de inscrição: informação profissional, institucional, de participação, faturação e pagamento, quando os serviços de inscrição forem ativados.'}</li>
+          <li>{en ? 'My CIRC account: email address, Firebase account identifier, name and, where provided by an authentication provider, profile photograph.' : 'Conta My CIRC: endereço de email, identificador Firebase da conta, nome e, quando disponibilizada por um fornecedor de autenticação, fotografia de perfil.'}</li>
+          <li>{en ? 'Participant profile: date of birth, gender when provided, tax/VAT number, mobile phone, country of residence, profession, institution or organisation and professional licence/identifier where applicable.' : 'Perfil de participante: data de nascimento, sexo/género quando indicado, NIF/VAT, telemóvel, país de residência, profissão, instituição ou organização e cédula/identificador profissional quando aplicável.'}</li>
+          <li>{en ? 'Billing profile: billing address, postal code, city and billing country.' : 'Perfil de faturação: morada, código postal, localidade e país de faturação.'}</li>
+          <li>{en ? 'Technical account activity used to operate and administer the platform, such as authentication state and online/away/last-activity information.' : 'Atividade técnica da conta necessária à operação e administração da plataforma, como estado de autenticação e informação de presença online/ausente/última atividade.'}</li>
+          <li>{en ? 'Authentication and security data processed by the authentication or infrastructure providers, which may include device/browser information and IP address for security and abuse prevention.' : 'Dados de autenticação e segurança tratados pelos fornecedores de autenticação ou infraestrutura, que podem incluir informação do dispositivo/browser e endereço IP para segurança e prevenção de abuso.'}</li>
+          <li>{en ? 'Registration, attendance, invoicing, payment, certificate and related document data when those event services are activated.' : 'Dados de inscrição, participação, faturação, pagamento, certificados e documentação associada quando esses serviços do evento forem ativados.'}</li>
+          <li>{en ? 'Scientific submission data, including title, authors, affiliations and abstract or other scientific content, when real submissions are activated.' : 'Dados de submissões científicas, incluindo título, autores, afiliações e resumo ou outro conteúdo científico, quando as submissões reais forem ativadas.'}</li>
         </ul>
       </LegalSection>
 
       <LegalSection title={en ? '3. Why we use the data' : '3. Para que utilizamos os dados'}>
         <ul>
           <li>{en ? 'To answer contact requests and provide information about CIRC.' : 'Responder a pedidos de contacto e prestar informação sobre o CIRC.'}</li>
-          <li>{en ? 'To create, secure and manage the participant account.' : 'Criar, proteger e gerir a conta de participante.'}</li>
-          <li>{en ? 'To manage registrations, participation, certificates and related documentation when these functions become available.' : 'Gerir inscrições, participação, certificados e documentação associada quando essas funcionalidades estiverem disponíveis.'}</li>
-          <li>{en ? 'To comply with legal, accounting and security obligations applicable to the organisation.' : 'Cumprir obrigações legais, contabilísticas e de segurança aplicáveis à organização.'}</li>
+          <li>{en ? 'To create, secure, operate and manage the participant account and profile.' : 'Criar, proteger, operar e gerir a conta e o perfil de participante.'}</li>
+          <li>{en ? 'To manage registrations, participation, certificates, scientific submissions and related documentation when these functions become available.' : 'Gerir inscrições, participação, certificados, submissões científicas e documentação associada quando essas funcionalidades estiverem disponíveis.'}</li>
+          <li>{en ? 'To prepare invoicing and comply with legal, accounting and security obligations applicable to the organisation.' : 'Preparar faturação e cumprir obrigações legais, contabilísticas e de segurança aplicáveis à organização.'}</li>
           <li>{en ? 'Marketing communications will only be sent where there is an appropriate legal basis, including consent where required.' : 'Comunicações de marketing apenas serão enviadas quando exista fundamento jurídico adequado, incluindo consentimento quando exigível.'}</li>
         </ul>
       </LegalSection>
@@ -90,8 +94,8 @@ export function PrivacyPolicyPage() {
       <LegalSection title={en ? '4. Technology and service providers' : '4. Tecnologia e prestadores de serviços'}>
         <p>
           {en
-            ? 'The website is delivered through Cloudflare infrastructure. My CIRC uses Google Firebase Authentication and, when registrations are active, Cloud Firestore and private Cloud Storage for registration records and related documents. The contact form is transmitted through EmailJS to the organisation email account. These providers process data only to the extent required to provide their respective technical services and according to their own contractual and privacy frameworks.'
-            : 'O website é disponibilizado através de infraestrutura Cloudflare. O My CIRC utiliza Google Firebase Authentication e, quando as inscrições estiverem ativas, Cloud Firestore e Cloud Storage privado para registos de inscrição e documentos associados. O formulário de contacto é transmitido através do EmailJS para a caixa de correio da organização. Estes prestadores tratam dados na medida necessária à prestação dos respetivos serviços técnicos e de acordo com os seus enquadramentos contratuais e de privacidade.'}
+            ? 'The website is delivered through Cloudflare infrastructure. My CIRC uses Google Firebase Authentication and Cloud Firestore for account, participant-profile and technical platform records. Private Cloud Storage may be used when document functions are activated. The contact form is transmitted through EmailJS to the organisation email account. These providers process data to the extent required to provide their respective technical services and according to their contractual and privacy frameworks.'
+            : 'O website é disponibilizado através de infraestrutura Cloudflare. O My CIRC utiliza Google Firebase Authentication e Cloud Firestore para registos de conta, perfil de participante e operação técnica da plataforma. O Cloud Storage privado poderá ser utilizado quando sejam ativadas funções documentais. O formulário de contacto é transmitido através do EmailJS para a caixa de correio da organização. Estes prestadores tratam dados na medida necessária à prestação dos respetivos serviços técnicos e de acordo com os seus enquadramentos contratuais e de privacidade.'}
         </p>
         <p>
           <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">Firebase · Privacy &amp; Security</a>{' · '}
@@ -103,8 +107,8 @@ export function PrivacyPolicyPage() {
       <LegalSection title={en ? '5. Retention' : '5. Conservação'}>
         <p>
           {en
-            ? 'Personal data is kept only for as long as necessary for the purpose for which it was collected and for any applicable legal or administrative obligations. Account information may be retained while the account remains active. Registration, invoicing and accounting records may need to be retained for legally required periods.'
-            : 'Os dados pessoais são conservados apenas durante o período necessário à finalidade para a qual foram recolhidos e ao cumprimento de obrigações legais ou administrativas aplicáveis. A informação da conta pode ser conservada enquanto a conta se mantiver ativa. Registos de inscrição, faturação e contabilidade poderão ter de ser conservados durante os prazos legalmente exigidos.'}
+            ? 'Personal data is kept only for as long as necessary for the purpose for which it was collected and for applicable legal or administrative obligations. Account and participant-profile information may be retained while the account remains active. Registration, invoicing, payment, audit and accounting records may need to be retained for legally required periods even after an account is deleted.'
+            : 'Os dados pessoais são conservados apenas durante o período necessário à finalidade para a qual foram recolhidos e ao cumprimento de obrigações legais ou administrativas aplicáveis. A informação da conta e do perfil de participante pode ser conservada enquanto a conta se mantiver ativa. Registos de inscrição, faturação, pagamento, auditoria e contabilidade poderão ter de ser conservados durante os prazos legalmente exigidos, mesmo após a eliminação de uma conta.'}
         </p>
       </LegalSection>
 
@@ -117,11 +121,20 @@ export function PrivacyPolicyPage() {
         <p><a href="https://www.cnpd.pt/" target="_blank" rel="noopener noreferrer">CNPD</a></p>
       </LegalSection>
 
-      <LegalSection title={en ? '7. Updates to this policy' : '7. Atualizações desta política'}>
+      <LegalSection title={en ? '7. Account deletion' : '7. Eliminação de conta'}>
         <p>
           {en
-            ? 'This policy may be updated as the CIRC 2027 registration, payment, certificate or analytics services are activated. Material changes will be reflected on this page with a revised update date.'
-            : 'Esta política poderá ser atualizada à medida que forem ativados os serviços de inscrição, pagamento, certificados ou analítica do CIRC 2027. Alterações relevantes serão refletidas nesta página com nova data de atualização.'}
+            ? 'A My CIRC account can be permanently deleted from the Security area after identity verification. A public account-deletion resource is also available for users who no longer have the app installed or need to initiate the process from the web.'
+            : 'Uma conta My CIRC pode ser eliminada permanentemente na área Segurança após verificação de identidade. Existe também um recurso público de eliminação de conta para utilizadores que já não tenham a app instalada ou necessitem de iniciar o processo através da Web.'}
+        </p>
+        <p><Link className="text-link" to="/eliminar-conta">{en ? 'Delete a My CIRC account' : 'Eliminar uma conta My CIRC'}</Link></p>
+      </LegalSection>
+
+      <LegalSection title={en ? '8. Updates to this policy' : '8. Atualizações desta política'}>
+        <p>
+          {en
+            ? 'This policy may be updated as the CIRC 2027 registration, payment, certificate, scientific-submission or analytics services are activated. Material changes will be reflected on this page with a revised update date.'
+            : 'Esta política poderá ser atualizada à medida que forem ativados os serviços de inscrição, pagamento, certificados, submissões científicas ou analítica do CIRC 2027. Alterações relevantes serão refletidas nesta página com nova data de atualização.'}
         </p>
       </LegalSection>
 
@@ -159,6 +172,7 @@ export function CookiesPolicyPage() {
           <li>{en ? 'Language preference (Portuguese or English).' : 'Preferência de idioma (português ou inglês).'}</li>
           <li>{en ? 'The choice made in the privacy/cookie notice.' : 'A escolha efetuada no aviso de privacidade/cookies.'}</li>
           <li>{en ? 'Authentication state required to keep a user signed in to My CIRC, when authentication is active.' : 'Estado de autenticação necessário para manter a sessão do My CIRC, quando a autenticação está ativa.'}</li>
+          <li>{en ? 'A limited local My CIRC profile cache may contain the account identifier, email, name, profile-photo URL, profession, institution and professional identifier. Sensitive identity and billing fields such as tax number, mobile phone, date of birth, gender and billing address are deliberately excluded from this local profile cache.' : 'Uma cache local limitada do perfil My CIRC pode conter o identificador da conta, email, nome, URL da fotografia de perfil, profissão, instituição e identificador profissional. Campos sensíveis de identidade e faturação como NIF, telemóvel, data de nascimento, sexo/género e morada de faturação são deliberadamente excluídos desta cache local do perfil.'}</li>
           <li>{en ? 'Security-related technologies that may be applied by infrastructure providers such as Cloudflare or Firebase.' : 'Tecnologias relacionadas com segurança que podem ser aplicadas por prestadores de infraestrutura como Cloudflare ou Firebase.'}</li>
         </ul>
       </LegalSection>
@@ -174,8 +188,8 @@ export function CookiesPolicyPage() {
       <LegalSection title={en ? '4. Managing browser data' : '4. Gerir dados do browser'}>
         <p>
           {en
-            ? 'You can clear cookies and local website data using your browser settings. Doing so may reset the language, privacy preference or signed-in session.'
-            : 'Pode eliminar cookies e dados locais do website através das definições do seu browser. Ao fazê-lo poderá repor o idioma, a preferência de privacidade ou terminar a sessão autenticada.'}
+            ? 'You can clear cookies and local website data using your browser settings. Doing so may reset the language, privacy preference, cached My CIRC profile information or signed-in session.'
+            : 'Pode eliminar cookies e dados locais do website através das definições do seu browser. Ao fazê-lo poderá repor o idioma, a preferência de privacidade, a informação de perfil My CIRC em cache ou terminar a sessão autenticada.'}
         </p>
       </LegalSection>
 
