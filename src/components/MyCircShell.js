@@ -24,6 +24,7 @@ export default function MyCircShell({ children }) {
   const [online, setOnline] = useState(() => navigator.onLine);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const { installed } = useMyCircInstall();
 
   useEffect(() => {
@@ -35,6 +36,10 @@ export default function MyCircShell({ children }) {
       window.removeEventListener('offline', update);
     };
   }, []);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.photoURL]);
 
   const logout = async () => {
     setBusy(true);
@@ -65,6 +70,9 @@ export default function MyCircShell({ children }) {
     </NavLink>
   ));
 
+  const avatarUrl = user?.photoURL || '';
+  const avatarFallback = (user?.displayName || user?.email || 'C').trim().slice(0, 1).toUpperCase();
+
   return (
     <div className={`my-circ-app${user ? ' my-circ-app--signed-in' : ''}`}>
       <a className="my-circ-skip" href="#my-circ-content">{en ? 'Skip to content' : 'Saltar para o conteúdo'}</a>
@@ -79,7 +87,14 @@ export default function MyCircShell({ children }) {
           </button>
           {user ? <>
             <Link className="my-circ-avatar" to="/conta/perfil" aria-label={en ? 'Your profile' : 'O seu perfil'}>
-              {(user.displayName || user.email || 'C').trim().slice(0, 1).toUpperCase()}
+              {avatarUrl && !avatarFailed ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : avatarFallback}
             </Link>
             <button className="my-circ-icon-button" type="button" onClick={logout} disabled={busy} aria-label={en ? 'Sign out' : 'Terminar sessão'} title={en ? 'Sign out' : 'Terminar sessão'}>
               <AppIcon name="arrow-right-from-bracket" />
