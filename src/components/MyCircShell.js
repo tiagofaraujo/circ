@@ -17,7 +17,7 @@ const accountLinks = [
 ];
 
 export default function MyCircShell({ children }) {
-  const { user, signOut } = useAuth();
+  const { user, access, signOut } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const en = language === 'en';
   const navigate = useNavigate();
@@ -55,6 +55,16 @@ export default function MyCircShell({ children }) {
     </NavLink>
   ));
 
+  const managementLinks = [
+    access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management', true],
+    access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management', false],
+    access?.canUseSecretariat && ['/admin/secretariado', 'id-card', 'Secretariado', 'Event desk', false],
+  ].filter(Boolean).map(([to, icon, pt, english, end]) => (
+    <NavLink key={to} to={to} end={end} className={({ isActive }) => isActive ? 'is-active' : ''}>
+      <AppIcon name={icon} /><span>{en ? english : pt}</span>
+    </NavLink>
+  ));
+
   return (
     <div className={`my-circ-app${user ? ' my-circ-app--signed-in' : ''}`}>
       <a className="my-circ-skip" href="#my-circ-content">{en ? 'Skip to content' : 'Saltar para o conteúdo'}</a>
@@ -81,6 +91,10 @@ export default function MyCircShell({ children }) {
       {user && <aside className="my-circ-sidebar">
         <p className="my-circ-label">{en ? 'Your space' : 'O seu espaço'}</p>
         <nav aria-label={en ? 'Main navigation' : 'Navegação principal'}>{links}</nav>
+        {managementLinks.length > 0 && <div className="my-circ-sidebar__management">
+          <p className="my-circ-label">{en ? 'Management' : 'Gestão'}</p>
+          <nav aria-label={en ? 'Management modules' : 'Módulos de gestão'}>{managementLinks}</nav>
+        </div>}
         <div className="my-circ-sidebar__support">
           <NavLink to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Security' : 'Segurança'}</NavLink>
           <Link to="/contactos"><AppIcon name="circle-question" />{en ? 'Help & contacts' : 'Ajuda e contactos'}</Link>
