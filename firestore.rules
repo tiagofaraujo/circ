@@ -201,7 +201,11 @@ service cloud.firestore {
     }
 
     match /submissions/{submissionId} {
-      allow read: if canManageSubmissions()
+      allow read: if isAdmin()
+        || (
+          canManageSubmissions()
+          && resource.data.status != 'draft'
+        )
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if isAdmin()
         || (
@@ -228,7 +232,6 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'review', 'updatedAt'])
           && request.resource.data.status in [
-            'draft',
             'submitted',
             'under_review',
             'revisions',
