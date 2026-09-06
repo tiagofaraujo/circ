@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
-  submissionStatuses,
+  reviewSubmissionStatuses,
   subscribeToSubmissions,
   updateSubmissionReview,
 } from '../auth/adminOperationsStore';
@@ -62,6 +62,22 @@ function csvCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
+function canRevealIdentity(submission) {
+  return submission?.status === 'accepted';
+}
+
+function submissionForReviewExport(submission) {
+  if (canRevealIdentity(submission)) return submission;
+
+  return {
+    ...submission,
+    contactName: 'Anonimizado até à aceitação',
+    contactEmail: '—',
+    authors: 'Anonimizado até à aceitação',
+    affiliation: '—',
+  };
+}
+
 function exportSubmissions(items) {
   const header = [
     'Código',
@@ -84,14 +100,15 @@ function exportSubmissions(items) {
   ];
   const rows = items.map((item) => {
     const sections = normalizeAbstractSections(item.abstractSections);
+    const exportItem = submissionForReviewExport(item);
     return [
       item.code || item.id,
       typeLabels[item.type] || item.type,
       item.title,
-      item.contactName,
-      item.contactEmail,
-      String(item.authors || '').replace(/\n/g, ' · '),
-      item.affiliation,
+      exportItem.contactName,
+      exportItem.contactEmail,
+      String(exportItem.authors || '').replace(/\n/g, ' · '),
+      exportItem.affiliation,
       sections.introduction,
       sections.objective,
       sections.methods,
@@ -128,7 +145,7 @@ export default function AdminSubmissionsPage() {
 
   useEffect(() => subscribeToSubmissions(
     (items) => {
-      setSubmissions(items);
+      setSubmissions(items.filter((item) => item.status !== 'draft'));
       setLoading(false);
       setError('');
     },
@@ -144,7 +161,10 @@ export default function AdminSubmissionsPage() {
       const matchesType = typeFilter === 'all' || item.type === typeFilter;
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
       const abstractText = Object.values(normalizeAbstractSections(item.abstractSections)).join(' ');
-      const haystack = `${item.code || item.id} ${item.title || ''} ${item.contactName || ''} ${item.contactEmail || ''} ${item.authors || ''} ${item.affiliation || ''} ${abstractText} ${item.abstract || ''}`.toLowerCase();
+      const identityText = canRevealIdentity(item)
+        ? `${item.contactName || ''} ${item.contactEmail || ''} ${item.authors || ''} ${item.affiliation || ''}`
+        : '';
+      const haystack = `${item.code || item.id} ${item.title || ''} ${identityText} ${abstractText} ${item.abstract || ''}`.toLowerCase();
       return matchesType && matchesStatus && (!needle || haystack.includes(needle));
     });
   }, [query, statusFilter, submissions, typeFilter]);
@@ -236,7 +256,7 @@ export default function AdminSubmissionsPage() {
   const exportPdf = (submission) => {
     setError('');
     try {
-      exportSubmissionPdf(submission, { language: 'pt' });
+      exportSubmissionPdf(submissionForReviewExport(submission), { language: 'pt' });
     } catch (exportError) {
       setError('Não foi possível abrir o PDF. Confirme se o navegador bloqueou a nova janela.');
     }
@@ -272,7 +292,7 @@ export default function AdminSubmissionsPage() {
         <div className="admin-toolbar admin-toolbar--submissions">
           <label>
             <span>Pesquisar</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Código, título, autor ou instituição" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Código, título ou conteúdo científico" />
           </label>
           <label>
             <span>Tipologia</span>
@@ -286,7 +306,7 @@ export default function AdminSubmissionsPage() {
             <span>Estado</span>
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="all">Todos</option>
-              {submissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+              {reviewSubmissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
             </select>
           </label>
           <button type="button" className="admin-export" onClick={() => exportSubmissions(visibleSubmissions)} disabled={!visibleSubmissions.length}>Exportar CSV</button>
@@ -297,14 +317,15 @@ export default function AdminSubmissionsPage() {
         {!loading && !error && !visibleSubmissions.length && (
           <div className="admin-empty">
             <strong>Ainda não existem trabalhos neste resultado.</strong>
-            <p>As submissões criadas no Centro de Submissões surgirão aqui automaticamente.</p>
+            <p>Os trabalhos surgirão aqui apenas depois de serem submetidos pelo autor.</p>
           </div>
         )}
 
         {!loading && visibleSubmissions.length > 0 && (
           <div className="admin-submission-list">
             {visibleSubmissions.map((submission) => {
-              const currentStatus = statusDrafts[submission.id] || submission.status || 'draft';
+              const currentStatus = statusDrafts[submission.id] || submission.status || 'submitted';
+              const identityVisible = canRevealIdentity(submission);
               const currentNote = noteDrafts[submission.id] ?? submission.review?.note ?? '';
               const changed = currentStatus !== (submission.status || 'draft') || currentNote.trim() !== String(submission.review?.note || '').trim();
               const submittedAt = submission.submittedAt
@@ -322,15 +343,24 @@ export default function AdminSubmissionsPage() {
                       <h2>{submission.title || 'Trabalho sem título'}</h2>
                     </div>
                     <div className="admin-submission__contact">
-                      <span>Autor de contacto</span>
-                      <strong>{submission.contactName || '—'}</strong>
-                      <small>{submission.contactEmail || '—'}</small>
-                      <small>{submission.affiliation || 'Instituição não indicada'}</small>
+                      <span>{identityVisible ? 'Autor de contacto' : 'Identificação dos autores'}</span>
+                      {identityVisible ? (
+                        <>
+                          <strong>{submission.contactName || '—'}</strong>
+                          <small>{submission.contactEmail || '—'}</small>
+                          <small>{submission.affiliation || 'Instituição não indicada'}</small>
+                        </>
+                      ) : (
+                        <>
+                          <strong>Avaliação anónima</strong>
+                          <small>Disponível apenas após a aceitação.</small>
+                        </>
+                      )}
                     </div>
                     <label className="admin-submission__status">
                       <span>Estado científico</span>
                       <select className={`submission-status submission-status--${currentStatus}`} value={currentStatus} onChange={(event) => saveStatus(submission, event.target.value)} disabled={savingId === submission.id}>
-                        {submissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+                        {reviewSubmissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
                       </select>
                       <small
                         className={`admin-submission__status-feedback ${statusFeedbacks[submission.id]?.kind ? `is-${statusFeedbacks[submission.id].kind}` : ''}`}
@@ -340,7 +370,7 @@ export default function AdminSubmissionsPage() {
                       </small>
                       <div className="admin-submission__timestamps">
                         <small>
-                          <strong>{submittedAt ? 'Submetido em' : 'Rascunho criado em'}</strong>
+                          <strong>Submetido em</strong>
                           {formatDate(submittedAt || submission.createdAt)}
                         </small>
                         <small>
@@ -356,7 +386,11 @@ export default function AdminSubmissionsPage() {
                     <div className="admin-submission__content">
                       <div>
                         <span>Autores</span>
-                        <p>{String(submission.authors || '—').split('\n').map((author, index) => <React.Fragment key={`${author}-${index}`}>{author}<br /></React.Fragment>)}</p>
+                        {identityVisible ? (
+                          <p>{String(submission.authors || '—').split('\n').map((author, index) => <React.Fragment key={`${author}-${index}`}>{author}<br /></React.Fragment>)}</p>
+                        ) : (
+                          <p>A identificação permanece oculta durante a avaliação científica.</p>
+                        )}
                       </div>
                       <div className="admin-submission__abstract">
                         <span>{submission.abstractSections ? 'Resumo estruturado' : 'Resumo'}</span>
