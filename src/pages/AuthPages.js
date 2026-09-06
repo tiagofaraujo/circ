@@ -474,7 +474,12 @@ export function AuthenticatedAccountPage() {
       }
 
       setParticipantProfile(result.profile);
-      setProfileLoadState(result.source === 'firestore' ? 'ready' : result.source);
+      const completionIsReliable = (
+        result.source === 'firestore'
+        || result.source === 'cache'
+        || result.completion?.percentage === 100
+      );
+      setProfileLoadState(completionIsReliable ? 'ready' : result.source);
     };
 
     loadProfile();
