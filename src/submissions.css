@@ -659,12 +659,68 @@
   letter-spacing: 0.07em;
 }
 
-.submissions-test-list__topline strong {
-  color: var(--blue);
+/* Keep the written state visible; colour adds a second recognition cue. */
+.submissions-test-list__topline strong,
+.my-circ-recent-work .my-circ-status {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
 }
 
-.submissions-test-list__topline strong.is-submitted {
-  color: #267044;
+.submissions-test-list__topline {
+  flex-wrap: wrap;
+}
+
+.submissions-test-list__topline strong.is-draft,
+.my-circ-recent-work .my-circ-status.is-draft {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.submissions-test-list__topline strong.is-submitted,
+.my-circ-recent-work .my-circ-status.is-submitted {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.submissions-test-list__topline strong.is-under_review,
+.my-circ-recent-work .my-circ-status.is-under_review {
+  border-color: #e9d5ff;
+  background: #faf5ff;
+  color: #6b21a8;
+}
+
+.submissions-test-list__topline strong.is-revisions,
+.my-circ-recent-work .my-circ-status.is-revisions {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.submissions-test-list__topline strong.is-accepted,
+.my-circ-recent-work .my-circ-status.is-accepted {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.submissions-test-list__topline strong.is-rejected,
+.my-circ-recent-work .my-circ-status.is-rejected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .submissions-test-list article > p {
