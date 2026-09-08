@@ -55,17 +55,25 @@ function serviceNotReady(error) {
   return ['failed-precondition', 'not-found', 'unavailable'].includes(code);
 }
 
-export async function loadParticipantProfile(user) {
+export async function loadParticipantProfileResult(user) {
   const local = readLocalProfile();
   const base = { ...local, ...userBaseProfile(user) };
-  if (!user?.uid) return base;
+
+  if (!user?.uid) {
+    return { profile: base, remoteAvailable: false, source: 'local' };
+  }
 
   const db = getFirebaseFirestore();
-  if (!db) return base;
+  if (!db) {
+    return { profile: base, remoteAvailable: false, source: 'unavailable' };
+  }
 
   try {
     const snapshot = await db.collection('users').doc(user.uid).get();
-    if (!snapshot.exists) return base;
+    if (!snapshot.exists) {
+      return { profile: base, remoteAvailable: true, source: 'empty' };
+    }
+
     const remote = snapshot.data() || {};
     const merged = {
       ...local,
@@ -74,10 +82,21 @@ export async function loadParticipantProfile(user) {
       photoURL: user?.photoURL || '',
     };
     writeLocalProfile(merged);
-    return merged;
+
+    return { profile: merged, remoteAvailable: true, source: 'firestore' };
   } catch (error) {
-    return base;
+    return {
+      profile: base,
+      remoteAvailable: false,
+      source: 'fallback',
+      errorCode: error?.code || 'unknown',
+    };
   }
+}
+
+export async function loadParticipantProfile(user) {
+  const result = await loadParticipantProfileResult(user);
+  return result.profile;
 }
 
 export async function saveParticipantProfile(user, profile) {
