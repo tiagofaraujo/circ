@@ -21,3 +21,12 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Institutional verification: dependencies and private runtime inputs
+/functions/node_modules/
+/functions/.env*
+!/functions/.env.example
+/functions/.secret*
+/private-data/
+/functions/private-data/
+/functions/coverage/

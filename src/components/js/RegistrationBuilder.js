@@ -8,6 +8,8 @@ import {
   subscribeToAdminTestRegistration,
 } from '../../auth/registrationStore';
 import { useLanguage } from '../../context/LanguageContext';
+import { useUlsEligibility } from '../../auth/ulsEligibilityStore';
+import UlsVerification from './UlsVerification';
 import {
   calculateRegistrationTotal,
   formatEuro,
@@ -257,6 +259,7 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
 function RegistrationBuilder() {
   const { language } = useLanguage();
   const { user, isAdmin } = useAuth();
+  const ulsEligibility = useUlsEligibility(user);
   const en = language === 'en';
   const [profile, setProfile] = useState('');
   const [courseAffiliation, setCourseAffiliation] = useState('');
@@ -320,10 +323,12 @@ function RegistrationBuilder() {
   };
   const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse || dinnerQuantity);
   const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
-  const coursesReady = Boolean(profile && profile !== 'student' && courseAffiliation);
+  // Administrative simulations remain explicitly marked as tests and never request payment.
+  const profileReady = Boolean(profile && (profile !== 'uls' || ulsEligibility.verified || isAdmin));
+  const coursesReady = Boolean(profileReady && profile !== 'student' && courseAffiliation);
   const hasCourse = profile !== 'student' && (morningCourse || afternoonCourse);
   const testSelectionReady = Boolean(
-    profile
+    profileReady
     && congressMode
     && (congressMode !== 'courses-only' || hasCourse)
     && (!hasCourse || courseAffiliation)
@@ -389,7 +394,7 @@ function RegistrationBuilder() {
                 onChange={setProfile}
                 eyebrow="ULS Coimbra"
                 title={en ? 'Delegate' : 'Congressista'}
-                text={en ? 'ULS Coimbra professionals.' : 'Profissionais da ULS Coimbra.'}
+                text={en ? 'Eligible professionals. Institutional MEC validation required.' : 'Profissionais elegíveis. Requer validação institucional do MEC.'}
               />
               <ChoiceCard
                 name="participant-profile"
@@ -412,7 +417,9 @@ function RegistrationBuilder() {
             </div>
           </section>
 
-          <section className={`registration-step${!profile ? ' is-locked' : ''}`} aria-labelledby="registration-congress-title">
+          {profile === 'uls' && <UlsVerification key={user?.uid || 'guest'} user={user} eligibility={ulsEligibility} en={en} />}
+
+          <section className={`registration-step${!profileReady ? ' is-locked' : ''}`} aria-labelledby="registration-congress-title">
             <div className="registration-step__heading">
               <span>02</span>
               <div>
@@ -421,12 +428,13 @@ function RegistrationBuilder() {
               </div>
             </div>
             {!profile && <p className="registration-step__lock-note">{en ? 'Select your profile first.' : 'Selecione primeiro o seu perfil.'}</p>}
+            {profile === 'uls' && !profileReady && <p className="registration-step__lock-note">{en ? 'Validate your employee number above to continue in the ULS Coimbra category.' : 'Valide o MEC acima para continuar na categoria ULS Coimbra.'}</p>}
             <div className="registration-choice-grid registration-choice-grid--three">
               <ChoiceCard
                 name="congress-mode"
                 value="onsite"
                 selected={congressMode === 'onsite'}
-                disabled={!profile}
+                disabled={!profileReady}
                 onChange={setCongressMode}
                 eyebrow={en ? 'Coimbra · In person' : 'Coimbra · Presencial'}
                 title="CIRC 2027"
@@ -436,7 +444,7 @@ function RegistrationBuilder() {
                 name="congress-mode"
                 value="virtual"
                 selected={congressMode === 'virtual'}
-                disabled={!profile}
+                disabled={!profileReady}
                 onChange={setCongressMode}
                 eyebrow={en ? 'Online access' : 'Acesso online'}
                 title={en ? 'Virtual congress' : 'Congresso virtual'}
@@ -447,7 +455,7 @@ function RegistrationBuilder() {
                   name="congress-mode"
                   value="courses-only"
                   selected={congressMode === 'courses-only'}
-                  disabled={!profile}
+                  disabled={!profileReady}
                   onChange={setCongressMode}
                   eyebrow={en ? '8 April only' : 'Apenas 8 de abril'}
                   title={en ? 'Courses only' : 'Apenas cursos'}

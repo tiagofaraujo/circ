@@ -155,6 +155,40 @@ service cloud.firestore {
         );
     }
 
+    function hasVerifiedUlsEligibility(userId) {
+      let eligibility = get(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
+      let mec = eligibility.get('mec', '');
+      let claimId = 'circ-2027_' + mec;
+      return eligibility.get('eventId', '') == 'circ-2027'
+        && eligibility.get('status', '') == 'verified'
+        && get(/databases/$(database)/documents/ulsRoster/$(mec)).data.active == true
+        && get(/databases/$(database)/documents/ulsRoster/$(mec)).data.eventId == 'circ-2027'
+        && get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data.userId == userId;
+    }
+
+    function hasValidUlsRegistration(data) {
+      let selection = data.get('selection', {});
+      return data.get('isTest', false) == true
+        || (selection.get('profile', '') != 'uls' && selection.get('courseAffiliation', '') != 'uls')
+        || hasVerifiedUlsEligibility(data.userId);
+    }
+
+    function hasValidUlsOrder(data) {
+      let registration = get(/databases/$(database)/documents/registrations/$(data.registrationId)).data;
+      return data.get('isTest', false) == true
+        || (registration.userId == data.userId && hasValidUlsRegistration(registration));
+    }
+
+    // Only the server may issue/revoke eligibility. Staff records and OTPs are never client-readable.
+    match /ulsEligibility/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false;
+    }
+    match /ulsRoster/{mec} { allow read, write: if false; }
+    match /ulsMecClaims/{claimId} { allow read, write: if false; }
+    match /ulsChallenges/{userId} { allow read, write: if false; }
+    match /ulsRateLimits/{limitId} { allow read, write: if false; }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || (
@@ -177,8 +211,9 @@ service cloud.firestore {
       allow read: if isAdmin()
         || canUseSecretariat()
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
+      allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data);
+      allow delete: if isAdmin();
+      allow update: if (isAdmin() && hasValidUlsRegistration(request.resource.data)) || (
         canUseSecretariat()
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['attendance', 'credential', 'updatedAt'])
@@ -187,7 +222,8 @@ service cloud.firestore {
 
     match /registrationOrders/{orderId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && hasValidUlsOrder(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
