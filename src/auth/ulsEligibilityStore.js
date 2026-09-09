@@ -11,10 +11,11 @@ export function isUlsPilotUser(user) {
 }
 
 export function useUlsEligibility(user) {
+  const uid = user?.uid || null;
+  const pilotUser = isUlsPilotUser(user);
   const [state, setState] = useState({ uid: null, status: 'idle', verified: false });
   useEffect(() => {
-    const uid = user?.uid;
-    if (!uid || !ulsVerificationEnabled || !isUlsPilotUser(user)) {
+    if (!uid || !ulsVerificationEnabled || !pilotUser) {
       setState({ uid, status: 'idle', verified: false });
       return undefined;
     }
@@ -29,10 +30,10 @@ export function useUlsEligibility(user) {
         institutionalEmail: data?.institutionalEmail || '' });
     }, () => { if (active) setState({ uid, status: 'error', verified: false }); });
     return () => { active = false; unsubscribe(); };
-  }, [user?.uid, user?.email]);
+  }, [uid, pilotUser]);
   // A previous user's snapshot must never unlock the next user's form.
-  if (!ulsVerificationEnabled || !isUlsPilotUser(user)) return { status: 'idle', verified: false };
-  return state.uid === user?.uid ? state : { status: 'loading', verified: false };
+  if (!ulsVerificationEnabled || !pilotUser) return { status: 'idle', verified: false };
+  return state.uid === uid ? state : { status: 'loading', verified: false };
 }
 
 async function callVerification(name, data) {
