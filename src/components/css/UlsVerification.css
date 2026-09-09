@@ -1,0 +1,15 @@
+.uls-verification { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #c8c9db; border-radius: 12px; background: #faf9f6; color: #151d47; }
+.uls-verification h3 { margin: 0 0 .75rem; font-size: 1.15rem; }
+.uls-verification p { line-height: 1.6; }
+.uls-verification form { display: grid; gap: .6rem; margin: 1rem 0; }
+.uls-verification label { font-size: .85rem; font-weight: 700; }
+.uls-verification input { box-sizing: border-box; width: 100%; max-width: 24rem; padding: .8rem; border: 1px solid #8b90aa; border-radius: 6px; background: #fff; color: #151d47; font: inherit; }
+.uls-verification input:focus-visible, .uls-verification button:focus-visible { outline: 3px solid #ff6b42; outline-offset: 3px; }
+.uls-verification__actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .5rem; }
+.uls-verification button { padding: .8rem 1rem; min-height: 44px; border: 1px solid #302bd1; border-radius: 6px; background: #302bd1; color: #fff; cursor: pointer; font: inherit; font-weight: 700; }
+.uls-verification button.uls-verification__secondary { background: transparent; color: #302bd1; }
+.uls-verification button:disabled { opacity: .55; cursor: not-allowed; }
+.uls-verification .uls-verification__success { padding: .8rem 1rem; border-radius: 6px; background: #e6f5eb; color: #166534; }
+.uls-verification__success span { display: block; overflow-wrap: anywhere; font-size: .85rem; }
+.uls-verification .uls-verification__error { color: #a42620; }
+.uls-verification small { display: block; line-height: 1.5; }

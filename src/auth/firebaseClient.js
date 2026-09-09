@@ -26,12 +26,59 @@ export const firebaseConfigured = requiredKeys.every(
 export const microsoftAuthEnabled = process.env.REACT_APP_MICROSOFT_AUTH_ENABLED === 'true';
 export const adminEmail = (process.env.REACT_APP_ADMIN_EMAIL || 'circ.chuc@gmail.com').trim().toLowerCase();
 
+// Temporary test assignments. Future assignments live in users/{uid}.roles.
+export const submissionsManagerEmails = [
+  'araujotiagofc@gmail.com',
+  'acbdgomes@gmail.com',
+  'afsilvacarvalho@gmail.com',
+];
+export const submissionTesterEmails = [
+  'araujotiagofc@gmail.com',
+  'acbdgomes@gmail.com',
+  'afsilvacarvalho@gmail.com',
+];
+export const secretariatEmails = ['tiago_araujo@hotmail.com'];
+
 export function isAdminUser(user) {
   return Boolean(
     user?.emailVerified
     && user?.email
     && user.email.trim().toLowerCase() === adminEmail
   );
+}
+
+export function getUserAccess(user, storedRoles = {}) {
+  const email = user?.email?.trim().toLowerCase() || '';
+  const verified = Boolean(user?.emailVerified && email);
+  const isAdmin = verified && email === adminEmail;
+  const canManageSubmissions = Boolean(
+    isAdmin
+    || (verified && storedRoles?.submissions === true)
+    || (verified && submissionsManagerEmails.includes(email))
+  );
+  const canUseSecretariat = Boolean(
+    isAdmin
+    || (verified && storedRoles?.secretariat === true)
+    || (verified && secretariatEmails.includes(email))
+  );
+  const canTestSubmissions = Boolean(
+    canManageSubmissions
+    && (
+      isAdmin
+      || (verified && storedRoles?.submissionTesting === true)
+      || (verified && submissionTesterEmails.includes(email))
+    )
+  );
+  const canManageRegistrations = isAdmin;
+
+  return {
+    isAdmin,
+    canManageRegistrations,
+    canManageSubmissions,
+    canTestSubmissions,
+    canUseSecretariat,
+    hasBackOfficeAccess: canManageRegistrations || canManageSubmissions || canUseSecretariat,
+  };
 }
 
 let authInstance = null;

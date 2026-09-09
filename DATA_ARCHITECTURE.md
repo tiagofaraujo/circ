@@ -13,16 +13,50 @@
 
 Perfil do participante: nome, email, contacto, instituição, profissão e dados de faturação estritamente necessários. O documento pertence ao UID autenticado.
 
+O campo administrativo `roles` é opcional e só pode ser alterado pela conta administradora principal:
+
+```text
+roles: { submissions: true, submissionTesting: true, secretariat: true }
+```
+
+Cada função concede apenas o módulo correspondente e é cumulativa com o perfil normal de participante. O próprio utilizador não pode atribuir nem alterar as suas permissões. Durante os testes, `araujotiagofc@gmail.com`, `acbdgomes@gmail.com` e `afsilvacarvalho@gmail.com` mantêm acesso ao perfil, inscrição, trabalhos e documentos pessoais; em simultâneo, têm acesso à Gestão de Submissões e podem criar e eliminar as suas próprias submissões de teste. `tiago_araujo@hotmail.com` tem acesso ao Secretariado. Todas estas permissões exigem que o email da conta esteja verificado. Depois, as atribuições devem ser feitas através de `roles` e as exceções temporárias removidas.
+
 ### `registrations/{registrationId}`
 
 ```text
 eventId, userId, participantName, participantEmail,
 registrationType, status,
 payment: { status, amountCents, currency, method, reference, updatedAt, updatedBy },
+attendance: {
+  day_2027_04_08: { eventDay, checkedIn, checkedInAt, checkedInBy },
+  day_2027_04_09: { eventDay, checkedIn, checkedInAt, checkedInBy },
+  day_2027_04_10: { eventDay, checkedIn, checkedInAt, checkedInBy }
+},
+credential: { delivered, deliveredAt, deliveredBy },
 documentCount, consentVersion, createdAt, updatedAt
 ```
 
 O objeto `payment` é um resumo para o painel. O registo financeiro detalhado fica em `payments`.
+Os registos de presença são separados por dia e cada operação identifica o utilizador do Secretariado. A entrega da credencial é única por participante.
+
+### `submissions/{submissionId}`
+
+```text
+eventId, code, userId, contactName, contactEmail,
+type, title, authors, affiliation,
+abstractSections: {
+  introduction, objective, methods, results, conclusion, keywords
+},
+abstract, status, isTest,
+review: { note, updatedAt, updatedBy },
+createdAt, updatedAt, submittedAt, createdBy
+```
+
+O resumo é guardado por secções em `abstractSections`: Introdução, Objetivo, Métodos, Resultados, Conclusão e Palavras-chave. O campo `abstract` conserva a versão corrida para pesquisa e compatibilidade com registos antigos. O autor consulta apenas os próprios trabalhos. Depois da submissão, a decisão e a nota editorial são geridas apenas por administradores verificados. Os registos de teste usam `isTest: true` e um código iniciado por `TEST-`.
+
+O perfil `submissions` pode consultar todos os trabalhos e alterar apenas `status`, `review` e `updatedAt`. Não tem acesso à gestão de inscrições, pagamentos ou Secretariado.
+
+Cada PDF de submissão é composto no navegador a partir do registo autorizado no Firestore. Não é criada uma cópia permanente no Storage e as notas internas da Comissão Científica não são incluídas no documento exportado. O participante só consegue gerar PDFs dos próprios trabalhos; os gestores podem gerar os PDFs das submissões a que têm acesso.
 
 ### `payments/{registrationId}`
 
@@ -34,7 +68,9 @@ Metadados sem conteúdo binário: `eventId`, `registrationId`, `userId`, `type`,
 
 ### `auditLogs/{logId}`
 
-Registo imutável das alterações administrativas: ação, inscrição, valor anterior, valor novo, utilizador administrador e data/hora do servidor.
+Registo imutável das alterações administrativas: ação, inscrição ou submissão, valor anterior, valor novo, utilizador administrador e data/hora do servidor. Inclui decisões científicas, check-ins, reversões e entrega de credenciais.
+
+O perfil `secretariat` pode consultar as inscrições e alterar apenas `attendance`, `credential` e `updatedAt`. Não pode alterar pagamentos, preços, inscrições ou submissões científicas.
 
 ## Pastas privadas no Storage
 

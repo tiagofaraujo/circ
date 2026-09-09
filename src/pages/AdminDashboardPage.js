@@ -11,7 +11,9 @@ import {
   updateRegistrationStatus,
 } from '../auth/adminStore';
 import { subscribeToUserStats } from '../auth/presenceStore';
+import AdminModuleNav from '../components/AdminModuleNav';
 import '../admin.css';
+import '../adminOperations.css';
 
 const paymentLabels = {
   pending: 'Pendente',
@@ -196,6 +198,8 @@ export default function AdminDashboardPage() {
           <button type="button" onClick={handleSignOut}>Terminar sessão</button>
         </div>
       </header>
+
+      <AdminModuleNav />
 
       <section className="admin-user-summary" aria-label="Utilização do My CIRC">
         <div className="admin-user-summary__intro">

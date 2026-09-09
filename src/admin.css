@@ -206,8 +206,6 @@
 .admin-footer { margin-top: 34px; display: flex; justify-content: space-between; gap: 24px; color: var(--ink-soft); font-size: 0.88rem; }
 .admin-footer p { margin: 0; }
 .admin-footer a { color: var(--blue); white-space: nowrap; }
-.auth-account-card--admin { background: var(--paper-deep); }
-
 @media (max-width: 980px) {
   .admin-header { grid-template-columns: 1fr; }
   .admin-session { width: 100%; }

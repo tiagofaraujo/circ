@@ -55,6 +55,7 @@ export default function ParticipantProfileFirebasePage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const selectedProfession = useMemo(
     () => professionOptions.find(([value]) => value === form.profession),
@@ -84,12 +85,14 @@ export default function ParticipantProfileFirebasePage() {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
     setSaved(false);
+    setSaveError('');
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
     setSaved(false);
+    setSaveError('');
     try {
       const professionLabel = selectedProfession ? (isEnglish ? selectedProfession[2] : selectedProfession[1]) : '';
       const next = {
@@ -100,8 +103,15 @@ export default function ParticipantProfileFirebasePage() {
       if (form.name.trim() && form.name.trim() !== user?.displayName) {
         await updateDisplayName(form.name.trim());
       }
-      await saveParticipantProfile(user, next);
+      const savedProfile = await saveParticipantProfile(user, next);
+      setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
+    } catch {
+      setSaveError(
+        isEnglish
+          ? 'The profile could not be saved to the database. Check your connection and try again.'
+          : 'Não foi possível guardar o perfil na base de dados. Confirme a ligação e tente novamente.'
+      );
     } finally {
       setSaving(false);
     }
@@ -190,7 +200,8 @@ export default function ParticipantProfileFirebasePage() {
             <div className="account-form-actions">
               <button className="button account-primary-button" type="submit" disabled={saving}>{saving ? (isEnglish ? 'Saving…' : 'A guardar…') : (isEnglish ? 'Save details' : 'Guardar dados')}</button>
               <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
-              {saved && <span className="account-save-message">{isEnglish ? 'Saved.' : 'Guardado.'}</span>}
+              {saved && <span className="account-save-message" role="status">{isEnglish ? 'Saved to the database.' : 'Guardado na base de dados.'}</span>}
+              {saveError && <span className="account-save-message account-save-message--error" role="alert">{saveError}</span>}
             </div>
           </form>
         )}

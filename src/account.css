@@ -343,6 +343,10 @@
   font-weight: 700;
 }
 
+.account-save-message--error {
+  color: #b42318;
+}
+
 .account-registration-section {
   padding-top: 58px;
 }

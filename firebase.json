@@ -5,5 +5,21 @@
   },
   "storage": {
     "rules": "storage.rules"
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "uls-verification",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "test",
+        "scripts",
+        ".env*",
+        ".secret*",
+        "private-data",
+        "*-debug.log"
+      ]
+    }
+  ]
 }
