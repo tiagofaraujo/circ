@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { confirmUlsCode, requestUlsCode, ulsVerificationEnabled } from '../../auth/ulsEligibilityStore';
+import { confirmUlsCode, isUlsPilotUser, requestUlsCode, ulsVerificationEnabled } from '../../auth/ulsEligibilityStore';
 import '../css/UlsVerification.css';
 
 export default function UlsVerification({ user, eligibility, en }) {
@@ -65,6 +65,7 @@ export default function UlsVerification({ user, eligibility, en }) {
     {eligibility.verified ? <p className="uls-verification__success" role="status"><strong>{en ? 'ULS Coimbra — Validated' : 'ULS Coimbra — Validado'}</strong><span>{eligibility.institutionalEmail}</span></p>
       : !user ? <p>{en ? 'Sign in to validate your employee number.' : 'Inicie sessão para validar o seu MEC.'} <Link to="/login">{en ? 'Sign in' : 'Entrar'}</Link></p>
       : !ulsVerificationEnabled ? <p>{en ? 'Institutional validation is not yet available. You will need to validate your employee number before registering in this category.' : 'A validação institucional ainda não está disponível. Será necessário validar o seu MEC antes de concluir a inscrição nesta categoria.'}</p>
+      : !isUlsPilotUser(user) ? <p>{en ? 'Institutional validation is currently limited to the authorised pilot account.' : 'A validação institucional está, nesta fase, limitada à conta autorizada para o piloto.'}</p>
       : eligibility.status === 'loading' ? <p role="status">{en ? 'Checking your validation…' : 'A verificar a sua validação…'}</p>
       : <>
         <p>{en ? 'Enter your employee number. We will send a code to the corresponding institutional email. You can keep your personal email for signing in.' : 'Indique o seu MEC. Enviaremos um código para o email institucional correspondente. Pode manter o seu email pessoal para iniciar sessão.'}</p>

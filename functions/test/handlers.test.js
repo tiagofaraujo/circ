@@ -7,10 +7,10 @@ const vm = require('node:vm');
 const path = require('node:path');
 const core = require('../ulsVerification');
 
-function handlers({ enabled = true, account = {} } = {}) {
+function handlers({ enabled = true, account = {}, pilotEmails = 'araujotiagofc@gmail.com' } = {}) {
   const docs = new Map([['ulsRoster/900001', { active: true, eventId: core.EVENT_ID }]]);
   const sent = [];
-  const defaults = { emailVerified: true, disabled: false, tokensValidAfterTime: '2026-09-08T00:00:00Z' };
+  const defaults = { email: 'araujotiagofc@gmail.com', emailVerified: true, disabled: false, tokensValidAfterTime: '2026-09-08T00:00:00Z' };
   let transportOptions;
   const db = { doc: (p) => ({ path: p }), runTransaction: async (run) => run({
     get: async (ref) => ({ exists: docs.has(ref.path), data: () => structuredClone(docs.get(ref.path)) }),
@@ -24,6 +24,7 @@ function handlers({ enabled = true, account = {} } = {}) {
     'firebase-functions/v2/https': { HttpsError, onCall: (options, fn) => fn },
     'firebase-functions/params': {
       defineBoolean: () => ({ value: () => enabled }),
+      defineString: () => ({ value: () => pilotEmails }),
       defineSecret: (name) => ({ value: () => name === 'ULS_OTP_SECRET'
         ? 'synthetic-test-secret-do-not-use-in-production'
         : JSON.stringify({ host: 'smtp.example.invalid', port: 587, user: 'synthetic', pass: 'synthetic', from: 'sender@example.invalid' }) }),
@@ -55,6 +56,20 @@ test('disabled accounts and revoked sessions cannot request or confirm a code', 
     await assert.rejects(h.verifyUlsVerification(h.request), { code: 'unauthenticated' });
     assert.equal(h.sent.length, 0);
   }
+});
+
+test('pilot is restricted to the authorised personal account email', async () => {
+  const outsider = handlers({ account: { email: 'other@example.com' } });
+  await assert.rejects(outsider.requestUlsVerification(outsider.request), { code: 'permission-denied' });
+  await assert.rejects(outsider.verifyUlsVerification(outsider.request), { code: 'permission-denied' });
+  assert.equal(outsider.sent.length, 0);
+
+  const authorised = handlers({
+    account: { email: ' ARAUJOTIAGOFC@GMAIL.COM ' },
+    pilotEmails: 'another@example.com, araujotiagofc@gmail.com',
+  });
+  await authorised.requestUlsVerification(authorised.request);
+  assert.equal(authorised.sent.length, 1);
 });
 
 test('callable wrappers bind to token UID, derive institutional recipient and persist proof', async () => {

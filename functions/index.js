@@ -4,7 +4,7 @@ const { initializeApp, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { defineSecret, defineBoolean } = require('firebase-functions/params');
+const { defineSecret, defineBoolean, defineString } = require('firebase-functions/params');
 const nodemailer = require('nodemailer');
 const { createVerificationService, VerificationError, DOMAIN } = require('./ulsVerification');
 
@@ -12,6 +12,7 @@ if (!getApps().length) initializeApp();
 const otpSecret = defineSecret('ULS_OTP_SECRET');
 const smtpSecret = defineSecret('ULS_SMTP_CONFIG');
 const enabled = defineBoolean('ULS_VERIFICATION_ENABLED', { default: false });
+const pilotEmails = defineString('ULS_PILOT_EMAILS', { default: 'araujotiagofc@gmail.com' });
 const db = getFirestore();
 
 const options = {
@@ -68,6 +69,12 @@ async function requireAccount(request) {
   const revokedAfter = Date.parse(account.tokensValidAfterTime || '') || 0;
   if (account.disabled || !account.emailVerified || Number(request.auth.token.auth_time || 0) * 1000 < revokedAfter) {
     throw new HttpsError('unauthenticated', 'Volte a iniciar sessão.');
+  }
+  const allowed = new Set(String(pilotEmails.value() || '').split(',')
+    .map((email) => email.trim().toLowerCase()).filter(Boolean));
+  const accountEmail = typeof account.email === 'string' ? account.email.trim().toLowerCase() : '';
+  if (!accountEmail || !allowed.has(accountEmail)) {
+    throw new HttpsError('permission-denied', 'A validação institucional está limitada às contas autorizadas para o piloto.');
   }
   return request.auth.uid;
 }

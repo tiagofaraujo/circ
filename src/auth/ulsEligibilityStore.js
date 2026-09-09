@@ -2,13 +2,19 @@ import { useEffect, useState } from 'react';
 import { getFirebaseAuth, getFirebaseFirestore } from './firebaseClient';
 
 export const ulsVerificationEnabled = process.env.REACT_APP_ULS_VERIFICATION_ENABLED === 'true';
+const ulsPilotEmails = new Set((process.env.REACT_APP_ULS_PILOT_EMAILS || 'araujotiagofc@gmail.com')
+  .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 const EVENT_ID = 'circ-2027';
+
+export function isUlsPilotUser(user) {
+  return Boolean(user?.email && ulsPilotEmails.has(user.email.trim().toLowerCase()));
+}
 
 export function useUlsEligibility(user) {
   const [state, setState] = useState({ uid: null, status: 'idle', verified: false });
   useEffect(() => {
     const uid = user?.uid;
-    if (!uid || !ulsVerificationEnabled) {
+    if (!uid || !ulsVerificationEnabled || !isUlsPilotUser(user)) {
       setState({ uid, status: 'idle', verified: false });
       return undefined;
     }
@@ -23,8 +29,9 @@ export function useUlsEligibility(user) {
         institutionalEmail: data?.institutionalEmail || '' });
     }, () => { if (active) setState({ uid, status: 'error', verified: false }); });
     return () => { active = false; unsubscribe(); };
-  }, [user?.uid]);
+  }, [user?.uid, user?.email]);
   // A previous user's snapshot must never unlock the next user's form.
+  if (!ulsVerificationEnabled || !isUlsPilotUser(user)) return { status: 'idle', verified: false };
   return state.uid === user?.uid ? state : { status: 'loading', verified: false };
 }
 
@@ -33,6 +40,7 @@ async function callVerification(name, data) {
   const auth = getFirebaseAuth();
   const user = auth?.currentUser;
   if (!user) throw new Error('unauthenticated');
+  if (!isUlsPilotUser(user)) throw new Error('permission-denied');
   const token = await user.getIdToken(true);
   const projectId = auth.app.options.projectId;
   if (!/^[a-z][a-z0-9-]+$/.test(projectId)) throw new Error('unavailable');

@@ -2,6 +2,8 @@
 
 Estado: implementação preparada; envio real desativado por defeito. Não há importação da lista nem configuração de credenciais neste commit.
 
+O primeiro ensaio está limitado à conta pessoal `araujotiagofc@gmail.com`, através de `ULS_PILOT_EMAILS` no backend e `REACT_APP_ULS_PILOT_EMAILS` no frontend. A autorização efetiva é sempre verificada no backend contra o email atual da conta Firebase; a verificação do browser serve apenas para apresentar o estado correto. Foi encontrada uma única correspondência para este membro na lista fornecida. O respetivo MEC não é guardado no repositório: para o piloto importa-se apenas essa entrada por um ficheiro privado.
+
 ## Comportamento
 
 O participante utiliza a conta My CIRC habitual. Ao selecionar Congressista ULS Coimbra, indica o MEC e confirma um código enviado exclusivamente para `MEC@ulscoimbra.min-saude.pt`. Este formato foi confirmado pela organização. O email de autenticação da conta permanece igual.
@@ -44,7 +46,7 @@ Requer Node 22 e uma conta com permissões de implementação no projeto Firebas
 
 O remetente tem de ser um endereço simples autorizado pelo fornecedor. O adaptador exige TLS com certificados válidos, usando 587/STARTTLS ou 465/TLS. Configurar SPF/DKIM e o remetente conforme o fornecedor escolhido. A aceitação SMTP não comprova chegada à caixa de entrada: validar a entrega no domínio institucional antes de abrir o serviço.
 
-3. Preparar um JSON privado com uma lista de MEC em texto a partir da primeira coluna do Excel, excluindo o cabeçalho. Conservar os identificadores exatos, sem preencher zeros nem os eliminar. Não adicionar nomes, emails, localização ou outros campos. Manter esse ficheiro fora do repositório. O importador rejeita duplicados e entradas vazias e tem modo de simulação por defeito:
+3. Preparar um JSON privado com uma lista de MEC em texto a partir da primeira coluna do Excel, excluindo o cabeçalho. No piloto, incluir apenas o MEC correspondente à conta autorizada. Conservar os identificadores exatos, sem preencher zeros nem os eliminar. Não adicionar nomes, emails, localização ou outros campos. Manter esse ficheiro fora do repositório. O importador rejeita duplicados e entradas vazias e tem modo de simulação por defeito:
 
 ```sh
 node functions/scripts/import-uls-roster.js --file /caminho-privado/mec-list.json --project <projeto>
@@ -54,8 +56,8 @@ node functions/scripts/import-uls-roster.js --file /caminho-privado/mec-list.jso
 O importador usa Application Default Credentials. Reimportar não altera entradas existentes nem reativa MEC revogados. O projeto de destino é sempre obrigatório. Para os dados fornecidos, confirmar 125 registos no ensaio e na importação.
 
 4. Rever/testar as regras no emulador Firestore e publicar as regras e as duas funções com o identificador do projeto explícito. A configuração `firebase.json` adiciona apenas o codebase `uls-verification`, preservando Firestore e Storage. As funções estão na região `europe-west1`; confirmar a região da base existente e alinhar frontend/backend caso se escolha outra.
-5. Configurar `ULS_VERIFICATION_ENABLED=true` nas funções e voltar a publicá-las depois de validar as configurações. Os domínios CORS de produção autorizados são `https://circ-coimbra.org` e `https://www.circ-coimbra.org`. Adicionar explicitamente o domínio de staging se necessário. Não usar origens universais como substituto de configuração.
-6. Ativar `REACT_APP_ULS_VERIFICATION_ENABLED=true` no ambiente de build do site e reconstruir a aplicação. `REACT_APP_ULS_FUNCTIONS_REGION` deve corresponder à região das funções. Nenhum destes parâmetros públicos contém credenciais.
+5. Configurar `ULS_VERIFICATION_ENABLED=true` e `ULS_PILOT_EMAILS=araujotiagofc@gmail.com` nas funções e voltar a publicá-las depois de validar as configurações. Os domínios CORS de produção autorizados são `https://circ-coimbra.org` e `https://www.circ-coimbra.org`. Adicionar explicitamente o domínio de staging se necessário. Não usar origens universais como substituto de configuração.
+6. Ativar `REACT_APP_ULS_VERIFICATION_ENABLED=true` e definir `REACT_APP_ULS_PILOT_EMAILS=araujotiagofc@gmail.com` no ambiente de build do site antes de reconstruir a aplicação. `REACT_APP_ULS_FUNCTIONS_REGION` deve corresponder à região das funções. Nenhum destes parâmetros públicos contém credenciais.
 7. Fazer um ensaio autorizado com uma caixa institucional real, verificar entrada/spam, código errado, confirmação, refresh, nova sessão e tentativa de reutilização noutra conta. O ensaio não deve ser enviado em massa.
 
 Configurar TTL no campo `deleteAfter` de `ulsChallenges` e `ulsRateLimits`. A expiração dos códigos e limites é verificada pelo servidor independentemente do atraso de limpeza TTL. A remoção dos registos de elegibilidade e auditoria da edição segue a política de conservação definida pela organização. Não colocar credenciais de administração no browser nem conceder acesso público às coleções.
