@@ -24,6 +24,7 @@ yarn-error.log*
 
 # Institutional verification: dependencies and private runtime inputs
 /functions/node_modules/
+/rules-tests/node_modules/
 /functions/.env*
 !/functions/.env.example
 /functions/.secret*

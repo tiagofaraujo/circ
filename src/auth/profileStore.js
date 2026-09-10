@@ -1,5 +1,6 @@
 import { getFirebaseFirestore } from './firebaseClient';
 import { getProfileCompletion, normalizeParticipantProfile } from './profileCompletion';
+import { normalizeUlsName } from './ulsIdentity';
 
 const LOCAL_KEY = 'circ_demo_account';
 const PROFILE_FIELDS = [
@@ -87,10 +88,13 @@ function mergeProfileSources(...sources) {
 }
 
 function profileFieldsForStorage(profile) {
-  return PROFILE_FIELDS.reduce((fields, field) => {
-    if (isFilled(profile[field])) fields[field] = profile[field];
-    return fields;
+  const fields = PROFILE_FIELDS.reduce((storedFields, field) => {
+    if (isFilled(profile[field])) storedFields[field] = profile[field];
+    return storedFields;
   }, {});
+  const ulsNameKey = normalizeUlsName(profile.name);
+  if (ulsNameKey) fields.ulsNameKey = ulsNameKey;
+  return fields;
 }
 
 function readLocalProfile() {
@@ -240,6 +244,7 @@ export async function saveParticipantProfile(user, profile) {
     demoAccess: false,
   });
   const completion = getProfileCompletion(next);
+  const ulsNameKey = normalizeUlsName(next.name);
   const db = getFirebaseFirestore();
   if (!db) {
     const unavailableError = new Error('profile/storage-unavailable');
@@ -251,6 +256,7 @@ export async function saveParticipantProfile(user, profile) {
     await db.collection('users').doc(user.uid).set(
       {
         ...next,
+        ulsNameKey,
         profileCompletion: { ...completion, schemaVersion: 1 },
         updatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
       },
@@ -261,7 +267,7 @@ export async function saveParticipantProfile(user, profile) {
   }
 
   writeLocalProfile({ ...next, profileCompletion: completion });
-  return { ...next, profileCompletion: completion, __remoteSaved: true };
+  return { ...next, ulsNameKey, profileCompletion: completion, __remoteSaved: true };
 }
 
 export async function deleteParticipantData(user) {

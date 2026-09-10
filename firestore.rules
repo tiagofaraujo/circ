@@ -62,6 +62,10 @@ service cloud.firestore {
         || (hasVerifiedEmail() && request.auth.token.email == 'tiago_araujo@hotmail.com');
     }
 
+    function isUlsPilotAccount() {
+      return hasStoredRole('ulsPilot');
+    }
+
     function hasOwnAuditActor() {
       return request.resource.data.actor.uid == request.auth.uid
         && request.resource.data.actor.email == request.auth.token.email
@@ -155,22 +159,114 @@ service cloud.firestore {
         );
     }
 
-    function hasVerifiedUlsEligibility(userId) {
+    function validUlsNameKey(nameKey) {
+      return nameKey is string
+        && nameKey.size() >= 5
+        && nameKey.size() <= 160;
+    }
+
+    function hasPersistedUlsMatch(userId, mec, nameKey) {
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
+      return profile.get('ulsNameKey', '') == nameKey
+        && roster.get('active', false) == true
+        && roster.get('eventId', '') == 'circ-2027'
+        && roster.get('nameKey', '') == nameKey;
+    }
+
+    function hasPendingUlsMatch(userId, mec, nameKey) {
+      let profile = getAfter(/databases/$(database)/documents/users/$(userId)).data;
+      let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
+      return profile.get('ulsNameKey', '') == nameKey
+        && roster.get('active', false) == true
+        && roster.get('eventId', '') == 'circ-2027'
+        && roster.get('nameKey', '') == nameKey;
+    }
+
+    function validMatchedEligibility(userId) {
+      let eligibility = request.resource.data;
+      let mec = eligibility.get('mec', '');
+      let nameKey = eligibility.get('nameKey', '');
+      let claimId = 'circ-2027_' + mec;
+      let claim = getAfter(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data;
+      return isUlsPilotAccount()
+        && request.auth.uid == userId
+        && eligibility.keys().hasOnly([
+          'userId',
+          'eventId',
+          'mec',
+          'nameKey',
+          'method',
+          'status',
+          'matchedAt'
+        ])
+        && eligibility.get('userId', '') == userId
+        && eligibility.get('eventId', '') == 'circ-2027'
+        && eligibility.get('method', '') == 'mec-name-match'
+        && eligibility.get('status', '') == 'matched'
+        && eligibility.get('matchedAt', null) == request.time
+        && mec is string
+        && mec.matches('^[0-9]{1,12}$')
+        && validUlsNameKey(nameKey)
+        && hasPendingUlsMatch(userId, mec, nameKey)
+        && claim.get('userId', '') == userId
+        && claim.get('eventId', '') == 'circ-2027'
+        && claim.get('mec', '') == mec
+        && claim.get('nameKey', '') == nameKey
+        && claim.get('method', '') == 'mec-name-match';
+    }
+
+    function validUlsClaim(claimId) {
+      let claim = request.resource.data;
+      let userId = claim.get('userId', '');
+      let mec = claim.get('mec', '');
+      let nameKey = claim.get('nameKey', '');
+      let eligibility = getAfter(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
+      return isUlsPilotAccount()
+        && request.auth.uid == userId
+        && claimId == 'circ-2027_' + mec
+        && claim.keys().hasOnly([
+          'userId',
+          'eventId',
+          'mec',
+          'nameKey',
+          'method',
+          'claimedAt'
+        ])
+        && claim.get('eventId', '') == 'circ-2027'
+        && claim.get('method', '') == 'mec-name-match'
+        && claim.get('claimedAt', null) == request.time
+        && mec is string
+        && mec.matches('^[0-9]{1,12}$')
+        && validUlsNameKey(nameKey)
+        && hasPendingUlsMatch(userId, mec, nameKey)
+        && eligibility.get('userId', '') == userId
+        && eligibility.get('eventId', '') == 'circ-2027'
+        && eligibility.get('mec', '') == mec
+        && eligibility.get('nameKey', '') == nameKey
+        && eligibility.get('method', '') == 'mec-name-match'
+        && eligibility.get('status', '') == 'matched';
+    }
+
+    function hasMatchedUlsEligibility(userId) {
       let eligibility = get(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
       let mec = eligibility.get('mec', '');
+      let nameKey = eligibility.get('nameKey', '');
       let claimId = 'circ-2027_' + mec;
       return eligibility.get('eventId', '') == 'circ-2027'
-        && eligibility.get('status', '') == 'verified'
-        && get(/databases/$(database)/documents/ulsRoster/$(mec)).data.active == true
-        && get(/databases/$(database)/documents/ulsRoster/$(mec)).data.eventId == 'circ-2027'
-        && get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data.userId == userId;
+        && eligibility.get('userId', '') == userId
+        && eligibility.get('status', '') == 'matched'
+        && eligibility.get('method', '') == 'mec-name-match'
+        && validUlsNameKey(nameKey)
+        && hasPersistedUlsMatch(userId, mec, nameKey)
+        && get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data.get('userId', '') == userId;
     }
 
     function hasValidUlsRegistration(data) {
       let selection = data.get('selection', {});
       return data.get('isTest', false) == true
         || (selection.get('profile', '') != 'uls' && selection.get('courseAffiliation', '') != 'uls')
-        || hasVerifiedUlsEligibility(data.userId);
+        || hasMatchedUlsEligibility(data.userId);
     }
 
     function hasValidUlsOrder(data) {
@@ -179,13 +275,18 @@ service cloud.firestore {
         || (registration.userId == data.userId && hasValidUlsRegistration(registration));
     }
 
-    // Only the server may issue/revoke eligibility. Staff records and OTPs are never client-readable.
+    // The roster stays private. A pilot user may only create an atomic MEC/name match
+    // with the deterministic, single-use claim document required by the rules.
     match /ulsEligibility/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow write: if false;
+      allow create: if validMatchedEligibility(userId);
+      allow update, delete: if false;
     }
     match /ulsRoster/{mec} { allow read, write: if false; }
-    match /ulsMecClaims/{claimId} { allow read, write: if false; }
+    match /ulsMecClaims/{claimId} {
+      allow create: if validUlsClaim(claimId);
+      allow read, update, delete: if false;
+    }
     match /ulsChallenges/{userId} { allow read, write: if false; }
     match /ulsRateLimits/{limitId} { allow read, write: if false; }
 
@@ -194,12 +295,20 @@ service cloud.firestore {
       allow create: if isAdmin() || (
         isOwner(userId)
         && !request.resource.data.keys().hasAny(['roles'])
+        && !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
       );
       allow update: if isAdmin() || (
         isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
+        && (
+          !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'ulsNameKey'])
+        )
       );
-      allow delete: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin() || (
+        isOwner(userId)
+        && !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
+      );
     }
 
     match /events/{eventId} {

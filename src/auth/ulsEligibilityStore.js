@@ -1,13 +1,30 @@
 import { useEffect, useState } from 'react';
 import { getFirebaseAuth, getFirebaseFirestore } from './firebaseClient';
+import { buildUlsIdentity, ULS_EVENT_ID, ULS_MATCH_METHOD } from './ulsIdentity';
 
 export const ulsVerificationEnabled = process.env.REACT_APP_ULS_VERIFICATION_ENABLED === 'true';
-const ulsPilotEmails = new Set((process.env.REACT_APP_ULS_PILOT_EMAILS || 'araujotiagofc@gmail.com')
+const ulsPilotEmails = new Set((process.env.REACT_APP_ULS_PILOT_EMAILS || '')
   .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
-const EVENT_ID = 'circ-2027';
 
 export function isUlsPilotUser(user) {
   return Boolean(user?.email && ulsPilotEmails.has(user.email.trim().toLowerCase()));
+}
+
+function isValidEligibility(data, uid) {
+  return Boolean(
+    data
+    && data.eventId === ULS_EVENT_ID
+    && data.userId === uid
+    && data.status === 'matched'
+    && data.method === ULS_MATCH_METHOD
+    && /^\d{1,12}$/.test(data.mec || '')
+  );
+}
+
+function ulsError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
 }
 
 export function useUlsEligibility(user) {
@@ -26,8 +43,13 @@ export function useUlsEligibility(user) {
     const unsubscribe = db.collection('ulsEligibility').doc(uid).onSnapshot((snapshot) => {
       if (!active) return;
       const data = snapshot.exists ? snapshot.data() : null;
-      setState({ uid, status: 'ready', verified: data?.eventId === EVENT_ID && data?.status === 'verified',
-        institutionalEmail: data?.institutionalEmail || '' });
+      setState({
+        uid,
+        status: 'ready',
+        verified: isValidEligibility(data, uid),
+        mec: data?.mec || '',
+        method: data?.method || '',
+      });
     }, () => { if (active) setState({ uid, status: 'error', verified: false }); });
     return () => { active = false; unsubscribe(); };
   }, [uid, pilotUser]);
@@ -36,32 +58,44 @@ export function useUlsEligibility(user) {
   return state.uid === uid ? state : { status: 'loading', verified: false };
 }
 
-async function callVerification(name, data) {
-  if (!ulsVerificationEnabled) throw new Error('unavailable');
+export async function claimUlsEligibility(mecValue) {
+  if (!ulsVerificationEnabled) throw ulsError('uls/unavailable');
   const auth = getFirebaseAuth();
   const user = auth?.currentUser;
-  if (!user) throw new Error('unauthenticated');
-  if (!isUlsPilotUser(user)) throw new Error('permission-denied');
-  const token = await user.getIdToken(true);
-  const projectId = auth.app.options.projectId;
-  if (!/^[a-z][a-z0-9-]+$/.test(projectId)) throw new Error('unavailable');
-  const region = process.env.REACT_APP_ULS_FUNCTIONS_REGION || 'europe-west1';
-  if (!/^[a-z0-9-]+$/.test(region)) throw new Error('unavailable');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 35000);
-  try {
-    const response = await fetch(`https://${region}-${projectId}.cloudfunctions.net/${name}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ data }), signal: controller.signal, credentials: 'omit', cache: 'no-store',
-    });
-    const payload = await response.json();
-    if (!response.ok || payload.error) {
-      throw new Error((payload.error?.status || 'unavailable').toLowerCase().replace(/_/g, '-'));
-    }
-    if (!payload.result || typeof payload.result !== 'object') throw new Error('unavailable');
-    return payload.result;
-  } finally { clearTimeout(timeout); }
-}
+  if (!user) throw ulsError('uls/unauthenticated');
+  if (!user.emailVerified) throw ulsError('uls/email-not-verified');
+  if (!isUlsPilotUser(user)) throw ulsError('uls/not-authorised');
 
-export const requestUlsCode = (mec) => callVerification('requestUlsVerification', { mec });
-export const confirmUlsCode = (challengeId, code) => callVerification('verifyUlsVerification', { challengeId, code });
+  const db = getFirebaseFirestore();
+  if (!db || !window.firebase?.firestore?.FieldValue) throw ulsError('uls/unavailable');
+
+  const userRef = db.collection('users').doc(user.uid);
+  const eligibilityRef = db.collection('ulsEligibility').doc(user.uid);
+  const [profileSnapshot, eligibilitySnapshot] = await Promise.all([
+    userRef.get({ source: 'server' }),
+    eligibilityRef.get({ source: 'server' }),
+  ]);
+  const existingEligibility = eligibilitySnapshot.exists ? eligibilitySnapshot.data() : null;
+  if (isValidEligibility(existingEligibility, user.uid)) {
+    return { verified: true, mec: existingEligibility.mec || '' };
+  }
+  if (!profileSnapshot.exists) throw ulsError('uls/missing-profile-name');
+
+  const { mec, nameKey } = buildUlsIdentity(mecValue, profileSnapshot.data()?.name);
+  const claimRef = db.collection('ulsMecClaims').doc(`${ULS_EVENT_ID}_${mec}`);
+  const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
+  const common = { userId: user.uid, eventId: ULS_EVENT_ID, mec, nameKey, method: ULS_MATCH_METHOD };
+  const batch = db.batch();
+  batch.set(userRef, { ulsNameKey: nameKey, updatedAt: timestamp }, { merge: true });
+  batch.set(claimRef, { ...common, claimedAt: timestamp });
+  batch.set(eligibilityRef, { ...common, status: 'matched', matchedAt: timestamp });
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    if (error?.code === 'permission-denied') throw ulsError('uls/no-match');
+    if (error?.code === 'unauthenticated') throw ulsError('uls/unauthenticated');
+    throw ulsError('uls/unavailable');
+  }
+  return { verified: true, mec };
+}
