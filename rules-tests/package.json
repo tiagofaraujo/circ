@@ -1,0 +1,12 @@
+{
+  "name": "circ-firestore-rules-tests",
+  "private": true,
+  "scripts": {
+    "test": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-circ-2027 \"node --test test/*.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
+    "firebase": "12.19.0",
+    "firebase-tools": "15.30.0"
+  }
+}

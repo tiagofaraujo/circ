@@ -1,89 +1,101 @@
-# Validação institucional ULS Coimbra
+# Validação ULS Coimbra — percurso sem custos
 
-Estado: implementação preparada; envio real desativado por defeito. Não há importação da lista nem configuração de credenciais neste commit.
+Estado: preparado para piloto no plano Firebase Spark. A validação fica desativada até serem publicadas as regras, importado o único registo piloto e ativada a variável do frontend. Este percurso não utiliza Cloud Functions, SMTP, Secret Manager ou TTL.
 
-O primeiro ensaio está limitado à conta pessoal `araujotiagofc@gmail.com`, através de `ULS_PILOT_EMAILS` no backend e `REACT_APP_ULS_PILOT_EMAILS` no frontend. A autorização efetiva é sempre verificada no backend contra o email atual da conta Firebase; a verificação do browser serve apenas para apresentar o estado correto. Foi encontrada uma única correspondência para este membro na lista fornecida. O respetivo MEC não é guardado no repositório: para o piloto importa-se apenas essa entrada por um ficheiro privado.
+O piloto está limitado à conta que recebe a permissão privada `roles.ulsPilot` no Firestore e que é indicada na variável pública de apresentação do frontend. A lista de colaboradores é privada e nunca deve ser incluída no repositório, nas variáveis públicas do site ou nos logs.
 
-## Comportamento
+## O que é validado
 
-O participante utiliza a conta My CIRC habitual. Ao selecionar Congressista ULS Coimbra, indica o MEC e confirma um código enviado exclusivamente para `MEC@ulscoimbra.min-saude.pt`. Este formato foi confirmado pela organização. O email de autenticação da conta permanece igual.
+1. O participante inicia sessão com uma conta Firebase cujo email já foi confirmado.
+2. O nome completo guardado em `users/{uid}` é normalizado: maiúsculas, sem acentos, pontuação ou partículas portuguesas (`d'`, `da`, `das`, `de`, `do`, `dos`).
+3. O participante indica o MEC.
+4. As regras do Firestore comparam, sem entregar a lista ao browser, o MEC e a chave do nome com `ulsRoster/{mec}`.
+5. Uma única escrita atómica cria a elegibilidade e a reserva exclusiva do MEC. Se qualquer condição falhar, nada é gravado.
+6. Depois da correspondência, o participante não pode alterar o nome do perfil nem reutilizar o MEC noutra conta. Uma correção passa pelo secretariado.
 
-A lista fornecida contém 125 MEC distintos de TSDT de Radiologia. Só se importa o MEC; nomes e local de trabalho não são necessários para este mecanismo. A lista não está neste repositório. A organização deve confirmar a lista de elegíveis de cada edição e acrescentar outros profissionais se a categoria os abranger.
+Este mecanismo confirma apenas que foi introduzido um par MEC–nome presente na lista. Não prova a identidade ou a posse de um contacto institucional: alguém que conheça ambos os dados poderá tentar utilizá-los. Por isso, a primeira fase permanece limitada à conta piloto, apresenta sempre um erro genérico e deve ter revisão administrativa antes de ser aberta a todos.
 
-O código tem seis algarismos aleatórios, validade de 10 minutos e no máximo cinco tentativas. O reenvio exige 60 segundos e invalida o desafio anterior. Limites por hora: cinco pedidos por conta e por MEC, 30 por endereço IP e 200 no conjunto do serviço. O limite por IP deve ser revisto se a rede hospitalar concentrar muitos pedidos no mesmo endereço; não se deve remover os limites por conta e MEC. IPs nos contadores são protegidos por HMAC. A API não revela se um MEC existe, foi revogado ou já está associado a outra conta.
+## Dados e acesso
 
-A posse do email institucional é a prova usada para atribuir a categoria. Não se deve aceitar um destino de email enviado pelo browser. A associação MEC–conta é concluída numa transação, impedindo duas confirmações simultâneas de atribuírem o mesmo MEC. O código guardado é um HMAC, nunca texto simples, e é removido após confirmação ou bloqueio. O envio SMTP ocorre fora da transação para que uma repetição interna da transação não repita o email.
-
-## Dados e permissões
-
-| Coleção | Conteúdo | Acesso do cliente |
+| Coleção | Conteúdo | Acesso do navegador |
 | --- | --- | --- |
-| `ulsRoster/{mec}` | Elegibilidade da lista, edição, ativo, data de importação | Nenhum |
-| `ulsChallenges/{uid}` | Desafio, HMAC, tentativas, expiração | Nenhum |
-| `ulsMecClaims/{eventId_mec}` | Associação exclusiva entre MEC e conta | Nenhum |
-| `ulsEligibility/{uid}` | Estado verificado, MEC, email institucional e data | Leitura pelo próprio e administrador; escrita apenas no servidor |
-| `ulsRateLimits/{key}` | Contadores e expiração | Nenhum |
-| `auditLogs/uls_{challengeId}` | Conta, ação, edição e data | Regras administrativas existentes |
+| `ulsRoster/{mec}` | edição, estado ativo e chave normalizada do nome | nenhum |
+| `ulsMecClaims/{eventId_mec}` | reserva exclusiva do MEC para um UID | nenhum |
+| `ulsEligibility/{uid}` | resultado da correspondência, MEC, UID e edição | leitura pelo próprio e administrador; criação apenas pelo lote validado nas regras |
+| `users/{uid}` | perfil e `ulsNameKey` derivada do nome | próprio utilizador e administrador |
 
-Guardar um campo `ulsVerified` em `users/{uid}`, em localStorage ou no formulário não concede elegibilidade. As funções usam a identidade do token Firebase e verificam também a conta no Firebase Auth, incluindo contas desativadas, eliminadas e sessões revogadas. Nunca aceitam UID ou destinatário como autoridade a partir do pedido.
+O campo `ulsNameKey` isolado não concede a tarifa. A inscrição ULS só é aceite quando continuam coerentes o perfil, a entrada ativa da lista, a elegibilidade e a reserva exclusiva.
 
-## Ativação no Firebase
+## Preparar o registo piloto
 
-Requer Node 22 e uma conta com permissões de implementação no projeto Firebase correto. Cloud Functions exige o plano Blaze. Não ativar faturação ou contratar um fornecedor automaticamente.
-
-1. Instalar as dependências de `functions/package.json`, gerar e rever o respetivo lockfile, e executar `npm test` nessa pasta. Preservar o lockfile existente da aplicação React.
-2. Configurar em Secret Manager `ULS_OTP_SECRET` com pelo menos 32 bytes aleatórios e `ULS_SMTP_CONFIG` com o objeto JSON abaixo. Usar os comandos `firebase functions:secrets:set ULS_OTP_SECRET --project <projeto>` e `firebase functions:secrets:set ULS_SMTP_CONFIG --project <projeto>`. Introduzir os valores no terminal seguro, nunca no GitHub, em variáveis `REACT_APP_*` ou no chat.
+Criar um ficheiro JSON privado, fora do repositório. O importador aceita entre 1 e 500 objetos, rejeita MEC duplicados e normaliza o nome exatamente como o frontend. O exemplo seguinte é fictício:
 
 ```json
-{
-  "host": "smtp-do-fornecedor",
-  "port": 587,
-  "user": "utilizador-smtp",
-  "pass": "credencial-smtp",
-  "from": "endereco-remetente-autorizado"
-}
+[
+  {
+    "mec": "7315",
+    "name": "ANA FILIPA DE SA"
+  }
+]
 ```
 
-O remetente tem de ser um endereço simples autorizado pelo fornecedor. O adaptador exige TLS com certificados válidos, usando 587/STARTTLS ou 465/TLS. Configurar SPF/DKIM e o remetente conforme o fornecedor escolhido. A aceitação SMTP não comprova chegada à caixa de entrada: validar a entrega no domínio institucional antes de abrir o serviço.
-
-3. Preparar um JSON privado com uma lista de MEC em texto a partir da primeira coluna do Excel, excluindo o cabeçalho. No piloto, incluir apenas o MEC correspondente à conta autorizada. Conservar os identificadores exatos, sem preencher zeros nem os eliminar. Não adicionar nomes, emails, localização ou outros campos. Manter esse ficheiro fora do repositório. O importador rejeita duplicados e entradas vazias e tem modo de simulação por defeito:
+Na pasta `functions`, instalar as dependências e começar sempre pela simulação:
 
 ```sh
-node functions/scripts/import-uls-roster.js --file /caminho-privado/mec-list.json --project <projeto>
-node functions/scripts/import-uls-roster.js --file /caminho-privado/mec-list.json --project <projeto> --apply
+npm install
+node scripts/import-uls-roster.js --file /caminho-privado/uls-piloto.json --project circ-coimbra
 ```
 
-O importador usa Application Default Credentials. Reimportar não altera entradas existentes nem reativa MEC revogados. O projeto de destino é sempre obrigatório. Para os dados fornecidos, confirmar 125 registos no ensaio e na importação.
+Depois de confirmar a mensagem de validação, autenticar o Firebase CLI com uma conta autorizada ou configurar Application Default Credentials e aplicar:
 
-4. Rever/testar as regras no emulador Firestore e publicar as regras e as duas funções com o identificador do projeto explícito. A configuração `firebase.json` adiciona apenas o codebase `uls-verification`, preservando Firestore e Storage. As funções estão na região `europe-west1`; confirmar a região da base existente e alinhar frontend/backend caso se escolha outra.
-5. Configurar `ULS_VERIFICATION_ENABLED=true` e `ULS_PILOT_EMAILS=araujotiagofc@gmail.com` nas funções e voltar a publicá-las depois de validar as configurações. Os domínios CORS de produção autorizados são `https://circ-coimbra.org` e `https://www.circ-coimbra.org`. Adicionar explicitamente o domínio de staging se necessário. Não usar origens universais como substituto de configuração.
-6. Ativar `REACT_APP_ULS_VERIFICATION_ENABLED=true` e definir `REACT_APP_ULS_PILOT_EMAILS=araujotiagofc@gmail.com` no ambiente de build do site antes de reconstruir a aplicação. `REACT_APP_ULS_FUNCTIONS_REGION` deve corresponder à região das funções. Nenhum destes parâmetros públicos contém credenciais.
-7. Fazer um ensaio autorizado com uma caixa institucional real, verificar entrada/spam, código errado, confirmação, refresh, nova sessão e tentativa de reutilização noutra conta. O ensaio não deve ser enviado em massa.
+```sh
+node scripts/import-uls-roster.js --file /caminho-privado/uls-piloto.json --project circ-coimbra --apply
+```
 
-Configurar TTL no campo `deleteAfter` de `ulsChallenges` e `ulsRateLimits`. A expiração dos códigos e limites é verificada pelo servidor independentemente do atraso de limpeza TTL. A remoção dos registos de elegibilidade e auditoria da edição segue a política de conservação definida pela organização. Não colocar credenciais de administração no browser nem conceder acesso público às coleções.
+O importador não imprime MEC nem nomes. Uma reimportação não reativa registos desativados, não altera reservas e é interrompida se encontrar dados incompatíveis.
 
-## Inscrições e pagamentos
+Para um piloto manual, também é possível criar na consola Firebase o documento `ulsRoster/{MEC_PILOTO}` com estes campos e tipos:
 
-Neste ramo, as inscrições reais ainda não têm checkout/pagamento implementado. O formulário existente permite simulações administrativas marcadas como teste. Esta alteração não abre inscrições nem cria cobranças.
+| Campo | Tipo | Valor |
+| --- | --- | --- |
+| `eventId` | string | `circ-2027` |
+| `active` | boolean | `true` |
+| `nameKey` | string | chave normalizada produzida pelo ensaio do importador |
 
-As regras passam a exigir elegibilidade para escritas de inscrições ULS reais e respetivos complementos feitas pelos clientes autorizados. As simulações administrativas mantêm o marcador de teste e não representam validação institucional real.
+Não criar esse documento numa coleção legível publicamente.
 
-Antes de ativar Eupago ou outro checkout, chamar `requireUlsEligibility(tx, uid, selection)` de `functions/ulsVerification.js` **na mesma transação que cria a encomenda**, também para cursos com `courseAffiliation: 'uls'`. Esta função revalida a lista ativa, a edição e a associação exclusiva. O adapter `tx.get(path)` devolve os dados do documento ou null. Efetuar todas as leituras antes das escritas.
+## Publicar e ativar o piloto
 
-O Admin SDK contorna as regras Firestore: por isso a verificação do backend é obrigatória. A futura função de checkout tem também de validar a seleção e calcular o preço a partir do catálogo do servidor, nunca aceitar o total do browser como autoridade. Este commit prepara esse guard, não implementa o checkout completo.
+1. Executar os testes da aplicação e das regras no emulador.
+2. Publicar apenas as regras do Firestore no projeto explícito:
 
-## Recuperação e operação
+   ```sh
+   firebase deploy --only firestore:rules --project circ-coimbra
+   ```
 
-Não libertar automaticamente um MEC quando alguém elimina a conta: isso permitiria contornar a associação exclusiva. Para recuperar uma conta ou transferir o MEC, o responsável confirma novamente a identidade por um canal institucional e executa uma operação administrativa que revoga a elegibilidade anterior e atualiza a associação atomicamente, com auditoria. Este commit não acrescenta um botão público para transferir MECs.
+3. Depois de a conta piloto guardar o perfil, abrir `users/{uid}` na consola e acrescentar `roles.ulsPilot` com o valor booleano `true`. Não permitir que o próprio utilizador edite `roles`.
+4. Confirmar na consola Firebase que existe apenas a entrada piloto correta em `ulsRoster`.
+5. No ambiente de produção do frontend, definir:
 
-Para revogar a elegibilidade, marcar a entrada da lista como inativa e a elegibilidade como revogada. A conferência no checkout verifica a lista mesmo que o browser tenha ainda uma leitura em cache. Rotacionar o segredo invalida códigos e contadores HMAC anteriores, mas não elimina as associações confirmadas.
+   ```text
+   REACT_APP_ULS_VERIFICATION_ENABLED=true
+   REACT_APP_ULS_PILOT_EMAILS=<EMAIL_DA_CONTA_PILOTO>
+   ```
 
-Limitar a conta de serviço às permissões necessárias, monitorizar erros e consumo e rever os limites antes da abertura das inscrições. Não registar códigos, credenciais SMTP, destinatários ou respostas integrais do fornecedor em logs.
+6. Reconstruir/publicar o site e ensaiar com a conta piloto: nome correto, MEC correto, atualização da página, nova sessão, nome errado e tentativa de reutilização.
 
-## Verificação realizada nesta alteração
+Não existe uma região de Functions para configurar neste percurso. Não ativar faturação, funções, SMTP ou TTL. A eliminação automática por TTL é uma funcionalidade faturada e não é necessária para estes três documentos persistentes.
 
-Testes locais do serviço com armazenamento e email simulados: destinatário institucional, MEC inválido/desconhecido/inativo, HMAC, validade, cinco tentativas, reenvio, limite por conta, isolamento entre contas, confirmações concorrentes, repetição idempotente, falha de email e revogação na conferência para checkout.
+## Operação e recuperação
 
-Não foram enviados emails, importados colaboradores no Firebase ou publicadas funções/regras. Build completo React, instalação das dependências de produção, emulador Firestore e entrega SMTP real são verificações pendentes antes de ativar.
+- Um erro de correspondência nunca deve indicar se falhou o MEC, o nome ou uma reserva existente.
+- Não eliminar automaticamente a reserva quando a conta é apagada; isso permitiria reutilizar o MEC sem análise.
+- Para corrigir um nome ou transferir um MEC, o secretariado confirma a identidade por outro canal e altera de forma controlada `ulsEligibility`, `ulsMecClaims` e, se necessário, `ulsRoster`.
+- Antes de abrir a todos os colaboradores, substituir a conta piloto por uma política revista, confirmar a lista e realizar uma avaliação de proteção de dados.
+- Um futuro checkout executado com Admin SDK terá de repetir esta validação no servidor, porque o Admin SDK ignora as regras Firestore.
 
-Referências: [funções callable](https://firebase.google.com/docs/functions/callable-reference), [segredos](https://firebase.google.com/docs/functions/config-env), [transações](https://firebase.google.com/docs/firestore/manage-data/transactions), [proteção de documentos](https://firebase.google.com/docs/firestore/security/rules-fields), [SMTP/TLS](https://nodemailer.com/smtp), [plano para Cloud Functions](https://firebase.google.com/docs/functions/get-started).
+## Testes incluídos
+
+Os testes cobrem normalização de acentos, pontuação e partículas do nome, MEC inválido, correspondência correta, nome incorreto, conta fora do piloto, reutilização do MEC, privacidade da lista e bloqueio do nome depois da confirmação.
+
+Nenhum registo é importado e nenhuma regra é publicada automaticamente por esta alteração.

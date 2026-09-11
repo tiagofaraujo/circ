@@ -386,7 +386,7 @@ function RegistrationBuilder() {
                 <h2 id="registration-profile-title">{en ? 'Which rate applies to you?' : 'Que tarifa se aplica a si?'}</h2>
               </div>
             </div>
-            <div className={`registration-choice-grid ${profile === 'student' ? 'registration-choice-grid--two' : 'registration-choice-grid--three'}`}>
+            <div className="registration-choice-grid registration-choice-grid--three">
               <ChoiceCard
                 name="participant-profile"
                 value="uls"
