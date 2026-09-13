@@ -40,6 +40,16 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /billingJobs/{jobId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /billingDocuments/{documentId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /documents/{documentId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create, update, delete: if isAdmin();
