@@ -203,9 +203,10 @@ test('admins can update a retained ULS registration after personal profile delet
 });
 
 
-test('a deactivated roster entry blocks ULS registration updates', async () => {
+test('a deactivated roster entry is visible only to its match and blocks registration updates', async () => {
   await seedProfileAndRoster('pilot');
-  await assertSucceeds(claimBatch(userDb('pilot'), 'pilot'));
+  const participantDb = userDb('pilot');
+  await assertSucceeds(claimBatch(participantDb, 'pilot'));
 
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
@@ -218,6 +219,9 @@ test('a deactivated roster entry blocks ULS registration updates', async () => {
     });
     await updateDoc(doc(db, 'ulsRoster', MEC), { active: false });
   });
+
+  const revokedRoster = await assertSucceeds(getDoc(doc(participantDb, 'ulsRoster', MEC)));
+  if (revokedRoster.data()?.active !== false) throw new Error('Roster revocation was not observable.');
 
   const adminDb = testEnv.authenticatedContext('admin', {
     email: 'circ.chuc@gmail.com',
