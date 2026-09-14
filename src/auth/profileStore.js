@@ -19,6 +19,10 @@ const PROFILE_FIELDS = [
   'billingCountry',
 ];
 
+export function canonicalizeProfileName(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
 function isFilled(value) {
   return String(value ?? '').trim().length > 0;
 }
@@ -233,10 +237,12 @@ export async function loadParticipantProfile(user) {
 export async function saveParticipantProfile(user, profile) {
   if (!user?.uid) throw new Error('auth/user-not-found');
 
+  const canonicalName = canonicalizeProfileName(profile.name)
+    || canonicalizeProfileName(user.displayName);
   const next = mergeProfileSources(profile, {
     firebaseUid: user.uid,
     email: user.email || profile.email || '',
-    name: profile.name || user.displayName || '',
+    name: canonicalName,
     photoURL: user.photoURL || '',
     demoAccess: false,
   });
