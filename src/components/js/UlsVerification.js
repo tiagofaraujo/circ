@@ -52,8 +52,8 @@ export default function UlsVerification({ user, eligibility, en }) {
       await claimUlsEligibility(mec.trim());
       if (active.current) {
         setMessage(en
-          ? 'Match confirmed. Updating your registration options…'
-          : 'Correspondência confirmada. A atualizar as opções de inscrição…');
+          ? 'Details submitted. Confirming the current roster status…'
+          : 'Dados submetidos. A confirmar o estado atual na lista…');
       }
     } catch (cause) {
       if (active.current) showError(cause);
