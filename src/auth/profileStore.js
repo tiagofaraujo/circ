@@ -268,12 +268,14 @@ export async function saveParticipantProfile(user, profile) {
 export async function deleteParticipantData(user) {
   if (!user?.uid) return;
   const db = getFirebaseFirestore();
-  if (db) {
-    try {
-      await db.collection('users').doc(user.uid).delete();
-    } catch (error) {
-      if (!serviceNotReady(error) && error?.code !== 'permission-denied') throw error;
-    }
+  if (!db) {
+    const unavailableError = new Error('profile/storage-unavailable');
+    unavailableError.code = 'profile/storage-unavailable';
+    throw unavailableError;
   }
+
+  // Do not delete Firebase Auth if the personal Firestore profile could not be
+  // removed. The caller only continues after this promise succeeds.
+  await db.collection('users').doc(user.uid).delete();
   if (typeof window !== 'undefined') window.localStorage.removeItem(LOCAL_KEY);
 }
