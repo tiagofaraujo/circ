@@ -106,8 +106,8 @@ export default function ParticipantProfileFirebasePage() {
         photoURL: user?.photoURL || '',
       };
       const savedProfile = await saveParticipantProfile(user, next);
-      if (form.name.trim() && form.name.trim() !== user?.displayName) {
-        await updateDisplayName(form.name.trim());
+      if (savedProfile.name && savedProfile.name !== user?.displayName) {
+        await updateDisplayName(savedProfile.name);
       }
       setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
