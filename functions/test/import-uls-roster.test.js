@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeMec, normalizeName } = require('../scripts/import-uls-roster');
+const { normalizeMec, normalizeName, normalizeProfileName } = require('../scripts/import-uls-roster');
 
 test('normalises the pilot name exactly like the browser', () => {
   assert.equal(normalizeName('Ana Filipa de Sá'), 'ANA FILIPA SA');
@@ -17,4 +17,8 @@ test('validates MEC and full-name input', () => {
   assert.equal(normalizeMec(' 7315 '), '7315');
   assert.throws(() => normalizeMec('42A6'), /Invalid MEC/);
   assert.throws(() => normalizeName('de'), /Invalid full name/);
+});
+
+test('preserves the exact private profile name while trimming whitespace', () => {
+  assert.equal(normalizeProfileName('  Tiago  Fernando Conde de Araújo  '), 'Tiago Fernando Conde de Araújo');
 });
