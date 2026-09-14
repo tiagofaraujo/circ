@@ -180,3 +180,30 @@ test('admins can update a retained ULS registration after personal profile delet
     updatedAt: serverTimestamp(),
   }));
 });
+
+
+test('a deactivated roster entry blocks ULS registration updates', async () => {
+  await seedProfileAndRoster('pilot');
+  await assertSucceeds(claimBatch(userDb('pilot'), 'pilot'));
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'registrations', 'revoked-registration'), {
+      userId: 'pilot',
+      eventId: EVENT_ID,
+      isTest: false,
+      status: 'confirmed',
+      selection: { profile: 'uls' },
+    });
+    await updateDoc(doc(db, 'ulsRoster', MEC), { active: false });
+  });
+
+  const adminDb = testEnv.authenticatedContext('admin', {
+    email: 'circ.chuc@gmail.com',
+    email_verified: true,
+  }).firestore();
+  await assertFails(updateDoc(doc(adminDb, 'registrations', 'revoked-registration'), {
+    status: 'cancelled',
+    updatedAt: serverTimestamp(),
+  }));
+});
