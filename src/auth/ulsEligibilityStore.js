@@ -29,11 +29,10 @@ function ulsError(code) {
 
 export function useUlsEligibility(user) {
   const uid = user?.uid || null;
-  const pilotUser = isUlsPilotUser(user);
   const [state, setState] = useState({ uid: null, status: 'idle', verified: false });
   useEffect(() => {
-    if (!uid || !ulsVerificationEnabled || !pilotUser) {
-      setState({ uid, status: 'idle', verified: false });
+    if (!uid) {
+      setState({ uid: null, status: 'idle', verified: false });
       return undefined;
     }
     const db = getFirebaseFirestore();
@@ -52,9 +51,9 @@ export function useUlsEligibility(user) {
       });
     }, () => { if (active) setState({ uid, status: 'error', verified: false }); });
     return () => { active = false; unsubscribe(); };
-  }, [uid, pilotUser]);
-  // A previous user's snapshot must never unlock the next user's form.
-  if (!ulsVerificationEnabled || !pilotUser) return { status: 'idle', verified: false };
+  }, [uid]);
+  // Existing matches are permanent account state. Feature and pilot flags only
+  // control new claims; they must never make a matched name appear editable.
   return state.uid === uid ? state : { status: 'loading', verified: false };
 }
 
