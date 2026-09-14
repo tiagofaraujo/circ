@@ -22,24 +22,29 @@ const PILOT_EMAIL = 'pilot@example.test';
 const EVENT_ID = 'circ-2027';
 const MEC = '7315';
 const NAME_KEY = 'ANA FILIPA SA';
+const PROFILE_NAME = 'Ana Filipa de Sá';
 let testEnv;
 
 function userDb(uid, email = PILOT_EMAIL) {
   return testEnv.authenticatedContext(uid, { email, email_verified: true }).firestore();
 }
 
-async function seedProfileAndRoster(uid, nameKey = NAME_KEY, pilot = true) {
+async function seedProfileAndRoster(uid, {
+  profileName = PROFILE_NAME,
+  rosterProfileName = PROFILE_NAME,
+  pilot = true,
+} = {}) {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
     await setDoc(doc(db, 'users', uid), {
-      name: 'Ana Filipa de Sá',
-      ulsNameKey: nameKey,
+      name: profileName,
       roles: pilot ? { ulsPilot: true } : {},
     });
     await setDoc(doc(db, 'ulsRoster', MEC), {
       eventId: EVENT_ID,
       active: true,
       nameKey: NAME_KEY,
+      profileName: rosterProfileName,
     });
   });
 }
@@ -74,34 +79,24 @@ test('pilot can atomically claim the matching MEC and name', async () => {
 });
 
 test('wrong profile name cannot claim the MEC', async () => {
-  await seedProfileAndRoster('pilot', 'OUTRA PESSOA');
-  await assertFails(claimBatch(userDb('pilot'), 'pilot', { nameKey: 'OUTRA PESSOA' }));
-});
-
-test('a forged name key cannot claim a roster entry for an unrelated saved name', async () => {
-  await seedProfileAndRoster('pilot');
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await updateDoc(doc(context.firestore(), 'users', 'pilot'), {
-      name: 'Pessoa Diferente',
-      ulsNameKey: NAME_KEY,
-    });
-  });
+  await seedProfileAndRoster('pilot', { profileName: 'Outra Pessoa' });
   await assertFails(claimBatch(userDb('pilot'), 'pilot'));
 });
 
-test('a participant cannot save a name key that differs from the profile name', async () => {
+test('a forged name key cannot claim a roster entry for an unrelated saved name', async () => {
+  await seedProfileAndRoster('pilot', { profileName: 'Pessoa Diferente' });
+  await assertFails(claimBatch(userDb('pilot'), 'pilot'));
+});
+
+test('a participant cannot save a name key outside the validated atomic claim', async () => {
   await seedProfileAndRoster('pilot');
-  await assertFails(updateDoc(doc(userDb('pilot'), 'users', 'pilot'), {
-    ulsNameKey: 'OUTRA PESSOA',
-  }));
-  await assertSucceeds(updateDoc(doc(userDb('pilot'), 'users', 'pilot'), {
-    name: 'Maria do Carmo',
-    ulsNameKey: 'MARIA CARMO',
-  }));
+  const profileRef = doc(userDb('pilot'), 'users', 'pilot');
+  await assertFails(updateDoc(profileRef, { ulsNameKey: NAME_KEY }));
+  await assertSucceeds(updateDoc(profileRef, { name: 'Maria do Carmo' }));
 });
 
 test('a non-pilot account cannot claim a valid pair', async () => {
-  await seedProfileAndRoster('other', NAME_KEY, false);
+  await seedProfileAndRoster('other', { pilot: false });
   await assertFails(claimBatch(userDb('other', 'outra@example.com'), 'other'));
 });
 
@@ -110,8 +105,7 @@ test('a MEC cannot be claimed by a second account', async () => {
   await assertSucceeds(claimBatch(userDb('pilot'), 'pilot'));
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), 'users', 'second'), {
-      name: 'Ana Filipa de Sá',
-      ulsNameKey: NAME_KEY,
+      name: PROFILE_NAME,
       roles: { ulsPilot: true },
     });
   });
