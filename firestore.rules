@@ -294,6 +294,20 @@ service cloud.firestore {
         && roster.get('nameKey', '') == nameKey;
     }
 
+    function canReadOwnUlsRoster(mec) {
+      return signedIn()
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('userId', '') == request.auth.uid
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('eventId', '') == 'circ-2027'
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('status', '') == 'matched'
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('method', '') == 'mec-name-match'
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('mec', '') == mec;
+    }
+
     function hasValidUlsRegistration(data) {
       let selection = data.get('selection', {});
       return data.get('isTest', false) == true
@@ -314,7 +328,12 @@ service cloud.firestore {
       allow create: if validMatchedEligibility(userId);
       allow update, delete: if false;
     }
-    match /ulsRoster/{mec} { allow read, write: if false; }
+    match /ulsRoster/{mec} {
+      // A matched participant may observe only their own claimed entry so that
+      // deactivation is reflected immediately. Collection listing stays private.
+      allow get: if canReadOwnUlsRoster(mec);
+      allow list, write: if false;
+    }
     match /ulsMecClaims/{claimId} {
       allow create: if validUlsClaim(claimId);
       allow read, update, delete: if false;
