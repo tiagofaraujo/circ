@@ -69,6 +69,10 @@ export default function UlsVerification({ user, eligibility, en }) {
         <strong>{en ? 'ULS Coimbra — Match confirmed' : 'ULS Coimbra — Correspondência confirmada'}</strong>
         <span>{eligibility.mec ? 'MEC ' + eligibility.mec : ''}</span>
       </p>
+    ) : eligibility.revoked ? (
+      <p className="uls-verification__error" role="alert">{en
+        ? 'This ULS Coimbra match is no longer active. Contact the secretariat before continuing.'
+        : 'Esta correspondência ULS Coimbra já não está ativa. Contacte o secretariado antes de continuar.'}</p>
     ) : !user ? (
       <p>{en ? 'Sign in to check your employee number.' : 'Inicie sessão para confirmar o seu MEC.'} <Link to="/login">{en ? 'Sign in' : 'Entrar'}</Link></p>
     ) : !ulsVerificationEnabled ? (
