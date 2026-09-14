@@ -270,13 +270,15 @@ service cloud.firestore {
     }
 
     // Eligibility and MEC claims are immutable proof that the exact profile/roster
-    // match succeeded. They intentionally survive personal-profile deletion.
+    // match succeeded. They survive personal-profile deletion, while the roster
+    // remains the authoritative switch for accepting ULS registrations.
     function hasMatchedUlsEligibility(userId) {
       let eligibility = get(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
       let mec = eligibility.get('mec', '');
       let nameKey = eligibility.get('nameKey', '');
       let claimId = 'circ-2027_' + mec;
       let claim = get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data;
+      let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
       return eligibility.get('eventId', '') == 'circ-2027'
         && eligibility.get('userId', '') == userId
         && eligibility.get('status', '') == 'matched'
@@ -286,7 +288,10 @@ service cloud.firestore {
         && claim.get('eventId', '') == 'circ-2027'
         && claim.get('mec', '') == mec
         && claim.get('nameKey', '') == nameKey
-        && claim.get('method', '') == 'mec-name-match';
+        && claim.get('method', '') == 'mec-name-match'
+        && roster.get('active', false) == true
+        && roster.get('eventId', '') == 'circ-2027'
+        && roster.get('nameKey', '') == nameKey;
     }
 
     function hasValidUlsRegistration(data) {
