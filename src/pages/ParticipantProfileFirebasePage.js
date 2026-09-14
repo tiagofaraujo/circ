@@ -201,13 +201,17 @@ export default function ParticipantProfileFirebasePage() {
                   ? (isEnglish
                     ? 'Locked after the ULS Coimbra match. Contact the secretariat if a correction is needed.'
                     : 'Bloqueado após a correspondência ULS Coimbra. Para corrigir, contacte o secretariado.')
-                  : ulsEligibility.status === 'error'
+                  : ulsEligibility.revoked
                     ? (isEnglish
-                      ? 'The ULS status could not be confirmed. Reload the page before changing the name.'
-                      : 'Não foi possível confirmar o estado ULS. Atualize a página antes de alterar o nome.')
-                    : (isEnglish
-                      ? 'Checking whether the name is locked…'
-                      : 'A verificar se o nome está bloqueado…')}</small>}
+                      ? 'The ULS match is no longer active. The name remains locked; contact the secretariat.'
+                      : 'A correspondência ULS já não está ativa. O nome permanece bloqueado; contacte o secretariado.')
+                    : ulsEligibility.status === 'error'
+                      ? (isEnglish
+                        ? 'The ULS status could not be confirmed. Reload the page before changing the name.'
+                        : 'Não foi possível confirmar o estado ULS. Atualize a página antes de alterar o nome.')
+                      : (isEnglish
+                        ? 'Checking whether the name is locked…'
+                        : 'A verificar se o nome está bloqueado…')}</small>}
               </label>
               <label><span>Email</span><input name="email" type="email" value={form.email || ''} readOnly aria-readonly="true" /><small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small></label>
               <label><span>{isEnglish ? 'Date of birth' : 'Data de nascimento'}</span><input name="dateOfBirth" type="date" value={form.dateOfBirth || ''} onChange={updateField} /></label>
