@@ -22,6 +22,16 @@ function isValidEligibility(data, uid) {
   );
 }
 
+export function isValidUlsRoster(data, eligibility) {
+  return Boolean(
+    data
+    && eligibility
+    && data.active === true
+    && data.eventId === ULS_EVENT_ID
+    && data.nameKey === eligibility.nameKey
+  );
+}
+
 function ulsError(code) {
   const error = new Error(code);
   error.code = code;
@@ -32,14 +42,30 @@ export function describeUlsEligibilitySnapshot(snapshot, uid) {
   const documentExists = Boolean(snapshot?.exists);
   const fromCache = snapshot?.metadata?.fromCache === true;
   const data = documentExists ? snapshot.data() : null;
+  const verified = documentExists && isValidEligibility(data, uid);
   return {
     uid,
     status: fromCache ? 'loading' : 'ready',
-    verified: documentExists && isValidEligibility(data, uid),
+    verified,
     documentExists,
     confirmedAbsent: !fromCache && !documentExists,
+    revoked: !fromCache && documentExists && !verified,
     mec: data?.mec || '',
+    nameKey: data?.nameKey || '',
     method: data?.method || '',
+  };
+}
+
+export function describeUlsRosterSnapshot(snapshot, eligibility) {
+  const fromCache = snapshot?.metadata?.fromCache === true;
+  const data = snapshot?.exists ? snapshot.data() : null;
+  const rosterValid = isValidUlsRoster(data, eligibility);
+  return {
+    ...eligibility,
+    status: fromCache ? 'loading' : 'ready',
+    verified: !fromCache && rosterValid,
+    revoked: !fromCache && !rosterValid,
+    rosterConfirmed: !fromCache,
   };
 }
 
@@ -55,13 +81,56 @@ export function useUlsEligibility(user) {
     if (!db) { setState({ uid, status: 'error', verified: false }); return undefined; }
     setState({ uid, status: 'loading', verified: false });
     let active = true;
-    const unsubscribe = db.collection('ulsEligibility').doc(uid).onSnapshot(
+    let rosterMec = '';
+    let unsubscribeRoster = () => {};
+
+    const stopRoster = () => {
+      unsubscribeRoster();
+      unsubscribeRoster = () => {};
+      rosterMec = '';
+    };
+
+    const unsubscribeEligibility = db.collection('ulsEligibility').doc(uid).onSnapshot(
       ULS_ELIGIBILITY_SNAPSHOT_OPTIONS,
       (snapshot) => {
         if (!active) return;
-        setState(describeUlsEligibilitySnapshot(snapshot, uid));
+        const eligibility = describeUlsEligibilitySnapshot(snapshot, uid);
+        if (!eligibility.verified) {
+          stopRoster();
+          setState(eligibility);
+          return;
+        }
+        if (rosterMec === eligibility.mec) return;
+
+        stopRoster();
+        rosterMec = eligibility.mec;
+        setState({
+          ...eligibility,
+          status: 'loading',
+          verified: false,
+          revoked: false,
+          rosterConfirmed: false,
+        });
+        unsubscribeRoster = db.collection('ulsRoster').doc(eligibility.mec).onSnapshot(
+          ULS_ELIGIBILITY_SNAPSHOT_OPTIONS,
+          (rosterSnapshot) => {
+            if (active) setState(describeUlsRosterSnapshot(rosterSnapshot, eligibility));
+          },
+          () => {
+            if (active) {
+              setState({
+                ...eligibility,
+                status: 'error',
+                verified: false,
+                revoked: false,
+                rosterConfirmed: false,
+              });
+            }
+          }
+        );
       },
       () => {
+        stopRoster();
         if (active) {
           setState({
             uid,
@@ -69,17 +138,29 @@ export function useUlsEligibility(user) {
             verified: false,
             documentExists: false,
             confirmedAbsent: false,
+            revoked: false,
           });
         }
       }
     );
-    return () => { active = false; unsubscribe(); };
+    return () => {
+      active = false;
+      stopRoster();
+      unsubscribeEligibility();
+    };
   }, [uid]);
-  // Existing matches are permanent account state. Feature and pilot flags only
-  // control new claims; they must never make a matched name appear editable.
+  // Existing eligibility keeps the profile name locked. A participant is only
+  // shown as verified after the private roster confirms that the match is active.
   return state.uid === uid
     ? state
-    : { uid, status: 'loading', verified: false, documentExists: false, confirmedAbsent: false };
+    : {
+      uid,
+      status: 'loading',
+      verified: false,
+      documentExists: false,
+      confirmedAbsent: false,
+      revoked: false,
+    };
 }
 
 export async function claimUlsEligibility(mecValue) {
@@ -101,7 +182,18 @@ export async function claimUlsEligibility(mecValue) {
   ]);
   const existingEligibility = eligibilitySnapshot.exists ? eligibilitySnapshot.data() : null;
   if (isValidEligibility(existingEligibility, user.uid)) {
-    return { verified: true, mec: existingEligibility.mec || '' };
+    try {
+      const rosterSnapshot = await db.collection('ulsRoster')
+        .doc(existingEligibility.mec).get({ source: 'server' });
+      if (rosterSnapshot.exists && isValidUlsRoster(rosterSnapshot.data(), existingEligibility)) {
+        return { verified: true, mec: existingEligibility.mec || '' };
+      }
+      throw ulsError('uls/no-match');
+    } catch (error) {
+      if (error?.code === 'uls/no-match') throw error;
+      if (error?.code === 'unauthenticated') throw ulsError('uls/unauthenticated');
+      throw ulsError('uls/unavailable');
+    }
   }
   if (!profileSnapshot.exists) throw ulsError('uls/missing-profile-name');
 
