@@ -315,6 +315,39 @@ service cloud.firestore {
         || hasMatchedUlsEligibility(data.userId);
     }
 
+    function validAdminHistoricalRegistrationUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let paymentChanged = changed.hasAny(['payment']);
+      return changed.hasOnly(['status', 'payment', 'updatedAt', 'updatedBy'])
+        && changed.hasAny(['status', 'payment'])
+        && request.resource.data.updatedAt == request.time
+        && (
+          !changed.hasAny(['status'])
+          || (
+            request.resource.data.status in ['draft', 'submitted', 'confirmed', 'cancelled']
+            && request.resource.data.updatedBy.uid == request.auth.uid
+            && request.resource.data.updatedBy.email == request.auth.token.email
+          )
+        )
+        && (
+          !paymentChanged
+          || (
+            request.resource.data.payment.diff(resource.data.payment).affectedKeys()
+              .hasOnly(['status', 'updatedAt', 'updatedBy'])
+            && request.resource.data.payment.status in [
+              'pending',
+              'awaiting_confirmation',
+              'paid',
+              'refunded',
+              'cancelled'
+            ]
+            && request.resource.data.payment.updatedAt == request.time
+            && request.resource.data.payment.updatedBy.uid == request.auth.uid
+            && request.resource.data.payment.updatedBy.email == request.auth.token.email
+          )
+        );
+    }
+
     function hasValidUlsOrder(data) {
       let registration = get(/databases/$(database)/documents/registrations/$(data.registrationId)).data;
       return data.get('isTest', false) == true
@@ -369,7 +402,13 @@ service cloud.firestore {
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data);
       allow delete: if isAdmin();
-      allow update: if (isAdmin() && hasValidUlsRegistration(request.resource.data)) || (
+      allow update: if (
+        isAdmin()
+        && (
+          hasValidUlsRegistration(request.resource.data)
+          || validAdminHistoricalRegistrationUpdate()
+        )
+      ) || (
         canUseSecretariat()
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['attendance', 'credential', 'updatedAt'])
