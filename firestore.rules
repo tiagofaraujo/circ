@@ -338,10 +338,9 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
         && validUlsProfileUpdate(userId)
       );
-      allow delete: if isAdmin() || (
-        isOwner(userId)
-        && !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
-      );
+      // Deleting a My CIRC account must remove its personal profile even
+      // after a ULS match. The private eligibility and MEC reservation remain.
+      allow delete: if isAdmin() || isOwner(userId);
     }
 
     match /events/{eventId} {
