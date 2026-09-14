@@ -152,3 +152,31 @@ test('a matched account can delete its personal profile without releasing the ME
   const eligibility = await assertSucceeds(getDoc(doc(db, 'ulsEligibility', 'pilot')));
   if (!eligibility.exists()) throw new Error('The MEC reservation was released unexpectedly.');
 });
+
+
+test('admins can update a retained ULS registration after personal profile deletion', async () => {
+  await seedProfileAndRoster('pilot');
+  const participantDb = userDb('pilot');
+  await assertSucceeds(claimBatch(participantDb, 'pilot'));
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'registrations', 'retained-registration'), {
+      userId: 'pilot',
+      eventId: EVENT_ID,
+      isTest: false,
+      status: 'confirmed',
+      selection: { profile: 'uls' },
+    });
+  });
+
+  await assertSucceeds(deleteDoc(doc(participantDb, 'users', 'pilot')));
+
+  const adminDb = testEnv.authenticatedContext('admin', {
+    email: 'circ.chuc@gmail.com',
+    email_verified: true,
+  }).firestore();
+  await assertSucceeds(updateDoc(doc(adminDb, 'registrations', 'retained-registration'), {
+    status: 'cancelled',
+    updatedAt: serverTimestamp(),
+  }));
+});
