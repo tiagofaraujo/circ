@@ -167,36 +167,11 @@ service cloud.firestore {
 
     // Recompute the canonical key from the saved profile name inside the trusted
     // rules runtime. A client-supplied ulsNameKey can never stand on its own.
-    function foldUlsName(name) {
-      // Keep each method chain short: the rules runtime has a limited
-      // evaluation depth even when the ruleset compiles successfully.
-      let upperName = name.upper();
-      let latinVowels = upperName
-        .replace('[ÁÀÂÃÄÅ]', 'A')
-        .replace('[ÉÈÊË]', 'E')
-        .replace('[ÍÌÎÏ]', 'I')
-        .replace('[ÓÒÔÕÖ]', 'O')
-        .replace('[ÚÙÛÜ]', 'U');
-      let latinName = latinVowels
-        .replace('[Ç]', 'C')
-        .replace('[Ñ]', 'N')
-        .replace('[ÝŸ]', 'Y');
-      return latinName
-        .replace('[^A-Z ]+', ' ')
-        .replace(' +', ' ')
-        .trim();
-    }
-
-    function stripUlsNameParticles(name) {
-      let paddedName = ' ' + name + ' ';
-      let withoutParticles = paddedName
-        .replace(' (D|DA|DAS|DE|DO|DOS) ', ' ')
-        .replace(' (D|DA|DAS|DE|DO|DOS) ', ' ');
-      return withoutParticles.replace(' +', ' ').trim();
-    }
-
     function normalizeUlsProfileName(name) {
-      return stripUlsNameParticles(foldUlsName(name));
+      return name.upper()
+        .replace('[ÁÀÂÃÄÅ]', 'A')
+        .replace(' (D|DA|DAS|DE|DO|DOS) ', ' ')
+        .trim();
     }
 
     function validUlsProfileKey(data) {
