@@ -165,36 +165,16 @@ service cloud.firestore {
         && nameKey.size() <= 160;
     }
 
-    // Recompute the canonical key from the saved profile name inside the trusted
-    // rules runtime. A client-supplied ulsNameKey can never stand on its own.
-    function normalizeUlsProfileName(name) {
-      return name.upper()
-        .replace('Á', 'A')
-        .replace(' DE ', ' ')
-        .replace(' DO ', ' ')
-        .trim();
-    }
-
-    function validUlsProfileKey(data) {
-      return !data.keys().hasAny(['ulsNameKey'])
-        || (
-          data.get('name', '') is string
-          && data.get('ulsNameKey', '') == normalizeUlsProfileName(data.get('name', ''))
-        );
-    }
-
-    function validUlsProfileKeyUpdate() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      return !changed.hasAny(['name', 'ulsNameKey'])
-        || validUlsProfileKey(request.resource.data);
-    }
-
+    // Bind every match to the exact full name stored in the private roster.
+    // The normalised key remains useful for matching, but never authorises a
+    // claim unless the saved profile name also matches the private source name.
     function hasPersistedUlsMatch(userId, mec, nameKey) {
       let profile = get(/databases/$(database)/documents/users/$(userId)).data;
       let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
       return profile.get('name', '') is string
+        && profile.get('name', '').size() >= 5
         && profile.get('ulsNameKey', '') == nameKey
-        && normalizeUlsProfileName(profile.get('name', '')) == nameKey
+        && roster.get('profileName', '') == profile.get('name', '')
         && roster.get('active', false) == true
         && roster.get('eventId', '') == 'circ-2027'
         && roster.get('nameKey', '') == nameKey;
@@ -204,11 +184,38 @@ service cloud.firestore {
       let profile = getAfter(/databases/$(database)/documents/users/$(userId)).data;
       let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
       return profile.get('name', '') is string
+        && profile.get('name', '').size() >= 5
         && profile.get('ulsNameKey', '') == nameKey
-        && normalizeUlsProfileName(profile.get('name', '')) == nameKey
+        && roster.get('profileName', '') == profile.get('name', '')
         && roster.get('active', false) == true
         && roster.get('eventId', '') == 'circ-2027'
         && roster.get('nameKey', '') == nameKey;
+    }
+
+    function validUlsProfileUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let eligibilityExists =
+        exists(/databases/$(database)/documents/ulsEligibility/$(userId));
+      let pendingEligibility =
+        getAfter(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
+      let mec = pendingEligibility.get('mec', '');
+      let nameKey = pendingEligibility.get('nameKey', '');
+      return (
+          !changed.hasAny(['ulsNameKey'])
+          || (
+            !eligibilityExists
+            && pendingEligibility.get('userId', '') == userId
+            && pendingEligibility.get('eventId', '') == 'circ-2027'
+            && pendingEligibility.get('status', '') == 'matched'
+            && pendingEligibility.get('method', '') == 'mec-name-match'
+            && validUlsNameKey(nameKey)
+            && hasPendingUlsMatch(userId, mec, nameKey)
+          )
+        )
+        && (
+          !eligibilityExists
+          || !changed.hasAny(['name', 'ulsNameKey'])
+        );
     }
 
     function validMatchedEligibility(userId) {
@@ -322,18 +329,13 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || (
         isOwner(userId)
-        && !request.resource.data.keys().hasAny(['roles'])
-        && validUlsProfileKey(request.resource.data)
+        && !request.resource.data.keys().hasAny(['roles', 'ulsNameKey'])
         && !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
       );
       allow update: if isAdmin() || (
         isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
-        && validUlsProfileKeyUpdate()
-        && (
-          !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
-          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'ulsNameKey'])
-        )
+        && validUlsProfileUpdate(userId)
       );
       allow delete: if isAdmin() || (
         isOwner(userId)
