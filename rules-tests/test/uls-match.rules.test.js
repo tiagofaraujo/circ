@@ -9,9 +9,11 @@ const {
   initializeTestEnvironment,
 } = require('@firebase/rules-unit-testing');
 const {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -124,9 +126,28 @@ test('a MEC cannot be claimed by a second account', async () => {
   await assertFails(claimBatch(userDb('second'), 'second'));
 });
 
-test('the private roster cannot be read by the participant', async () => {
+test('the private roster cannot be read before a match', async () => {
   await seedProfileAndRoster('pilot');
   await assertFails(getDoc(doc(userDb('pilot'), 'ulsRoster', MEC)));
+});
+
+test('a matched participant can observe only the claimed roster entry', async () => {
+  await seedProfileAndRoster('pilot');
+  const db = userDb('pilot');
+  await assertSucceeds(claimBatch(db, 'pilot'));
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'ulsRoster', '9999'), {
+      eventId: EVENT_ID,
+      active: true,
+      nameKey: 'OUTRA PESSOA',
+      profileName: 'Outra Pessoa',
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(db, 'ulsRoster', MEC)));
+  await assertFails(getDoc(doc(db, 'ulsRoster', '9999')));
+  await assertFails(getDocs(collection(db, 'ulsRoster')));
 });
 
 test('the participant name is locked after a match while other profile fields remain editable', async () => {
