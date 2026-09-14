@@ -165,21 +165,6 @@ service cloud.firestore {
         && nameKey.size() <= 160;
     }
 
-    // Bind every match to the exact full name stored in the private roster.
-    // The normalised key remains useful for matching, but never authorises a
-    // claim unless the saved profile name also matches the private source name.
-    function hasPersistedUlsMatch(userId, mec, nameKey) {
-      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
-      let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
-      return profile.get('name', '') is string
-        && profile.get('name', '').size() >= 5
-        && profile.get('ulsNameKey', '') == nameKey
-        && roster.get('profileName', '') == profile.get('name', '')
-        && roster.get('active', false) == true
-        && roster.get('eventId', '') == 'circ-2027'
-        && roster.get('nameKey', '') == nameKey;
-    }
-
     function hasPendingUlsMatch(userId, mec, nameKey) {
       let profile = getAfter(/databases/$(database)/documents/users/$(userId)).data;
       let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
@@ -284,18 +269,24 @@ service cloud.firestore {
         && eligibility.get('status', '') == 'matched';
     }
 
+    // Eligibility and MEC claims are immutable proof that the exact profile/roster
+    // match succeeded. They intentionally survive personal-profile deletion.
     function hasMatchedUlsEligibility(userId) {
       let eligibility = get(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
       let mec = eligibility.get('mec', '');
       let nameKey = eligibility.get('nameKey', '');
       let claimId = 'circ-2027_' + mec;
+      let claim = get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data;
       return eligibility.get('eventId', '') == 'circ-2027'
         && eligibility.get('userId', '') == userId
         && eligibility.get('status', '') == 'matched'
         && eligibility.get('method', '') == 'mec-name-match'
         && validUlsNameKey(nameKey)
-        && hasPersistedUlsMatch(userId, mec, nameKey)
-        && get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data.get('userId', '') == userId;
+        && claim.get('userId', '') == userId
+        && claim.get('eventId', '') == 'circ-2027'
+        && claim.get('mec', '') == mec
+        && claim.get('nameKey', '') == nameKey
+        && claim.get('method', '') == 'mec-name-match';
     }
 
     function hasValidUlsRegistration(data) {
