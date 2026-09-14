@@ -1,5 +1,7 @@
 import {
   describeUlsEligibilitySnapshot,
+  describeUlsRosterSnapshot,
+  isValidUlsRoster,
   ULS_ELIGIBILITY_SNAPSHOT_OPTIONS,
 } from './ulsEligibilityStore';
 
@@ -10,6 +12,7 @@ const VALID = {
   status: 'matched',
   method: 'mec-name-match',
   mec: '4206',
+  nameKey: 'TIAGO FERNANDO CONDE ARAUJO',
 };
 
 function snapshot({ exists, fromCache = false, data = null }) {
@@ -71,6 +74,60 @@ describe('ULS eligibility snapshot state', () => {
       documentExists: true,
       confirmedAbsent: false,
       mec: '4206',
+    });
+  });
+});
+
+
+describe('ULS roster-backed eligibility state', () => {
+  const eligibility = describeUlsEligibilitySnapshot(snapshot({
+    exists: true,
+    data: VALID,
+  }), UID);
+  const activeRoster = {
+    eventId: 'circ-2027',
+    active: true,
+    nameKey: VALID.nameKey,
+  };
+
+  test('confirms a match only from an active server roster snapshot', () => {
+    expect(isValidUlsRoster(activeRoster, eligibility)).toBe(true);
+    expect(describeUlsRosterSnapshot(snapshot({
+      exists: true,
+      data: activeRoster,
+    }), eligibility)).toMatchObject({
+      status: 'ready',
+      verified: true,
+      revoked: false,
+      rosterConfirmed: true,
+    });
+  });
+
+  test('does not trust a cached roster snapshot', () => {
+    expect(describeUlsRosterSnapshot(snapshot({
+      exists: true,
+      fromCache: true,
+      data: activeRoster,
+    }), eligibility)).toMatchObject({
+      status: 'loading',
+      verified: false,
+      revoked: false,
+      rosterConfirmed: false,
+    });
+  });
+
+  test.each([
+    ['deactivated', { ...activeRoster, active: false }],
+    ['identity changed', { ...activeRoster, nameKey: 'OUTRA PESSOA' }],
+  ])('marks a %s roster entry as revoked', (_label, roster) => {
+    expect(describeUlsRosterSnapshot(snapshot({
+      exists: true,
+      data: roster,
+    }), eligibility)).toMatchObject({
+      status: 'ready',
+      verified: false,
+      revoked: true,
+      rosterConfirmed: true,
     });
   });
 });
