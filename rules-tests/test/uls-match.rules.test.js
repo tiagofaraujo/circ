@@ -78,6 +78,28 @@ test('wrong profile name cannot claim the MEC', async () => {
   await assertFails(claimBatch(userDb('pilot'), 'pilot', { nameKey: 'OUTRA PESSOA' }));
 });
 
+test('a forged name key cannot claim a roster entry for an unrelated saved name', async () => {
+  await seedProfileAndRoster('pilot');
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), 'users', 'pilot'), {
+      name: 'Pessoa Diferente',
+      ulsNameKey: NAME_KEY,
+    });
+  });
+  await assertFails(claimBatch(userDb('pilot'), 'pilot'));
+});
+
+test('a participant cannot save a name key that differs from the profile name', async () => {
+  await seedProfileAndRoster('pilot');
+  await assertFails(updateDoc(doc(userDb('pilot'), 'users', 'pilot'), {
+    ulsNameKey: 'OUTRA PESSOA',
+  }));
+  await assertSucceeds(updateDoc(doc(userDb('pilot'), 'users', 'pilot'), {
+    name: 'Maria do Carmo',
+    ulsNameKey: 'MARIA CARMO',
+  }));
+});
+
 test('a non-pilot account cannot claim a valid pair', async () => {
   await seedProfileAndRoster('other', NAME_KEY, false);
   await assertFails(claimBatch(userDb('other', 'outra@example.com'), 'other'));
