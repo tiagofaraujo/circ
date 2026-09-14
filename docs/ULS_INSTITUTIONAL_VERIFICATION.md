@@ -90,6 +90,7 @@ Não existe uma região de Functions para configurar neste percurso. Não ativar
 ## Operação e recuperação
 
 - Um erro de correspondência nunca deve indicar se falhou o MEC, o nome ou uma reserva existente.
+- Desativar `ulsRoster/{mec}.active` retira a validação da interface e impede novas operações de tarifa/benefícios ULS. O administrador continua autorizado apenas a atualizar o estado ou pagamento de inscrições históricas, incluindo cancelamento e reembolso.
 - Não eliminar automaticamente a reserva quando a conta é apagada; isso permitiria reutilizar o MEC sem análise.
 - Para corrigir um nome ou transferir um MEC, o secretariado confirma a identidade por outro canal e altera de forma controlada `ulsEligibility`, `ulsMecClaims` e, se necessário, `ulsRoster`.
 - Antes de abrir a todos os colaboradores, substituir a conta piloto por uma política revista, confirmar a lista e realizar uma avaliação de proteção de dados.
