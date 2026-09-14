@@ -203,7 +203,7 @@ test('admins can update a retained ULS registration after personal profile delet
 });
 
 
-test('a deactivated roster entry is visible only to its match and blocks registration updates', async () => {
+test('revocation keeps lifecycle updates available but blocks entitlement changes', async () => {
   await seedProfileAndRoster('pilot');
   const participantDb = userDb('pilot');
   await assertSucceeds(claimBatch(participantDb, 'pilot'));
@@ -216,6 +216,7 @@ test('a deactivated roster entry is visible only to its match and blocks registr
       isTest: false,
       status: 'confirmed',
       selection: { profile: 'uls' },
+      payment: { status: 'paid', amountCents: 10000 },
     });
     await updateDoc(doc(db, 'ulsRoster', MEC), { active: false });
   });
@@ -223,12 +224,26 @@ test('a deactivated roster entry is visible only to its match and blocks registr
   const revokedRoster = await assertSucceeds(getDoc(doc(participantDb, 'ulsRoster', MEC)));
   if (revokedRoster.data()?.active !== false) throw new Error('Roster revocation was not observable.');
 
-  const adminDb = testEnv.authenticatedContext('admin', {
-    email: 'circ.chuc@gmail.com',
+  const adminIdentity = { uid: 'admin', email: 'circ.chuc@gmail.com' };
+  const adminDb = testEnv.authenticatedContext(adminIdentity.uid, {
+    email: adminIdentity.email,
     email_verified: true,
   }).firestore();
-  await assertFails(updateDoc(doc(adminDb, 'registrations', 'revoked-registration'), {
+  const registrationRef = doc(adminDb, 'registrations', 'revoked-registration');
+
+  await assertSucceeds(updateDoc(registrationRef, {
     status: 'cancelled',
+    updatedAt: serverTimestamp(),
+    updatedBy: adminIdentity,
+  }));
+  await assertSucceeds(updateDoc(registrationRef, {
+    'payment.status': 'refunded',
+    'payment.updatedAt': serverTimestamp(),
+    'payment.updatedBy': adminIdentity,
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(registrationRef, {
+    selection: { profile: 'external' },
     updatedAt: serverTimestamp(),
   }));
 });
