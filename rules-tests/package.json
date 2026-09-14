@@ -2,7 +2,7 @@
   "name": "circ-firestore-rules-tests",
   "private": true,
   "scripts": {
-    "test": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-circ-2027 \"node --test test/*.test.js\""
+    "test": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-circ-2027 \"node --test test/*.test.js\" || (tail -n 300 firestore-debug.log && exit 1)"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.2",
