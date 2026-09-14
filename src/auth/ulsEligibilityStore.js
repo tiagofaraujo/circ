@@ -3,6 +3,7 @@ import { getFirebaseAuth, getFirebaseFirestore } from './firebaseClient';
 import { buildUlsIdentity, ULS_EVENT_ID, ULS_MATCH_METHOD } from './ulsIdentity';
 
 export const ulsVerificationEnabled = process.env.REACT_APP_ULS_VERIFICATION_ENABLED === 'true';
+export const ULS_ELIGIBILITY_SNAPSHOT_OPTIONS = Object.freeze({ includeMetadataChanges: true });
 const ulsPilotEmails = new Set((process.env.REACT_APP_ULS_PILOT_EMAILS || '')
   .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 
@@ -54,11 +55,13 @@ export function useUlsEligibility(user) {
     if (!db) { setState({ uid, status: 'error', verified: false }); return undefined; }
     setState({ uid, status: 'loading', verified: false });
     let active = true;
-    const unsubscribe = db.collection('ulsEligibility').doc(uid).onSnapshot((snapshot) => {
+    const unsubscribe = db.collection('ulsEligibility').doc(uid).onSnapshot(
+      ULS_ELIGIBILITY_SNAPSHOT_OPTIONS,
+      (snapshot) => {
       if (!active) return;
       setState(describeUlsEligibilitySnapshot(snapshot, uid));
-    }, () => {
-      if (active) {
+      }, () => {
+        if (active) {
         setState({
           uid,
           status: 'error',
@@ -66,8 +69,9 @@ export function useUlsEligibility(user) {
           documentExists: false,
           confirmedAbsent: false,
         });
+        }
       }
-    });
+    );
     return () => { active = false; unsubscribe(); };
   }, [uid]);
   // Existing matches are permanent account state. Feature and pilot flags only
