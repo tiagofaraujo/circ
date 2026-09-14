@@ -53,7 +53,8 @@ export default function ParticipantProfileFirebasePage() {
   const isEnglish = language === 'en';
   const { user, updateDisplayName } = useAuth();
   const ulsEligibility = useUlsEligibility(user);
-  const ulsNameLocked = ulsEligibility.verified;
+  const ulsNameLocked = Boolean(user)
+    && (ulsEligibility.verified || ulsEligibility.status !== 'ready');
   const [form, setForm] = useState(() => emptyForm(user));
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -187,9 +188,17 @@ export default function ParticipantProfileFirebasePage() {
                   aria-readonly={ulsNameLocked}
                   required
                 />
-                {ulsNameLocked && <small>{isEnglish
-                  ? 'Locked after the ULS Coimbra match. Contact the secretariat if a correction is needed.'
-                  : 'Bloqueado após a correspondência ULS Coimbra. Para corrigir, contacte o secretariado.'}</small>}
+                {ulsNameLocked && <small>{ulsEligibility.verified
+                  ? (isEnglish
+                    ? 'Locked after the ULS Coimbra match. Contact the secretariat if a correction is needed.'
+                    : 'Bloqueado após a correspondência ULS Coimbra. Para corrigir, contacte o secretariado.')
+                  : ulsEligibility.status === 'error'
+                    ? (isEnglish
+                      ? 'The ULS status could not be confirmed. Reload the page before changing the name.'
+                      : 'Não foi possível confirmar o estado ULS. Atualize a página antes de alterar o nome.')
+                    : (isEnglish
+                      ? 'Checking whether the name is locked…'
+                      : 'A verificar se o nome está bloqueado…')}</small>}
               </label>
               <label><span>Email</span><input name="email" type="email" value={form.email || ''} readOnly aria-readonly="true" /><small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small></label>
               <label><span>{isEnglish ? 'Date of birth' : 'Data de nascimento'}</span><input name="dateOfBirth" type="date" value={form.dateOfBirth || ''} onChange={updateField} /></label>
