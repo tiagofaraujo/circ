@@ -106,11 +106,19 @@ export default function ParticipantProfileFirebasePage() {
         photoURL: user?.photoURL || '',
       };
       const savedProfile = await saveParticipantProfile(user, next);
-      if (savedProfile.name && savedProfile.name !== user?.displayName) {
-        await updateDisplayName(savedProfile.name);
-      }
       setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
+      if (savedProfile.name && savedProfile.name !== user?.displayName) {
+        try {
+          await updateDisplayName(savedProfile.name);
+        } catch {
+          setSaveError(
+            isEnglish
+              ? 'The profile was saved, but the account display name could not be synchronised. Reload the page and try again.'
+              : 'O perfil foi guardado, mas não foi possível sincronizar o nome da conta. Atualize a página e tente novamente.'
+          );
+        }
+      }
     } catch {
       setSaveError(
         isEnglish
