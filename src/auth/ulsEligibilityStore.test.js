@@ -1,4 +1,7 @@
-import { describeUlsEligibilitySnapshot } from './ulsEligibilityStore';
+import {
+  describeUlsEligibilitySnapshot,
+  ULS_ELIGIBILITY_SNAPSHOT_OPTIONS,
+} from './ulsEligibilityStore';
 
 const UID = 'pilot';
 const VALID = {
@@ -18,6 +21,10 @@ function snapshot({ exists, fromCache = false, data = null }) {
 }
 
 describe('ULS eligibility snapshot state', () => {
+  test('listens for metadata-only server confirmation', () => {
+    expect(ULS_ELIGIBILITY_SNAPSHOT_OPTIONS).toEqual({ includeMetadataChanges: true });
+  });
+
   test('does not treat a cached miss as confirmed absence', () => {
     expect(describeUlsEligibilitySnapshot(snapshot({
       exists: false,
