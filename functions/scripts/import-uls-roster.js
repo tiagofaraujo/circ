@@ -27,6 +27,14 @@ function normalizeName(value) {
   return nameKey;
 }
 
+function normalizeProfileName(value) {
+  const profileName = String(value || '').replace(/\s+/g, ' ').trim();
+  if (profileName.length < 5 || profileName.length > 160) {
+    throw new Error('Invalid full name.');
+  }
+  return profileName;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const flag = (name) => {
@@ -45,6 +53,7 @@ async function main() {
   }
   const records = input.map((entry) => ({
     mec: normalizeMec(entry?.mec),
+    profileName: normalizeProfileName(entry?.name),
     nameKey: normalizeName(entry?.name),
   }));
   if (new Set(records.map((entry) => entry.mec)).size !== records.length) {
@@ -67,6 +76,7 @@ async function main() {
       if (previous && (
         previous.eventId !== EVENT_ID
         || (previous.nameKey && previous.nameKey !== records[index].nameKey)
+        || (previous.profileName && previous.profileName !== records[index].profileName)
       )) {
         throw new Error('Existing roster data conflicts with this import. Nothing imported.');
       }
@@ -78,10 +88,14 @@ async function main() {
           eventId: EVENT_ID,
           active: true,
           nameKey: records[index].nameKey,
+          profileName: records[index].profileName,
           importedAt: new Date(),
         });
-      } else if (!previous.nameKey) {
-        transaction.update(ref, { nameKey: records[index].nameKey });
+      } else {
+        const missing = {};
+        if (!previous.nameKey) missing.nameKey = records[index].nameKey;
+        if (!previous.profileName) missing.profileName = records[index].profileName;
+        if (Object.keys(missing).length) transaction.update(ref, missing);
       }
     });
   });
@@ -95,4 +109,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { normalizeMec, normalizeName };
+module.exports = { normalizeMec, normalizeName, normalizeProfileName };
