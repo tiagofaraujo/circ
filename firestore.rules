@@ -192,25 +192,26 @@ service cloud.firestore {
         && roster.get('nameKey', '') == nameKey;
     }
 
-    function validUlsProfileUpdate(userId) {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let eligibilityExists =
-        exists(/databases/$(database)/documents/ulsEligibility/$(userId));
+    function validPendingUlsProfileMatch(userId) {
       let pendingEligibility =
         getAfter(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
       let mec = pendingEligibility.get('mec', '');
       let nameKey = pendingEligibility.get('nameKey', '');
+      return pendingEligibility.get('userId', '') == userId
+        && pendingEligibility.get('eventId', '') == 'circ-2027'
+        && pendingEligibility.get('status', '') == 'matched'
+        && pendingEligibility.get('method', '') == 'mec-name-match'
+        && validUlsNameKey(nameKey)
+        && hasPendingUlsMatch(userId, mec, nameKey);
+    }
+
+    function validUlsProfileUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let eligibilityExists =
+        exists(/databases/$(database)/documents/ulsEligibility/$(userId));
       return (
           !changed.hasAny(['ulsNameKey'])
-          || (
-            !eligibilityExists
-            && pendingEligibility.get('userId', '') == userId
-            && pendingEligibility.get('eventId', '') == 'circ-2027'
-            && pendingEligibility.get('status', '') == 'matched'
-            && pendingEligibility.get('method', '') == 'mec-name-match'
-            && validUlsNameKey(nameKey)
-            && hasPendingUlsMatch(userId, mec, nameKey)
-          )
+          || (!eligibilityExists && validPendingUlsProfileMatch(userId))
         )
         && (
           !eligibilityExists
