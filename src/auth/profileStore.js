@@ -90,6 +90,17 @@ function mergeProfileSources(...sources) {
   return normalizeParticipantProfile(merged);
 }
 
+export function mergeParticipantProfileSources(local, cached, remote, authProfile) {
+  const merged = mergeProfileSources(local, authProfile, cached, remote);
+  return normalizeParticipantProfile({
+    ...merged,
+    firebaseUid: authProfile?.firebaseUid || merged.firebaseUid || '',
+    email: authProfile?.email || merged.email || '',
+    photoURL: authProfile?.photoURL || '',
+    demoAccess: false,
+  });
+}
+
 function profileFieldsForStorage(profile) {
   const fields = PROFILE_FIELDS.reduce((storedFields, field) => {
     if (isFilled(profile[field])) storedFields[field] = profile[field];
@@ -162,7 +173,7 @@ function profileSaveError(error) {
 export async function loadParticipantProfileResult(user) {
   const local = normalizeParticipantProfile(localProfileForUser(user));
   const authProfile = userBaseProfile(user);
-  const base = mergeProfileSources(local, authProfile);
+  const base = mergeParticipantProfileSources(local, {}, {}, authProfile);
   const baseCompletion = bestCompletion(base, getProfileCompletion(base));
 
   if (!user?.uid) {
@@ -189,9 +200,9 @@ export async function loadParticipantProfileResult(user) {
   try {
     const snapshot = await documentRef.get({ source: 'server' });
     const remote = snapshot.exists ? snapshot.data() || {} : {};
-    const merged = mergeProfileSources(local, cached, remote, authProfile);
+    const merged = mergeParticipantProfileSources(local, cached, remote, authProfile);
     const completion = bestCompletion(merged, getProfileCompletion(merged));
-    const remoteProfile = mergeProfileSources(remote, authProfile);
+    const remoteProfile = mergeParticipantProfileSources({}, {}, remote, authProfile);
     const remoteCompletion = bestCompletion(remote, getProfileCompletion(remoteProfile));
 
     if (completion.completed > remoteCompletion.completed) {
@@ -216,7 +227,7 @@ export async function loadParticipantProfileResult(user) {
 
     return { profile: merged, completion, remoteAvailable: true, source: 'firestore' };
   } catch (error) {
-    const fallback = mergeProfileSources(local, cached, authProfile);
+    const fallback = mergeParticipantProfileSources(local, cached, {}, authProfile);
     const completion = bestCompletion(fallback, getProfileCompletion(fallback));
     writeLocalProfile({ ...fallback, profileCompletion: completion });
     return {
