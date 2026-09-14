@@ -9,7 +9,7 @@ O piloto está limitado à conta que recebe a permissão privada `roles.ulsPilot
 1. O participante inicia sessão com uma conta Firebase cujo email já foi confirmado.
 2. O participante indica o MEC.
 3. O browser deriva uma chave normalizada do nome: maiúsculas, sem acentos, pontuação ou partículas portuguesas (`d'`, `da`, `das`, `de`, `do`, `dos`).
-4. As regras do Firestore comparam, sem entregar a lista ao browser, o MEC, a chave normalizada e também o nome exato guardado no perfil com `ulsRoster/{mec}`. A chave enviada pelo browser nunca autoriza sozinha uma correspondência.
+4. Durante a correspondência, as regras do Firestore comparam, sem entregar a entrada ao browser, o MEC, a chave normalizada e também o nome exato guardado no perfil com `ulsRoster/{mec}`. A chave enviada pelo browser nunca autoriza sozinha uma correspondência.
 5. Uma única escrita atómica cria a elegibilidade e a reserva exclusiva do MEC. Se qualquer condição falhar, nada é gravado.
 6. Depois da correspondência, o participante não pode alterar o nome do perfil nem reutilizar o MEC noutra conta. Uma correção passa pelo secretariado.
 
@@ -19,12 +19,12 @@ Este mecanismo confirma apenas que foi introduzido um par MEC–nome presente na
 
 | Coleção | Conteúdo | Acesso do navegador |
 | --- | --- | --- |
-| `ulsRoster/{mec}` | edição, estado ativo, chave normalizada e nome exato do perfil | nenhum |
+| `ulsRoster/{mec}` | edição, estado ativo, chave normalizada e nome exato do perfil | depois da correspondência, `get` apenas da entrada MEC reclamada pelo próprio; listagem e outras entradas sempre negadas |
 | `ulsMecClaims/{eventId_mec}` | reserva exclusiva do MEC para um UID | nenhum |
 | `ulsEligibility/{uid}` | resultado da correspondência, MEC, UID e edição | leitura pelo próprio e administrador; criação apenas pelo lote validado nas regras |
 | `users/{uid}` | perfil e `ulsNameKey` derivada do nome | próprio utilizador e administrador |
 
-O campo `ulsNameKey` isolado não concede a tarifa e não pode ser gravado separadamente pelo participante. A inscrição ULS só é aceite quando continuam coerentes o perfil, a entrada ativa da lista, a elegibilidade e a reserva exclusiva.
+O campo `ulsNameKey` isolado não concede a tarifa e não pode ser gravado separadamente pelo participante. A correspondência inicial exige o perfil e a entrada ativa do roster. Depois disso, a inscrição ULS exige que a entrada continue ativa e coerente com a elegibilidade e a reserva MEC imutáveis, mesmo que o perfil pessoal seja posteriormente eliminado. A leitura restrita da própria entrada permite que uma desativação seja refletida na interface sem expor a coleção.
 
 ## Preparar o registo piloto
 
@@ -97,6 +97,6 @@ Não existe uma região de Functions para configurar neste percurso. Não ativar
 
 ## Testes incluídos
 
-Os testes cobrem normalização de acentos, pontuação e partículas do nome, preservação do nome exato, MEC inválido, correspondência correta, nome incorreto ou chave forjada, conta fora do piloto, reutilização do MEC, privacidade da lista e bloqueio do nome depois da confirmação.
+Os testes cobrem normalização de acentos, pontuação, partículas e espaços do nome, preservação do nome exato, MEC inválido, correspondência correta, nome incorreto ou chave forjada, conta fora do piloto, reutilização do MEC, acesso restrito à própria entrada, bloqueio da listagem e de MEC alheios, propagação de revogação e bloqueio do nome depois da confirmação.
 
 Nenhum registo é importado e nenhuma regra é publicada automaticamente por esta alteração.
