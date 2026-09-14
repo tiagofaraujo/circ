@@ -9,6 +9,7 @@ const {
   initializeTestEnvironment,
 } = require('@firebase/rules-unit-testing');
 const {
+  deleteDoc,
   doc,
   getDoc,
   serverTimestamp,
@@ -70,6 +71,17 @@ before(async () => {
 afterEach(async () => testEnv.clearFirestore());
 after(async () => testEnv.cleanup());
 
+test('ordinary profiles cannot create a ULS key outside a claim', async () => {
+  await assertSucceeds(setDoc(doc(userDb('new-user'), 'users', 'new-user'), {
+    name: 'Utilizador Novo',
+    email: 'pilot@example.test',
+  }));
+  await assertFails(setDoc(doc(userDb('forged-user'), 'users', 'forged-user'), {
+    name: PROFILE_NAME,
+    ulsNameKey: NAME_KEY,
+  }));
+});
+
 test('pilot can atomically claim the matching MEC and name', async () => {
   await seedProfileAndRoster('pilot');
   const db = userDb('pilot');
@@ -126,4 +138,17 @@ test('the participant name is locked after a match while other profile fields re
     ulsNameKey: 'OUTRO NOME',
   }));
   await assertSucceeds(updateDoc(doc(db, 'users', 'pilot'), { mobile: '900000000' }));
+});
+
+test('a matched account can delete its personal profile without releasing the MEC', async () => {
+  await seedProfileAndRoster('pilot');
+  const db = userDb('pilot');
+  await assertSucceeds(claimBatch(db, 'pilot'));
+  await assertSucceeds(deleteDoc(doc(db, 'users', 'pilot')));
+
+  const deletedProfile = await assertSucceeds(getDoc(doc(db, 'users', 'pilot')));
+  if (deletedProfile.exists()) throw new Error('The personal profile was not deleted.');
+
+  const eligibility = await assertSucceeds(getDoc(doc(db, 'ulsEligibility', 'pilot')));
+  if (!eligibility.exists()) throw new Error('The MEC reservation was released unexpectedly.');
 });
