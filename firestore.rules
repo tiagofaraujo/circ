@@ -169,8 +169,9 @@ service cloud.firestore {
     // rules runtime. A client-supplied ulsNameKey can never stand on its own.
     function normalizeUlsProfileName(name) {
       return name.upper()
-        .replace('[ÁÀÂÃÄÅ]', 'A')
-        .replace(' (D|DA|DAS|DE|DO|DOS) ', ' ')
+        .replace('Á', 'A')
+        .replace(' DE ', ' ')
+        .replace(' DO ', ' ')
         .trim();
     }
 
