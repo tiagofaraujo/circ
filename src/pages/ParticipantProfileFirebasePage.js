@@ -53,8 +53,9 @@ export default function ParticipantProfileFirebasePage() {
   const isEnglish = language === 'en';
   const { user, updateDisplayName } = useAuth();
   const ulsEligibility = useUlsEligibility(user);
-  const ulsNameLocked = Boolean(user)
-    && (ulsEligibility.verified || ulsEligibility.status !== 'ready');
+  // A cached miss, a failed lookup, or any existing eligibility document
+  // keeps the field locked. Only a server-confirmed absence unlocks it.
+  const ulsNameLocked = Boolean(user) && !ulsEligibility.confirmedAbsent;
   const [form, setForm] = useState(() => emptyForm(user));
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
