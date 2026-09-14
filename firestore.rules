@@ -165,10 +165,55 @@ service cloud.firestore {
         && nameKey.size() <= 160;
     }
 
+    // Recompute the canonical key from the saved profile name inside the trusted
+    // rules runtime. A client-supplied ulsNameKey can never stand on its own.
+    function foldUlsName(name) {
+      return name.upper()
+        .replace('[ÁÀÂÃÄÅ]', 'A')
+        .replace('[ÉÈÊË]', 'E')
+        .replace('[ÍÌÎÏ]', 'I')
+        .replace('[ÓÒÔÕÖ]', 'O')
+        .replace('[ÚÙÛÜ]', 'U')
+        .replace('[Ç]', 'C')
+        .replace('[Ñ]', 'N')
+        .replace('[ÝŸ]', 'Y')
+        .replace('[^A-Z ]+', ' ')
+        .replace(' +', ' ')
+        .trim();
+    }
+
+    function stripUlsNameParticles(name) {
+      return (' ' + name + ' ')
+        .replace(' (D|DA|DAS|DE|DO|DOS) ', ' ')
+        .replace(' (D|DA|DAS|DE|DO|DOS) ', ' ')
+        .replace(' +', ' ')
+        .trim();
+    }
+
+    function normalizeUlsProfileName(name) {
+      return stripUlsNameParticles(foldUlsName(name));
+    }
+
+    function validUlsProfileKey(data) {
+      return !data.keys().hasAny(['ulsNameKey'])
+        || (
+          data.get('name', '') is string
+          && data.get('ulsNameKey', '') == normalizeUlsProfileName(data.get('name', ''))
+        );
+    }
+
+    function validUlsProfileKeyUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return !changed.hasAny(['name', 'ulsNameKey'])
+        || validUlsProfileKey(request.resource.data);
+    }
+
     function hasPersistedUlsMatch(userId, mec, nameKey) {
       let profile = get(/databases/$(database)/documents/users/$(userId)).data;
       let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
-      return profile.get('ulsNameKey', '') == nameKey
+      return profile.get('name', '') is string
+        && profile.get('ulsNameKey', '') == nameKey
+        && normalizeUlsProfileName(profile.get('name', '')) == nameKey
         && roster.get('active', false) == true
         && roster.get('eventId', '') == 'circ-2027'
         && roster.get('nameKey', '') == nameKey;
@@ -177,7 +222,9 @@ service cloud.firestore {
     function hasPendingUlsMatch(userId, mec, nameKey) {
       let profile = getAfter(/databases/$(database)/documents/users/$(userId)).data;
       let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
-      return profile.get('ulsNameKey', '') == nameKey
+      return profile.get('name', '') is string
+        && profile.get('ulsNameKey', '') == nameKey
+        && normalizeUlsProfileName(profile.get('name', '')) == nameKey
         && roster.get('active', false) == true
         && roster.get('eventId', '') == 'circ-2027'
         && roster.get('nameKey', '') == nameKey;
@@ -295,11 +342,13 @@ service cloud.firestore {
       allow create: if isAdmin() || (
         isOwner(userId)
         && !request.resource.data.keys().hasAny(['roles'])
+        && validUlsProfileKey(request.resource.data)
         && !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
       );
       allow update: if isAdmin() || (
         isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
+        && validUlsProfileKeyUpdate()
         && (
           !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
           || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'ulsNameKey'])
