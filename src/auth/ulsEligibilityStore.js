@@ -27,6 +27,21 @@ function ulsError(code) {
   return error;
 }
 
+export function describeUlsEligibilitySnapshot(snapshot, uid) {
+  const documentExists = Boolean(snapshot?.exists);
+  const fromCache = snapshot?.metadata?.fromCache === true;
+  const data = documentExists ? snapshot.data() : null;
+  return {
+    uid,
+    status: fromCache ? 'loading' : 'ready',
+    verified: documentExists && isValidEligibility(data, uid),
+    documentExists,
+    confirmedAbsent: !fromCache && !documentExists,
+    mec: data?.mec || '',
+    method: data?.method || '',
+  };
+}
+
 export function useUlsEligibility(user) {
   const uid = user?.uid || null;
   const [state, setState] = useState({ uid: null, status: 'idle', verified: false });
@@ -41,20 +56,25 @@ export function useUlsEligibility(user) {
     let active = true;
     const unsubscribe = db.collection('ulsEligibility').doc(uid).onSnapshot((snapshot) => {
       if (!active) return;
-      const data = snapshot.exists ? snapshot.data() : null;
-      setState({
-        uid,
-        status: 'ready',
-        verified: isValidEligibility(data, uid),
-        mec: data?.mec || '',
-        method: data?.method || '',
-      });
-    }, () => { if (active) setState({ uid, status: 'error', verified: false }); });
+      setState(describeUlsEligibilitySnapshot(snapshot, uid));
+    }, () => {
+      if (active) {
+        setState({
+          uid,
+          status: 'error',
+          verified: false,
+          documentExists: false,
+          confirmedAbsent: false,
+        });
+      }
+    });
     return () => { active = false; unsubscribe(); };
   }, [uid]);
   // Existing matches are permanent account state. Feature and pilot flags only
   // control new claims; they must never make a matched name appear editable.
-  return state.uid === uid ? state : { status: 'loading', verified: false };
+  return state.uid === uid
+    ? state
+    : { uid, status: 'loading', verified: false, documentExists: false, confirmedAbsent: false };
 }
 
 export async function claimUlsEligibility(mecValue) {
