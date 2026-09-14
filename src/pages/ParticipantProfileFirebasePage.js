@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
 import { loadParticipantProfile, saveParticipantProfile } from '../auth/profileStore';
+import { useUlsEligibility } from '../auth/ulsEligibilityStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../account.css';
 import '../account-settings.css';
@@ -51,6 +52,8 @@ export default function ParticipantProfileFirebasePage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
   const { user, updateDisplayName } = useAuth();
+  const ulsEligibility = useUlsEligibility(user);
+  const ulsNameLocked = ulsEligibility.verified;
   const [form, setForm] = useState(() => emptyForm(user));
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -100,10 +103,10 @@ export default function ParticipantProfileFirebasePage() {
         professionLabel,
         photoURL: user?.photoURL || '',
       };
+      const savedProfile = await saveParticipantProfile(user, next);
       if (form.name.trim() && form.name.trim() !== user?.displayName) {
         await updateDisplayName(form.name.trim());
       }
-      const savedProfile = await saveParticipantProfile(user, next);
       setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
     } catch {
@@ -173,7 +176,21 @@ export default function ParticipantProfileFirebasePage() {
               <h2>{isEnglish ? 'Personal details' : 'Dados pessoais'}</h2>
             </div>
             <div className="account-form-grid">
-              <label><span>{isEnglish ? 'Full name' : 'Nome completo'}</span><input name="name" autoComplete="name" value={form.name || ''} onChange={updateField} required /></label>
+              <label>
+                <span>{isEnglish ? 'Full name' : 'Nome completo'}</span>
+                <input
+                  name="name"
+                  autoComplete="name"
+                  value={form.name || ''}
+                  onChange={updateField}
+                  readOnly={ulsNameLocked}
+                  aria-readonly={ulsNameLocked}
+                  required
+                />
+                {ulsNameLocked && <small>{isEnglish
+                  ? 'Locked after the ULS Coimbra match. Contact the secretariat if a correction is needed.'
+                  : 'Bloqueado após a correspondência ULS Coimbra. Para corrigir, contacte o secretariado.'}</small>}
+              </label>
               <label><span>Email</span><input name="email" type="email" value={form.email || ''} readOnly aria-readonly="true" /><small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small></label>
               <label><span>{isEnglish ? 'Date of birth' : 'Data de nascimento'}</span><input name="dateOfBirth" type="date" value={form.dateOfBirth || ''} onChange={updateField} /></label>
               <label><span>{isEnglish ? 'Gender' : 'Sexo / género'}</span><select name="gender" value={form.gender || ''} onChange={updateField}>{genderOptions.map(([value, pt, en]) => <option key={value || 'empty'} value={value}>{isEnglish ? en : pt}</option>)}</select></label>
