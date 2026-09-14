@@ -58,17 +58,18 @@ export function useUlsEligibility(user) {
     const unsubscribe = db.collection('ulsEligibility').doc(uid).onSnapshot(
       ULS_ELIGIBILITY_SNAPSHOT_OPTIONS,
       (snapshot) => {
-      if (!active) return;
-      setState(describeUlsEligibilitySnapshot(snapshot, uid));
-      }, () => {
+        if (!active) return;
+        setState(describeUlsEligibilitySnapshot(snapshot, uid));
+      },
+      () => {
         if (active) {
-        setState({
-          uid,
-          status: 'error',
-          verified: false,
-          documentExists: false,
-          confirmedAbsent: false,
-        });
+          setState({
+            uid,
+            status: 'error',
+            verified: false,
+            documentExists: false,
+            confirmedAbsent: false,
+          });
         }
       }
     );
