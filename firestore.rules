@@ -62,10 +62,6 @@ service cloud.firestore {
         || (hasVerifiedEmail() && request.auth.token.email == 'tiago_araujo@hotmail.com');
     }
 
-    function isUlsPilotAccount() {
-      return hasStoredRole('ulsPilot');
-    }
-
     function hasOwnAuditActor() {
       return request.resource.data.actor.uid == request.auth.uid
         && request.resource.data.actor.email == request.auth.token.email
@@ -165,13 +161,34 @@ service cloud.firestore {
         && nameKey.size() <= 160;
     }
 
+    // Recompute the key from the stored profile name inside the trusted rules.
+    // Portuguese accents, combining marks, case, punctuation and particles do
+    // not change a match. Never trust a client-supplied ulsNameKey on its own.
+    function normalizedUlsName(name) {
+      return name.upper()
+        .replace('[ÀÁÂÃÄÅàáâãäå]', 'A')
+        .replace('[ÈÉÊËèéêë]', 'E')
+        .replace('[ÌÍÎÏìíîï]', 'I')
+        .replace('[ÒÓÔÕÖòóôõö]', 'O')
+        .replace('[ÙÚÛÜùúûü]', 'U')
+        .replace('[Çç]', 'C')
+        .replace('[Ññ]', 'N')
+        .replace('[ÝŸýÿ]', 'Y')
+        .replace('[\\x{0300}-\\x{036f}]', '')
+        .replace('[^A-Z ]', ' ')
+        .replace('\\b(D|DA|DAS|DE|DO|DOS)\\b', ' ')
+        .replace(' +', ' ')
+        .trim();
+    }
+
     function hasPendingUlsMatch(userId, mec, nameKey) {
       let profile = getAfter(/databases/$(database)/documents/users/$(userId)).data;
       let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
       return profile.get('name', '') is string
         && profile.get('name', '').size() >= 5
+        && profile.get('name', '').size() <= 200
         && profile.get('ulsNameKey', '') == nameKey
-        && roster.get('profileName', '') == profile.get('name', '')
+        && normalizedUlsName(profile.get('name', '')) == nameKey
         && roster.get('active', false) == true
         && roster.get('eventId', '') == 'circ-2027'
         && roster.get('nameKey', '') == nameKey;
@@ -210,7 +227,7 @@ service cloud.firestore {
       let nameKey = eligibility.get('nameKey', '');
       let claimId = 'circ-2027_' + mec;
       let claim = getAfter(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data;
-      return isUlsPilotAccount()
+      return hasVerifiedEmail()
         && request.auth.uid == userId
         && eligibility.keys().hasOnly([
           'userId',
@@ -243,7 +260,7 @@ service cloud.firestore {
       let mec = claim.get('mec', '');
       let nameKey = claim.get('nameKey', '');
       let eligibility = getAfter(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
-      return isUlsPilotAccount()
+      return hasVerifiedEmail()
         && request.auth.uid == userId
         && claimId == 'circ-2027_' + mec
         && claim.keys().hasOnly([
@@ -354,7 +371,7 @@ service cloud.firestore {
         || (registration.userId == data.userId && hasValidUlsRegistration(registration));
     }
 
-    // The roster stays private. A pilot user may only create an atomic MEC/name match
+    // The roster stays private. A verified user may only create an atomic MEC/name match
     // with the deterministic, single-use claim document required by the rules.
     match /ulsEligibility/{userId} {
       allow read: if isOwner(userId) || isAdmin();

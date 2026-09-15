@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   claimUlsEligibility,
-  isUlsPilotUser,
   ulsVerificationEnabled,
 } from '../../auth/ulsEligibilityStore';
 import '../css/UlsVerification.css';
@@ -28,10 +27,6 @@ export default function UlsVerification({ user, eligibility, en }) {
         'Verify your account email and sign in again.',
       ],
       'uls/unauthenticated': ['Volte a iniciar sessão para continuar.', 'Please sign in again to continue.'],
-      'uls/not-authorised': [
-        'Esta validação está limitada à conta autorizada para o piloto.',
-        'This validation is limited to the authorised pilot account.',
-      ],
       'uls/no-match': [
         'Não foi possível confirmar os dados. Verifique o MEC e o nome completo guardado no perfil ou contacte o secretariado.',
         'The details could not be matched. Check the employee number and the full name saved in your profile, or contact the secretariat.',
@@ -77,8 +72,10 @@ export default function UlsVerification({ user, eligibility, en }) {
       <p>{en ? 'Sign in to check your employee number.' : 'Inicie sessão para confirmar o seu MEC.'} <Link to="/login">{en ? 'Sign in' : 'Entrar'}</Link></p>
     ) : !ulsVerificationEnabled ? (
       <p>{en ? 'This check is not yet available.' : 'Esta verificação ainda não está disponível.'}</p>
-    ) : !isUlsPilotUser(user) ? (
-      <p>{en ? 'This check is currently limited to the authorised pilot account.' : 'Esta verificação está, nesta fase, limitada à conta autorizada para o piloto.'}</p>
+    ) : !user.emailVerified ? (
+      <p>{en
+        ? 'Verify your account email and sign in again to confirm your employee number.'
+        : 'Confirme o email da sua conta e volte a iniciar sessão para confirmar o seu MEC.'}</p>
     ) : eligibility.status === 'loading' ? (
       <p role="status">{en ? 'Checking your eligibility…' : 'A verificar a sua elegibilidade…'}</p>
     ) : <>

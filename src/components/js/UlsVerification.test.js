@@ -5,17 +5,36 @@ import UlsVerification from './UlsVerification';
 
 jest.mock('../../auth/ulsEligibilityStore', () => ({
   claimUlsEligibility: jest.fn(),
-  isUlsPilotUser: () => true,
   ulsVerificationEnabled: true,
 }));
 
 beforeEach(() => claimUlsEligibility.mockReset());
 
+test('offers the MEC form to an ordinary verified account without pilot roles', () => {
+  render(<MemoryRouter><UlsVerification
+    user={{ uid: 'ordinary', email: 'ordinary@example.test', emailVerified: true }}
+    eligibility={{ status: 'ready', verified: false }}
+    en={false}
+  /></MemoryRouter>);
+  expect(screen.getByLabelText('Número mecanográfico (MEC)')).toBeInTheDocument();
+  expect(screen.queryByText(/piloto/i)).not.toBeInTheDocument();
+});
+
+test('requires email confirmation before offering the MEC form', () => {
+  render(<MemoryRouter><UlsVerification
+    user={{ uid: 'ordinary', email: 'ordinary@example.test', emailVerified: false }}
+    eligibility={{ status: 'ready', verified: false }}
+    en={false}
+  /></MemoryRouter>);
+  expect(screen.getByText(/Confirme o email da sua conta/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Número mecanográfico (MEC)')).not.toBeInTheDocument();
+});
+
 test('shows roster revocation and disables the MEC claim form', () => {
   render(
     <MemoryRouter>
       <UlsVerification
-        user={{ uid: 'pilot', email: 'pilot@example.test' }}
+        user={{ uid: 'participant', email: 'participant@example.test', emailVerified: true }}
         eligibility={{
           status: 'ready',
           verified: false,
@@ -39,7 +58,7 @@ test('keeps the post-claim message neutral until the roster confirms the match',
   render(
     <MemoryRouter>
       <UlsVerification
-        user={{ uid: 'pilot', email: 'pilot@example.test' }}
+        user={{ uid: 'participant', email: 'participant@example.test', emailVerified: true }}
         eligibility={{
           status: 'ready',
           verified: false,
