@@ -203,47 +203,163 @@ test('admins can update a retained ULS registration after personal profile delet
 });
 
 
-test('revocation keeps lifecycle updates available but blocks entitlement changes', async () => {
+const ADMIN = { uid: 'admin', email: 'circ.chuc@gmail.com' };
+const REGISTRATION_ID = 'revoked-registration';
+
+function registrationData() {
+  return {
+    userId: 'pilot',
+    eventId: EVENT_ID,
+    isTest: false,
+    status: 'confirmed',
+    selection: { profile: 'uls', courseAffiliation: 'uls', congressMode: 'virtual' },
+    entitlements: { congressMode: 'virtual', morningCourse: false },
+    payment: { status: 'paid', amountCents: 10000, currency: 'EUR' },
+  };
+}
+
+async function prepareRevokedRegistration({ deleteProfile = false } = {}) {
   await seedProfileAndRoster('pilot');
   const participantDb = userDb('pilot');
   await assertSucceeds(claimBatch(participantDb, 'pilot'));
+  const adminDb = userDb(ADMIN.uid, ADMIN.email);
+  const registrationRef = doc(adminDb, 'registrations', REGISTRATION_ID);
 
+  // Create through the actual rules while the match is active.
+  await assertSucceeds(setDoc(registrationRef, registrationData()));
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    const db = context.firestore();
-    await setDoc(doc(db, 'registrations', 'revoked-registration'), {
-      userId: 'pilot',
-      eventId: EVENT_ID,
-      isTest: false,
-      status: 'confirmed',
-      selection: { profile: 'uls' },
-      payment: { status: 'paid', amountCents: 10000 },
-    });
-    await updateDoc(doc(db, 'ulsRoster', MEC), { active: false });
+    await updateDoc(doc(context.firestore(), 'ulsRoster', MEC), { active: false });
   });
+  if (deleteProfile) await assertSucceeds(deleteDoc(doc(participantDb, 'users', 'pilot')));
+  return { adminDb, participantDb, registrationRef };
+}
 
-  const revokedRoster = await assertSucceeds(getDoc(doc(participantDb, 'ulsRoster', MEC)));
-  if (revokedRoster.data()?.active !== false) throw new Error('Roster revocation was not observable.');
+for (const deleteProfile of [false, true]) {
+  test('revocation permits audited cancellation and refund batches'
+    + (deleteProfile ? ' after profile deletion' : ' with the profile retained'), async () => {
+    const { adminDb, participantDb, registrationRef } = await prepareRevokedRegistration({ deleteProfile });
+    const revokedRoster = await assertSucceeds(getDoc(doc(participantDb, 'ulsRoster', MEC)));
+    if (revokedRoster.data()?.active !== false) throw new Error('Roster revocation was not observable.');
 
-  const adminIdentity = { uid: 'admin', email: 'circ.chuc@gmail.com' };
-  const adminDb = testEnv.authenticatedContext(adminIdentity.uid, {
-    email: adminIdentity.email,
-    email_verified: true,
-  }).firestore();
-  const registrationRef = doc(adminDb, 'registrations', 'revoked-registration');
+    // Use the same registration/audit and registration/payment/audit writes as adminStore.
+    const cancellation = writeBatch(adminDb);
+    cancellation.update(registrationRef, {
+      status: 'cancelled',
+      updatedAt: serverTimestamp(),
+      updatedBy: ADMIN,
+    });
+    cancellation.set(doc(adminDb, 'auditLogs', 'cancel-registration'), {
+      action: 'registration.status.updated',
+      eventId: EVENT_ID,
+      registrationId: REGISTRATION_ID,
+      before: 'confirmed',
+      after: 'cancelled',
+      actor: ADMIN,
+      createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(cancellation.commit());
 
+    const refund = writeBatch(adminDb);
+    refund.update(registrationRef, {
+      'payment.status': 'refunded',
+      'payment.updatedAt': serverTimestamp(),
+      'payment.updatedBy': ADMIN,
+      updatedAt: serverTimestamp(),
+    });
+    refund.set(doc(adminDb, 'payments', REGISTRATION_ID), {
+      eventId: EVENT_ID,
+      registrationId: REGISTRATION_ID,
+      userId: 'pilot',
+      participantEmail: PILOT_EMAIL,
+      amountCents: 10000,
+      currency: 'EUR',
+      method: '',
+      reference: '',
+      status: 'refunded',
+      updatedAt: serverTimestamp(),
+      updatedBy: ADMIN,
+    }, { merge: true });
+    refund.set(doc(adminDb, 'auditLogs', 'refund-registration'), {
+      action: 'payment.status.updated',
+      eventId: EVENT_ID,
+      registrationId: REGISTRATION_ID,
+      before: 'paid',
+      after: 'refunded',
+      actor: ADMIN,
+      createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(refund.commit());
+
+    const saved = (await getDoc(registrationRef)).data();
+    if (saved.status !== 'cancelled' || saved.payment.status !== 'refunded') {
+      throw new Error('Historical status/payment updates were not persisted.');
+    }
+    if (saved.payment.amountCents !== 10000 || saved.selection.profile !== 'uls') {
+      throw new Error('The historical tariff or amount was altered.');
+    }
+  });
+}
+
+test('revocation blocks new ULS registrations and additional ULS orders', async () => {
+  const { adminDb } = await prepareRevokedRegistration();
+  await assertFails(setDoc(doc(adminDb, 'registrations', 'new-uls-registration'), registrationData()));
+  await assertFails(setDoc(doc(adminDb, 'registrations', 'new-uls-course'), {
+    ...registrationData(),
+    selection: { profile: 'external', courseAffiliation: 'uls', morningCourse: true },
+  }));
+  await assertFails(setDoc(doc(adminDb, 'registrationOrders', 'new-uls-order'), {
+    userId: 'pilot',
+    eventId: EVENT_ID,
+    registrationId: REGISTRATION_ID,
+    isTest: false,
+    items: { morningCourse: true },
+  }));
+});
+
+test('revocation does not prevent an administrator removing all ULS benefits', async () => {
+  const { registrationRef } = await prepareRevokedRegistration();
   await assertSucceeds(updateDoc(registrationRef, {
+    selection: { profile: 'external', courseAffiliation: 'external', congressMode: 'virtual' },
+    updatedAt: serverTimestamp(),
+    updatedBy: ADMIN,
+  }));
+});
+
+const blockedHistoricalChanges = [
+  ['ULS selection', () => ({ 'selection.congressMode': 'onsite' })],
+  ['ULS entitlement', () => ({ 'entitlements.morningCourse': true })],
+  ['payment amount', () => ({
+    'payment.status': 'refunded',
+    'payment.amountCents': 1,
+    'payment.updatedAt': serverTimestamp(),
+    'payment.updatedBy': ADMIN,
+  })],
+  ['participant identity', () => ({ userId: 'another-participant', status: 'cancelled' })],
+  ['invalid registration status', () => ({ status: 'invalid-status' })],
+  ['invalid payment status', () => ({
+    'payment.status': 'invalid-status',
+    'payment.updatedAt': serverTimestamp(),
+    'payment.updatedBy': ADMIN,
+  })],
+  ['forged actor', () => ({ status: 'cancelled', updatedBy: { uid: 'other', email: 'other@example.test' } })],
+  ['stale timestamp', () => ({ status: 'cancelled', updatedAt: new Date(0) })],
+];
+for (const [label, fields] of blockedHistoricalChanges) {
+  test('historical status exception rejects ' + label, async () => {
+    const { registrationRef } = await prepareRevokedRegistration();
+    await assertFails(updateDoc(registrationRef, {
+      updatedAt: serverTimestamp(),
+      updatedBy: ADMIN,
+      ...fields(),
+    }));
+  });
+}
+
+test('participants cannot use the administrative historical-status exception', async () => {
+  const { participantDb } = await prepareRevokedRegistration();
+  await assertFails(updateDoc(doc(participantDb, 'registrations', REGISTRATION_ID), {
     status: 'cancelled',
     updatedAt: serverTimestamp(),
-    updatedBy: adminIdentity,
-  }));
-  await assertSucceeds(updateDoc(registrationRef, {
-    'payment.status': 'refunded',
-    'payment.updatedAt': serverTimestamp(),
-    'payment.updatedBy': adminIdentity,
-    updatedAt: serverTimestamp(),
-  }));
-  await assertFails(updateDoc(registrationRef, {
-    selection: { profile: 'external' },
-    updatedAt: serverTimestamp(),
+    updatedBy: { uid: 'pilot', email: PILOT_EMAIL },
   }));
 });
