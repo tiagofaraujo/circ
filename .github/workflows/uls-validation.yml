@@ -1,0 +1,39 @@
+name: ULS validation checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feature/uls-name-match-spark
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install application dependencies
+        run: npm ci
+      - name: Test application
+        run: CI=true npm test -- --watchAll=false --silent
+      - name: Build application
+        run: npm run build
+
+      - name: Test private roster importer
+        working-directory: functions
+        run: npm install --no-audit --no-fund && npm test
+
+      - name: Test Firestore security rules
+        working-directory: rules-tests
+        run: npm install --no-audit --no-fund && npm test

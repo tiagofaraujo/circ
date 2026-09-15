@@ -1,0 +1,41 @@
+.App--personal,
+.my-circ-app {
+  background: var(--paper, #efe8df) !important;
+}
+
+.my-circ-sidebar,
+.my-circ-topbar {
+  background: var(--paper, #efe8df) !important;
+}
+
+.my-circ-avatar {
+  overflow: hidden;
+}
+
+.my-circ-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.my-circ-sidebar__management {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--app-line);
+}
+
+.my-circ-sidebar__management > .my-circ-label {
+  margin-bottom: 10px;
+  padding: 0 16px;
+}
+
+.my-circ-app .admin-module-nav {
+  display: none;
+}
+
+.my-circ-app .admin-page {
+  max-width: none;
+  padding: 0 0 48px;
+}

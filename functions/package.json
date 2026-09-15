@@ -1,0 +1,14 @@
+{
+  "name": "circ-uls-roster-tools",
+  "private": true,
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "import:roster": "node scripts/import-uls-roster.js"
+  },
+  "dependencies": {
+    "firebase-admin": "14.3.0"
+  }
+}

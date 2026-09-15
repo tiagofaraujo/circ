@@ -1,0 +1,233 @@
+.App--personal { overflow: visible; background: #f6f7fb; }
+.my-circ-app { --app-line: #e2e5ef; --app-muted: #5b617b; min-height: 100dvh; color: #141846; background: #f6f7fb; font-size: 1rem; line-height: 1.55; }
+.my-circ-app a { text-decoration: none; }
+.my-circ-app button { font: inherit; }
+.my-circ-app :is(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid #e6503b; outline-offset: 4px; }
+.my-circ-app :is(h1, h2, h3, p) { overflow-wrap: anywhere; }
+.my-circ-app button:disabled { cursor: not-allowed; opacity: .65; }
+.my-circ-skip { position: fixed; top: -100px; left: 16px; z-index: 1200; padding: 12px 20px; background: #fff; color: #232eb7; }
+.my-circ-skip:focus { top: 8px; }
+.my-circ-topbar { height: 84px; position: fixed; z-index: 100; inset: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 36px; border-bottom: 1px solid var(--app-line); background: #fff; }
+.my-circ-brand { display: flex; align-items: center; gap: 22px; color: #232eb7; }
+.my-circ-brand img { width: 151px; height: auto; }
+.my-circ-brand > span { font-size: .8125rem; font-weight: 700; letter-spacing: .15em; padding-left: 22px; border-left: 1px solid var(--app-line); }
+.my-circ-topbar__actions { display: flex; align-items: center; gap: 18px; }
+.my-circ-language { display: flex; align-items: center; gap: 7px; min-height: 44px; border: 0; padding: 6px; color: var(--app-muted); background: none; font-size: .875rem !important; }
+.my-circ-language .is-current { color: #232eb7; font-weight: 750; }
+.my-circ-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #e9ebff; color: #232eb7; font-weight: 650; font-size: 1.125rem; }
+.my-circ-icon-button { display: grid; place-items: center; width: 44px; min-height: 44px; border: 1px solid var(--app-line); border-radius: 12px; background: white; color: #41465f; }
+.my-circ-site-link { font-size: .875rem; display: flex; align-items: center; gap: 10px; }
+.my-circ-sidebar { width: 228px; position: fixed; inset: 84px auto 0 0; z-index: 80; display: flex; flex-direction: column; padding: 34px 20px 24px; background: #fff; border-right: 1px solid var(--app-line); overflow-y: auto; }
+.my-circ-label { margin: 0 0 10px; color: var(--app-muted); font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .1em; }
+.my-circ-sidebar > .my-circ-label { padding: 0 16px; margin-bottom: 20px; }
+.my-circ-sidebar nav { display: grid; gap: 8px; }
+.my-circ-sidebar nav a { display: flex; align-items: center; gap: 16px; min-height: 50px; padding: 12px 16px; border-radius: 12px; color: #545b75; font-weight: 550; }
+.my-circ-sidebar nav a i { width: 20px; text-align: center; }
+.my-circ-sidebar nav a:hover { background: #f2f3fb; }
+.my-circ-sidebar nav a.is-active { color: #fff; background: #232eb7; box-shadow: 0 6px 16px #232eb724; }
+.my-circ-sidebar__support { display: grid; gap: 8px; margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--app-line); }
+.my-circ-sidebar__support a { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 16px; color: var(--app-muted); font-size: .875rem; }
+.my-circ-sidebar__support a[aria-current] { color: #232eb7; font-weight: 700; }
+.my-circ-sidebar__edition { margin-top: auto; padding: 34px 16px 0; }
+.my-circ-sidebar__edition strong { display: flex; align-items: center; justify-content: space-between; color: #232eb7; font-size: 2.5rem; font-weight: 500; letter-spacing: -.05em; }
+.my-circ-sidebar__edition strong span { color: #e6503b; font-size: 2rem; }
+.my-circ-sidebar__edition p { font-family: var(--font-display); margin: 0 0 10px; }
+.my-circ-sidebar__edition > span { font-size: .8125rem; color: var(--app-muted); }
+.my-circ-content { padding: 118px 40px 0; max-width: 1640px; margin: auto; outline: none; }
+.my-circ-app--signed-in .my-circ-content { margin-left: 228px; }
+.my-circ-footer { display: flex; flex-wrap: wrap; gap: 24px; padding: 28px 0; margin-top: 32px; border-top: 1px solid var(--app-line); color: var(--app-muted); font-size: .875rem; }
+.my-circ-footer > span { margin-right: auto; }
+.my-circ-bottomnav { display: none; }
+.my-circ-home { max-width: 1180px; margin: auto; display: flex; flex-direction: column; gap: 24px; }
+.my-circ-welcome { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.my-circ-welcome h1 { color: #141846; font-size: clamp(2rem, 4vw, 3rem); font-weight: 550; letter-spacing: -.055em; line-height: 1.1; margin: 0 0 10px; }
+.my-circ-welcome h1 > span { color: #e6503b; }
+.my-circ-welcome p:last-child { margin: 0; color: var(--app-muted); }
+.my-circ-edition { display: grid; font-size: .75rem; letter-spacing: .12em; text-align: right; color: var(--app-muted); }
+.my-circ-edition strong { color: #232eb7; font-size: 2.5rem; letter-spacing: -.05em; font-weight: 500; }
+.my-circ-notice { padding: 18px 22px; border: 1px solid #eedbb4; border-radius: 14px; display: flex; gap: 16px; background: #fff9ec; margin-bottom: 18px; }
+.my-circ-notice > i { margin-top: 5px; color: #95630a; }
+.my-circ-notice p { margin: 4px 0 8px; }
+.my-circ-notice button { border: 0; background: none; color: #232eb7; padding: 6px 0; min-height: 44px; font-weight: 650; text-align: left; }
+.my-circ-notice--verification { margin: 0; }
+.my-circ-home-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(260px, 1fr); gap: 24px; }
+.my-circ-event { background: #232eb7; color: white; border-radius: 22px; overflow: hidden; display: grid; grid-template-columns: .9fr 1.1fr; min-width: 0; }
+.my-circ-event__image { position: relative; min-height: 290px; overflow: hidden; }
+.my-circ-event__image img { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+.my-circ-event__image > span { position: absolute; left: 16px; bottom: 16px; right: 16px; padding: 8px 10px; background: #141846; color: #fff; font-family: var(--font-display); font-size: .875rem; }
+.my-circ-event__body { padding: 28px; align-self: center; }
+.my-circ-event .my-circ-label { color: #e1e3ff; }
+.my-circ-event h2 { margin: 0 0 18px; color: #fff; font-size: 2.375rem; line-height: 1; letter-spacing: -.06em; font-weight: 650; }
+.my-circ-event h2 span { font-weight: 350; }
+.my-circ-event__date { display: flex; gap: 10px; align-items: center; font-weight: 600; font-size: 1rem; }
+.my-circ-event__body > p:last-of-type { font-size: .875rem; color: #e1e3ff; line-height: 1.65; }
+.my-circ-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 16px; border-radius: 10px; padding: 11px 16px; color: white; background: #232eb7; border: 0; font-weight: 650; font-size: .9375rem; }
+.my-circ-button:hover { color: white; background: #141846; }
+.my-circ-event .my-circ-button { background: #fff; color: #232eb7; width: 100%; margin-top: 8px; }
+.my-circ-profile-card { display: flex; flex-direction: column; padding: 26px; background: #fff; border: 1px solid var(--app-line); border-radius: 22px; }
+.my-circ-card-heading { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; color: #232eb7; }
+.my-circ-card-heading .my-circ-label { margin: 0; }
+.my-circ-profile-card h2 { font-size: 1.625rem; font-weight: 550; letter-spacing: -.03em; margin: 0 0 12px; }
+.my-circ-profile-card > p { color: var(--app-muted); margin: 0 0 16px; font-size: .9375rem; }
+.my-circ-profile-card__progress { margin-top: auto; font-size: .875rem; color: var(--app-muted); }
+.my-circ-profile-card__progress > div { display: flex; justify-content: space-between; gap: 10px; }
+.my-circ-profile-card__progress strong { color: #232eb7; font-size: 1rem; }
+.my-circ-profile-card__progress progress { appearance: none; width: 100%; height: 6px; border: 0; border-radius: 20px; overflow: hidden; background: #e7e9f5; }
+.my-circ-profile-card__progress progress::-webkit-progress-bar { background: #e7e9f5; }
+.my-circ-profile-card__progress progress::-webkit-progress-value { background: #232eb7; border-radius: 20px; }
+.my-circ-profile-card__progress progress::-moz-progress-bar { background: #232eb7; border-radius: 20px; }
+.my-circ-profile-card__progress button { display: block; border: 0; padding: 8px 0; min-height: 44px; color: #232eb7; background: none; font-weight: 650; }
+.my-circ-text-link { display: inline-flex; align-items: center; gap: 14px; min-height: 44px; color: #232eb7; padding: 10px 0; font-weight: 650; background: none; border: 0; }
+.my-circ-quicklinks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.my-circ-quicklinks > a { display: flex; align-items: center; gap: 16px; padding: 22px; background: #fff; border: 1px solid var(--app-line); border-radius: 18px; transition: border-color .15s; }
+.my-circ-quicklinks > a:hover { border-color: #232eb7; }
+.my-circ-quicklinks__icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: #eef0ff; color: #232eb7; font-size: 1.25rem; flex-shrink: 0; }
+.my-circ-quicklinks > a:nth-child(2) .my-circ-quicklinks__icon { color: #a43628; background: #fff0eb; }
+.my-circ-quicklinks h2 { color: #141846; font-size: 1.25rem; font-weight: 650; margin: 0 0 3px; letter-spacing: -.02em; }
+.my-circ-quicklinks p { color: var(--app-muted); font-size: .875rem; margin: 0; }
+.my-circ-quicklinks > a > i:last-child { margin-left: auto; color: #232eb7; font-size: .875rem; }
+.my-circ-activity { background: white; border: 1px solid var(--app-line); border-radius: 18px; padding: 24px; }
+.my-circ-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.my-circ-section-heading h2 { margin: 0; font-size: 1.25rem; font-weight: 650; letter-spacing: -.025em; }
+.my-circ-section-heading a { display: flex; align-items: center; gap: 12px; font-size: .875rem; color: #232eb7; min-height: 44px; font-weight: 650; }
+.my-circ-section-heading > span { font-size: .875rem; color: var(--app-muted); }
+.my-circ-empty { padding: 6px 0; display: flex; gap: 22px; align-items: center; }
+.my-circ-empty > i { font-size: 1.75rem; color: #8a90ae; }
+.my-circ-empty h3 { font-size: 1.125rem; font-weight: 550; margin: 0 0 6px; }
+.my-circ-empty p { margin: 0; color: var(--app-muted); max-width: 750px; }
+.my-circ-recent-work { display: flex; align-items: center; gap: 20px; padding: 12px 0; }
+.my-circ-recent-work > i { color: #232eb7; font-size: 1.25rem; }
+.my-circ-recent-work > i:last-child { margin-left: auto; }
+.my-circ-recent-work h3 { font-size: 1.125rem; color: #141846; line-height: 1.4; font-weight: 600; margin: 0 0 12px; }
+.my-circ-status { font-size: .875rem; padding: 4px 10px; background: #eef0fa; border-radius: 5px; color: #41465f; display: inline-block; }
+.my-circ-management > div { display: flex; flex-wrap: wrap; gap: 12px; }
+.my-circ-management > div a { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1px solid #cdd1ee; border-radius: 12px; background: #eef0ff; color: #232eb7; font-weight: 550; }
+.my-circ-install { display: flex; gap: 22px; padding: 26px; border-radius: 18px; background: #ede9e3; }
+.my-circ-install > i { color: #232eb7; font-size: 2rem; padding-top: 3px; }
+.my-circ-install h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 6px; }
+.my-circ-install p { margin: 0 0 10px; color: #41465f; }
+.my-circ-install details { margin-top: 10px; }
+.my-circ-install summary { color: #232eb7; padding: 8px 0; cursor: pointer; font-size: .9375rem; font-weight: 600; min-height: 44px; }
+.my-circ-install details p { padding-top: 10px; font-size: .9375rem; max-width: 760px; }
+.my-circ-useful { display: flex; flex-wrap: wrap; gap: 28px; }
+.my-circ-useful a { display: inline-flex; gap: 12px; min-height: 44px; align-items: center; font-size: .9375rem; color: var(--app-muted); }
+
+/* Adapt existing workflows without replacing their data or permission logic. */
+.my-circ-app :is(.account-page, .submissions-page, .page) { width: 100%; max-width: 1180px; padding: 0; margin: 0 auto; }
+.my-circ-app :is(.account-hero, .submissions-hero, .page-hero) { min-height: 0; padding: 8px 0 28px; gap: 24px; align-items: center; }
+.my-circ-app :is(.account-hero h1, .submissions-hero h1, .page-hero h1) { font-size: clamp(2rem, 4vw, 3.25rem); font-weight: 550; line-height: 1.12; letter-spacing: -.045em; }
+.my-circ-app :is(.account-hero, .submissions-hero, .page-hero) .eyebrow { font-size: .75rem; margin-bottom: 12px; }
+.my-circ-app :is(.account-hero > div:first-child > p:last-child, .submissions-hero__copy > p:last-child) { font-size: 1rem; margin-top: 16px; max-width: 720px; }
+.my-circ-app :is(.account-hero__mark, .submissions-document) { display: none; }
+.my-circ-app :is(.account-form-section, .account-security-card, .account-registration-alert) { border-radius: 16px; background: #fff; padding: 26px; }
+.my-circ-app .account-subnav { margin: 18px 0; display: flex; flex-wrap: wrap; gap: 18px; }
+.my-circ-app .account-subnav > * { min-height: 44px; display: inline-flex; align-items: center; font-size: .9375rem; }
+.my-circ-app :is(.account-profile-form label span, .account-profile-form label small, .submissions-form-step > label, .submissions-form-step label > span) { font-size: .875rem; }
+.my-circ-app :is(.account-profile-form input, .account-profile-form select, .account-profile-form textarea, .submissions-form-step input, .submissions-form-step textarea, .security-form input) { background: #fafbff; border: 1px solid #cdd1df; border-radius: 9px; padding: 12px 14px; font-size: 1rem; min-height: 48px; }
+.my-circ-app :is(.profile-section-heading h2, .account-security-card h2) { font-size: 1.625rem; line-height: 1.25; }
+.my-circ-app .account-form-grid { column-gap: 24px; row-gap: 28px; }
+.my-circ-app .account-security-grid { margin-top: 24px; gap: 20px; }
+.my-circ-app .account-registration-section { padding-top: 24px; }
+.my-circ-app .registration-builder { margin-top: 24px; }
+.my-circ-app .registration-builder__layout { gap: 20px; }
+.my-circ-app .registration-summary { top: 108px; border-radius: 14px; }
+.my-circ-app .registration-step { border-radius: 14px; background: #fff; }
+.my-circ-app .submissions-page { display: flex; flex-direction: column; gap: 22px; }
+.my-circ-app .submissions-hero { grid-template-columns: 1fr; }
+.my-circ-app .submissions-hero__status { padding: 14px 18px; background: #eef0ff; border: 0; border-radius: 12px; }
+.my-circ-app .submissions-hero__status strong { font-size: .9375rem; }
+.my-circ-app .submissions-hero__status p { font-size: .9375rem; margin-top: 4px; }
+.my-circ-app .submissions-desk { margin: 0; box-shadow: none; border-radius: 16px; overflow: hidden; background: white; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); }
+.my-circ-app .submissions-desk__intro { min-height: 0; display: block; padding: 26px; }
+.my-circ-app .submissions-desk__intro h2 { font-size: 1.875rem; line-height: 1.2; }
+.my-circ-app .submissions-desk__intro p { margin-top: 16px; }
+.my-circ-app .submissions-desk__meta { padding: 24px; }
+.my-circ-app .submissions-desk__meta :is(dt, small) { font-size: .875rem; }
+.my-circ-app .submissions-lower-grid { grid-template-columns: 1fr; margin: 0; gap: 20px; scroll-margin-top: 105px; }
+.my-circ-app .submissions-lower-grid h2 { font-size: 1.875rem; }
+.my-circ-app :is(.submissions-test-list, .submissions-empty, .submissions-preparation, .submissions-composer) { padding: 26px; background: white; border-radius: 16px; }
+.my-circ-app .submissions-test-list > div > article { border-radius: 12px; }
+.my-circ-app :is(.submissions-test-list small, .submissions-test-list__topline span, .submissions-test-list__topline strong, .submissions-test-list__timestamp, .submissions-work-details summary) { font-size: .875rem; }
+.my-circ-app .submissions-work-details__content { font-size: 1rem; }
+.my-circ-app .submissions-journey { margin: 0; padding-top: 20px; }
+.my-circ-app .submissions-journey h2 { font-size: 1.5rem; }
+.my-circ-app .submissions-back { margin: 0; min-height: 44px; }
+.my-circ-app .submissions-composer__header h2 { font-size: 1.875rem; }
+.my-circ-app :is(.programme-phase, .status-block, .course-structure-note) { border-radius: 16px; background: white; padding: 26px; }
+.my-circ-app .programme-phase h2 { font-size: 1.625rem; line-height: 1.25; }
+.my-circ-app .programme-phase__date { font-size: 2.25rem; }
+.my-circ-app .page-hero { grid-template-columns: 1fr; }
+.my-circ-app .page-hero__aside { max-width: 780px; }
+.my-circ-app .auth-page { padding: 16px 0; }
+.my-circ-app .auth-shell { border-radius: 22px; overflow: hidden; background: #fff; }
+.my-circ-app .auth-panel { padding: 36px; }
+.my-circ-app .auth-panel__heading h1 { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.15; }
+.my-circ-app .auth-aside { background: #232eb7; }
+.App--personal .cookies-consent { z-index: 200; }
+@media (max-width: 1150px) {
+  .my-circ-home-grid { grid-template-columns: 1fr; }
+  .my-circ-event__image { min-height: 230px; }
+  .my-circ-profile-card { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; padding: 22px; }
+  .my-circ-card-heading { grid-column: 1 / -1; margin-bottom: 12px; }
+  .my-circ-profile-card h2 { grid-column: 1; }
+  .my-circ-profile-card > p { grid-column: 1; margin-bottom: 0; }
+  .my-circ-profile-card__progress { grid-column: 2; grid-row: 2; margin: 0; }
+  .my-circ-profile-card > .my-circ-text-link { grid-column: 2; grid-row: 3; }
+  .my-circ-content { padding-left: 24px; padding-right: 24px; }
+  .my-circ-app .registration-builder__layout { grid-template-columns: 1fr; }
+  .my-circ-app .registration-summary { position: static; }
+}
+@media (max-width: 820px) {
+  .my-circ-topbar { padding: env(safe-area-inset-top) 20px 0; height: calc(72px + env(safe-area-inset-top)); }
+  .my-circ-brand img { width: 123px; }
+  .my-circ-brand > span { padding-left: 14px; font-size: .75rem; }
+  .my-circ-brand { gap: 14px; }
+  .my-circ-topbar__actions { gap: 8px; }
+  .my-circ-sidebar { display: none; }
+  .my-circ-app--signed-in .my-circ-content { margin-left: 0; }
+  .my-circ-content { padding: calc(100px + env(safe-area-inset-top)) 20px calc(90px + env(safe-area-inset-bottom)); }
+  .my-circ-bottomnav { position: fixed; z-index: 110; inset: auto 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--app-line); box-shadow: 0 -4px 24px #14184608; background: white; }
+  .my-circ-bottomnav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 54px; color: #5b617b; font-size: .875rem; line-height: 1.25; padding: 6px 2px; border-radius: 10px; text-align: center; overflow-wrap: anywhere; }
+  .my-circ-bottomnav a i { font-size: 1.125rem; }
+  .my-circ-bottomnav a.is-active { color: #232eb7; font-weight: 650; background: #eef0ff; }
+  .my-circ-app :is(.account-form-grid, .account-security-grid, .submissions-type-grid, .submissions-abstract-grid, .submissions-review-card, .submissions-steps, .submissions-work-details__meta) { grid-template-columns: 1fr; }
+  .my-circ-app .programme-phases--three { grid-template-columns: 1fr; }
+  .App--personal .cookies-consent { bottom: calc(92px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 520px) {
+  .my-circ-brand > span, .my-circ-edition { display: none; }
+  .my-circ-content { padding-left: 16px; padding-right: 16px; }
+  .my-circ-home { gap: 18px; }
+  .my-circ-welcome h1 { font-size: 2.125rem; }
+  .my-circ-quicklinks { gap: 10px; }
+  .my-circ-quicklinks > a { padding: 16px 14px; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .my-circ-quicklinks > a > i:last-child { display: none; }
+  .my-circ-quicklinks h2 { font-size: 1.125rem; }
+  .my-circ-quicklinks__icon { width: 40px; height: 40px; border-radius: 12px; font-size: 1.125rem; }
+  .my-circ-home-grid { gap: 18px; }
+  .my-circ-event { grid-template-columns: .7fr 1fr; border-radius: 18px; }
+  .my-circ-event__image { min-height: 250px; }
+  .my-circ-event__image > span { left: 10px; right: 10px; bottom: 10px; font-size: .8125rem; }
+  .my-circ-event__body { padding: 20px 16px; }
+  .my-circ-event h2 { font-size: 1.875rem; }
+  .my-circ-event__date { font-size: .9375rem; align-items: flex-start; }
+  .my-circ-event__date i { margin-top: 4px; }
+  .my-circ-event .my-circ-button { font-size: .875rem; gap: 8px; padding: 10px; }
+  .my-circ-profile-card { display: flex; padding: 22px; }
+  .my-circ-profile-card h2 { font-size: 1.5rem; }
+  .my-circ-profile-card__progress { margin-top: 18px; }
+  .my-circ-activity { padding: 20px; }
+  .my-circ-empty { gap: 14px; align-items: flex-start; }
+  .my-circ-empty > i { font-size: 1.375rem; margin-top: 4px; }
+  .my-circ-install { padding: 22px; gap: 16px; }
+  .my-circ-install > i { font-size: 1.5rem; }
+  .my-circ-app .submissions-desk { grid-template-columns: 1fr; }
+  .my-circ-app .submissions-desk__intro { padding-bottom: 0; }
+  .my-circ-app .submissions-form-actions { flex-direction: column; gap: 12px; }
+  .my-circ-app :is(.account-form-section, .account-security-card, .account-registration-alert, .submissions-test-list, .submissions-composer) { padding: 20px; }
+  .my-circ-app .auth-panel { padding: 24px; }
+  .my-circ-app :is(.auth-aside, .profile-photo-preview--hero) { display: none; }
+  .my-circ-app :is(.auth-shell, .account-hero) { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .my-circ-app *, .my-circ-app *::before, .my-circ-app *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+@media print { .my-circ-topbar, .my-circ-sidebar, .my-circ-bottomnav, .my-circ-footer, .my-circ-install { display: none; } .my-circ-app .my-circ-content { margin: 0; padding: 0; } }

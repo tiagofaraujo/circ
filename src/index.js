@@ -9,6 +9,7 @@ import 'mdb-react-ui-kit/dist/css/mdb.min.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 import './index.css';
+import './myCircBackground.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
@@ -23,3 +24,12 @@ root.render(
 );
 
 reportWebVitals();
+
+// Installation support; personal data is never precached by this service worker.
+if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/my-circ-sw.js', { updateViaCache: 'none' }).catch(() => {
+      // The online website remains usable if the browser disallows installation.
+    });
+  });
+}

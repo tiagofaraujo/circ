@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
 import { loadParticipantProfile, saveParticipantProfile } from '../auth/profileStore';
+import { useUlsEligibility } from '../auth/ulsEligibilityStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../account.css';
 import '../account-settings.css';
@@ -51,10 +52,15 @@ export default function ParticipantProfileFirebasePage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
   const { user, updateDisplayName } = useAuth();
+  const ulsEligibility = useUlsEligibility(user);
+  // A cached miss, a failed lookup, or any existing eligibility document
+  // keeps the field locked. Only a server-confirmed absence unlocks it.
+  const ulsNameLocked = Boolean(user) && !ulsEligibility.confirmedAbsent;
   const [form, setForm] = useState(() => emptyForm(user));
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const selectedProfession = useMemo(
     () => professionOptions.find(([value]) => value === form.profession),
@@ -84,12 +90,14 @@ export default function ParticipantProfileFirebasePage() {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
     setSaved(false);
+    setSaveError('');
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
     setSaved(false);
+    setSaveError('');
     try {
       const professionLabel = selectedProfession ? (isEnglish ? selectedProfession[2] : selectedProfession[1]) : '';
       const next = {
@@ -97,11 +105,26 @@ export default function ParticipantProfileFirebasePage() {
         professionLabel,
         photoURL: user?.photoURL || '',
       };
-      if (form.name.trim() && form.name.trim() !== user?.displayName) {
-        await updateDisplayName(form.name.trim());
-      }
-      await saveParticipantProfile(user, next);
+      const savedProfile = await saveParticipantProfile(user, next);
+      setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
+      if (savedProfile.name && savedProfile.name !== user?.displayName) {
+        try {
+          await updateDisplayName(savedProfile.name);
+        } catch {
+          setSaveError(
+            isEnglish
+              ? 'The profile was saved, but the account display name could not be synchronised. Reload the page and try again.'
+              : 'O perfil foi guardado, mas não foi possível sincronizar o nome da conta. Atualize a página e tente novamente.'
+          );
+        }
+      }
+    } catch {
+      setSaveError(
+        isEnglish
+          ? 'The profile could not be saved to the database. Check your connection and try again.'
+          : 'Não foi possível guardar o perfil na base de dados. Confirme a ligação e tente novamente.'
+      );
     } finally {
       setSaving(false);
     }
@@ -163,7 +186,33 @@ export default function ParticipantProfileFirebasePage() {
               <h2>{isEnglish ? 'Personal details' : 'Dados pessoais'}</h2>
             </div>
             <div className="account-form-grid">
-              <label><span>{isEnglish ? 'Full name' : 'Nome completo'}</span><input name="name" autoComplete="name" value={form.name || ''} onChange={updateField} required /></label>
+              <label>
+                <span>{isEnglish ? 'Full name' : 'Nome completo'}</span>
+                <input
+                  name="name"
+                  autoComplete="name"
+                  value={form.name || ''}
+                  onChange={updateField}
+                  readOnly={ulsNameLocked}
+                  aria-readonly={ulsNameLocked}
+                  required
+                />
+                {ulsNameLocked && <small>{ulsEligibility.verified
+                  ? (isEnglish
+                    ? 'Locked after the ULS Coimbra match. Contact the secretariat if a correction is needed.'
+                    : 'Bloqueado após a correspondência ULS Coimbra. Para corrigir, contacte o secretariado.')
+                  : ulsEligibility.revoked
+                    ? (isEnglish
+                      ? 'The ULS match is no longer active. The name remains locked; contact the secretariat.'
+                      : 'A correspondência ULS já não está ativa. O nome permanece bloqueado; contacte o secretariado.')
+                    : ulsEligibility.status === 'error'
+                      ? (isEnglish
+                        ? 'The ULS status could not be confirmed. Reload the page before changing the name.'
+                        : 'Não foi possível confirmar o estado ULS. Atualize a página antes de alterar o nome.')
+                      : (isEnglish
+                        ? 'Checking whether the name is locked…'
+                        : 'A verificar se o nome está bloqueado…')}</small>}
+              </label>
               <label><span>Email</span><input name="email" type="email" value={form.email || ''} readOnly aria-readonly="true" /><small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small></label>
               <label><span>{isEnglish ? 'Date of birth' : 'Data de nascimento'}</span><input name="dateOfBirth" type="date" value={form.dateOfBirth || ''} onChange={updateField} /></label>
               <label><span>{isEnglish ? 'Gender' : 'Sexo / género'}</span><select name="gender" value={form.gender || ''} onChange={updateField}>{genderOptions.map(([value, pt, en]) => <option key={value || 'empty'} value={value}>{isEnglish ? en : pt}</option>)}</select></label>
@@ -190,7 +239,8 @@ export default function ParticipantProfileFirebasePage() {
             <div className="account-form-actions">
               <button className="button account-primary-button" type="submit" disabled={saving}>{saving ? (isEnglish ? 'Saving…' : 'A guardar…') : (isEnglish ? 'Save details' : 'Guardar dados')}</button>
               <Link className="text-link" to="/conta">{isEnglish ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
-              {saved && <span className="account-save-message">{isEnglish ? 'Saved.' : 'Guardado.'}</span>}
+              {saved && <span className="account-save-message" role="status">{isEnglish ? 'Saved to the database.' : 'Guardado na base de dados.'}</span>}
+              {saveError && <span className="account-save-message account-save-message--error" role="alert">{saveError}</span>}
             </div>
           </form>
         )}

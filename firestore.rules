@@ -9,15 +9,386 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
+    function hasVerifiedEmail() {
       return signedIn()
         && request.auth.token.email_verified == true
+        && request.auth.token.email != null;
+    }
+
+    function isAdmin() {
+      return hasVerifiedEmail()
         && request.auth.token.email == 'circ.chuc@gmail.com';
     }
 
+    function hasStoredRole(role) {
+      return hasVerifiedEmail()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('roles', {}).get(role, false) == true;
+    }
+
+    function canManageSubmissions() {
+      return isAdmin()
+        || (
+          hasVerifiedEmail()
+          && request.auth.token.email in [
+            'araujotiagofc@gmail.com',
+            'acbdgomes@gmail.com',
+            'afsilvacarvalho@gmail.com'
+          ]
+        )
+        || hasStoredRole('submissions');
+    }
+
+    function canTestSubmissions() {
+      return canManageSubmissions()
+        && (
+          isAdmin()
+          || (
+            hasVerifiedEmail()
+            && request.auth.token.email in [
+              'araujotiagofc@gmail.com',
+              'acbdgomes@gmail.com',
+              'afsilvacarvalho@gmail.com'
+            ]
+          )
+          || hasStoredRole('submissionTesting')
+        );
+    }
+
+    function canUseSecretariat() {
+      return isAdmin()
+        || hasStoredRole('secretariat')
+        || (hasVerifiedEmail() && request.auth.token.email == 'tiago_araujo@hotmail.com');
+    }
+
+    function isUlsPilotAccount() {
+      return hasStoredRole('ulsPilot');
+    }
+
+    function hasOwnAuditActor() {
+      return request.resource.data.actor.uid == request.auth.uid
+        && request.resource.data.actor.email == request.auth.token.email
+        && request.resource.data.eventId == 'circ-2027';
+    }
+
+    function hasValidInitialSubmissionTimestamps() {
+      return request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            request.resource.data.status == 'draft'
+            && request.resource.data.submittedAt == null
+          )
+          || (
+            request.resource.data.status == 'submitted'
+            && request.resource.data.submittedAt == request.time
+          )
+        );
+    }
+
+    function hasValidAbstractSections() {
+      return request.resource.data.abstractSections is map
+        && request.resource.data.abstractSections.keys().hasAll([
+          'introduction',
+          'objective',
+          'methods',
+          'results',
+          'conclusion',
+          'keywords'
+        ])
+        && request.resource.data.abstractSections.keys().hasOnly([
+          'introduction',
+          'objective',
+          'methods',
+          'results',
+          'conclusion',
+          'keywords'
+        ])
+        && request.resource.data.abstractSections.introduction is string
+        && request.resource.data.abstractSections.objective is string
+        && request.resource.data.abstractSections.methods is string
+        && request.resource.data.abstractSections.results is string
+        && request.resource.data.abstractSections.conclusion is string
+        && request.resource.data.abstractSections.keywords is string
+        && request.resource.data.abstractSections.introduction.size() <= 2500
+        && request.resource.data.abstractSections.objective.size() <= 1500
+        && request.resource.data.abstractSections.methods.size() <= 3000
+        && request.resource.data.abstractSections.results.size() <= 3000
+        && request.resource.data.abstractSections.conclusion.size() <= 2000
+        && request.resource.data.abstractSections.keywords.size() <= 500
+        && request.resource.data.abstract is string
+        && request.resource.data.abstract.size() <= 15000
+        && (
+          request.resource.data.status == 'draft'
+          || (
+            request.resource.data.abstractSections.introduction.size() > 0
+            && request.resource.data.abstractSections.objective.size() > 0
+            && request.resource.data.abstractSections.methods.size() > 0
+            && request.resource.data.abstractSections.results.size() > 0
+            && request.resource.data.abstractSections.conclusion.size() > 0
+            && request.resource.data.abstractSections.keywords.size() > 0
+          )
+        );
+    }
+
+    function isValidAuthorSubmissionUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'type',
+          'title',
+          'authors',
+          'affiliation',
+          'abstract',
+          'abstractSections',
+          'status',
+          'updatedAt',
+          'submittedAt'
+        ])
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && hasValidAbstractSections()
+        && (
+          (
+            request.resource.data.status == 'draft'
+            && request.resource.data.submittedAt == resource.data.submittedAt
+          )
+          || (
+            request.resource.data.status == 'submitted'
+            && request.resource.data.submittedAt == request.time
+          )
+        );
+    }
+
+    function validUlsNameKey(nameKey) {
+      return nameKey is string
+        && nameKey.size() >= 5
+        && nameKey.size() <= 160;
+    }
+
+    function hasPendingUlsMatch(userId, mec, nameKey) {
+      let profile = getAfter(/databases/$(database)/documents/users/$(userId)).data;
+      let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
+      return profile.get('name', '') is string
+        && profile.get('name', '').size() >= 5
+        && profile.get('ulsNameKey', '') == nameKey
+        && roster.get('profileName', '') == profile.get('name', '')
+        && roster.get('active', false) == true
+        && roster.get('eventId', '') == 'circ-2027'
+        && roster.get('nameKey', '') == nameKey;
+    }
+
+    function validPendingUlsProfileMatch(userId) {
+      let pendingEligibility =
+        getAfter(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
+      let mec = pendingEligibility.get('mec', '');
+      let nameKey = pendingEligibility.get('nameKey', '');
+      return pendingEligibility.get('userId', '') == userId
+        && pendingEligibility.get('eventId', '') == 'circ-2027'
+        && pendingEligibility.get('status', '') == 'matched'
+        && pendingEligibility.get('method', '') == 'mec-name-match'
+        && validUlsNameKey(nameKey)
+        && hasPendingUlsMatch(userId, mec, nameKey);
+    }
+
+    function validUlsProfileUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let eligibilityExists =
+        exists(/databases/$(database)/documents/ulsEligibility/$(userId));
+      return (
+          !changed.hasAny(['ulsNameKey'])
+          || (!eligibilityExists && validPendingUlsProfileMatch(userId))
+        )
+        && (
+          !eligibilityExists
+          || !changed.hasAny(['name', 'ulsNameKey'])
+        );
+    }
+
+    function validMatchedEligibility(userId) {
+      let eligibility = request.resource.data;
+      let mec = eligibility.get('mec', '');
+      let nameKey = eligibility.get('nameKey', '');
+      let claimId = 'circ-2027_' + mec;
+      let claim = getAfter(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data;
+      return isUlsPilotAccount()
+        && request.auth.uid == userId
+        && eligibility.keys().hasOnly([
+          'userId',
+          'eventId',
+          'mec',
+          'nameKey',
+          'method',
+          'status',
+          'matchedAt'
+        ])
+        && eligibility.get('userId', '') == userId
+        && eligibility.get('eventId', '') == 'circ-2027'
+        && eligibility.get('method', '') == 'mec-name-match'
+        && eligibility.get('status', '') == 'matched'
+        && eligibility.get('matchedAt', null) == request.time
+        && mec is string
+        && mec.matches('^[0-9]{1,12}$')
+        && validUlsNameKey(nameKey)
+        && hasPendingUlsMatch(userId, mec, nameKey)
+        && claim.get('userId', '') == userId
+        && claim.get('eventId', '') == 'circ-2027'
+        && claim.get('mec', '') == mec
+        && claim.get('nameKey', '') == nameKey
+        && claim.get('method', '') == 'mec-name-match';
+    }
+
+    function validUlsClaim(claimId) {
+      let claim = request.resource.data;
+      let userId = claim.get('userId', '');
+      let mec = claim.get('mec', '');
+      let nameKey = claim.get('nameKey', '');
+      let eligibility = getAfter(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
+      return isUlsPilotAccount()
+        && request.auth.uid == userId
+        && claimId == 'circ-2027_' + mec
+        && claim.keys().hasOnly([
+          'userId',
+          'eventId',
+          'mec',
+          'nameKey',
+          'method',
+          'claimedAt'
+        ])
+        && claim.get('eventId', '') == 'circ-2027'
+        && claim.get('method', '') == 'mec-name-match'
+        && claim.get('claimedAt', null) == request.time
+        && mec is string
+        && mec.matches('^[0-9]{1,12}$')
+        && validUlsNameKey(nameKey)
+        && hasPendingUlsMatch(userId, mec, nameKey)
+        && eligibility.get('userId', '') == userId
+        && eligibility.get('eventId', '') == 'circ-2027'
+        && eligibility.get('mec', '') == mec
+        && eligibility.get('nameKey', '') == nameKey
+        && eligibility.get('method', '') == 'mec-name-match'
+        && eligibility.get('status', '') == 'matched';
+    }
+
+    // Eligibility and MEC claims are immutable proof that the exact profile/roster
+    // match succeeded. They survive personal-profile deletion, while the roster
+    // remains the authoritative switch for accepting ULS registrations.
+    function hasMatchedUlsEligibility(userId) {
+      let eligibility = get(/databases/$(database)/documents/ulsEligibility/$(userId)).data;
+      let mec = eligibility.get('mec', '');
+      let nameKey = eligibility.get('nameKey', '');
+      let claimId = 'circ-2027_' + mec;
+      let claim = get(/databases/$(database)/documents/ulsMecClaims/$(claimId)).data;
+      let roster = get(/databases/$(database)/documents/ulsRoster/$(mec)).data;
+      return eligibility.get('eventId', '') == 'circ-2027'
+        && eligibility.get('userId', '') == userId
+        && eligibility.get('status', '') == 'matched'
+        && eligibility.get('method', '') == 'mec-name-match'
+        && validUlsNameKey(nameKey)
+        && claim.get('userId', '') == userId
+        && claim.get('eventId', '') == 'circ-2027'
+        && claim.get('mec', '') == mec
+        && claim.get('nameKey', '') == nameKey
+        && claim.get('method', '') == 'mec-name-match'
+        && roster.get('active', false) == true
+        && roster.get('eventId', '') == 'circ-2027'
+        && roster.get('nameKey', '') == nameKey;
+    }
+
+    function canReadOwnUlsRoster(mec) {
+      return signedIn()
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('userId', '') == request.auth.uid
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('eventId', '') == 'circ-2027'
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('status', '') == 'matched'
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('method', '') == 'mec-name-match'
+        && get(/databases/$(database)/documents/ulsEligibility/$(request.auth.uid))
+          .data.get('mec', '') == mec;
+    }
+
+    function hasValidUlsRegistration(data) {
+      let selection = data.get('selection', {});
+      return data.get('isTest', false) == true
+        || (selection.get('profile', '') != 'uls' && selection.get('courseAffiliation', '') != 'uls')
+        || hasMatchedUlsEligibility(data.userId);
+    }
+
+    function validAdminHistoricalRegistrationUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let paymentChanged = changed.hasAny(['payment']);
+      return changed.hasOnly(['status', 'payment', 'updatedAt', 'updatedBy'])
+        && changed.hasAny(['status', 'payment'])
+        && request.resource.data.updatedAt == request.time
+        && (
+          !changed.hasAny(['status'])
+          || (
+            request.resource.data.status in ['draft', 'submitted', 'confirmed', 'cancelled']
+            && request.resource.data.updatedBy.uid == request.auth.uid
+            && request.resource.data.updatedBy.email == request.auth.token.email
+          )
+        )
+        && (
+          !paymentChanged
+          || (
+            request.resource.data.payment.diff(resource.data.payment).affectedKeys()
+              .hasOnly(['status', 'updatedAt', 'updatedBy'])
+            && request.resource.data.payment.status in [
+              'pending',
+              'awaiting_confirmation',
+              'paid',
+              'refunded',
+              'cancelled'
+            ]
+            && request.resource.data.payment.updatedAt == request.time
+            && request.resource.data.payment.updatedBy.uid == request.auth.uid
+            && request.resource.data.payment.updatedBy.email == request.auth.token.email
+          )
+        );
+    }
+
+    function hasValidUlsOrder(data) {
+      let registration = get(/databases/$(database)/documents/registrations/$(data.registrationId)).data;
+      return data.get('isTest', false) == true
+        || (registration.userId == data.userId && hasValidUlsRegistration(registration));
+    }
+
+    // The roster stays private. A pilot user may only create an atomic MEC/name match
+    // with the deterministic, single-use claim document required by the rules.
+    match /ulsEligibility/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if validMatchedEligibility(userId);
+      allow update, delete: if false;
+    }
+    match /ulsRoster/{mec} {
+      // A matched participant may observe only their own claimed entry so that
+      // deactivation is reflected immediately. Collection listing stays private.
+      allow get: if canReadOwnUlsRoster(mec);
+      allow list, write: if false;
+    }
+    match /ulsMecClaims/{claimId} {
+      allow create: if validUlsClaim(claimId);
+      allow read, update, delete: if false;
+    }
+    match /ulsChallenges/{userId} { allow read, write: if false; }
+    match /ulsRateLimits/{limitId} { allow read, write: if false; }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (
+        isOwner(userId)
+        && !request.resource.data.keys().hasAny(['roles', 'ulsNameKey'])
+        && !exists(/databases/$(database)/documents/ulsEligibility/$(userId))
+      );
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles'])
+        && validUlsProfileUpdate(userId)
+      );
+      // Deleting a My CIRC account must remove its personal profile even
+      // after a ULS match. The private eligibility and MEC reservation remain.
+      allow delete: if isAdmin() || isOwner(userId);
     }
 
     match /events/{eventId} {
@@ -26,13 +397,28 @@ service cloud.firestore {
     }
 
     match /registrations/{registrationId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow read: if isAdmin()
+        || canUseSecretariat()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data);
+      allow delete: if isAdmin();
+      allow update: if (
+        isAdmin()
+        && (
+          hasValidUlsRegistration(request.resource.data)
+          || validAdminHistoricalRegistrationUpdate()
+        )
+      ) || (
+        canUseSecretariat()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['attendance', 'credential', 'updatedAt'])
+      );
     }
 
     match /registrationOrders/{orderId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && hasValidUlsOrder(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
@@ -45,8 +431,100 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /submissions/{submissionId} {
+      allow read: if isAdmin()
+        || (
+          canManageSubmissions()
+          && resource.data.status != 'draft'
+        )
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin()
+        || (
+          canTestSubmissions()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.eventId == 'circ-2027'
+          && request.resource.data.get('isTest', false) == true
+          && request.resource.data.status in ['draft', 'submitted']
+          && hasValidAbstractSections()
+          && hasValidInitialSubmissionTimestamps()
+        )
+        || (
+          signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.eventId == 'circ-2027'
+          && request.resource.data.get('isTest', false) == false
+          && request.resource.data.status in ['draft', 'submitted']
+          && hasValidAbstractSections()
+          && hasValidInitialSubmissionTimestamps()
+        );
+      allow update: if isAdmin()
+        || (
+          canManageSubmissions()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'review', 'updatedAt'])
+          && request.resource.data.status in [
+            'submitted',
+            'under_review',
+            'revisions',
+            'accepted',
+            'rejected'
+          ]
+          && request.resource.data.review.note is string
+          && request.resource.data.review.note.size() <= 1000
+          && request.resource.data.review.updatedBy.uid == request.auth.uid
+          && request.resource.data.review.updatedBy.email == request.auth.token.email
+        )
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && resource.data.status == 'draft'
+          && request.resource.data.status in ['draft', 'submitted']
+          && isValidAuthorSubmissionUpdate()
+        );
+      allow delete: if isAdmin()
+        || (
+          canTestSubmissions()
+          && resource.data.userId == request.auth.uid
+          && resource.data.get('isTest', false) == true
+        )
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && resource.data.get('isTest', false) == false
+          && resource.data.status == 'draft'
+        );
+    }
+
     match /auditLogs/{logId} {
-      allow read, create: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        || (
+          canManageSubmissions()
+          && hasOwnAuditActor()
+          && request.resource.data.submissionId is string
+          && request.resource.data.action == 'submission.review.updated'
+        )
+        || (
+          canTestSubmissions()
+          && hasOwnAuditActor()
+          && request.resource.data.submissionId is string
+          && request.resource.data.action in [
+            'submission.test.created',
+            'submission.test.deleted'
+          ]
+        )
+        || (
+          canUseSecretariat()
+          && hasOwnAuditActor()
+          && request.resource.data.registrationId is string
+          && request.resource.data.action in [
+            'attendance.checkin.completed',
+            'attendance.checkin.reverted',
+            'credential.delivered',
+            'credential.delivery.reverted'
+          ]
+        );
       allow update, delete: if false;
     }
 

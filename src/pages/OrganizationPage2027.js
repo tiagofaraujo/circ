@@ -6,15 +6,15 @@ import '../recoveredContent.css';
 const tx = (en, english, portuguese) => (en ? english : portuguese);
 
 const organisingCommittee2027 = [
-  'Tiago Araújo',
-  'Tiago Patrão',
   'Ana Carolina Gomes',
   'Ana Carvalho',
+  'Carla Lourenço',
+  'Daniel Matos',
   'Francisca Rodrigues',
   'Paulo Matos',
   'Sandra Assunção',
-  'Daniel Matos',
-  'Carla Lourenço',
+  'Tiago Araújo',
+  'Tiago Patrão',
 ];
 
 function PageHero({ eyebrow, title, lead }) {

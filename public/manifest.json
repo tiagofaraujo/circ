@@ -1,25 +1,30 @@
 {
-  "short_name": "CIRC 2027",
-  "name": "CIRC — Congresso Internacional de Radiologia de Coimbra",
+  "id": "/",
+  "short_name": "My CIRC",
+  "name": "My CIRC — Congresso Internacional de Radiologia de Coimbra",
+  "description": "A sua conta CIRC: inscrições, trabalhos científicos, programa e perfil.",
+  "lang": "pt-PT",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "logo192.png",
+      "src": "/my-circ-icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "/my-circ-icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": "/",
+  "start_url": "/conta",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#232eb7",
-  "background_color": "#efe8df"
+  "background_color": "#f6f7fb",
+  "shortcuts": [
+    { "name": "As minhas inscrições", "short_name": "Inscrições", "url": "/conta/inscricoes" },
+    { "name": "Os meus trabalhos", "short_name": "Trabalhos", "url": "/conta/submissoes" },
+    { "name": "Programa CIRC 2027", "short_name": "Programa", "url": "/conta/programa" }
+  ]
 }
