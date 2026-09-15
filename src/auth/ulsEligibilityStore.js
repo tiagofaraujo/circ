@@ -4,12 +4,6 @@ import { buildUlsIdentity, ULS_EVENT_ID, ULS_MATCH_METHOD } from './ulsIdentity'
 
 export const ulsVerificationEnabled = process.env.REACT_APP_ULS_VERIFICATION_ENABLED === 'true';
 export const ULS_ELIGIBILITY_SNAPSHOT_OPTIONS = Object.freeze({ includeMetadataChanges: true });
-const ulsPilotEmails = new Set((process.env.REACT_APP_ULS_PILOT_EMAILS || '')
-  .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
-
-export function isUlsPilotUser(user) {
-  return Boolean(user?.email && ulsPilotEmails.has(user.email.trim().toLowerCase()));
-}
 
 function isValidEligibility(data, uid) {
   return Boolean(
@@ -169,7 +163,6 @@ export async function claimUlsEligibility(mecValue) {
   const user = auth?.currentUser;
   if (!user) throw ulsError('uls/unauthenticated');
   if (!user.emailVerified) throw ulsError('uls/email-not-verified');
-  if (!isUlsPilotUser(user)) throw ulsError('uls/not-authorised');
 
   const db = getFirebaseFirestore();
   if (!db || !window.firebase?.firestore?.FieldValue) throw ulsError('uls/unavailable');

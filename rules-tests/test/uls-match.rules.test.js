@@ -109,9 +109,47 @@ test('a participant cannot save a name key outside the validated atomic claim', 
   await assertSucceeds(updateDoc(profileRef, { name: 'Maria do Carmo' }));
 });
 
-test('a non-pilot account cannot claim a valid pair', async () => {
+test('a verified account without pilot roles can claim a valid roster pair', async () => {
   await seedProfileAndRoster('other', { pilot: false });
-  await assertFails(claimBatch(userDb('other', 'outra@example.com'), 'other'));
+  await assertSucceeds(claimBatch(userDb('other', 'outra@example.com'), 'other'));
+});
+
+for (const profileName of [
+  '  ana   filipa de sá  ',
+  'ANA FILIPA SA',
+  'Ana Filipa de Sá'.normalize('NFD'),
+  'Ana-Filipa de Sá',
+  'Ana de da das do dos Filipa Sá',
+]) {
+  test('matches the saved name with supported spelling: ' + JSON.stringify(profileName), async () => {
+    await seedProfileAndRoster('member', { profileName, rosterProfileName: 'ANA FILIPA SA', pilot: false });
+    await assertSucceeds(claimBatch(userDb('member', 'member@example.test'), 'member'));
+  });
+}
+
+test('an unverified email cannot claim a valid roster pair', async () => {
+  await seedProfileAndRoster('member', { pilot: false });
+  const db = testEnv.authenticatedContext('member', {
+    email: 'member@example.test', email_verified: false,
+  }).firestore();
+  await assertFails(claimBatch(db, 'member'));
+});
+
+test('an unauthenticated visitor cannot claim a valid roster pair', async () => {
+  await seedProfileAndRoster('member', { pilot: false });
+  await assertFails(claimBatch(testEnv.unauthenticatedContext().firestore(), 'member'));
+});
+
+test('ordinary members cannot grant themselves administrative or pilot roles', async () => {
+  await seedProfileAndRoster('member', { pilot: false });
+  await assertFails(updateDoc(doc(userDb('member'), 'users', 'member'), {
+    roles: { ulsPilot: true, secretariat: true },
+  }));
+});
+
+test('a shortened name cannot claim the complete roster name', async () => {
+  await seedProfileAndRoster('member', { profileName: 'Ana Sá', pilot: false });
+  await assertFails(claimBatch(userDb('member'), 'member'));
 });
 
 test('a MEC cannot be claimed by a second account', async () => {
