@@ -5,13 +5,10 @@ import '../css/Prices.css';
 import { useLanguage } from '../../context/LanguageContext';
 import { COURSE_RATES, CONGRESS_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, formatEuro } from '../../data/registration2027';
 
-function PriceValue({ amount, dinnerAmount, note, dinnerLabel }) {
+function PriceValue({ amount, note }) {
     return (
         <div className="price-value">
             <span className="price-main">{amount}</span>
-            {dinnerAmount && (
-                <span className="price-detail">{dinnerLabel}: {dinnerAmount}</span>
-            )}
             {note && <span className="price-note">{note}</span>}
         </div>
     );
@@ -20,7 +17,6 @@ function PriceValue({ amount, dinnerAmount, note, dinnerLabel }) {
 function Prices() {
     const { language } = useLanguage();
     const en = language === 'en';
-    const dinnerLabel = en ? 'With dinner' : 'Com jantar';
     const singlePrice = en ? 'Single price' : 'Preço único';
     const perCourse = en ? 'Price per course' : 'Preço por curso';
     const perPerson = en ? 'Price per person' : 'Preço por pessoa';
@@ -68,44 +64,44 @@ function Prices() {
                         <tbody>
                             <tr>
                                 <th scope="row">{en ? 'ULS Coimbra delegates' : 'Congressistas ULS Coimbra'}</th>
-                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.uls.early)} dinnerAmount={formatEuro(CONGRESS_RATES.uls.early + DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.uls.regular)} dinnerAmount={formatEuro(CONGRESS_RATES.uls.regular + DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.uls.early)} /></td>
+                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.uls.regular)} /></td>
                             </tr>
                             <tr>
                                 <th scope="row">{en ? 'External delegates' : 'Congressistas externos'}</th>
-                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.external.early)} dinnerAmount={formatEuro(CONGRESS_RATES.external.early + DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.external.regular)} dinnerAmount={formatEuro(CONGRESS_RATES.external.regular + DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.external.early)} /></td>
+                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.external.regular)} /></td>
                             </tr>
                             <tr>
                                 <th scope="row">{en ? 'IMR students' : 'Estudantes IMR'}</th>
-                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.student.early)} dinnerAmount={formatEuro(CONGRESS_RATES.student.early + DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.student.regular)} dinnerAmount={formatEuro(CONGRESS_RATES.student.regular + DINNER_RATE)} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.student.early)} /></td>
+                                <td><PriceValue amount={formatEuro(CONGRESS_RATES.student.regular)} /></td>
                             </tr>
                             <tr>
                                 <th scope="row">{en ? 'Virtual congress' : 'Congresso virtual'}</th>
-                                <td><PriceValue amount={formatEuro(VIRTUAL_CONGRESS_RATE)} note={singlePrice} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(VIRTUAL_CONGRESS_RATE)} note={singlePrice} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(VIRTUAL_CONGRESS_RATE)} note={singlePrice} /></td>
+                                <td><PriceValue amount={formatEuro(VIRTUAL_CONGRESS_RATE)} note={singlePrice} /></td>
                             </tr>
                             <tr>
                                 <th scope="row">{en ? 'Congress dinner' : 'Jantar do congresso'}</th>
-                                <td><PriceValue amount={formatEuro(DINNER_RATE)} note={perPerson} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(DINNER_RATE)} note={perPerson} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(DINNER_RATE)} note={perPerson} /></td>
+                                <td><PriceValue amount={formatEuro(DINNER_RATE)} note={perPerson} /></td>
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
                                     <span className="row-label">{en ? 'Pre-congress courses' : 'Cursos pré-congresso'}</span>
                                     ULS Coimbra
                                 </th>
-                                <td><PriceValue amount={formatEuro(COURSE_RATES.uls)} note={perCourse} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(COURSE_RATES.uls)} note={perCourse} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(COURSE_RATES.uls)} note={perCourse} /></td>
+                                <td><PriceValue amount={formatEuro(COURSE_RATES.uls)} note={perCourse} /></td>
                             </tr>
                             <tr className="course-row">
                                 <th scope="row">
                                     <span className="row-label">{en ? 'Pre-congress courses' : 'Cursos pré-congresso'}</span>
                                     {en ? 'External professionals' : 'Profissionais externos'}
                                 </th>
-                                <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} dinnerLabel={dinnerLabel} /></td>
-                                <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} dinnerLabel={dinnerLabel} /></td>
+                                <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} /></td>
+                                <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} /></td>
                             </tr>
                         </tbody>
                     </table>
@@ -115,8 +111,8 @@ function Prices() {
                     <p>
                         <strong>{en ? 'Dinner:' : 'Jantar:'}</strong>{' '}
                         {en
-                            ? '€30 per person. One or more dinner tickets may be added to any registration category. The amounts marked “With dinner” include one ticket.'
-                            : '30 € por pessoa. Pode adicionar um ou mais bilhetes de jantar a qualquer modalidade de inscrição. Os valores assinalados como «Com jantar» incluem um bilhete.'}
+                            ? '€30 per person. One or more dinner tickets may be added to any registration category.'
+                            : '30 € por pessoa. Pode adicionar um ou mais bilhetes de jantar a qualquer modalidade de inscrição.'}
                     </p>
                     <p>
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}
