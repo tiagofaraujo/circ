@@ -391,6 +391,139 @@ service cloud.firestore {
     match /ulsChallenges/{userId} { allow read, write: if false; }
     match /ulsRateLimits/{limitId} { allow read, write: if false; }
 
+    // Student eligibility is a staff decision about a specific profile name and
+    // document revision. Proofs are private, bounded and never queried in bulk.
+    function studentProfileMatches(userId, data) {
+      return data.profileName is string
+        && data.profileName.trim().size() >= 5 && data.profileName.size() <= 200
+        && data.profileName == getAfter(/databases/$(database)/documents/users/$(userId)).data.name;
+    }
+
+    function validStudentRequest(userId) {
+      let data = request.resource.data;
+      let proof = getAfter(/databases/$(database)/documents/studentProofs/$(userId)).data;
+      return isOwner(userId) && hasVerifiedEmail()
+        && data.keys().hasOnly([
+          'userId', 'eventId', 'email', 'profileName', 'school', 'course', 'academicYear',
+          'status', 'revision', 'proofAvailable', 'submittedAt', 'updatedAt',
+          'reviewedAt', 'reviewedBy', 'reviewNote'
+        ])
+        && data.userId == userId && data.eventId == 'circ-2027'
+        && data.email == request.auth.token.email && data.academicYear == '2026/2027'
+        && studentProfileMatches(userId, data)
+        && data.school is string && data.school.trim().size() >= 2 && data.school.size() <= 160
+        && data.course is string && data.course.trim().size() >= 2 && data.course.size() <= 160
+        && data.status == 'pending' && data.proofAvailable == true
+        && data.revision is int && data.revision > 0
+        && data.submittedAt == request.time && data.updatedAt == request.time
+        && data.reviewedAt == null && data.reviewedBy == null && data.reviewNote == ''
+        && proof.userId == userId && proof.eventId == data.eventId
+        && proof.revision == data.revision && proof.updatedAt == request.time;
+    }
+
+    function validStudentProof(userId) {
+      let data = request.resource.data;
+      let application = getAfter(/databases/$(database)/documents/studentVerifications/$(userId)).data;
+      let previousRevision = exists(/databases/$(database)/documents/studentVerifications/$(userId))
+        ? get(/databases/$(database)/documents/studentVerifications/$(userId)).data.revision : 0;
+      return isOwner(userId) && hasVerifiedEmail()
+        && data.keys().hasOnly(['userId', 'eventId', 'revision', 'mimeType', 'base64', 'updatedAt'])
+        && data.userId == userId && data.eventId == 'circ-2027' && data.updatedAt == request.time
+        && data.base64 is string && data.base64.size() >= 8 && data.base64.size() <= 409600
+        && data.base64.size() % 4 == 0 && data.base64.matches('^[A-Za-z0-9+/]+={0,2}$')
+        && ((data.mimeType == 'image/jpeg' && data.base64.matches('^/9j/.*'))
+          || (data.mimeType == 'application/pdf' && data.base64.matches('^JVBERi0.*')))
+        && application.userId == userId && application.eventId == data.eventId
+        && application.status == 'pending' && application.proofAvailable == true
+        && application.submittedAt == request.time
+        && application.revision == data.revision && data.revision == previousRevision + 1;
+    }
+
+    function validStudentReview(userId) {
+      let data = request.resource.data;
+      return canUseSecretariat() && request.auth.uid != userId
+        && data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'reviewNote', 'reviewedBy', 'reviewedAt', 'updatedAt'])
+        && data.status in ['approved', 'correction', 'rejected']
+        && data.reviewNote is string && data.reviewNote.size() <= 1000
+        && (data.status == 'approved' || data.reviewNote.trim().size() >= 5)
+        && data.reviewedBy.keys().hasOnly(['uid', 'email'])
+        && data.reviewedBy.uid == request.auth.uid && data.reviewedBy.email == request.auth.token.email
+        && data.reviewedAt == request.time && data.updatedAt == request.time
+        && (data.status != 'approved' || (
+          data.proofAvailable == true && studentProfileMatches(userId, data)
+          && getAfter(/databases/$(database)/documents/studentProofs/$(userId)).data.revision == data.revision
+        ));
+    }
+
+    function validStudentProofRemoval(userId) {
+      return canUseSecretariat() && resource.data.status != 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofAvailable', 'updatedAt'])
+        && request.resource.data.proofAvailable == false && request.resource.data.updatedAt == request.time
+        && !existsAfter(/databases/$(database)/documents/studentProofs/$(userId));
+    }
+
+    function hasApprovedStudent(userId) {
+      let data = get(/databases/$(database)/documents/studentVerifications/$(userId)).data;
+      return data.userId == userId && data.eventId == 'circ-2027'
+        && data.academicYear == '2026/2027' && data.status == 'approved'
+        && studentProfileMatches(userId, data);
+    }
+
+    function noStudentCourses(data) {
+      return data.get('morningCourse', false) == false && data.get('afternoonCourse', false) == false;
+    }
+
+    function hasValidStudentRegistration(data) {
+      return data.get('isTest', false) == true
+        || data.get('selection', {}).get('profile', '') != 'student'
+        || (data.eventId == 'circ-2027' && hasApprovedStudent(data.userId)
+          && noStudentCourses(data.selection) && noStudentCourses(data.get('entitlements', {})));
+    }
+
+    function canUpdateStudentRegistration(data) {
+      // Revocation must not prevent cancellation/refund of an earlier registration,
+      // but historical-update permissions must not bypass student approval.
+      let changed = data.diff(resource.data).affectedKeys();
+      return hasValidStudentRegistration(data) || (
+        validAdminHistoricalRegistrationUpdate()
+        && (!changed.hasAny(['status']) || data.status == 'cancelled')
+        && (!changed.hasAny(['payment']) || data.payment.status in ['cancelled', 'refunded'])
+      );
+    }
+
+    function hasValidStudentOrder(data) {
+      let registration = get(/databases/$(database)/documents/registrations/$(data.registrationId)).data;
+      return data.get('isTest', false) == true || (
+        registration.userId == data.userId && hasValidStudentRegistration(registration)
+        && (registration.get('selection', {}).get('profile', '') != 'student'
+          || noStudentCourses(data.get('items', {})))
+      );
+    }
+
+    match /studentVerifications/{userId} {
+      allow get: if isOwner(userId) || canUseSecretariat();
+      allow list: if canUseSecretariat() && request.query.limit <= 25;
+      allow create: if validStudentRequest(userId) && request.resource.data.revision == 1;
+      allow update: if (validStudentRequest(userId)
+          && request.resource.data.revision == resource.data.revision + 1
+          && request.time >= resource.data.submittedAt + duration.value(60, 's'))
+        || validStudentReview(userId) || validStudentProofRemoval(userId);
+      allow delete: if isOwner(userId)
+        && !existsAfter(/databases/$(database)/documents/studentProofs/$(userId));
+    }
+
+    match /studentProofs/{userId} {
+      allow get: if isOwner(userId) || canUseSecretariat();
+      allow list: if false;
+      allow create, update: if validStudentProof(userId);
+      allow delete: if (isOwner(userId)
+          && !existsAfter(/databases/$(database)/documents/studentVerifications/$(userId)))
+        || (canUseSecretariat()
+          && getAfter(/databases/$(database)/documents/studentVerifications/$(userId)).data.status != 'pending'
+          && getAfter(/databases/$(database)/documents/studentVerifications/$(userId)).data.proofAvailable == false);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || (
@@ -417,10 +550,12 @@ service cloud.firestore {
       allow read: if isAdmin()
         || canUseSecretariat()
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data);
+      allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data)
+        && hasValidStudentRegistration(request.resource.data);
       allow delete: if isAdmin();
       allow update: if (
         isAdmin()
+        && canUpdateStudentRegistration(request.resource.data)
         && (
           hasValidUlsRegistration(request.resource.data)
           || validAdminHistoricalRegistrationUpdate()
@@ -434,7 +569,8 @@ service cloud.firestore {
 
     match /registrationOrders/{orderId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update: if isAdmin() && hasValidUlsOrder(request.resource.data);
+      allow create, update: if isAdmin() && hasValidUlsOrder(request.resource.data)
+        && hasValidStudentOrder(request.resource.data);
       allow delete: if isAdmin();
     }
 
