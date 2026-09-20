@@ -293,6 +293,10 @@ export async function deleteParticipantData(user) {
 
   // Do not delete Firebase Auth if the personal Firestore profile could not be
   // removed. The caller only continues after this promise succeeds.
-  await db.collection('users').doc(user.uid).delete();
+  const batch = db.batch();
+  batch.delete(db.collection('studentProofs').doc(user.uid));
+  batch.delete(db.collection('studentVerifications').doc(user.uid));
+  batch.delete(db.collection('users').doc(user.uid));
+  await batch.commit();
   if (typeof window !== 'undefined') window.localStorage.removeItem(LOCAL_KEY);
 }

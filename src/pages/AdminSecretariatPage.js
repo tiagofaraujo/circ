@@ -175,6 +175,7 @@ export default function AdminSecretariatPage() {
       </header>
 
       <AdminModuleNav />
+      <p><Link to="/admin/estudantes">Validar comprovativos de estudantes →</Link></p>
 
       <section className="secretariat-days" aria-label="Selecionar dia do evento">
         {eventDays.map((item) => (

@@ -10,6 +10,8 @@ import {
 import { useLanguage } from '../../context/LanguageContext';
 import { useUlsEligibility } from '../../auth/ulsEligibilityStore';
 import UlsVerification from './UlsVerification';
+import StudentVerification from './StudentVerification';
+import { useStudentVerification } from '../../auth/studentVerificationStore';
 import {
   calculateRegistrationTotal,
   formatEuro,
@@ -262,6 +264,7 @@ function RegistrationBuilder() {
   const ulsEligibility = useUlsEligibility(user);
   const en = language === 'en';
   const [profile, setProfile] = useState('');
+  const studentVerification = useStudentVerification(user, profile === 'student');
   const [courseAffiliation, setCourseAffiliation] = useState('');
   const [congressMode, setCongressMode] = useState('');
   const [morningCourse, setMorningCourse] = useState(false);
@@ -306,6 +309,10 @@ function RegistrationBuilder() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (profile === 'student' && !studentVerification.approved && !isAdmin) setCongressMode('');
+  }, [profile, studentVerification.approved, isAdmin]);
+
   const totals = useMemo(() => calculateRegistrationTotal({
     profile,
     courseAffiliation,
@@ -324,7 +331,9 @@ function RegistrationBuilder() {
   const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse || dinnerQuantity);
   const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
   // Administrative simulations remain explicitly marked as tests and never request payment.
-  const profileReady = Boolean(profile && (profile !== 'uls' || ulsEligibility.verified || isAdmin));
+  const profileReady = Boolean(profile
+    && (profile !== 'uls' || ulsEligibility.verified || isAdmin)
+    && (profile !== 'student' || studentVerification.approved || isAdmin));
   const coursesReady = Boolean(profileReady && profile !== 'student' && courseAffiliation);
   const hasCourse = profile !== 'student' && (morningCourse || afternoonCourse);
   const testSelectionReady = Boolean(
@@ -412,12 +421,13 @@ function RegistrationBuilder() {
                 onChange={setProfile}
                 eyebrow={en ? 'Student rate' : 'Tarifa estudante'}
                 title={en ? 'IMR student' : 'Estudante IMR'}
-                text={en ? 'Valid proof will be required.' : 'Será necessário comprovativo válido.'}
+                text={en ? 'Enrolment document subject to approval.' : 'Comprovativo de matrícula sujeito a aprovação.'}
               />
             </div>
           </section>
 
           {profile === 'uls' && <UlsVerification key={user?.uid || 'guest'} user={user} eligibility={ulsEligibility} en={en} />}
+          {profile === 'student' && <StudentVerification key={user?.uid || 'guest'} user={user} verification={studentVerification} en={en} />}
 
           <section className={`registration-step${!profileReady ? ' is-locked' : ''}`} aria-labelledby="registration-congress-title">
             <div className="registration-step__heading">
@@ -429,6 +439,7 @@ function RegistrationBuilder() {
             </div>
             {!profile && <p className="registration-step__lock-note">{en ? 'Select your profile first.' : 'Selecione primeiro o seu perfil.'}</p>}
             {profile === 'uls' && !profileReady && <p className="registration-step__lock-note">{en ? 'Validate your employee number above to continue in the ULS Coimbra category.' : 'Valide o MEC acima para continuar na categoria ULS Coimbra.'}</p>}
+            {profile === 'student' && !profileReady && <p className="registration-step__lock-note">{en ? 'Student participation becomes available after the secretariat approves your document.' : 'A participação como estudante fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
             <div className="registration-choice-grid registration-choice-grid--three">
               <ChoiceCard
                 name="congress-mode"

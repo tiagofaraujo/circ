@@ -73,6 +73,7 @@ export function PrivacyPolicyPage() {
           <li>{en ? 'Contact form: name, email address, subject and message.' : 'Formulário de contacto: nome, endereço de email, assunto e mensagem.'}</li>
           <li>{en ? 'My CIRC account: email address, account identifier and, where provided by the user or Google, name and profile photograph.' : 'Conta My CIRC: endereço de email, identificador da conta e, quando fornecidos pelo utilizador ou pela conta Google, nome e fotografia de perfil.'}</li>
           <li>{en ? 'Authentication security data processed by the authentication provider, which may include device/browser information and IP address for security and abuse prevention.' : 'Dados técnicos de segurança tratados pelo fornecedor de autenticação, que podem incluir informação do dispositivo/browser e endereço IP para segurança e prevenção de abuso.'}</li>
+          <li>{en ? 'Student eligibility: school, course, academic year, profile name, private enrolment document and secretariat decision. The document is accessible only to its owner and authorised secretariat staff.' : 'Elegibilidade de estudante: escola, curso, ano letivo, nome do perfil, comprovativo privado de matrícula e decisão do secretariado. O comprovativo é acessível apenas ao titular e ao secretariado autorizado.'}</li>
           <li>{en ? 'Future registration data: professional, institutional, attendance, invoicing and payment information, once registration services are activated.' : 'Futuros dados de inscrição: informação profissional, institucional, de participação, faturação e pagamento, quando os serviços de inscrição forem ativados.'}</li>
         </ul>
       </LegalSection>
@@ -101,6 +102,7 @@ export function PrivacyPolicyPage() {
       </LegalSection>
 
       <LegalSection title={en ? '5. Retention' : '5. Conservação'}>
+        <p>{en ? 'Students may withdraw their request and delete the document in My CIRC. After review, the secretariat may delete the document while retaining its decision and request details. Deleting the account also removes its student request and document.' : 'O estudante pode retirar o pedido e apagar o comprovativo no My CIRC. Após análise, o secretariado pode apagar o comprovativo, conservando a decisão e os dados do pedido. A eliminação da conta também remove o pedido e o comprovativo de estudante.'}</p>
         <p>
           {en
             ? 'Personal data is kept only for as long as necessary for the purpose for which it was collected and for any applicable legal or administrative obligations. Account information may be retained while the account remains active. Registration, invoicing and accounting records may need to be retained for legally required periods.'
@@ -260,7 +262,7 @@ export function EventRegulationPage() {
         <ul>
           <li>{en ? 'Registration may be subject to capacity limits and category-specific conditions.' : 'A inscrição poderá estar sujeita a limites de lotação e condições específicas por categoria.'}</li>
           <li>{en ? 'The participant is responsible for checking personal, professional and invoicing details before confirmation.' : 'O participante é responsável por confirmar os dados pessoais, profissionais e de faturação antes da validação.'}</li>
-          <li>{en ? 'Where a reduced or specific category depends on professional or student status, proof may be requested.' : 'Quando uma categoria reduzida ou específica dependa de condição profissional ou de estudante, poderá ser solicitado comprovativo.'}</li>
+          <li>{en ? 'Student rates require a 2026/2027 enrolment document matching the full name in the profile, school and eligible IMR or equivalent course, approved by the secretariat. There is no age limit. Professional categories may require separate validation.' : 'A tarifa de estudante exige comprovativo de matrícula de 2026/2027 correspondente ao nome completo do perfil, escola e curso elegível de IMR ou equivalente, aprovado pelo secretariado. Não existe limite de idade. As categorias profissionais podem exigir validação própria.'}</li>
           <li>{en ? 'A registration is only considered completed when all required steps, including payment where applicable, are successfully concluded.' : 'A inscrição apenas será considerada concluída quando todos os passos exigidos, incluindo pagamento quando aplicável, forem finalizados com sucesso.'}</li>
         </ul>
       </LegalSection>
