@@ -470,15 +470,10 @@ service cloud.firestore {
         && studentProfileMatches(userId, data);
     }
 
-    function noStudentCourses(data) {
-      return data.get('morningCourse', false) == false && data.get('afternoonCourse', false) == false;
-    }
-
     function hasValidStudentRegistration(data) {
       return data.get('isTest', false) == true
         || data.get('selection', {}).get('profile', '') != 'student'
-        || (data.eventId == 'circ-2027' && hasApprovedStudent(data.userId)
-          && noStudentCourses(data.selection) && noStudentCourses(data.get('entitlements', {})));
+        || (data.eventId == 'circ-2027' && hasApprovedStudent(data.userId));
     }
 
     function canUpdateStudentRegistration(data) {
@@ -496,8 +491,6 @@ service cloud.firestore {
       let registration = get(/databases/$(database)/documents/registrations/$(data.registrationId)).data;
       return data.get('isTest', false) == true || (
         registration.userId == data.userId && hasValidStudentRegistration(registration)
-        && (registration.get('selection', {}).get('profile', '') != 'student'
-          || noStudentCourses(data.get('items', {})))
       );
     }
 

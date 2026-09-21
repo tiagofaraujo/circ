@@ -77,7 +77,10 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
     dinnerQuantity: Math.max(0, Number(primary.dinnerQuantity || 0)),
   };
   const studentProfile = primary.profile === 'student';
-  const courseReady = !studentProfile && Boolean(primary.courseAffiliation);
+  const studentVerification = useStudentVerification(user, studentProfile && !registration.isTest);
+  const courseReady = studentProfile
+    ? Boolean(registration.isTest || studentVerification.approved)
+    : Boolean(primary.courseAffiliation);
   const [morningCourse, setMorningCourse] = useState(false);
   const [afternoonCourse, setAfternoonCourse] = useState(false);
   const [dinnerQuantity, setDinnerQuantity] = useState(0);
@@ -151,43 +154,37 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
 
       <div className="registration-builder__layout">
         <div className="registration-builder__main">
-          <section className={`registration-step${studentProfile ? ' registration-step--restricted' : ''}`} aria-labelledby="registration-addon-courses-title">
+          <section className={`registration-step${!courseReady ? ' is-locked' : ''}`} aria-labelledby="registration-addon-courses-title">
             <div className="registration-step__heading">
               <span>01</span>
               <div>
                 <p>{en ? '8 April · Optional supplement' : '8 abril · Complemento opcional'}</p>
-                <h2 id="registration-addon-courses-title">{studentProfile ? (en ? 'Courses are not available for students' : 'Cursos não disponíveis para estudantes') : (en ? 'Add an available course' : 'Acrescente um curso disponível')}</h2>
+                <h2 id="registration-addon-courses-title">{en ? 'Add an available course' : 'Acrescente um curso disponível'}</h2>
               </div>
             </div>
-            {studentProfile ? (
-              <div className="registration-course-restriction" role="note">
-                <span aria-hidden="true">—</span>
-                <div><strong>{en ? 'Reserved for professionals' : 'Reservado a profissionais'}</strong><p>{en ? 'Dinner tickets remain available below.' : 'Os bilhetes para o jantar continuam disponíveis abaixo.'}</p></div>
-              </div>
-            ) : (
-              <div className="registration-toggle-list">
-                <ToggleCard
-                  checked={Boolean(entitlements.morningCourse || morningCourse)}
-                  disabled={!courseReady || Boolean(entitlements.morningCourse)}
-                  onChange={setMorningCourse}
-                  date="08"
-                  period={en ? 'AM' : 'MANHÃ'}
-                  title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
-                  text={entitlements.morningCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
-                  price={entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
-                />
-                <ToggleCard
-                  checked={Boolean(entitlements.afternoonCourse || afternoonCourse)}
-                  disabled={!courseReady || Boolean(entitlements.afternoonCourse)}
-                  onChange={setAfternoonCourse}
-                  date="08"
-                  period={en ? 'PM' : 'TARDE'}
-                  title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
-                  text={entitlements.afternoonCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
-                  price={entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
-                />
-              </div>
-            )}
+            {studentProfile && !courseReady && <p className="registration-step__lock-note">{en ? 'Course selection becomes available after the secretariat approves your document.' : 'A seleção de cursos fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
+            <div className="registration-toggle-list">
+              <ToggleCard
+                checked={Boolean(entitlements.morningCourse || morningCourse)}
+                disabled={!courseReady || Boolean(entitlements.morningCourse)}
+                onChange={setMorningCourse}
+                date="08"
+                period={en ? 'AM' : 'MANHÃ'}
+                title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
+                text={entitlements.morningCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
+                price={entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
+              />
+              <ToggleCard
+                checked={Boolean(entitlements.afternoonCourse || afternoonCourse)}
+                disabled={!courseReady || Boolean(entitlements.afternoonCourse)}
+                onChange={setAfternoonCourse}
+                date="08"
+                period={en ? 'PM' : 'TARDE'}
+                title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
+                text={entitlements.afternoonCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
+                price={entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
+              />
+            </div>
           </section>
 
           <section className="registration-step registration-step--compact" aria-labelledby="registration-addon-dinner-title">
@@ -296,21 +293,19 @@ function RegistrationBuilder() {
   useEffect(() => {
     if (profile === 'uls') {
       setCourseAffiliation('uls');
-    } else if (profile === 'external') {
+    } else if (profile === 'external' || profile === 'student') {
       setCourseAffiliation('external');
     } else {
       setCourseAffiliation('');
     }
-
-    if (profile === 'student') {
-      setMorningCourse(false);
-      setAfternoonCourse(false);
-      setCongressMode((currentMode) => currentMode === 'courses-only' ? '' : currentMode);
-    }
   }, [profile]);
 
   useEffect(() => {
-    if (profile === 'student' && !studentVerification.approved && !isAdmin) setCongressMode('');
+    if (profile === 'student' && !studentVerification.approved && !isAdmin) {
+      setCongressMode('');
+      setMorningCourse(false);
+      setAfternoonCourse(false);
+    }
   }, [profile, studentVerification.approved, isAdmin]);
 
   const totals = useMemo(() => calculateRegistrationTotal({
@@ -334,8 +329,8 @@ function RegistrationBuilder() {
   const profileReady = Boolean(profile
     && (profile !== 'uls' || ulsEligibility.verified || isAdmin)
     && (profile !== 'student' || studentVerification.approved || isAdmin));
-  const coursesReady = Boolean(profileReady && profile !== 'student' && courseAffiliation);
-  const hasCourse = profile !== 'student' && (morningCourse || afternoonCourse);
+  const coursesReady = Boolean(profileReady && courseAffiliation);
+  const hasCourse = morningCourse || afternoonCourse;
   const testSelectionReady = Boolean(
     profileReady
     && congressMode
@@ -461,72 +456,57 @@ function RegistrationBuilder() {
                 title={en ? 'Virtual congress' : 'Congresso virtual'}
                 text={en ? 'Remote participation at a single rate.' : 'Participação à distância com preço único.'}
               />
-              {profile !== 'student' && (
-                <ChoiceCard
-                  name="congress-mode"
-                  value="courses-only"
-                  selected={congressMode === 'courses-only'}
-                  disabled={!profileReady}
-                  onChange={setCongressMode}
-                  eyebrow={en ? '8 April only' : 'Apenas 8 de abril'}
-                  title={en ? 'Courses only' : 'Apenas cursos'}
-                  text={en ? 'Without registration for the congress.' : 'Sem inscrição no Congresso Internacional.'}
-                />
-              )}
+              <ChoiceCard
+                name="congress-mode"
+                value="courses-only"
+                selected={congressMode === 'courses-only'}
+                disabled={!profileReady}
+                onChange={setCongressMode}
+                eyebrow={en ? '8 April only' : 'Apenas 8 de abril'}
+                title={en ? 'Courses only' : 'Apenas cursos'}
+                text={en ? 'Without registration for the congress.' : 'Sem inscrição no Congresso Internacional.'}
+              />
             </div>
           </section>
 
-          <section className={`registration-step${profile === 'student' ? ' registration-step--restricted' : !coursesReady ? ' is-locked' : ''}`} aria-labelledby="registration-courses-title">
+          <section className={`registration-step${!coursesReady ? ' is-locked' : ''}`} aria-labelledby="registration-courses-title">
             <div className="registration-step__heading">
               <span>03</span>
               <div>
-                <p>{profile === 'student' ? (en ? '8 April · Professional access' : '8 abril · Acesso profissional') : (en ? '8 April · Optional' : '8 abril · Opcional')}</p>
+                <p>{en ? '8 April · Optional' : '8 abril · Opcional'}</p>
                 <h2 id="registration-courses-title">
-                  {profile === 'student'
-                    ? (en ? 'Courses are not available for students' : 'Cursos não disponíveis para estudantes')
-                    : (en ? 'Add one or both courses' : 'Acrescente um ou os dois cursos')}
+                  {en ? 'Add one or both courses' : 'Acrescente um ou os dois cursos'}
                 </h2>
               </div>
             </div>
-            {profile === 'student' ? (
-              <div className="registration-course-restriction" role="note">
-                <span aria-hidden="true">—</span>
-                <div>
-                  <strong>{en ? 'Reserved for professionals' : 'Reservado a profissionais'}</strong>
-                  <p>{en ? 'The IMR student category allows registration for the in-person or virtual congress, but not for the Pre-Congress Courses.' : 'A categoria Estudante IMR permite a inscrição no congresso presencial ou virtual, mas não nos Cursos Pré-Congresso.'}</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="registration-course-note">
-                  <span>{en ? 'Price per course' : 'Preço por curso'}</span>
-                  <strong>{coursesReady ? formatEuro(totals.courseUnit) : '—'}</strong>
-                  <p>{en ? 'Morning and afternoon are charged independently.' : 'Manhã e tarde são cobradas de forma independente.'}</p>
-                </div>
-                <div className="registration-toggle-list">
-                  <ToggleCard
-                    checked={morningCourse}
-                    disabled={!coursesReady}
-                    onChange={setMorningCourse}
-                    date="08"
-                    period={en ? 'AM' : 'MANHÃ'}
-                    title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
-                    text={en ? 'Programme and capacity to be announced.' : 'Programa e lotação a anunciar.'}
-                    price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
-                  />
-                  <ToggleCard
-                    checked={afternoonCourse}
-                    disabled={!coursesReady}
-                    onChange={setAfternoonCourse}
-                    date="08"
-                    period={en ? 'PM' : 'TARDE'}
-                    title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
-                    text={en ? 'Independent course with separate capacity.' : 'Curso autónomo, com lotação própria.'}
-                    price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
-                  />
-                </div>
-              </>
-            )}
+            {profile === 'student' && !coursesReady && <p className="registration-step__lock-note">{en ? 'Course selection becomes available after the secretariat approves your document.' : 'A seleção de cursos fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
+            <div className="registration-course-note">
+              <span>{en ? 'Price per course' : 'Preço por curso'}</span>
+              <strong>{coursesReady ? formatEuro(totals.courseUnit) : '—'}</strong>
+              <p>{en ? 'Morning and afternoon are charged independently.' : 'Manhã e tarde são cobradas de forma independente.'}</p>
+            </div>
+            <div className="registration-toggle-list">
+              <ToggleCard
+                checked={morningCourse}
+                disabled={!coursesReady}
+                onChange={setMorningCourse}
+                date="08"
+                period={en ? 'AM' : 'MANHÃ'}
+                title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
+                text={en ? 'Programme and capacity to be announced.' : 'Programa e lotação a anunciar.'}
+                price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
+              />
+              <ToggleCard
+                checked={afternoonCourse}
+                disabled={!coursesReady}
+                onChange={setAfternoonCourse}
+                date="08"
+                period={en ? 'PM' : 'TARDE'}
+                title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
+                text={en ? 'Independent course with separate capacity.' : 'Curso autónomo, com lotação própria.'}
+                price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
+              />
+            </div>
           </section>
 
           <section className="registration-step registration-step--compact" aria-labelledby="registration-dinner-title">

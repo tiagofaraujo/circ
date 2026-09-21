@@ -10,7 +10,9 @@ O estado atual aparece no site; esta versão não envia emails automáticos. O p
 
 ## Compatibilidade com o estado atual do site
 
-Este trabalho implementa a elegibilidade. O botão público de inscrição continua a indicar a abertura a 15 de novembro; o fluxo de pagamento não é ativado por esta alteração. As simulações administrativas continuam marcadas `isTest: true`. As regras também impedem a criação de inscrições reais na categoria estudante sem aprovação. As categorias ULS Coimbra e externa conservam o seu comportamento. Os cursos pré-congresso continuam reservados a profissionais; os jantares mantêm-se opcionais.
+Este trabalho implementa a elegibilidade e o acesso dos estudantes aos cursos. O botão público de inscrição continua a indicar a abertura a 15 de novembro; o fluxo de pagamento não é ativado por esta alteração. As simulações administrativas continuam marcadas `isTest: true`. As regras também impedem a criação de inscrições reais na categoria estudante sem aprovação. As categorias ULS Coimbra e externa conservam o seu comportamento.
+
+Após aprovação, os estudantes podem escolher o curso da manhã, o da tarde ou ambos, a **35 € por curso**, com congresso presencial/virtual ou na modalidade **Apenas cursos**. Podem acrescentar um curso ainda não incluído através de um pedido complementar; inscrições antigas de estudante sem `courseAffiliation` usam também a tarifa de 35 €. Um curso já incluído não é comprado novamente. A aprovação continua obrigatória nas regras para inscrições e pedidos complementares reais de estudante. Os jantares mantêm-se opcionais.
 
 ## Armazenamento e limites
 
@@ -36,8 +38,9 @@ Publicar primeiro as regras e os índices e só depois o frontend. Não é neces
 1. No Cloud Shell autenticado no projeto `circ-coimbra`, obter a versão desta PR. Se já existir uma cópia do repositório, usar uma pasta nova para evitar alterações locais:
 
    ```bash
-   git clone --branch feature/student-proof-verification --single-branch https://github.com/tiagofaraujo/circ.git circ-estudantes
-   cd circ-estudantes
+   CIRC_STUDENT_DIR="$(mktemp -d "$HOME/circ-estudantes.XXXXXX")"
+   git clone --branch feature/student-proof-verification --single-branch https://github.com/tiagofaraujo/circ.git "$CIRC_STUDENT_DIR"
+   cd "$CIRC_STUDENT_DIR"
    ```
 
 2. Publicar apenas Firestore:
@@ -50,7 +53,7 @@ Publicar primeiro as regras e os índices e só depois o frontend. Não é neces
 
 3. No Firebase Console → Firestore → Índices, aguardar que os dois índices de `studentVerifications` fiquem disponíveis: `eventId + updatedAt` e `eventId + status + updatedAt`. Confirmar também a isenção de índices em `studentProofs`.
 4. Integrar esta PR em `main` e aguardar o deployment Cloudflare de `main`. Não existem variáveis de ambiente novas para estudantes. Preservar a configuração ULS existente.
-5. Na conta de estudante com email confirmado, enviar um comprovativo próprio, verificar **Comprovativo em análise**, e testar aprovação a partir de outra conta autorizada para o secretariado. Confirmar que a tarifa fica disponível. Testar também um pedido de correção e o reenvio.
+5. Na conta de estudante com email confirmado, enviar um comprovativo próprio, verificar **Comprovativo em análise**, e testar aprovação a partir de outra conta autorizada para o secretariado. Confirmar que a tarifa e os cursos ficam disponíveis: um curso custa 35 € e os dois custam 70 €; na modalidade **Apenas cursos** não se soma congresso. Testar também um pedido de correção e o reenvio.
 
 Não voltar a executar um pacote antigo `CIRC_ULS_Final` que publique uma cópia anterior de `firestore.rules`: isso retiraria as regras de estudantes. A partir desta atualização, publicar sempre as regras e os índices do repositório atualizado.
 

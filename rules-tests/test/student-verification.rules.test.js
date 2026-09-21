@@ -204,16 +204,35 @@ test('a changed profile name invalidates the student rate', async () => {
   await updateDoc(doc(dbFor(), 'users', UID), { name: 'Outro Nome Completo' });
   await assertFails(setDoc(doc(dbFor('admin'), 'registrations', 'registration-a'), registration()));
 });
-test('student registrations and supplementary orders cannot include professional courses', async () => {
+test('approved students may register for morning, afternoon or both courses with any congress mode', async () => {
+  await seed({ status: 'approved' }); const db = dbFor('admin');
+  for (const congressMode of ['onsite', 'virtual', 'courses-only']) {
+    for (const courses of [{ morningCourse: true }, { afternoonCourse: true }, { morningCourse: true, afternoonCourse: true }]) {
+      await assertSucceeds(setDoc(doc(db, 'registrations', 'registration-a'), registration({
+        selection: { profile: 'student', courseAffiliation: 'external', congressMode, ...courses },
+        entitlements: { congressMode, ...courses },
+      })));
+    }
+  }
+});
+test('student supplementary courses remain subject to approval and account ownership', async () => {
   await seed({ status: 'approved' }); const db = dbFor('admin');
   const ref = doc(db, 'registrations', 'registration-a');
-  await assertFails(setDoc(ref, registration({ selection: { profile: 'student', morningCourse: true } })));
-  await assertFails(setDoc(ref, registration({ entitlements: { afternoonCourse: true } })));
   await setDoc(ref, registration());
   const orderRef = doc(db, 'registrationOrders', 'order-a');
   const order = { userId: UID, registrationId: 'registration-a', isTest: false, items: { dinnerQuantity: 1 } };
   await assertSucceeds(setDoc(orderRef, order));
+  await assertSucceeds(setDoc(orderRef, { ...order, items: { morningCourse: true, afternoonCourse: true } }));
+  await assertFails(setDoc(orderRef, { ...order, userId: 'other', items: { morningCourse: true } }));
+  await review(dbFor('reviewer'), 'rejected', 'Matrícula não comprovada.');
   await assertFails(setDoc(orderRef, { ...order, items: { morningCourse: true } }));
+});
+test('pending students cannot register for courses-only and participants cannot bypass the registration flow', async () => {
+  await seed({});
+  const data = registration({ selection: { profile: 'student', courseAffiliation: 'external', congressMode: 'courses-only', morningCourse: true } });
+  await assertFails(setDoc(doc(dbFor('admin'), 'registrations', 'registration-a'), data));
+  await review();
+  await assertFails(setDoc(doc(dbFor(), 'registrations', 'registration-a'), data));
 });
 test('external registrations and explicitly marked admin simulations still work', async () => {
   await seed(); const db = dbFor('admin');

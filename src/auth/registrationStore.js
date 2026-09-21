@@ -71,14 +71,13 @@ export async function saveAdminTestRegistration(user, selection) {
   const auditRef = db.collection('auditLogs').doc();
   const participantName = user.displayName || user.email?.split('@')[0] || 'Administrador CIRC';
   const amountCents = Math.round(Number(selection.total || 0) * 100);
-  const studentProfile = selection.profile === 'student';
   await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(registrationRef);
     if (existing.exists) throw new Error('registrations/already-exists');
 
     const dinnerQuantity = Math.max(0, Math.floor(Number(selection.dinnerQuantity || 0)));
-    const morningCourse = !studentProfile && Boolean(selection.morningCourse);
-    const afternoonCourse = !studentProfile && Boolean(selection.afternoonCourse);
+    const morningCourse = Boolean(selection.morningCourse);
+    const afternoonCourse = Boolean(selection.afternoonCourse);
 
     transaction.set(registrationRef, {
     eventId: 'circ-2027',
@@ -93,7 +92,7 @@ export async function saveAdminTestRegistration(user, selection) {
     testMode: true,
     selection: {
       profile: selection.profile,
-      courseAffiliation: selection.courseAffiliation || '',
+      courseAffiliation: selection.profile === 'student' ? 'external' : selection.courseAffiliation || '',
       congressMode: selection.congressMode,
       morningCourse,
       afternoonCourse,
@@ -155,16 +154,12 @@ export async function saveAdminTestAddOnOrder(user, additions) {
       afternoonCourse: Boolean(primarySelection.afternoonCourse),
       dinnerQuantity: Math.max(0, Number(primarySelection.dinnerQuantity || 0)),
     };
-    const studentProfile = primarySelection.profile === 'student';
-    const requestedMorning = !studentProfile && Boolean(additions.morningCourse);
-    const requestedAfternoon = !studentProfile && Boolean(additions.afternoonCourse);
+    const requestedMorning = Boolean(additions.morningCourse);
+    const requestedAfternoon = Boolean(additions.afternoonCourse);
     const addMorning = requestedMorning && !current.morningCourse;
     const addAfternoon = requestedAfternoon && !current.afternoonCourse;
     const dinnerQuantity = Math.max(0, Math.floor(Number(additions.dinnerQuantity || 0)));
 
-    if (studentProfile && (additions.morningCourse || additions.afternoonCourse)) {
-      throw new Error('registrations/courses-not-available');
-    }
     if (!addMorning && !addAfternoon && dinnerQuantity === 0) {
       throw new Error('registrations/no-new-additions');
     }
