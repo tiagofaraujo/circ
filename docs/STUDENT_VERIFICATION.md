@@ -10,7 +10,7 @@ O estado atual aparece no site; esta versão não envia emails automáticos. O p
 
 ## Compatibilidade com o estado atual do site
 
-Este trabalho implementa a elegibilidade e o acesso dos estudantes aos cursos. O botão público de inscrição continua a indicar a abertura a 15 de novembro; o fluxo de pagamento não é ativado por esta alteração. As simulações administrativas continuam marcadas `isTest: true`. As regras também impedem a criação de inscrições reais na categoria estudante sem aprovação. As categorias ULS Coimbra e externa conservam o seu comportamento.
+O acesso aos cursos a 35 € por curso já foi publicado separadamente na PR28. Esta PR acrescenta a validação documental e passa a exigir aprovação para a participação na categoria estudante, incluindo cursos. O botão público de inscrição continua a indicar a abertura a 15 de novembro; o fluxo de pagamento não é ativado por esta alteração. As simulações administrativas continuam marcadas `isTest: true`. As regras também impedem a criação de inscrições reais na categoria estudante sem aprovação. As categorias ULS Coimbra e externa conservam o seu comportamento.
 
 Após aprovação, os estudantes podem escolher o curso da manhã, o da tarde ou ambos, a **35 € por curso**, com congresso presencial/virtual ou na modalidade **Apenas cursos**. Podem acrescentar um curso ainda não incluído através de um pedido complementar; inscrições antigas de estudante sem `courseAffiliation` usam também a tarifa de 35 €. Um curso já incluído não é comprado novamente. A aprovação continua obrigatória nas regras para inscrições e pedidos complementares reais de estudante. Os jantares mantêm-se opcionais.
 
