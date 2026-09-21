@@ -43,15 +43,21 @@ Publicar primeiro as regras e os índices e só depois o frontend. Não é neces
    cd "$CIRC_STUDENT_DIR"
    ```
 
-2. Publicar apenas Firestore:
+2. Publicar apenas Firestore e verificar o resultado, com o script da PR:
 
    ```bash
-   npx --yes firebase-tools@15.30.0 deploy --only firestore:rules,firestore:indexes --project circ-coimbra --config firebase.json
+   bash scripts/activate-students.sh
    ```
 
    As regras incluem as validações ULS existentes. Se aparecer um pedido de remoção de índices remotos que não reconheça, cancelar e comparar esses índices antes de continuar.
 
-3. No Firebase Console → Firestore → Índices, aguardar que os dois índices de `studentVerifications` fiquem disponíveis: `eventId + updatedAt` e `eventId + status + updatedAt`. Confirmar também a isenção de índices em `studentProofs`.
+3. O script compara as regras efetivamente publicadas com a cópia local, confirma os dois índices de `studentVerifications` em estado `READY` e a isenção de índices em `studentProofs`. Não lê documentos de participantes nem mostra credenciais. Se os índices estiverem ainda em construção, aguardar alguns minutos e executar, na mesma pasta:
+
+   ```bash
+   python3 scripts/check-students-deployment.py
+   ```
+
+   Só continuar quando aparecer **VERIFICADO: Firebase preparado para a PR de estudantes em circ-coimbra.** O script não integra a PR nem modifica o frontend. Se falhar a autenticação, autorizar o Cloud Shell com a conta que administra este projeto e repetir.
 4. Integrar esta PR em `main` e aguardar o deployment Cloudflare de `main`. Não existem variáveis de ambiente novas para estudantes. Preservar a configuração ULS existente.
 5. Na conta de estudante com email confirmado, enviar um comprovativo próprio, verificar **Comprovativo em análise**, e testar aprovação a partir de outra conta autorizada para o secretariado. Confirmar que a tarifa e os cursos ficam disponíveis: um curso custa 35 € e os dois custam 70 €; na modalidade **Apenas cursos** não se soma congresso. Testar também um pedido de correção e o reenvio.
 
@@ -63,6 +69,8 @@ Não voltar a executar um pacote antigo `CIRC_ULS_Final` que publique uma cópia
 npm ci
 CI=true npm test -- --watchAll=false --runInBand
 CI=true npm run build
+python3 -m unittest discover -s scripts/tests -v
+bash -n scripts/activate-students.sh
 cd rules-tests
 npm install --no-audit --no-fund
 npm test

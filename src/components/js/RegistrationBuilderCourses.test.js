@@ -8,9 +8,9 @@ jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
 jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: () => ({ verified: false }) }));
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
-// Keep these course scenarios applicable when documentary verification is integrated.
-jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: () => ({ approved: true }) }), { virtual: true });
-jest.mock('./StudentVerification', () => () => <div>Student verification</div>, { virtual: true });
+// These modules now exist: virtual mocks can resolve differently across suites.
+jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: () => ({ approved: true }) }));
+jest.mock('./StudentVerification', () => () => <div>Student verification</div>);
 jest.mock('../../auth/registrationStore', () => ({
   subscribeToAdminTestRegistration: jest.fn(),
   subscribeToAdminTestAddOnOrders: (_user, callback) => { callback([]); return () => {}; },

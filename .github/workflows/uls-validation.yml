@@ -30,6 +30,9 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Test student deployment checker
+        run: python3 -m unittest discover -s scripts/tests -v && bash -n scripts/activate-students.sh
+
       - name: Test private roster importer
         working-directory: functions
         run: npm install --no-audit --no-fund && npm test

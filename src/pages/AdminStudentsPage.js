@@ -96,7 +96,13 @@ export default function AdminStudentsPage() {
       {!loading && !items.length && <p>Sem pedidos neste estado.</p>}
       <div className="student-review-layout">
         <div className="student-review-list" aria-label="Pedidos de estudantes">
-          {items.map((item) => <button key={item.id} type="button" disabled={busy} aria-pressed={selected?.id === item.id} onClick={() => { setError(''); setProof(null); setChecked(false); setSelected(item); }}>
+          {items.map((item) => <button key={item.id} type="button" disabled={busy} aria-pressed={selected?.id === item.id} onClick={() => {
+            // Keep the open document and review checkbox when the same row is
+            // clicked again. React would otherwise retain selected and skip
+            // the effect that loads the proof after it was cleared here.
+            if (selected === item) return;
+            setError(''); setProof(null); setChecked(false); setSelected(item);
+          }}>
             <strong>{item.profileName}</strong><small>{item.school} · {item.course}</small>
             <small>{studentStatusLabels[item.status]?.[0]}</small>
           </button>)}

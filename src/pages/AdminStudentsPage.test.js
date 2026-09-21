@@ -49,3 +49,31 @@ test('a secretariat member cannot approve their own request in the interface', a
   expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
   expect(screen.getByText(/O seu próprio pedido tem de ser analisado/)).toBeInTheDocument();
 });
+
+test('reopening the selected row retains its document and review state', async () => {
+  await openRequest();
+  const check = screen.getByRole('checkbox');
+  fireEvent.click(check);
+  fireEvent.click(screen.getByRole('button', { name: /Maria Leonor de Sá/ }));
+  expect(screen.getByRole('img', { name: /Pré-visualização/ })).toBeInTheDocument();
+  expect(screen.getByRole('checkbox')).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Aprovar' })).toBeEnabled();
+  expect(loadStudentProof).toHaveBeenCalledTimes(1);
+});
+
+test('switching requests never reuses a checked document from the previous student', async () => {
+  const other = { ...request, id: 'other', profileName: 'João Manuel Costa' };
+  let resolveOther;
+  loadStudentRequests.mockResolvedValue({ items: [request, other], cursor: null });
+  loadStudentProof.mockImplementation((item) => item.id === 'other'
+    ? new Promise((resolve) => { resolveOther = resolve; })
+    : Promise.resolve({ mimeType: 'image/jpeg', base64: '/9j/QUJDREVGR0g=' }));
+  await openRequest();
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: /João Manuel Costa/ }));
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
+  resolveOther({ mimeType: 'image/jpeg', base64: '/9j/QUJDREVGR0g=' });
+  expect(await screen.findByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
+});
