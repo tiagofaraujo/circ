@@ -22,7 +22,9 @@ export function getCongressRate(profile, mode, period) {
 }
 
 export function getCourseRate(profile, courseAffiliation) {
-  if (profile === 'student' || !courseAffiliation) return 0;
+  // Students use the external rate, including older registrations without an affiliation.
+  if (profile === 'student') return COURSE_RATES.external;
+  if (!courseAffiliation) return 0;
   return courseAffiliation === 'uls' ? COURSE_RATES.uls : COURSE_RATES.external;
 }
 
@@ -38,9 +40,7 @@ export function calculateRegistrationTotal({
 }) {
   const congress = getCongressRate(profile, congressMode, period);
   const courseUnit = getCourseRate(profile, courseAffiliation);
-  const courseCount = profile === 'student'
-    ? 0
-    : Number(Boolean(morningCourse)) + Number(Boolean(afternoonCourse));
+  const courseCount = Number(Boolean(morningCourse)) + Number(Boolean(afternoonCourse));
   const courses = courseUnit * courseCount;
   const normalizedDinnerQuantity = Math.max(
     0,
