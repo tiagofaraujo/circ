@@ -41,7 +41,53 @@ def proof_index_exemption_ready(field):
         and not config.get("usesAncestorConfig", False) and not config.get("reverting", False)
 
 
+def list_admin_resources(get, resource):
+    # Use the database-wide endpoints used by firebase-tools. Filter the
+    # returned resource names below, never accept another collection's index.
+    items = []
+    page_token = ""
+    seen = set()
+    for _ in range(100):
+        params = {"pageSize": 100}
+        if resource == "fields":
+            params["filter"] = "indexConfig.usesAncestorConfig=false"
+        if page_token:
+            params["pageToken"] = page_token
+        page = get(FIRESTORE_API + "-/" + resource + "?" + urllib.parse.urlencode(params))
+        items.extend(page.get(resource, []))
+        page_token = page.get("nextPageToken", "")
+        if not page_token:
+            return items
+        if page_token in seen:
+            raise ValueError("repeated-page-token")
+        seen.add(page_token)
+    raise ValueError("pagination-incomplete")
+
+
+def belongs_to_collection(item, collection, resource):
+    return bool(re.fullmatch(
+        r"projects/(?:circ-coimbra|[0-9]+)/databases/\(default\)/collectionGroups/"
+        + re.escape(collection) + "/" + resource + r"/[^/]+", item.get("name", "")
+    ))
+
+
+def http_error_detail(error, token):
+    # Only configuration endpoints are called. Never print headers or tokens.
+    try:
+        body = json.loads(error.read(16384)).get("error", {})
+        message = body.get("message", "")
+        if not isinstance(message, str):
+            return ""
+        if token:
+            message = message.replace(token, "[credencial omitida]")
+        return " ".join(message.split())[:400]
+    except (ValueError, AttributeError, TypeError):
+        return ""
+
+
 def main():
+    token = ""
+    stage = "autenticação"
     try:
         auth = subprocess.run(
             ["gcloud", "auth", "print-access-token"],
@@ -56,6 +102,7 @@ def main():
             with urllib.request.urlopen(req, timeout=20) as response:
                 return json.load(response)
 
+        stage = "consulta das regras publicadas"
         release = get(f"{RULES_API}projects/{PROJECT}/releases/cloud.firestore")
         ruleset_name = release.get("rulesetName", "")
         if not re.fullmatch(r"projects/(?:circ-coimbra|[0-9]+)/rulesets/[A-Za-z0-9_-]+", ruleset_name):
@@ -71,23 +118,19 @@ def main():
                     if index.get("collectionGroup") == "studentVerifications"]
         if len(expected) != 2:
             raise ValueError("unexpected-local-indexes")
-        actual = []
-        page_token = ""
-        for _ in range(100):
-            query = urllib.parse.urlencode({"pageSize": 100, "pageToken": page_token})
-            page = get(FIRESTORE_API + "studentVerifications/indexes?" + query)
-            actual.extend(page.get("indexes", []))
-            page_token = page.get("nextPageToken", "")
-            if not page_token:
-                break
-        else:
-            raise ValueError("index-pagination-incomplete")
-
-        field = get(FIRESTORE_API + "studentProofs/fields/%2A")
+        stage = "consulta dos índices"
+        actual = [index for index in list_admin_resources(get, "indexes")
+                  if belongs_to_collection(index, "studentVerifications", "indexes")]
         ready = indexes_ready(expected, actual)
-        exempt = proof_index_exemption_ready(field)
         print("OK: os dois índices dos pedidos estão disponíveis." if ready else
               "A AGUARDAR: os dois índices dos pedidos ainda não estão disponíveis.")
+
+        stage = "consulta da isenção de índices dos comprovativos"
+        fields = list_admin_resources(get, "fields")
+        field = next((field for field in fields
+                      if belongs_to_collection(field, "studentProofs", "fields")
+                      and field["name"].endswith("/fields/*")), {})
+        exempt = proof_index_exemption_ready(field)
         print("OK: comprovativos excluídos da indexação automática." if exempt else
               "A AGUARDAR: a isenção de índices dos comprovativos ainda não foi confirmada.")
         if not ready or not exempt:
@@ -101,7 +144,14 @@ def main():
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         print("Não foi possível obter a sessão Google. Autorize o Cloud Shell com a conta que gere circ-coimbra.", file=sys.stderr)
     except urllib.error.HTTPError as error:
-        print(f"Não foi possível verificar: resposta HTTP {error.code} da API Google. Confirme a conta e as permissões no projeto.", file=sys.stderr)
+        print(f"Não foi possível concluir a {stage}: HTTP {error.code} da API Google.", file=sys.stderr)
+        detail = http_error_detail(error, token)
+        if detail:
+            print("Detalhe da API: " + detail, file=sys.stderr)
+        if error.code in (401, 403):
+            print("Confirme a conta e as permissões no projeto.", file=sys.stderr)
+        elif error.code == 400:
+            print("A API rejeitou a consulta de verificação. Este erro não anula a publicação já concluída.", file=sys.stderr)
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError):
         print("Não foi possível confirmar o estado remoto. Nenhum dado foi alterado por esta verificação.", file=sys.stderr)
     return 1

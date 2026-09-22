@@ -58,6 +58,8 @@ Publicar primeiro as regras e os índices e só depois o frontend. Não é neces
    ```
 
    Só continuar quando aparecer **VERIFICADO: Firebase preparado para a PR de estudantes em circ-coimbra.** O script não integra a PR nem modifica o frontend. Se falhar a autenticação, autorizar o Cloud Shell com a conta que administra este projeto e repetir.
+
+   Se uma execução anterior mostrou `Deploy complete!` e só depois falhou a verificação, atualizar a cópia do script e repetir apenas `python3 scripts/check-students-deployment.py`. Não é necessário voltar a publicar por causa desse erro. Um HTTP 400 identifica uma consulta rejeitada pela API; não é tratado como falta de permissões. A verificação consulta a configuração pelos endpoints de listagem usados pelo Firebase CLI, incluindo todas as páginas, e considera apenas os índices das coleções de estudantes.
 4. Integrar esta PR em `main` e aguardar o deployment Cloudflare de `main`. Não existem variáveis de ambiente novas para estudantes. Preservar a configuração ULS existente.
 5. Na conta de estudante com email confirmado, enviar um comprovativo próprio, verificar **Comprovativo em análise**, e testar aprovação a partir de outra conta autorizada para o secretariado. Confirmar que a tarifa e os cursos ficam disponíveis: um curso custa 35 € e os dois custam 70 €; na modalidade **Apenas cursos** não se soma congresso. Testar também um pedido de correção e o reenvio.
 
