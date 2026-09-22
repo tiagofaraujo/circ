@@ -1,5 +1,8 @@
 export const STUDENT_EVENT_ID = 'circ-2027';
 export const STUDENT_ACADEMIC_YEAR = '2026/2027';
+// Event scope for the existing Firestore schema, not a qualification supplied
+// or verified by the applicant. Eligibility still requires document review.
+export const STUDENT_COURSE = 'Radiologia / Imagem Médica e Radioterapia';
 export const STUDENT_PROOF_MAX_BYTES = 300 * 1024;
 export const STUDENT_PROOF_MAX_BASE64 = 409600;
 
@@ -85,7 +88,7 @@ export function studentErrorMessage(error, en = false) {
     'student/invalid-file': ['Escolha um PDF ou uma imagem JPG, PNG ou WebP válida.', 'Choose a valid PDF, JPG, PNG or WebP image.'],
     'student/file-too-large': ['O PDF deve ter até 300 KB. Para fotografias, escolha uma imagem até 10 MB com o documento bem enquadrado.', 'PDFs must be at most 300 KB. For photographs, choose an image up to 10 MB tightly framing the document.'],
     'student/missing-profile-name': ['Guarde primeiro o nome completo no perfil My CIRC.', 'Save your full name in your My CIRC profile first.'],
-    'student/missing-details': ['Indique a escola e o curso (2 a 160 caracteres).', 'Enter your school and course (2 to 160 characters).'],
+    'student/missing-details': ['Indique a escola / instituição (2 a 160 caracteres).', 'Enter your school / institution (2 to 160 characters).'],
     'student/email-not-verified': ['Confirme o email da sua conta antes de enviar o comprovativo.', 'Verify your account email before submitting your document.'],
     'student/conflict': ['O pedido mudou. Atualize a lista e reveja o comprovativo antes de continuar.', 'The request has changed. Refresh and review the document again.'],
     'student/too-soon': ['Aguarde um minuto entre envios de comprovativos.', 'Wait one minute between document submissions.'],

@@ -82,7 +82,7 @@ export default function AdminStudentsPage() {
     <AdminModuleNav />
     <section className="student-verification">
       <h1>Validação de estudantes</h1>
-      <p>Confirme o nome completo, a escola, o curso de IMR ou equivalente e a matrícula em 2026/2027. Não existe limite de idade.</p>
+      <p>Confirme o nome completo, a escola e a matrícula em 2026/2027. Não existe limite de idade.</p>
       <div className="student-verification__actions">
         <label>Estado<select value={status} disabled={busy} onChange={(e) => setStatus(e.target.value)}>
           <option value="all">Todos</option>
@@ -103,21 +103,21 @@ export default function AdminStudentsPage() {
             if (selected === item) return;
             setError(''); setProof(null); setChecked(false); setSelected(item);
           }}>
-            <strong>{item.profileName}</strong><small>{item.school} · {item.course}</small>
+            <strong>{item.profileName}</strong><small>{item.school}</small>
             <small>{studentStatusLabels[item.status]?.[0]}</small>
           </button>)}
           {cursor && <button type="button" disabled={loading || busy} onClick={() => loadPage(cursor)}>Carregar mais 25</button>}
         </div>
         {selected && <article className="student-review-details">
           <h2>{selected.profileName}</h2>
-          <p>{selected.email}<br />{selected.school}<br />{selected.course} · {selected.academicYear}</p>
+          <p>{selected.email}<br />{selected.school}<br />{selected.academicYear}</p>
           <p>{studentStatusLabels[selected.status]?.[0]} · Versão {selected.revision}</p>
           {selected.reviewedBy && <p>Última decisão: {selected.reviewedBy.email}{selected.reviewedAt?.toDate && ` · ${selected.reviewedAt.toDate().toLocaleString('pt-PT')}`}</p>}
           {selected.reviewNote && <p>Nota anterior: {selected.reviewNote}</p>}
           {proofLoading && <p role="status">A carregar comprovativo privado…</p>}
           {!selected.proofAvailable && <p>O comprovativo já foi apagado. Uma nova aprovação exige novo envio pelo estudante.</p>}
           <StudentProofPreview proof={proof} />
-          {proof && <label className="student-verification__check"><input type="checkbox" checked={checked} disabled={busy || ownRequest} onChange={(e) => setChecked(e.target.checked)} />Conferi o documento: corresponde ao nome do perfil acima, à escola, ao curso elegível e ao ano letivo 2026/2027.</label>}
+          {proof && <label className="student-verification__check"><input type="checkbox" checked={checked} disabled={busy || ownRequest} onChange={(e) => setChecked(e.target.checked)} />Conferi o documento: corresponde ao nome do perfil acima, à escola e comprova matrícula elegível em 2026/2027.</label>}
           {ownRequest && <p role="note">O seu próprio pedido tem de ser analisado por outro membro do secretariado.</p>}
           <label>Nota para o estudante<textarea maxLength={1000} rows={4} value={note} disabled={busy || ownRequest} onChange={(e) => setNote(e.target.value)} /></label>
           <small>Para pedir correção ou recusar, indique um motivo claro com pelo menos 5 caracteres.</small>

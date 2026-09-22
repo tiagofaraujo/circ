@@ -5,7 +5,7 @@
 .student-verification button { border: 1px solid #3027c7; border-radius: 6px; background: #3027c7; color: #fff; padding: 12px 16px; font: inherit; cursor: pointer; }
 .student-verification button:disabled { opacity: .5; cursor: not-allowed; }
 .student-verification :focus-visible { outline: 3px solid #eb574a; outline-offset: 3px; }
-.student-verification__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.student-verification__fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .student-verification label { display: grid; gap: 8px; font-weight: 600; }
 .student-verification input:not([type="checkbox"]), .student-verification textarea, .student-verification select { max-width: 100%; min-width: 0; padding: 10px; border: 1px solid #9b9cb8; border-radius: 5px; font: inherit; color: #191b4f; background: #fff; }
 .student-verification input[type="file"] { width: 100%; box-sizing: border-box; }

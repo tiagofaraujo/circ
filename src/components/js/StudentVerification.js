@@ -7,7 +7,6 @@ import '../css/StudentVerification.css';
 
 export default function StudentVerification({ user, verification, en = false }) {
   const [school, setSchool] = useState('');
-  const [course, setCourse] = useState('');
   const [proof, setProof] = useState(null);
   const [legible, setLegible] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -24,8 +23,8 @@ export default function StudentVerification({ user, verification, en = false }) 
     return () => { active.current = false; fileSequence.current += 1; };
   }, []);
   useEffect(() => {
-    if (!editing) { setSchool(data?.school || ''); setCourse(data?.course || ''); }
-  }, [data?.school, data?.course, editing]);
+    if (!editing) setSchool(data?.school || '');
+  }, [data?.school, editing]);
 
   const chooseFile = async (event) => {
     const file = event.target.files?.[0];
@@ -47,7 +46,7 @@ export default function StudentVerification({ user, verification, en = false }) 
     if (busy || !proof || !legible) return;
     setBusy(true); setError(''); setMessage('');
     try {
-      await submitStudentVerification({ school, course, proof });
+      await submitStudentVerification({ school, proof });
       if (!active.current) return;
       setEditing(false); setProof(null); setLegible(false);
       if (fileInput.current) fileInput.current.value = '';
@@ -68,7 +67,7 @@ export default function StudentVerification({ user, verification, en = false }) 
 
   return <section className="student-verification" aria-labelledby="student-verification-title">
     <h3 id="student-verification-title">{en ? 'Student eligibility' : 'Elegibilidade de estudante'}</h3>
-    <p>{en ? `IMR or equivalent degree · Academic year ${STUDENT_ACADEMIC_YEAR} · No age limit.` : `Curso de IMR ou equivalente · Ano letivo ${STUDENT_ACADEMIC_YEAR} · Sem limite de idade.`}</p>
+    <p>{en ? `Academic year ${STUDENT_ACADEMIC_YEAR} · No age limit.` : `Ano letivo ${STUDENT_ACADEMIC_YEAR} · Sem limite de idade.`}</p>
     {!user ? <p><Link to="/login">{en ? 'Sign in to send your document.' : 'Entre na sua conta para enviar o comprovativo.'}</Link></p>
       : !user.emailVerified ? <p>{en ? 'Verify your account email before submitting your document.' : 'Confirme o email da sua conta antes de enviar o comprovativo.'} <Link to="/conta/seguranca">{en ? 'Account security' : 'Segurança da conta'}</Link></p>
         : verification.status === 'error' ? <p role="alert">{en ? 'Could not load your request. Reload the page to try again.' : 'Não foi possível carregar o pedido. Recarregue a página para tentar novamente.'}</p>
@@ -76,7 +75,7 @@ export default function StudentVerification({ user, verification, en = false }) 
             : <>
               {data && <div className={`student-verification__status is-${verification.approved ? 'approved' : data.status === 'approved' ? 'correction' : data.status}`} role="status">
                 <strong>{verification.nameChanged ? (en ? 'Profile name changed: new review required' : 'Nome do perfil alterado: é necessária nova análise') : studentStatusLabels[data.status]?.[en ? 1 : 0]}</strong>
-                <p>{data.school} · {data.course}</p>
+                <p>{data.school}</p>
                 {data.reviewNote && <p>{data.reviewNote}</p>}
                 {verification.approved && <p>{en ? 'You can now select your congress participation below.' : 'Já pode selecionar abaixo a sua participação no congresso.'}</p>}
               </div>}
@@ -85,9 +84,8 @@ export default function StudentVerification({ user, verification, en = false }) 
                 {data && <p>{en ? 'A new document replaces the previous one and requires a new approval.' : 'O novo comprovativo substitui o anterior e exige nova aprovação.'}</p>}
                 <div className="student-verification__fields">
                   <label>{en ? 'School / institution' : 'Escola / instituição'}<input required minLength={2} maxLength={160} value={school} onChange={(e) => setSchool(e.target.value)} disabled={busy} /></label>
-                  <label>{en ? 'Course' : 'Curso'}<input required minLength={2} maxLength={160} value={course} onChange={(e) => setCourse(e.target.value)} disabled={busy} /></label>
                 </div>
-                <p>{en ? 'Send an enrolment document showing your full name, school, course and academic year 2026/2027. You may hide unrelated information such as your address or tax number.' : 'Envie um comprovativo de matrícula com o nome completo, escola, curso e ano letivo 2026/2027. Pode ocultar informação desnecessária, como morada ou NIF.'}</p>
+                <p>{en ? 'Send an enrolment document showing your full name, school and academic year 2026/2027. You may hide unrelated information such as your address or tax number.' : 'Envie um comprovativo de matrícula com o nome completo, escola e ano letivo 2026/2027. Pode ocultar informação desnecessária, como morada ou NIF.'}</p>
                 <label>{en ? 'Enrolment document' : 'Comprovativo de matrícula'}<input ref={fileInput} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={chooseFile} disabled={busy} /></label>
                 <small>{en ? 'PDF up to 300 KB, or JPG/PNG/WebP up to 10 MB. Images are compressed before sending.' : 'PDF até 300 KB, ou JPG/PNG/WebP até 10 MB. As imagens são comprimidas antes do envio.'}</small>
                 <StudentProofPreview proof={proof} en={en} />

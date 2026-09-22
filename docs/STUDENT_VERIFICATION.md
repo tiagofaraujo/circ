@@ -2,7 +2,7 @@
 
 ## Comportamento
 
-O participante escolhe **Estudante IMR**, confirma o email da conta e guarda o nome completo no perfil. Indica escola e curso e envia comprovativo de matrícula de **2026/2027**, com nome completo, instituição e curso visíveis. Não existe limite de idade nem lista fechada de escolas.
+O participante escolhe **Estudante IMR**, confirma o email da conta e guarda o nome completo no perfil. Indica a escola e envia comprovativo de matrícula de **2026/2027**, com nome completo, instituição e ano letivo visíveis. Não é pedido o curso: a área do evento é Radiologia / Imagem Médica e Radioterapia. Não existe limite de idade nem lista fechada de escolas.
 
 O estado inicial é **Comprovativo em análise**. Em `/admin/estudantes`, o secretariado autorizado consulta o ficheiro e pode **aprovar**, **pedir correção** ou **recusar**. As duas últimas decisões exigem motivo, visível na conta do estudante. A aprovação desbloqueia a seleção de participação na categoria estudante. O documento deve mostrar matrícula em IMR ou curso equivalente; a equivalência é apreciada pelo secretariado.
 
@@ -16,7 +16,7 @@ Após aprovação, os estudantes podem escolher o curso da manhã, o da tarde ou
 
 ## Armazenamento e limites
 
-- `studentVerifications/{uid}`: pedido, nome do perfil no momento do envio, escola, curso, ano letivo, revisão e última decisão (autor, data e nota).
+- `studentVerifications/{uid}`: pedido, nome do perfil no momento do envio, escola, ano letivo, revisão e última decisão (autor, data e nota). O campo legado `course` mantém o contexto fixo `Radiologia / Imagem Médica e Radioterapia` nos novos envios, para compatibilidade com as regras já publicadas. Não é uma resposta do estudante nem comprova habilitações; a elegibilidade depende da análise documental. Os pedidos existentes continuam válidos e não são migrados. Esta simplificação não exige nova publicação de regras ou índices.
 - `studentProofs/{uid}`: ficheiro privado, em documento separado. Não tem URL pública nem índices. Não é descarregado ao consultar a lista: apenas ao abrir um pedido.
 - PDF até 300 KiB; imagens JPG, PNG ou WebP até 10 MiB de entrada, comprimidas no navegador para JPEG até 300 KiB. O estudante confirma a legibilidade antes de enviar. O limite persistido de base64 é 409600 caracteres.
 - O payload não é usado para renderizar HTML. Fotografias são recodificadas; PDFs são disponibilizados para descarregar, sem incorporação automática na página. A verificação de cabeçalho/formato não é um antivírus nem valida o conteúdo académico.
