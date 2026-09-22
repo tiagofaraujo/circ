@@ -10,6 +10,8 @@ import {
 import { useLanguage } from '../../context/LanguageContext';
 import { useUlsEligibility } from '../../auth/ulsEligibilityStore';
 import UlsVerification from './UlsVerification';
+import StudentVerification from './StudentVerification';
+import { useStudentVerification } from '../../auth/studentVerificationStore';
 import {
   calculateRegistrationTotal,
   formatEuro,
@@ -75,7 +77,10 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
     dinnerQuantity: Math.max(0, Number(primary.dinnerQuantity || 0)),
   };
   const studentProfile = primary.profile === 'student';
-  const courseReady = studentProfile || Boolean(primary.courseAffiliation);
+  const studentVerification = useStudentVerification(user, studentProfile && !registration.isTest);
+  const courseReady = studentProfile
+    ? Boolean(registration.isTest || studentVerification.approved)
+    : Boolean(primary.courseAffiliation);
   const [morningCourse, setMorningCourse] = useState(false);
   const [afternoonCourse, setAfternoonCourse] = useState(false);
   const [dinnerQuantity, setDinnerQuantity] = useState(0);
@@ -157,6 +162,7 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
                 <h2 id="registration-addon-courses-title">{en ? 'Add an available course' : 'Acrescente um curso disponível'}</h2>
               </div>
             </div>
+            {studentProfile && !courseReady && <p className="registration-step__lock-note">{en ? 'Course selection becomes available after the secretariat approves your document.' : 'A seleção de cursos fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
             <div className="registration-toggle-list">
               <ToggleCard
                 checked={Boolean(entitlements.morningCourse || morningCourse)}
@@ -255,6 +261,7 @@ function RegistrationBuilder() {
   const ulsEligibility = useUlsEligibility(user);
   const en = language === 'en';
   const [profile, setProfile] = useState('');
+  const studentVerification = useStudentVerification(user, profile === 'student');
   const [courseAffiliation, setCourseAffiliation] = useState('');
   const [congressMode, setCongressMode] = useState('');
   const [morningCourse, setMorningCourse] = useState(false);
@@ -293,6 +300,14 @@ function RegistrationBuilder() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (profile === 'student' && !studentVerification.approved && !isAdmin) {
+      setCongressMode('');
+      setMorningCourse(false);
+      setAfternoonCourse(false);
+    }
+  }, [profile, studentVerification.approved, isAdmin]);
+
   const totals = useMemo(() => calculateRegistrationTotal({
     profile,
     courseAffiliation,
@@ -311,7 +326,9 @@ function RegistrationBuilder() {
   const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse || dinnerQuantity);
   const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
   // Administrative simulations remain explicitly marked as tests and never request payment.
-  const profileReady = Boolean(profile && (profile !== 'uls' || ulsEligibility.verified || isAdmin));
+  const profileReady = Boolean(profile
+    && (profile !== 'uls' || ulsEligibility.verified || isAdmin)
+    && (profile !== 'student' || studentVerification.approved || isAdmin));
   const coursesReady = Boolean(profileReady && courseAffiliation);
   const hasCourse = morningCourse || afternoonCourse;
   const testSelectionReady = Boolean(
@@ -405,6 +422,7 @@ function RegistrationBuilder() {
           </section>
 
           {profile === 'uls' && <UlsVerification key={user?.uid || 'guest'} user={user} eligibility={ulsEligibility} en={en} />}
+          {profile === 'student' && <StudentVerification key={user?.uid || 'guest'} user={user} verification={studentVerification} en={en} />}
 
           <section className={`registration-step${!profileReady ? ' is-locked' : ''}`} aria-labelledby="registration-congress-title">
             <div className="registration-step__heading">
@@ -416,6 +434,7 @@ function RegistrationBuilder() {
             </div>
             {!profile && <p className="registration-step__lock-note">{en ? 'Select your profile first.' : 'Selecione primeiro o seu perfil.'}</p>}
             {profile === 'uls' && !profileReady && <p className="registration-step__lock-note">{en ? 'Validate your employee number above to continue in the ULS Coimbra category.' : 'Valide o MEC acima para continuar na categoria ULS Coimbra.'}</p>}
+            {profile === 'student' && !profileReady && <p className="registration-step__lock-note">{en ? 'Student participation becomes available after the secretariat approves your document.' : 'A participação como estudante fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
             <div className="registration-choice-grid registration-choice-grid--three">
               <ChoiceCard
                 name="congress-mode"
@@ -460,6 +479,7 @@ function RegistrationBuilder() {
                 </h2>
               </div>
             </div>
+            {profile === 'student' && !coursesReady && <p className="registration-step__lock-note">{en ? 'Course selection becomes available after the secretariat approves your document.' : 'A seleção de cursos fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
             <div className="registration-course-note">
               <span>{en ? 'Price per course' : 'Preço por curso'}</span>
               <strong>{coursesReady ? formatEuro(totals.courseUnit) : '—'}</strong>

@@ -1,0 +1,33 @@
+.student-verification { padding: 24px; border: 1px solid #cdcde0; border-radius: 14px; background: #fff; color: #191b4f; margin: 22px 0; min-width: 0; overflow-wrap: anywhere; }
+.student-verification h3 { font-size: 1.15rem; margin: 0 0 12px; }
+.student-verification p { line-height: 1.6; }
+.student-verification a { text-decoration: underline; color: #3027c7; }
+.student-verification button { border: 1px solid #3027c7; border-radius: 6px; background: #3027c7; color: #fff; padding: 12px 16px; font: inherit; cursor: pointer; }
+.student-verification button:disabled { opacity: .5; cursor: not-allowed; }
+.student-verification :focus-visible { outline: 3px solid #eb574a; outline-offset: 3px; }
+.student-verification__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.student-verification label { display: grid; gap: 8px; font-weight: 600; }
+.student-verification input:not([type="checkbox"]), .student-verification textarea, .student-verification select { max-width: 100%; min-width: 0; padding: 10px; border: 1px solid #9b9cb8; border-radius: 5px; font: inherit; color: #191b4f; background: #fff; }
+.student-verification input[type="file"] { width: 100%; box-sizing: border-box; }
+.student-verification__form { display: grid; gap: 16px; }
+.student-verification__form button { justify-self: start; }
+.student-verification .student-verification__check { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; }
+.student-verification__check input { margin-top: 5px; flex: 0 0 auto; }
+.student-verification__status { padding: 16px; border-radius: 6px; background: #eeeeff; margin-bottom: 18px; }
+.student-verification__status p:last-child { margin-bottom: 0; }
+.student-verification__status.is-approved { background: #e4f4eb; color: #165f39; }
+.student-verification__status.is-correction, .student-verification__confirm { background: #fff2d9; padding: 16px; border-radius: 6px; }
+.student-verification__status.is-rejected { background: #fce9e8; }
+.student-verification__error { color: #b32724; }
+.student-verification__privacy { font-size: .85rem; margin-top: 18px; }
+.student-verification__actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.student-proof-preview { display: grid; gap: 12px; margin: 12px 0; }
+.student-proof-preview img { width: 100%; max-height: 640px; object-fit: contain; background: #f4f4f4; }
+.student-review-layout { display: grid; grid-template-columns: minmax(220px, .75fr) minmax(0, 1.75fr); gap: 20px; align-items: start; }
+.student-review-list { display: grid; gap: 8px; }
+.student-review-list button { text-align: left; background: #f7f7ff; color: #191b4f; }
+.student-review-list button[aria-pressed="true"] { background: #3027c7; color: white; }
+.student-review-list small { display: block; margin-top: 4px; }
+.student-review-details { min-width: 0; }
+.student-review-details textarea { width: 100%; box-sizing: border-box; }
+@media (max-width: 760px) { .student-verification__fields, .student-review-layout { grid-template-columns: minmax(0, 1fr); } .student-verification { padding: 18px; } }

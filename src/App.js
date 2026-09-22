@@ -35,6 +35,7 @@ import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminSecretariatPage from './pages/AdminSecretariatPage';
+import AdminStudentsPage from './pages/AdminStudentsPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import MyCircHome from './pages/MyCircHome';
 import MyCircShell from './components/MyCircShell';
@@ -166,6 +167,8 @@ function App() {
                 </AdminRoute>
               }
             />
+
+            <Route path="/admin/estudantes" element={<AdminRoute permission="secretariat"><AdminStudentsPage /></AdminRoute>} />
 
             <Route path="/schedule" element={<Navigate to="/programa" replace />} />
             <Route path="/exhibition" element={<Navigate to="/parcerias" replace />} />

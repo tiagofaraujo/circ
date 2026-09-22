@@ -6,6 +6,7 @@ const modules = [
   { to: '/admin', end: true, number: '01', label: 'Inscrições', permission: 'canManageRegistrations' },
   { to: '/admin/submissoes', number: '02', label: 'Submissões', permission: 'canManageSubmissions' },
   { to: '/admin/secretariado', number: '03', label: 'Secretariado', permission: 'canUseSecretariat' },
+  { to: '/admin/estudantes', number: '04', label: 'Estudantes', permission: 'canUseSecretariat' },
 ];
 
 export default function AdminModuleNav() {

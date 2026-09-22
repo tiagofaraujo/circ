@@ -117,8 +117,8 @@ function Prices() {
                     <p>
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}
                         {en
-                            ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The fee is per course. Professionals and IMR students may choose one or both courses.'
-                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso. Profissionais e estudantes IMR podem escolher um ou ambos os cursos.'}
+                            ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The fee is per course. IMR students may register after their enrolment document is approved.'
+                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso. Os estudantes IMR podem inscrever-se após aprovação do comprovativo de matrícula.'}
                     </p>
                 </div>
                 <div className="price-simulator-link">
