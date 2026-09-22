@@ -48,12 +48,15 @@ def list_admin_resources(get, resource):
     page_token = ""
     seen = set()
     for _ in range(100):
-        params = {"pageSize": 100}
+        # Firestore Admin rejects non-zero page sizes for these listings.
+        # Omit pageSize, as firebase-tools does, and let the API choose.
+        params = {}
         if resource == "fields":
             params["filter"] = "indexConfig.usesAncestorConfig=false"
         if page_token:
             params["pageToken"] = page_token
-        page = get(FIRESTORE_API + "-/" + resource + "?" + urllib.parse.urlencode(params))
+        query = urllib.parse.urlencode(params)
+        page = get(FIRESTORE_API + "-/" + resource + ("?" + query if query else ""))
         items.extend(page.get(resource, []))
         page_token = page.get("nextPageToken", "")
         if not page_token:

@@ -43,6 +43,18 @@ class DeploymentCheckTests(unittest.TestCase):
 
 
 class RemoteVerificationTests(unittest.TestCase):
+    def test_listing_respects_firestore_zero_only_page_size(self):
+        # Reproduce the production API restriction, not a permissive HTTP mock.
+        def firestore_get(url):
+            params = parse_qs(urlparse(url).query)
+            if params.get("pageSize", ["0"]) != ["0"]:
+                raise HTTPError(url, 400, "Invalid page size. Only 0 is supported.", {}, io.BytesIO(b'{}'))
+            return {}
+
+        for resource in ["indexes", "fields"]:
+            with self.subTest(resource=resource):
+                self.assertEqual(deployment.list_admin_resources(firestore_get, resource), [])
+
     def test_pagination_uses_database_endpoint_and_only_real_page_tokens(self):
         get = Mock(side_effect=[{"indexes": [{"id": 1}], "nextPageToken": "a+b/c="}, {"indexes": [{"id": 2}]}])
         self.assertEqual(deployment.list_admin_resources(get, "indexes"), [{"id": 1}, {"id": 2}])
