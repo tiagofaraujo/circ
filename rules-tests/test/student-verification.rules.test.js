@@ -15,7 +15,7 @@ const email = (uid) => uid === 'admin' ? 'circ.chuc@gmail.com' : `${uid}@example
 const dbFor = (uid = UID, verified = true) => env.authenticatedContext(uid, { email: email(uid), email_verified: verified }).firestore();
 const requestData = (overrides = {}) => ({
   userId: UID, eventId: EVENT, email: email(UID), profileName: NAME,
-  school: 'Escola de Saúde', course: 'Imagem Médica e Radioterapia', academicYear: '2026/2027',
+  school: 'Escola de Saúde', course: 'Radiologia / Imagem Médica e Radioterapia', academicYear: '2026/2027',
   status: 'pending', revision: 1, proofAvailable: true, submittedAt: serverTimestamp(), updatedAt: serverTimestamp(),
   reviewedAt: null, reviewedBy: null, reviewNote: '', ...overrides,
 });

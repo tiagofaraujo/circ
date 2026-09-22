@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getFirebaseAuth, getFirebaseFirestore } from './firebaseClient';
-import { isStudentApproved, STUDENT_EVENT_ID, STUDENT_ACADEMIC_YEAR, studentError, validateStudentProof } from './studentVerification';
+import { isStudentApproved, STUDENT_EVENT_ID, STUDENT_ACADEMIC_YEAR, STUDENT_COURSE, studentError, validateStudentProof } from './studentVerification';
 
 function context() {
   const user = getFirebaseAuth()?.currentUser;
@@ -56,10 +56,12 @@ export function useStudentVerification(user, enabled = true) {
   return state.uid === uid ? state : { uid, status: 'loading', approved: false };
 }
 
-export async function submitStudentVerification({ school, course, proof }) {
+export async function submitStudentVerification({ school, proof }) {
   const { user, db, timestamp } = context();
-  const details = { school: school.trim(), course: course.trim() };
-  if (Object.values(details).some((s) => s.length < 2 || s.length > 160)) throw studentError('missing-details');
+  // Keep the required legacy field compatible with the deployed rules. The
+  // event defines the area; students only supply their school and document.
+  const details = { school: typeof school === 'string' ? school.trim() : '', course: STUDENT_COURSE };
+  if (details.school.length < 2 || details.school.length > 160) throw studentError('missing-details');
   const file = validateStudentProof(proof);
   const requestRef = db.collection('studentVerifications').doc(user.uid);
   await db.runTransaction(async (transaction) => {

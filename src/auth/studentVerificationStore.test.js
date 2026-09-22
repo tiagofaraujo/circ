@@ -1,11 +1,34 @@
 import { act, renderHook } from '@testing-library/react';
 import { getFirebaseAuth, getFirebaseFirestore } from './firebaseClient';
-import { assertStudentRequestCurrent, describeStudentVerification, reviewStudentRequest, useStudentVerification } from './studentVerificationStore';
+import { assertStudentRequestCurrent, describeStudentVerification, reviewStudentRequest, submitStudentVerification, useStudentVerification } from './studentVerificationStore';
 jest.mock('./firebaseClient', () => ({ getFirebaseAuth: jest.fn(), getFirebaseFirestore: jest.fn() }));
 
 const user = { uid: 'student', emailVerified: true };
 const approved = { userId: 'student', eventId: 'circ-2027', academicYear: '2026/2027', profileName: 'Maria Leonor de Sá', status: 'approved' };
 const snapshot = (data, metadata = {}) => ({ exists: Boolean(data), data: () => data, metadata: { fromCache: false, hasPendingWrites: false, ...metadata } });
+test('school-only submission saves a pending request and proof using the deployed schema', async () => {
+  getFirebaseAuth.mockReturnValue({ currentUser: { ...user, email: 'student@example.test' } });
+  const set = jest.fn();
+  const transaction = {
+    get: async (ref) => snapshot(ref === 'users/student' ? { name: approved.profileName } : null),
+    set,
+  };
+  getFirebaseFirestore.mockReturnValue({
+    collection: (name) => ({ doc: (uid) => `${name}/${uid}` }),
+    runTransaction: (fn) => fn(transaction),
+  });
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: () => 'server-time' } } };
+  const proof = { mimeType: 'application/pdf', base64: 'JVBERi0xLjQK' };
+  await submitStudentVerification({ school: '  Escola de Saúde  ', proof });
+  expect(set).toHaveBeenCalledWith('studentVerifications/student', expect.objectContaining({
+    school: 'Escola de Saúde', course: 'Radiologia / Imagem Médica e Radioterapia',
+    profileName: approved.profileName, academicYear: '2026/2027',
+    status: 'pending', revision: 1, reviewedBy: null, reviewedAt: null,
+  }));
+  expect(set).toHaveBeenCalledWith('studentProofs/student', {
+    userId: 'student', eventId: 'circ-2027', revision: 1, ...proof, updatedAt: 'server-time',
+  });
+});
 test('cached or locally pending approval never unlocks the student rate', () => {
   const profile = snapshot({ name: approved.profileName });
   expect(describeStudentVerification(snapshot(approved), profile, user.uid, true).approved).toBe(true);
