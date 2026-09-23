@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { submitStudentVerification, withdrawStudentVerification } from '../../auth/studentVerificationStore';
+import { loadStudentProof, submitStudentVerification, withdrawStudentVerification } from '../../auth/studentVerificationStore';
 import StudentVerification from './StudentVerification';
-jest.mock('../../auth/studentVerificationStore', () => ({ submitStudentVerification: jest.fn(), withdrawStudentVerification: jest.fn() }));
+jest.mock('../../auth/studentVerificationStore', () => ({ loadStudentProof: jest.fn(), submitStudentVerification: jest.fn(), withdrawStudentVerification: jest.fn() }));
 const user = { uid: 'student', emailVerified: true };
 const ready = { status: 'ready', profileName: 'Maria Leonor de Sá', approved: false };
 function show(verification = ready, account = user) { return render(<MemoryRouter><StudentVerification user={account} verification={verification} /></MemoryRouter>); }
@@ -20,6 +20,8 @@ test('submits school and a checked document without asking for course or age', a
   expect(screen.queryByLabelText('Curso')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Comprovativo de matrícula'), { target: { files: [new File(['%PDF-1.4\n'], 'document.pdf', { type: 'application/pdf' })] } });
   const check = await screen.findByRole('checkbox');
+  expect(screen.getByText('Ficheiro preparado. Falta enviar para análise.')).toBeInTheDocument();
+  expect(submitStudentVerification).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Enviar para análise' })).toBeDisabled();
   fireEvent.click(check);
   fireEvent.click(screen.getByRole('button', { name: 'Enviar para análise' }));
@@ -50,4 +52,47 @@ test('withdrawal requires explicit confirmation', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar remoção' }));
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirmar remoção' })).not.toBeInTheDocument());
   expect(withdrawStudentVerification).toHaveBeenCalledTimes(1);
+});
+test('dragging one file prepares it, while removing it or dropping several cannot submit', async () => {
+  show();
+  const file = new File(['%PDF-1.4\n'], 'matricula.pdf', { type: 'application/pdf' });
+  const dropzone = screen.getByRole('group', { name: 'Upload do comprovativo' });
+  fireEvent.drop(dropzone, { dataTransfer: { files: [file] } });
+  await screen.findByRole('checkbox');
+  expect(screen.getByText('matricula.pdf')).toBeInTheDocument();
+  expect(submitStudentVerification).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Remover ficheiro selecionado' }));
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Enviar para análise' })).toBeDisabled();
+  fireEvent.drop(dropzone, { dataTransfer: { files: [file, file] } });
+  expect(screen.getByRole('alert')).toHaveTextContent('Envie um ficheiro de cada vez.');
+  expect(submitStudentVerification).not.toHaveBeenCalled();
+});
+test('a failed upload retains the prepared file for retry and never claims receipt', async () => {
+  submitStudentVerification.mockRejectedValueOnce({ code: 'unavailable' }).mockResolvedValueOnce();
+  show();
+  fireEvent.change(screen.getByLabelText('Escola / instituição'), { target: { value: 'Escola de Saúde' } });
+  fireEvent.change(screen.getByLabelText('Comprovativo de matrícula'), { target: { files: [new File(['%PDF-1.4\n'], 'matricula.pdf', { type: 'application/pdf' })] } });
+  fireEvent.click(await screen.findByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar para análise' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('O envio não foi confirmado.');
+  expect(screen.queryByText('Comprovativo recebido')).not.toBeInTheDocument();
+  expect(screen.queryByText('Comprovativo enviado. Aguarde a análise pelo secretariado.')).not.toBeInTheDocument();
+  expect(screen.getByText('matricula.pdf')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar para análise' }));
+  expect(await screen.findByText('Comprovativo enviado. Aguarde a análise pelo secretariado.')).toBeInTheDocument();
+  expect(submitStudentVerification).toHaveBeenCalledTimes(2);
+});
+test('a saved request can open its private uploaded file only on demand', async () => {
+  loadStudentProof.mockResolvedValue({ mimeType: 'application/pdf', base64: 'JVBERi0xLjQK' });
+  show({ ...ready, data: { school: 'Escola', status: 'pending', proofAvailable: true, revision: 2 } });
+  expect(screen.getByText('Comprovativo recebido')).toBeInTheDocument();
+  expect(loadStudentProof).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Ver comprovativo enviado' }));
+  const link = await screen.findByRole('link', { name: /Descarregar comprovativo/ });
+  expect(link).toHaveAttribute('href', 'blob:private-proof');
+  expect(loadStudentProof).toHaveBeenCalledWith({ id: user.uid, revision: 2 });
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar comprovativo' }));
+  expect(screen.queryByRole('link', { name: /Descarregar comprovativo/ })).not.toBeInTheDocument();
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:private-proof');
 });

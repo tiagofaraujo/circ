@@ -5,6 +5,7 @@ export const STUDENT_ACADEMIC_YEAR = '2026/2027';
 export const STUDENT_COURSE = 'Radiologia / Imagem Médica e Radioterapia';
 export const STUDENT_PROOF_MAX_BYTES = 300 * 1024;
 export const STUDENT_PROOF_MAX_BASE64 = 409600;
+export const STUDENT_PROOF_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 
 export const studentStatusLabels = {
   pending: ['Comprovativo em análise', 'Document under review'],
@@ -41,25 +42,40 @@ function readFile(file) {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(studentError('invalid-file'));
+    reader.onabort = () => reject(studentError('invalid-file'));
     reader.readAsDataURL(file);
   });
 }
 
 export async function prepareStudentProof(file) {
-  if (!file || !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+  const declaredType = file?.type || '';
+  if (!file || !['', 'application/octet-stream', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(declaredType)) {
     throw studentError('invalid-file');
   }
-  const isPdf = file.type === 'application/pdf';
-  if (file.size > (isPdf ? STUDENT_PROOF_MAX_BYTES : 10 * 1024 * 1024)) {
+  if (file.size > (declaredType === 'application/pdf' ? STUDENT_PROOF_MAX_BYTES : 10 * 1024 * 1024)) {
     throw studentError('file-too-large');
   }
   const url = await readFile(file);
-  if (isPdf) return validateStudentProof({ mimeType: file.type, base64: url.split(',')[1] });
+  const base64 = url.split(',')[1];
+  // File.type may be empty for files selected from a device or cloud drive.
+  // Identify supported bytes instead of trusting the file extension alone.
+  const header = atob(base64.slice(0, 20));
+  const mimeType = header.startsWith('%PDF-') ? 'application/pdf'
+    : header.startsWith('\xff\xd8\xff') ? 'image/jpeg'
+      : header.startsWith('\x89PNG\r\n\x1a\n') ? 'image/png'
+        : header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP' ? 'image/webp' : '';
+  if (!mimeType || (declaredType && declaredType !== 'application/octet-stream' && declaredType !== mimeType)) {
+    throw studentError('invalid-file');
+  }
+  if (mimeType === 'application/pdf') {
+    if (file.size > STUDENT_PROOF_MAX_BYTES) throw studentError('file-too-large');
+    return validateStudentProof({ mimeType, base64 });
+  }
   const picture = await new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(studentError('invalid-file'));
-    img.src = url;
+    img.src = `data:${mimeType};base64,${base64}`;
   });
   if (!picture.naturalWidth || !picture.naturalHeight) throw studentError('invalid-file');
   // Re-encode photographs locally: bound upload size and discard original metadata.
@@ -85,6 +101,7 @@ export async function prepareStudentProof(file) {
 
 export function studentErrorMessage(error, en = false) {
   const messages = {
+    'student/one-file-only': ['Envie um ficheiro de cada vez. Se o comprovativo tiver várias páginas, junte-as num único PDF.', 'Send one file at a time. Combine multiple pages into one PDF.'],
     'student/invalid-file': ['Escolha um PDF ou uma imagem JPG, PNG ou WebP válida.', 'Choose a valid PDF, JPG, PNG or WebP image.'],
     'student/file-too-large': ['O PDF deve ter até 300 KB. Para fotografias, escolha uma imagem até 10 MB com o documento bem enquadrado.', 'PDFs must be at most 300 KB. For photographs, choose an image up to 10 MB tightly framing the document.'],
     'student/missing-profile-name': ['Guarde primeiro o nome completo no perfil My CIRC.', 'Save your full name in your My CIRC profile first.'],
@@ -93,6 +110,8 @@ export function studentErrorMessage(error, en = false) {
     'student/conflict': ['O pedido mudou. Atualize a lista e reveja o comprovativo antes de continuar.', 'The request has changed. Refresh and review the document again.'],
     'student/too-soon': ['Aguarde um minuto entre envios de comprovativos.', 'Wait one minute between document submissions.'],
     'student/note-required': ['Indique o motivo da correção ou recusa (5 a 1000 caracteres).', 'Explain the correction or refusal (5 to 1000 characters).'],
+    'unavailable': ['Sem ligação ao servidor. O envio não foi confirmado. Verifique a ligação e tente novamente.', 'Server unavailable. Submission was not confirmed. Check your connection and try again.'],
+    'permission-denied': ['Não foi possível aceder ao comprovativo. Confirme a conta e, se o erro persistir, contacte o secretariado.', 'Could not access the document. Check your account and contact the secretariat if the error persists.'],
   };
   return (messages[error?.code] || ['Não foi possível concluir. Verifique a ligação e tente novamente.', 'Could not complete this action. Check your connection and try again.'])[en ? 1 : 0];
 }
