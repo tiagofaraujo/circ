@@ -20,6 +20,12 @@
 .student-verification__status.is-rejected { background: #fce9e8; }
 .student-verification__error { color: #b32724; }
 .student-verification__privacy { font-size: .85rem; margin-top: 18px; }
+.student-upload { display: grid; justify-items: start; gap: 12px; padding: 20px; border: 2px dashed #9b9cb8; border-radius: 10px; background: #f7f7ff; min-width: 0; }
+.student-upload.is-dragging { border-color: #3027c7; background: #eeeeff; }
+.student-upload p { margin: 0; }
+.student-upload__selected { width: 100%; display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid #cdcde0; }
+.student-upload__selected button, .student-upload-receipt button { background: #fff; color: #3027c7; }
+.student-upload-receipt { margin: 12px 0; }
 .student-verification__actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
 .student-proof-preview { display: grid; gap: 12px; margin: 12px 0; }
 .student-proof-preview img { width: 100%; max-height: 640px; object-fit: contain; background: #f4f4f4; }

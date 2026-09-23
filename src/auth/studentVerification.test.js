@@ -24,3 +24,19 @@ test('PDF preparation preserves bytes and rejects unsupported or oversized input
   await expect(prepareStudentProof({ type: 'application/pdf', size: 307201 })).rejects.toMatchObject({ code: 'student/file-too-large' });
   await expect(prepareStudentProof({ type: 'image/jpeg', size: 10485761 })).rejects.toMatchObject({ code: 'student/file-too-large' });
 });
+test('PDFs with missing or generic device MIME types are identified from their bytes', async () => {
+  for (const type of ['', 'application/octet-stream']) {
+    await expect(prepareStudentProof(new File(['%PDF-1.4\n'], 'matricula.pdf', { type })))
+      .resolves.toEqual({ mimeType: 'application/pdf', base64: 'JVBERi0xLjQK' });
+    await expect(prepareStudentProof(new File(['%PDF-' + 'a'.repeat(307200)], 'matricula.pdf', { type })))
+      .rejects.toMatchObject({ code: 'student/file-too-large' });
+  }
+});
+test('a file extension or declared MIME type cannot disguise unsupported contents', async () => {
+  for (const type of ['', 'application/octet-stream', 'application/pdf']) {
+    await expect(prepareStudentProof(new File(['<html>not a document</html>'], 'matricula.pdf', { type })))
+      .rejects.toMatchObject({ code: 'student/invalid-file' });
+  }
+  await expect(prepareStudentProof(new File(['%PDF-1.4\n'], 'matricula.jpg', { type: 'image/jpeg' })))
+    .rejects.toMatchObject({ code: 'student/invalid-file' });
+});

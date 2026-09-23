@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const assert = require('node:assert/strict');
 const { before, after, afterEach, test } = require('node:test');
 const { assertFails, assertSucceeds, initializeTestEnvironment } = require('@firebase/rules-unit-testing');
 const { collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where, orderBy, limit, serverTimestamp, Timestamp, writeBatch } = require('firebase/firestore');
@@ -93,8 +94,17 @@ test('proof and request must be created together', async () => {
   await assertFails(setDoc(doc(dbFor(), 'studentVerifications', UID), requestData()));
   await assertFails(setDoc(doc(dbFor(), 'studentProofs', UID), proofData()));
 });
-test('small PDF is accepted', async () => {
-  await seed(); await assertSucceeds(submit(dbFor(), {}, { mimeType: 'application/pdf', base64: 'JVBERi0xLjQK' }));
+test('uploaded PDF bytes can be retrieved by the student and secretariat', async () => {
+  const base64 = 'JVBERi0xLjQK';
+  await seed();
+  await assertSucceeds(submit(dbFor(), {}, { mimeType: 'application/pdf', base64 }));
+  for (const uid of [UID, 'reviewer']) {
+    const saved = await assertSucceeds(getDoc(doc(dbFor(uid), 'studentProofs', UID)));
+    assert.equal(saved.data().mimeType, 'application/pdf');
+    assert.equal(saved.data().base64, base64);
+    assert.equal(saved.data().revision, 1);
+  }
+  await assertFails(getDoc(doc(dbFor('other'), 'studentProofs', UID)));
 });
 test('invalid, active-content and oversized proofs are rejected', async () => {
   await seed();
