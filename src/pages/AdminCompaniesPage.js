@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AdminModuleNav from '../components/AdminModuleNav';
+import { exportCompanyVoucherPdf } from '../auth/companyVoucherPdf';
 import { cancelCompanyVoucher, companyError, confirmCompanyTransfer, createCompanyPurchase, formatVoucher,
   loadCompanyPurchases, loadCompanyVouchers, setCompanyCodesEnabled, subscribeCompanyConfig } from '../auth/companyVouchers';
 import { CONGRESS_RATES, getRegistrationPeriod } from '../data/registration2027';
@@ -64,6 +65,10 @@ export default function AdminCompaniesPage() {
         <button disabled={busy || !checked}>Confirmar pagamento e gerar {selected.quantity} códigos</button>
       </form> : <><p>Transferência: {selected.transferReference}</p><p>Documento de faturação: {selected.fiscalReference || 'Não indicado'}</p>
         <p>O pagamento global está registado nesta compra. A utilização dos códigos não regista uma nova receita nem emite um novo recibo.</p>
+        <button disabled={busy} onClick={() => run(async () => {
+          try { setVouchers(await exportCompanyVoucherPdf(selected)); setMessage('Documento aberto. Clique em «Imprimir / Guardar como PDF» para o guardar e enviar à empresa.'); }
+          catch (e) { setError(e.code ? companyError(e) : e.message); }
+        })}>Exportar códigos disponíveis em PDF</button>
         <button disabled={!vouchers.length || busy} onClick={() => run(async () => { await navigator.clipboard.writeText(vouchers.filter((v) => v.status === 'available').map((v) => formatVoucher(v.code)).join('\n')); setMessage('Códigos disponíveis copiados.'); })}>Copiar códigos disponíveis</button>
         <div className="company-table"><table><thead><tr><th>Código</th><th>Estado</th><th>Inscrição</th><th>Ação</th></tr></thead><tbody>{vouchers.map((v) => <tr key={v.code}><td><code>{formatVoucher(v.code)}</code></td><td>{labels[v.status]}</td><td>{v.registrationId || '—'}</td><td>{v.status === 'available' && <button disabled={busy} onClick={() => setCancelCode(v.code)}>Cancelar</button>}</td></tr>)}</tbody></table></div>
         {cancelCode && <div><p>Cancelar definitivamente o código {formatVoucher(cancelCode)}? Esta ação não processa um reembolso.</p><button disabled={busy} onClick={() => run(async () => { await cancelCompanyVoucher(cancelCode); setCancelCode(''); setVouchers(await loadCompanyVouchers(selected)); })}>Confirmar cancelamento</button><button disabled={busy} onClick={() => setCancelCode('')}>Voltar</button></div>}
