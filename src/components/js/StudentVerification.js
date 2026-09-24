@@ -107,8 +107,7 @@ export default function StudentVerification({ user, verification, en = false }) 
                   onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
                   onDrop={(event) => { event.preventDefault(); setDragging(false); chooseFiles(event.dataTransfer.files); }}>
                   <label htmlFor="student-proof-file">{en ? 'Enrolment document' : 'Comprovativo de matrícula'}</label>
-                  <input id="student-proof-file" ref={fileInput} type="file" hidden accept={STUDENT_PROOF_ACCEPT} onChange={(event) => chooseFiles(event.target.files)} disabled={busy} />
-                  <button type="button" disabled={busy} aria-describedby="student-proof-limits" onClick={() => fileInput.current?.click()}>{proof ? (en ? 'Change file' : 'Trocar ficheiro') : (en ? 'Select file' : 'Selecionar ficheiro')}</button>
+                  <input id="student-proof-file" ref={fileInput} type="file" aria-describedby="student-proof-limits" accept={STUDENT_PROOF_ACCEPT} onChange={(event) => chooseFiles(event.target.files)} disabled={busy} />
                   <span>{en ? 'or drag a PDF or photograph here' : 'ou arraste um PDF ou uma fotografia para aqui'}</span>
                   <small id="student-proof-limits">{en ? 'PDF up to 300 KB, or JPG/PNG/WebP up to 10 MB. Images are compressed before sending.' : 'PDF até 300 KB, ou JPG/PNG/WebP até 10 MB. As imagens são comprimidas antes do envio.'}</small>
                   {operation === 'prepare' && <p role="status">{en ? 'Preparing file…' : 'A preparar ficheiro…'}</p>}

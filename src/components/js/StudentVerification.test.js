@@ -18,6 +18,8 @@ test('submits school and a checked document without asking for course or age', a
   expect(screen.getByText(/Sem limite de idade/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Escola / instituição'), { target: { value: 'Escola de Saúde' } });
   expect(screen.queryByLabelText('Curso')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Comprovativo de matrícula')).toBeVisible();
+  expect(screen.getByLabelText('Comprovativo de matrícula')).toBeEnabled();
   fireEvent.change(screen.getByLabelText('Comprovativo de matrícula'), { target: { files: [new File(['%PDF-1.4\n'], 'document.pdf', { type: 'application/pdf' })] } });
   const check = await screen.findByRole('checkbox');
   expect(screen.getByText('Ficheiro preparado. Falta enviar para análise.')).toBeInTheDocument();
