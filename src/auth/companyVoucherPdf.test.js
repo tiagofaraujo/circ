@@ -17,9 +17,9 @@ test('export refuses unpaid purchases and empty available lists', () => {
   expect(() => buildCompanyVoucherDocument({ ...purchase, status: 'pending' }, [])).toThrow();
   expect(() => buildCompanyVoucherDocument(purchase, [])).toThrow('não tem códigos disponíveis');
 });
-test('maximum purchase has five numbered pages without losing codes', () => {
+test('maximum purchase has seven numbered pages without losing codes', () => {
   const html = buildCompanyVoucherDocument(purchase, Array.from({ length: 50 }, (_, i) => ({ code: i.toString(16).padStart(32, '0'), status: 'available' })));
-  expect(html.match(/class="page"/g)).toHaveLength(5);
+  expect(html.match(/class="page"/g)).toHaveLength(7);
   expect(html.match(/<code>/g)).toHaveLength(50);
-  expect(html).toContain('Página 5 de 5');
+  expect(html).toContain('Página 7 de 7');
 });

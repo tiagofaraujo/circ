@@ -10,7 +10,7 @@ export function buildCompanyVoucherDocument(purchase, vouchers, date = new Date(
   const filename = ('circ-2027-vouchers-' + purchase.company.name + '-' + purchase.id)
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
   const pages = [];
-  for (let i = 0; i < available.length; i += 10) pages.push(available.slice(i, i + 10));
+  for (let i = 0; i < available.length; i += 8) pages.push(available.slice(i, i + 8));
   return `<!doctype html><html lang="pt"><head><meta charset="utf-8"><title>${escapeHtml(filename)}.pdf</title>
     <style>
     @page{size:A4;margin:16mm}*{box-sizing:border-box}body{margin:0;color:#202445;font:10pt/1.45 Arial,Helvetica,sans-serif;background:#eee}
@@ -30,7 +30,7 @@ export function buildCompanyVoucherDocument(purchase, vouchers, date = new Date(
       <p class="meta">NIF / identificação fiscal: ${escapeHtml(purchase.company.taxNumber)}<br>Referência da compra: ${escapeHtml(purchase.id)}<br>${available.length} código(s) disponível(eis) nesta exportação</p>
       <div class="scope"><strong>Congressista externo · Presencial · Dois dias</strong><br>Inscrição paga pela empresa. Não inclui jantar nem cursos.</div>
       <h2>Como utilizar</h2><ol><li>Aceda a <a href="https://circ-coimbra.org/conta/inscricoes">circ-coimbra.org/conta/inscricoes</a>, inicie sessão ou crie uma conta e confirme o email.</li><li>Complete o perfil e escolha Externo e Presencial, sem jantar nem cursos.</li><li>Introduza o código da empresa e confirme a inscrição.</li></ol>
-      <table><thead><tr><th>N.º</th><th>Código individual</th></tr></thead><tbody>${page.map((v, j) => `<tr><td>${index * 10 + j + 1}</td><td><code>${escapeHtml(formatVoucher(v.code))}</code></td></tr>`).join('')}</tbody></table>
+      <table><thead><tr><th>N.º</th><th>Código individual</th></tr></thead><tbody>${page.map((v, j) => `<tr><td>${index * 8 + j + 1}</td><td><code>${escapeHtml(formatVoucher(v.code))}</code></td></tr>`).join('')}</tbody></table>
       <p class="note">Entregue um código diferente a cada participante. Cada código permite uma única inscrição. Guarde esta lista e partilhe apenas o código atribuído a cada pessoa.</p>
       <p class="note">Os códigos estavam disponíveis na data de exportação; a sua validade é verificada ao confirmar a inscrição. Este documento não é uma fatura nem um recibo.</p>
       <footer><span>Exportado em ${escapeHtml(date.toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' }))} (Lisboa)</span><span>Página ${index + 1} de ${pages.length}</span></footer></section>`).join('')}</body></html>`;
