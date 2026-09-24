@@ -539,7 +539,105 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Company purchases are private to the registrations administrator.
+    function validCompanyPurchase(d) {
+      return d.keys().hasOnly(['eventId', 'company', 'quantity', 'unitAmountCents', 'amountCents', 'status', 'codes',
+          'transferReference', 'fiscalReference', 'createdAt', 'updatedAt', 'createdBy', 'confirmedBy', 'confirmedAt'])
+        && d.eventId == 'circ-2027'
+        && d.company.keys().hasOnly(['name', 'taxNumber', 'address', 'email'])
+        && d.company.name is string && d.company.name.size() >= 2 && d.company.name.size() <= 160
+        && d.company.taxNumber is string && d.company.taxNumber.size() > 0 && d.company.taxNumber.size() <= 40
+        && d.company.address is string && d.company.address.size() > 0 && d.company.address.size() <= 300
+        && d.company.email is string && d.company.email.size() > 3 && d.company.email.size() <= 254
+        && d.quantity is int && d.quantity >= 1 && d.quantity <= 50
+        && d.unitAmountCents is int && d.unitAmountCents > 0 && d.unitAmountCents <= 100000
+        && d.amountCents == d.quantity * d.unitAmountCents;
+    }
+    match /companyPurchases/{purchaseId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validCompanyPurchase(request.resource.data)
+        && request.resource.data.status == 'pending' && request.resource.data.codes == []
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.confirmedAt == null && request.resource.data.confirmedBy == null
+        && request.resource.data.transferReference == '' && request.resource.data.fiscalReference == '';
+      allow update: if isAdmin() && resource.data.status == 'pending'
+        && request.resource.data.status == 'paid'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'codes', 'transferReference', 'fiscalReference', 'confirmedAt', 'confirmedBy', 'updatedAt'])
+        && request.resource.data.codes is list && request.resource.data.codes.size() == resource.data.quantity
+        && request.resource.data.codes.toSet().size() == resource.data.quantity
+        && request.resource.data.transferReference is string && request.resource.data.transferReference.size() >= 2 && request.resource.data.transferReference.size() <= 200
+        && request.resource.data.fiscalReference is string && request.resource.data.fiscalReference.size() <= 200
+        && request.resource.data.confirmedBy == request.auth.uid && request.resource.data.confirmedAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+    function companyCodesEnabled() {
+      return get(/databases/$(database)/documents/settings/circ-2027-company-vouchers).data.enabled == true;
+    }
+    function validCompanyVoucherCreate(code) {
+      let d = request.resource.data;
+      let p = getAfter(/databases/$(database)/documents/companyPurchases/$(d.purchaseId)).data;
+      return code.matches('^[a-f0-9]{32}$')
+        && d.keys().hasOnly(['eventId', 'purchaseId', 'index', 'companyName', 'unitAmountCents', 'status', 'redeemedBy', 'registrationId', 'redeemedAt', 'createdAt', 'updatedAt'])
+        && d.eventId == 'circ-2027' && p.status == 'paid'
+        && d.index is int && d.index >= 0 && d.index < p.quantity && p.codes[d.index] == code
+        && d.companyName == p.company.name && d.unitAmountCents == p.unitAmountCents
+        && d.status == 'available' && d.redeemedBy == null && d.registrationId == null && d.redeemedAt == null
+        && d.createdAt == request.time && d.updatedAt == request.time;
+    }
+    function validCompanyRedemption(code) {
+      let d = request.resource.data;
+      let regId = 'circ-2027-' + request.auth.uid;
+      return hasVerifiedEmail() && companyCodesEnabled()
+        && resource.data.status == 'available'
+        && d.diff(resource.data).affectedKeys().hasOnly(['status', 'redeemedBy', 'registrationId', 'redeemedAt', 'updatedAt'])
+        && d.status == 'redeemed' && d.redeemedBy == request.auth.uid && d.registrationId == regId
+        && d.redeemedAt == request.time && d.updatedAt == request.time
+        && !exists(/databases/$(database)/documents/registrations/$(regId))
+        && getAfter(/databases/$(database)/documents/registrations/$(regId)).data.voucherId == code;
+    }
+    match /companyVouchers/{code} {
+      // 128-bit random bearer code; no enumeration and no company billing data.
+      allow get: if isAdmin() || (hasVerifiedEmail() && companyCodesEnabled()
+        && (!exists(/databases/$(database)/documents/companyVouchers/$(code))
+          || resource.data.status == 'available' || resource.data.redeemedBy == request.auth.uid));
+      allow list: if isAdmin();
+      allow create: if isAdmin() && validCompanyVoucherCreate(code);
+      allow update: if (isAdmin() && resource.data.status == 'available' && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time) || validCompanyRedemption(code);
+    }
+    function validCompanyRegistration(regId) {
+      let d = request.resource.data;
+      let v = get(/databases/$(database)/documents/companyVouchers/$(d.voucherId)).data;
+      let used = getAfter(/databases/$(database)/documents/companyVouchers/$(d.voucherId)).data;
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return hasVerifiedEmail() && companyCodesEnabled() && regId == 'circ-2027-' + request.auth.uid
+        && d.keys().hasOnly(['eventId', 'userId', 'registrationKey', 'primaryRegistration', 'participantName', 'participantEmail',
+          'registrationType', 'status', 'isTest', 'testMode', 'selection', 'entitlements', 'payment', 'voucherId',
+          'companyPurchaseId', 'addOnOrderCount', 'documentCount', 'createdAt', 'updatedAt'])
+        && d.eventId == 'circ-2027' && d.userId == request.auth.uid
+        && d.registrationKey == 'circ-2027:' + request.auth.uid && d.primaryRegistration == true
+        && d.participantName == profile.name && d.participantName is string && d.participantName.trim().size() >= 5 && d.participantName.size() <= 200
+        && d.participantEmail == request.auth.token.email && d.registrationType == 'CIRC 2027 · Presencial'
+        && d.status == 'confirmed' && d.isTest == false && d.testMode == false
+        && d.selection == {'profile': 'external', 'courseAffiliation': 'external', 'congressMode': 'onsite', 'morningCourse': false,
+          'afternoonCourse': false, 'dinner': false, 'dinnerQuantity': 0, 'ratePeriod': 'company'}
+        && d.entitlements == {'congressMode': 'onsite', 'morningCourse': false, 'afternoonCourse': false, 'dinnerQuantity': 0}
+        && d.payment == {'status': 'paid', 'amountCents': 0, 'coveredAmountCents': v.unitAmountCents, 'currency': 'EUR',
+          'method': 'company_voucher', 'reference': v.purchaseId, 'payer': v.companyName}
+        && d.companyPurchaseId == v.purchaseId && d.addOnOrderCount == 0 && d.documentCount == 0
+        && d.createdAt == request.time && d.updatedAt == request.time
+        && v.eventId == 'circ-2027' && v.status == 'available' && used.status == 'redeemed'
+        && used.redeemedBy == request.auth.uid && used.registrationId == regId && used.redeemedAt == request.time;
+    }
+    match /settings/circ-2027-company-vouchers {
+      allow get: if hasVerifiedEmail();
+    }
+
     match /registrations/{registrationId} {
+      allow get: if hasVerifiedEmail() && registrationId == "circ-2027-" + request.auth.uid;
+      allow create: if validCompanyRegistration(registrationId);
       allow read: if isAdmin()
         || canUseSecretariat()
         || (signedIn() && resource.data.userId == request.auth.uid);

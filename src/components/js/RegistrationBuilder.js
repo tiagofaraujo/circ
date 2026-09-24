@@ -1,3 +1,4 @@
+import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -585,6 +586,7 @@ function RegistrationBuilder() {
           </div>
           <small className="registration-summary__tax">{en ? 'Final price confirmed before payment.' : 'Preço final confirmado antes do pagamento.'}</small>
 
+          <CompanyVoucher eligible={profile === 'external' && congressMode === 'onsite' && !morningCourse && !afternoonCourse && dinnerQuantity === 0} />
           {isAdmin ? (
             <div className="registration-summary__test-mode">
               <span>{en ? 'Administrator test mode' : 'Modo de teste administrativo'}</span>
@@ -613,4 +615,6 @@ function RegistrationBuilder() {
   );
 }
 
-export default RegistrationBuilder;
+export default function CompanyAwareRegistrationBuilder() {
+  return <CompanyRegistrationGate><RegistrationBuilder /></CompanyRegistrationGate>;
+}

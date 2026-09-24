@@ -63,6 +63,7 @@ export default function MyCircShell({ children }) {
   const managementLinks = [
     access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management', true],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management', false],
+    access?.canManageRegistrations && ['/admin/empresas', 'users', 'Empresas', 'Companies', false],
     access?.canUseSecretariat && ['/admin/estudantes', 'graduation-cap', 'Validar estudantes', 'Student verification', false],
     access?.canUseSecretariat && ['/admin/secretariado', 'id-card', 'Secretariado', 'Event desk', false],
   ].filter(Boolean).map(([to, icon, pt, english, end]) => (
