@@ -35,6 +35,7 @@ import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminSecretariatPage from './pages/AdminSecretariatPage';
+import AdminCompaniesPage from './pages/AdminCompaniesPage';
 import AdminStudentsPage from './pages/AdminStudentsPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import MyCircHome from './pages/MyCircHome';
@@ -168,6 +169,7 @@ function App() {
               }
             />
 
+            <Route path="/admin/empresas" element={<AdminRoute permission="registrations"><AdminCompaniesPage /></AdminRoute>} />
             <Route path="/admin/estudantes" element={<AdminRoute permission="secretariat"><AdminStudentsPage /></AdminRoute>} />
 
             <Route path="/schedule" element={<Navigate to="/programa" replace />} />
