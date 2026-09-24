@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AdminModuleNav from '../components/AdminModuleNav';
 import { exportCompanyVoucherPdf } from '../auth/companyVoucherPdf';
+import { exportCompanyVoucherExcel } from '../auth/companyVoucherExcel';
 import { cancelCompanyVoucher, companyError, confirmCompanyTransfer, createCompanyPurchase, formatVoucher,
   loadCompanyPurchases, loadCompanyVouchers, setCompanyCodesEnabled, subscribeCompanyConfig } from '../auth/companyVouchers';
 import { CONGRESS_RATES, getRegistrationPeriod } from '../data/registration2027';
@@ -65,6 +66,10 @@ export default function AdminCompaniesPage() {
         <button disabled={busy || !checked}>Confirmar pagamento e gerar {selected.quantity} códigos</button>
       </form> : <><p>Transferência: {selected.transferReference}</p><p>Documento de faturação: {selected.fiscalReference || 'Não indicado'}</p>
         <p>O pagamento global está registado nesta compra. A utilização dos códigos não regista uma nova receita nem emite um novo recibo.</p>
+        <button disabled={busy} onClick={() => run(async () => {
+          try { setVouchers(await exportCompanyVoucherExcel(selected)); setMessage('Excel preparado. Consulte os downloads do navegador.'); }
+          catch (e) { setError(e.code ? companyError(e) : e.message); }
+        })}>Descarregar códigos em Excel</button>
         <button disabled={busy} onClick={() => run(async () => {
           try { setVouchers(await exportCompanyVoucherPdf(selected)); setMessage('Documento aberto. Clique em «Imprimir / Guardar como PDF» para o guardar e enviar à empresa.'); }
           catch (e) { setError(e.code ? companyError(e) : e.message); }
