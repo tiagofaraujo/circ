@@ -1,4 +1,6 @@
-import { act, renderHook } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import StudentVerification from '../components/js/StudentVerification';
+import { act, renderHook, render, screen, fireEvent } from '@testing-library/react';
 import { getFirebaseAuth, getFirebaseFirestore } from './firebaseClient';
 import { assertStudentRequestCurrent, describeStudentVerification, reviewStudentRequest, submitStudentVerification, useStudentVerification } from './studentVerificationStore';
 jest.mock('./firebaseClient', () => ({ getFirebaseAuth: jest.fn(), getFirebaseFirestore: jest.fn() }));
@@ -66,4 +68,23 @@ test('a review is rejected if the document changed after it was opened', async (
   window.firebase = { firestore: { FieldValue: { serverTimestamp: () => 'server-time' } } };
   await expect(reviewStudentRequest(expected, 'approved', '')).rejects.toMatchObject({ code: 'student/conflict' });
   expect(update).not.toHaveBeenCalled();
+});
+
+test('focus presence updates preserve the file input while the picker is open', async () => {
+  const listeners = {};
+  getFirebaseFirestore.mockReturnValue({ collection: (name) => ({ doc: () => ({ onSnapshot: (_options, next) => { listeners[name] = next; return () => {}; } }) }) });
+  function Harness() { return <MemoryRouter><StudentVerification user={user} verification={useStudentVerification(user)} /></MemoryRouter>; }
+  URL.createObjectURL = jest.fn(() => 'blob:proof');
+  URL.revokeObjectURL = jest.fn();
+  render(<Harness />);
+  act(() => { listeners.studentVerifications(snapshot(null)); listeners.users(snapshot({ name: approved.profileName })); });
+  const picker = screen.getByLabelText('Comprovativo de matrícula');
+  // Returning from the native picker writes online presence to users/{uid}.
+  act(() => listeners.users(snapshot({ name: approved.profileName, presence: 'online' }, { hasPendingWrites: true })));
+  expect(screen.getByLabelText('Comprovativo de matrícula')).toBe(picker);
+  fireEvent.change(picker, { target: { files: [new File(['%PDF-1.4\n'], 'proof.pdf', { type: 'application/pdf' })] } });
+  expect(await screen.findByRole('checkbox')).toBeInTheDocument();
+  act(() => listeners.users(snapshot({ name: approved.profileName })));
+  expect(screen.getByLabelText('Comprovativo de matrícula')).toBe(picker);
+  expect(screen.getByText('proof.pdf')).toBeInTheDocument();
 });

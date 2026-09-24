@@ -16,7 +16,9 @@ export function describeStudentVerification(snapshot, profileSnapshot, uid, emai
   const ready = Boolean(snapshot && profileSnapshot
     && !snapshot.metadata?.fromCache && !snapshot.metadata?.hasPendingWrites
     && !profileSnapshot.metadata?.fromCache && !profileSnapshot.metadata?.hasPendingWrites);
-  return { uid, data, profileName, status: ready ? 'ready' : 'loading',
+  return { uid, data, profileName, // Metadata-only presence writes must not unmount the native file picker.
+    // Approval still requires confirmed server snapshots below.
+    status: snapshot && profileSnapshot ? 'ready' : 'loading',
     approved: Boolean(ready && emailVerified && isStudentApproved(data, uid, profileName)),
     nameChanged: Boolean(data && data.profileName !== profileName) };
 }
