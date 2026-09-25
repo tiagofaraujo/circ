@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import './ProvisionalProgramme.css';
+import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
 
 // Times and pending confirmations transcribed from the supplied provisional programme.
 const days = [
   { day: '08', pt: 'Pré-Congresso', en: 'Pre-Congress', rows: [
     ['09:00–13:00', 'Pós-processamento em RM', 'MRI post-processing', 'Daniel Leitão (Siemens)'],
-    ['14:00–18:00', 'Via Verde AVC', 'Stroke fast-track pathway'],
+    ['14:00–18:00', strokeCourseTitle.pt, strokeCourseTitle.en],
   ] },
   { day: '09', pt: 'Congresso · Dia 1', en: 'Congress · Day 1', rows: [
     ['08:10', 'Check-in', 'Check-in'],
@@ -65,6 +66,7 @@ function ProgrammeRow({ row, en, nested = false }) {
     {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
       {!titleIsSpeaker && heading}
+      {pt === strokeCourseTitle.pt && <StrokeCourseDescription en={en} />}
       {speaker && <Link className="schedule-speaker" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${en ? 'view biography' : 'ver biografia'}`}>
         <img src={`/speakers/${speaker.image}`} alt="" width="52" height="52" loading="lazy" />
         <span><strong>{titleIsSpeaker ? title : speaker.name}</strong><small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small></span>
