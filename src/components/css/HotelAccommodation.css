@@ -1,8 +1,18 @@
+.coimbra-page .page-hero { min-height: 0; padding: 24px 0 36px; gap: 48px; border-bottom: 0; }
+.coimbra-page .page-hero__aside p { margin: 0; font-size: 1rem; }
 .coimbra-section-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 32px; }
 .coimbra-section-nav a { display: inline-flex; align-items: center; gap: 18px; min-height: 44px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 999px; font-size: .85rem; font-weight: 550; text-decoration: none; }
 .coimbra-section-nav a[href="#alojamento"] { background: var(--blue); color: #fff; border-color: var(--blue); }
-#local, #cursos, #alojamento { scroll-margin-top: 120px; }
-.hotel-section { margin-top: 72px; padding-top: 64px; border-top: 1px solid var(--line); }
+#local, #alojamento { scroll-margin-top: 120px; }
+.coimbra-venue { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px 32px; border: 1px solid #dcd5e8; border-radius: 18px; background: var(--mist); }
+.coimbra-venue__place .eyebrow { margin: 0 0 10px; font-size: .65rem; }
+.coimbra-venue__place h2 { margin: 0; font-family: var(--font-sans); font-size: clamp(1.3rem,2.1vw,1.8rem); font-weight: 550; line-height: 1.2; letter-spacing: -.03em; }
+.coimbra-venue__place > p:last-child { margin: 7px 0 0; font-size: .82rem; color: var(--ink-soft); }
+.coimbra-venue__date { display: flex; align-items: center; gap: 14px; padding-left: 28px; border-left: 1px solid rgba(32,22,127,.16); color: var(--blue-deep); }
+.coimbra-venue__date svg { flex-shrink: 0; }
+.coimbra-venue__date p { margin: 0; font-size: 1rem; font-weight: 550; line-height: 1.5; }
+.coimbra-venue__date span { display: block; font-size: .8rem; font-weight: 400; color: var(--ink-soft); }
+.hotel-section { margin-top: 56px; }
 .hotel-section__heading { display: grid; grid-template-columns: 1.1fr 1fr; align-items: end; gap: 40px; margin-bottom: 30px; }
 .hotel-section__heading h2 { font-size: clamp(2.2rem,4vw,4rem); font-weight: 500; line-height: 1.06; letter-spacing: -.05em; margin: 0; color: var(--blue-deep); }
 .hotel-section__heading > p { margin: 0; max-width: 520px; color: var(--ink-soft); font-size: 1rem; line-height: 1.7; }
@@ -10,7 +20,9 @@
 .hotel-section__notice strong { display: block; margin-bottom: 8px; font-weight: 600; font-size: .95rem; }
 .hotel-section__notice p { margin: 0; color: var(--ink-soft); font-size: .86rem; line-height: 1.7; }
 .hotel-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
-.hotel-card { min-width: 0; padding: 30px; border: 1px solid #ded9e8; border-radius: 22px; background: #fff; color: var(--blue-deep); }
+.hotel-card { min-width: 0; border: 1px solid #ded9e8; border-radius: 22px; background: #fff; color: var(--blue-deep); }
+.hotel-card__photo { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; object-fit: cover; object-position: center 20%; border-radius: 21px 21px 0 0; background: var(--mist); }
+.hotel-card__content { padding: 28px 30px 30px; }
 .hotel-card__heading p { color: var(--ink-soft); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 10px; }
 .hotel-card__heading h3 { font-size: clamp(1.5rem,2.3vw,2rem); line-height: 1.2; letter-spacing: -.035em; font-weight: 550; margin: 0; }
 .hotel-card__benefit { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
@@ -45,15 +57,23 @@
 .hotel-section__updated { margin: 24px 0 0; font-size: .76rem; line-height: 1.7; color: var(--ink-soft); }
 .hotel-section a:focus-visible, .hotel-section button:focus-visible, .hotel-section summary:focus-visible, .coimbra-section-nav a:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
 @media (max-width:760px) {
-  #local, #cursos, #alojamento { scroll-margin-top: 96px; }
+  #local, #alojamento { scroll-margin-top: 96px; }
+  .coimbra-page .page-hero { grid-template-columns: 1fr; gap: 20px; padding: 16px 0 26px; }
+  .coimbra-page .page-hero__aside p { font-size: .9rem; }
   .coimbra-section-nav { gap: 8px; margin-bottom: 24px; }
   .coimbra-section-nav a { font-size: .75rem; padding: 10px 14px; gap: 10px; }
-  .hotel-section { margin-top: 48px; padding-top: 42px; }
+  .coimbra-venue { flex-direction: column; align-items: stretch; gap: 18px; padding: 22px; }
+  .coimbra-venue__date { border-left: 0; border-top: 1px solid rgba(32,22,127,.16); padding: 16px 0 0; gap: 12px; }
+  .coimbra-venue__date p { font-size: .9rem; }
+  .coimbra-venue__date span { display: inline; font-size: inherit; font-weight: inherit; color: inherit; }
+  .hotel-section { margin-top: 40px; }
   .hotel-section__heading { grid-template-columns: 1fr; gap: 20px; }
   .hotel-section__heading > p { font-size: .9rem; }
   .hotel-section__notice { padding: 22px; }
   .hotel-grid { grid-template-columns: 1fr; gap: 18px; }
-  .hotel-card { padding: 24px; border-radius: 18px; }
+  .hotel-card { border-radius: 18px; }
+  .hotel-card__photo { aspect-ratio: 16 / 9; border-radius: 17px 17px 0 0; }
+  .hotel-card__content { padding: 22px; }
   .hotel-card__description { min-height: 0; }
   .hotel-card__benefit { margin-top: 22px; }
   .hotel-card__benefit strong { font-size: 2rem; }

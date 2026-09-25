@@ -42,30 +42,33 @@ export default function HotelAccommodation({ en }) {
       {hotels2027.map((hotel) => {
         const bookingHref = hotel.bookingType === 'email' ? `mailto:${hotel.email}?subject=${encodeURIComponent('CIRC 2027 — Pedido de reserva / Booking enquiry')}` : hotel.website;
         return <article className="hotel-card" key={hotel.id} aria-labelledby={`${hotel.id}-name`}>
-          <header className="hotel-card__heading"><p>{hotel.zone}</p><h3 id={`${hotel.id}-name`}>{hotel.name}</h3></header>
-          <div className="hotel-card__benefit"><strong>{text(hotel.benefit)}</strong><span>{text(hotel.benefitLabel)}</span></div>
-          <p className="hotel-card__description">{text(hotel.description)}</p>
-          {hotel.promoCode ? <BookingCode hotel={hotel} en={en} /> : <div className="hotel-reference"><span>{en ? 'Mention when booking' : 'Referência ao reservar'}</span><strong>{hotel.reference}</strong></div>}
-          <p className="hotel-card__booking">{text(hotel.booking)}</p>
-          <details className="hotel-details">
-            <summary>{en ? 'Conditions and contacts' : 'Condições e contactos'}<span aria-hidden="true">+</span></summary>
-            <div className="hotel-details__body">
-              <dl>
-                <div><dt>{en ? 'Eligible dates' : 'Datas abrangidas'}</dt><dd>{text(hotel.dates)}</dd></div>
-                <div><dt>{en ? 'Breakfast' : 'Pequeno-almoço'}</dt><dd>{text(hotel.breakfast)}</dd></div>
-                <div><dt>{en ? 'Tourist tax' : 'Taxa turística'}</dt><dd>{text(hotel.tax)}</dd></div>
-              </dl>
-              <p>{text(hotel.conditions)}</p>
-              <div className="hotel-details__contacts">
-                {hotel.email && <a href={`mailto:${hotel.email}`}>{hotel.email}</a>}
-                {hotel.phone && <a href={`tel:${hotel.phone.replace(/\s/g, '')}`}>{hotel.phone}</a>}
-                <a href={hotel.website} target="_blank" rel="noopener noreferrer">{en ? 'Hotel website' : 'Site do hotel'} <span aria-hidden="true">↗</span></a>
+          <img className="hotel-card__photo" src={hotel.image.src} alt={text(hotel.image.alt)} width={hotel.image.width} height={hotel.image.height} loading="lazy" decoding="async" />
+          <div className="hotel-card__content">
+            <header className="hotel-card__heading"><p>{hotel.zone}</p><h3 id={`${hotel.id}-name`}>{hotel.name}</h3></header>
+            <div className="hotel-card__benefit"><strong>{text(hotel.benefit)}</strong><span>{text(hotel.benefitLabel)}</span></div>
+            <p className="hotel-card__description">{text(hotel.description)}</p>
+            {hotel.promoCode ? <BookingCode hotel={hotel} en={en} /> : <div className="hotel-reference"><span>{en ? 'Mention when booking' : 'Referência ao reservar'}</span><strong>{hotel.reference}</strong></div>}
+            <p className="hotel-card__booking">{text(hotel.booking)}</p>
+            <details className="hotel-details">
+              <summary>{en ? 'Conditions and contacts' : 'Condições e contactos'}<span aria-hidden="true">+</span></summary>
+              <div className="hotel-details__body">
+                <dl>
+                  <div><dt>{en ? 'Eligible dates' : 'Datas abrangidas'}</dt><dd>{text(hotel.dates)}</dd></div>
+                  <div><dt>{en ? 'Breakfast' : 'Pequeno-almoço'}</dt><dd>{text(hotel.breakfast)}</dd></div>
+                  <div><dt>{en ? 'Tourist tax' : 'Taxa turística'}</dt><dd>{text(hotel.tax)}</dd></div>
+                </dl>
+                <p>{text(hotel.conditions)}</p>
+                <div className="hotel-details__contacts">
+                  {hotel.email && <a href={`mailto:${hotel.email}`}>{hotel.email}</a>}
+                  {hotel.phone && <a href={`tel:${hotel.phone.replace(/\s/g, '')}`}>{hotel.phone}</a>}
+                  <a href={hotel.website} target="_blank" rel="noopener noreferrer">{en ? 'Hotel website' : 'Site do hotel'} <span aria-hidden="true">↗</span></a>
+                </div>
               </div>
-            </div>
-          </details>
-          <a className="hotel-card__action" href={bookingHref} {...(hotel.bookingType === 'website' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-            {hotel.bookingType === 'email' ? (en ? 'Enquire by email' : 'Pedir reserva por email') : (en ? 'View rates at the hotel' : 'Ver tarifas no hotel')}<span aria-hidden="true">↗</span>
-          </a>
+            </details>
+            <a className="hotel-card__action" href={bookingHref} {...(hotel.bookingType === 'website' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              {hotel.bookingType === 'email' ? (en ? 'Enquire by email' : 'Pedir reserva por email') : (en ? 'View rates at the hotel' : 'Ver tarifas no hotel')}<span aria-hidden="true">↗</span>
+            </a>
+          </div>
         </article>;
       })}
     </div>

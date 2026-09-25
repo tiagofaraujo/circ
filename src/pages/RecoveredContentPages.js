@@ -68,12 +68,6 @@ const technicalCommission2025 = [
   'Tiago Araújo', 'Tiago Patrão',
 ];
 
-const historicStayNetwork = [
-  'Penedo da Saudade Suites e Hostel', 'Seminário Maior', 'Hotel Ibis Coimbra Centro',
-  'Hotel Astória', 'Hotel Oslo Coimbra', 'Zero Box Lodge', 'Pousada de Juventude de Coimbra',
-  'Restaurante No Tacho', 'Spaghetti Notte',
-];
-
 export function OrganizationPage() {
   const { language } = useLanguage();
   const en = language === 'en';
@@ -221,75 +215,33 @@ export function EnhancedPartnersPage() {
 export function EnhancedCoimbraPage() {
   const { language } = useLanguage();
   const en = language === 'en';
-  const historicList = historicStayNetwork.join(', ');
 
   return (
-    <main className="page">
+    <main className="page coimbra-page">
       <PageHero
-        eyebrow="Coimbra"
-        title={tx(en, 'Venue, stay and city', 'Local, estadia e cidade')}
-        status={tx(en, 'Practical information being updated', 'Informação prática em atualização')}
-        lead={tx(en, 'CIRC 2027 takes place from 8 to 10 April. Two Pre-Congress Courses take place on 8 April — one in the morning and one in the afternoon. The International Congress on 9 and 10 April is confirmed at Convento São Francisco.', 'O CIRC 2027 decorre entre 8 e 10 de abril. No dia 8 realizam-se dois Cursos Pré-Congresso — um de manhã e outro à tarde. O Congresso Internacional de 9 e 10 de abril está confirmado no Convento São Francisco.')}
+        eyebrow="Coimbra · CIRC 2027"
+        title={tx(en, 'Your stay in Coimbra.', 'A sua estadia em Coimbra.')}
+        lead={tx(en, 'Find your hotel and explore the accommodation offers for congress participants.', 'Encontre o seu hotel e consulte as condições de alojamento para os participantes do congresso.')}
       />
 
       <nav className="coimbra-section-nav" aria-label={tx(en, 'On this page', 'Nesta página')}>
-        <a href="#local">{tx(en, 'Congress venue', 'Local do congresso')} <span aria-hidden="true">↓</span></a>
         <a href="#alojamento">{tx(en, 'Hotels and conditions', 'Hotéis e condições')} <span aria-hidden="true">↓</span></a>
-        <a href="#cursos">{tx(en, 'Pre-Congress courses', 'Cursos Pré-Congresso')} <span aria-hidden="true">↓</span></a>
+        <a href="#local">{tx(en, 'Congress venue', 'Local do congresso')} <span aria-hidden="true">↓</span></a>
       </nav>
 
-      <section id="local" className="venue-feature venue-feature--2027">
-        <div className="venue-feature__date">
-          <span className="venue-feature__course">08</span>
-          <span>09—10</span>
-          <small>{tx(en, 'APR · 2027', 'ABR · 2027')}</small>
-        </div>
-        <div className="venue-feature__copy">
-          <p className="eyebrow">Venue</p>
-          <h2>Convento São Francisco</h2>
+      <section id="local" className="coimbra-venue" aria-labelledby="coimbra-venue-name">
+        <div className="coimbra-venue__place">
+          <p className="eyebrow">{tx(en, 'Congress venue', 'Local do congresso')}</p>
+          <h2 id="coimbra-venue-name">Convento São Francisco</h2>
           <p>Coimbra · Portugal</p>
-          <p>{tx(en, 'Main venue for the International Congress on 9 and 10 April 2027.', 'Local principal do Congresso Internacional nos dias 9 e 10 de abril de 2027.')}</p>
+        </div>
+        <div className="coimbra-venue__date">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18" /></svg>
+          <p>{tx(en, '9 & 10 April', '9 e 10 de abril')} <span>2027</span></p>
         </div>
       </section>
 
       <HotelAccommodation en={en} />
-
-      <section id="cursos" className="course-location-section">
-        <div>
-          <p className="eyebrow">{tx(en, '8 April · Pre-Congress', '8 abril · Pré-Congresso')}</p>
-          <h2>{tx(en, 'Two courses, two training sessions.', 'Dois cursos, dois momentos de formação.')}</h2>
-          <p>{tx(en, 'The venue and room for each course will be published after final confirmation.', 'O local e a sala de cada curso serão publicados após confirmação final.')}</p>
-        </div>
-        <div className="course-session-grid">
-          <article>
-            <span>{tx(en, '08 · Morning', '08 · Manhã')}</span>
-            <strong>{tx(en, 'Morning Course', 'Curso da manhã')}</strong>
-            <small>{tx(en, 'Venue to be confirmed', 'Local a confirmar')}</small>
-          </article>
-          <article>
-            <span>{tx(en, '08 · Afternoon', '08 · Tarde')}</span>
-            <strong>{tx(en, 'Afternoon Course', 'Curso da tarde')}</strong>
-            <small>{tx(en, 'Venue to be confirmed', 'Local a confirmar')}</small>
-          </article>
-        </div>
-      </section>
-
-      <section className="recovered-section">
-        <SectionHeader
-          eyebrow={tx(en, 'Participant journey', 'Percurso do participante')}
-          title={tx(en, 'Arrive. Stay. Experience Coimbra.', 'Chegar. Ficar. Viver Coimbra.')}
-          text={tx(en, 'Accommodation and restaurants remain part of the congress experience. For 2027, only reconfirmed conditions will be presented as official CIRC partnerships.', 'Alojamento e restauração continuam a fazer parte da experiência do congresso. Em 2027, apenas condições reconfirmadas serão apresentadas como parcerias oficiais CIRC.')}
-        />
-        <div className="recovered-grid">
-          <FeatureCard number="01" title={tx(en, 'Getting here', 'Como chegar')} text={tx(en, 'Transport, access, parking and practical arrival information will be organised here before the congress.', 'Transportes, acessos, estacionamento e informação prática de chegada serão organizados aqui antes do congresso.')} />
-          <FeatureCard number="02" title={tx(en, 'Where to stay', 'Onde ficar')} text={tx(en, 'See the hotel offers above, use the indicated code or reference and book directly with the hotel.', 'Consulte as condições de alojamento acima, utilize o código ou a referência indicada e reserve diretamente com o hotel.')} />
-          <FeatureCard number="03" accent title={tx(en, 'Experience the city', 'Viver a cidade')} text={tx(en, 'Restaurants, cultural references and selected city information will help participants make the most of Coimbra.', 'Restauração, referências culturais e informação selecionada da cidade ajudarão os participantes a aproveitar Coimbra.')} />
-        </div>
-        <div className="historic-network">
-          <h3>{tx(en, 'Historical 2025 network', 'Rede histórica de 2025')}</h3>
-          <p>{tx(en, `The previous website included ${historicList}. All 2025 discounts, codes and commercial conditions are expired and will only return if reconfirmed for 2027.`, `O website anterior incluía ${historicList}. Todos os descontos, códigos e condições comerciais de 2025 estão expirados e só voltarão a ser apresentados se forem reconfirmados para 2027.`)}</p>
-        </div>
-      </section>
     </main>
   );
 }
