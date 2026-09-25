@@ -91,7 +91,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'julien-greggio', name: 'Julien Greggio', initials: 'JG', image: null,
+    id: 'julien-greggio', name: 'Julien Greggio', initials: 'JG', image: 'julien-greggio.jpg',
     institution: 'Everything MRI · City St George’s, University of London',
     pt: { field: 'RM, inteligência artificial e educação', role: 'Cofundador e COO da Everything MRI', bio: [
       'Julien Greggio é um profissional de saúde dedicado às técnicas avançadas de imagem, em particular à ressonância magnética. Desde o início da sua carreira em RM, em 2015, tem trabalhado na melhoria dos cuidados nos setores público e privado, conjugando a experiência clínica como técnico de Radiologia em RM com a formação de futuros profissionais.',
