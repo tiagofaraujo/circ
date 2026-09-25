@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ContactForm from '../components/js/ContactForm';
+import HotelAccommodation from '../components/HotelAccommodation';
 import { useLanguage } from '../context/LanguageContext';
 import '../recoveredContent.css';
 
@@ -231,7 +232,13 @@ export function EnhancedCoimbraPage() {
         lead={tx(en, 'CIRC 2027 takes place from 8 to 10 April. Two Pre-Congress Courses take place on 8 April — one in the morning and one in the afternoon. The International Congress on 9 and 10 April is confirmed at Convento São Francisco.', 'O CIRC 2027 decorre entre 8 e 10 de abril. No dia 8 realizam-se dois Cursos Pré-Congresso — um de manhã e outro à tarde. O Congresso Internacional de 9 e 10 de abril está confirmado no Convento São Francisco.')}
       />
 
-      <section className="venue-feature venue-feature--2027">
+      <nav className="coimbra-section-nav" aria-label={tx(en, 'On this page', 'Nesta página')}>
+        <a href="#local">{tx(en, 'Congress venue', 'Local do congresso')} <span aria-hidden="true">↓</span></a>
+        <a href="#alojamento">{tx(en, 'Hotels and conditions', 'Hotéis e condições')} <span aria-hidden="true">↓</span></a>
+        <a href="#cursos">{tx(en, 'Pre-Congress courses', 'Cursos Pré-Congresso')} <span aria-hidden="true">↓</span></a>
+      </nav>
+
+      <section id="local" className="venue-feature venue-feature--2027">
         <div className="venue-feature__date">
           <span className="venue-feature__course">08</span>
           <span>09—10</span>
@@ -245,7 +252,9 @@ export function EnhancedCoimbraPage() {
         </div>
       </section>
 
-      <section className="course-location-section">
+      <HotelAccommodation en={en} />
+
+      <section id="cursos" className="course-location-section">
         <div>
           <p className="eyebrow">{tx(en, '8 April · Pre-Congress', '8 abril · Pré-Congresso')}</p>
           <h2>{tx(en, 'Two courses, two training sessions.', 'Dois cursos, dois momentos de formação.')}</h2>
@@ -273,7 +282,7 @@ export function EnhancedCoimbraPage() {
         />
         <div className="recovered-grid">
           <FeatureCard number="01" title={tx(en, 'Getting here', 'Como chegar')} text={tx(en, 'Transport, access, parking and practical arrival information will be organised here before the congress.', 'Transportes, acessos, estacionamento e informação prática de chegada serão organizados aqui antes do congresso.')} />
-          <FeatureCard number="02" title={tx(en, 'Where to stay', 'Onde ficar')} text={tx(en, 'Hotels and accommodation with confirmed 2027 conditions will be clearly identified.', 'Hotéis e alojamentos com condições confirmadas para 2027 serão claramente identificados.')} />
+          <FeatureCard number="02" title={tx(en, 'Where to stay', 'Onde ficar')} text={tx(en, 'See the hotel offers above, use the indicated code or reference and book directly with the hotel.', 'Consulte as condições de alojamento acima, utilize o código ou a referência indicada e reserve diretamente com o hotel.')} />
           <FeatureCard number="03" accent title={tx(en, 'Experience the city', 'Viver a cidade')} text={tx(en, 'Restaurants, cultural references and selected city information will help participants make the most of Coimbra.', 'Restauração, referências culturais e informação selecionada da cidade ajudarão os participantes a aproveitar Coimbra.')} />
         </div>
         <div className="historic-network">

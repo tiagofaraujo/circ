@@ -1,0 +1,87 @@
+// Participant conditions supplied by the organisation on 25 September 2026.
+// These are received offers, not a declaration of official hotel status.
+// Keep private speaker rates and negotiation notes out of this public dataset.
+const confirmBreakfast = { pt: 'A confirmar com o hotel.', en: 'Confirm with the hotel.' };
+const confirmTax = { pt: 'Valor e inclusão a confirmar com o hotel.', en: 'Confirm the amount and whether it is included with the hotel.' };
+const eventDates = { pt: 'Estadia para o CIRC 2027. Confirme as noites abrangidas com o hotel.', en: 'Stays for CIRC 2027. Confirm eligible nights with the hotel.' };
+
+export const hotels2027 = [
+  {
+    id: 'hotel-d-luis', name: 'Hotel D. Luís', zone: 'Santa Clara',
+    website: 'https://www.hoteldluis.pt/', email: 'reservas@hoteldluis.pt', phone: '+351 239 802 120', bookingType: 'email',
+    reference: 'CIRC 2027',
+    benefit: { pt: '80 € / 90 €', en: '€80 / €90' },
+    benefitLabel: { pt: 'Single / duplo · por quarto e noite', en: 'Single / double · per room, per night' },
+    description: { pt: 'Tarifas fixas com pequeno-almoço incluído.', en: 'Fixed rates including breakfast.' },
+    booking: { pt: 'Reserve por email ou telefone e mencione o CIRC 2027.', en: 'Book by email or telephone and mention CIRC 2027.' },
+    dates: { pt: '8 a 10 de abril de 2027.', en: '8–10 April 2027.' },
+    breakfast: { pt: 'Incluído.', en: 'Included.' },
+    tax: { pt: '1,00 € por pessoa/noite, segundo a proposta recebida. Confirme o valor aplicável na reserva.', en: '€1.00 per person/night in the received offer. Confirm the applicable amount when booking.' },
+    conditions: { pt: 'Confirme a disponibilidade, o prazo de reserva e as condições de cancelamento diretamente com o hotel.', en: 'Confirm availability, the booking deadline and cancellation terms directly with the hotel.' },
+  },
+  {
+    id: 'hotel-astoria', name: 'Hotel Astória', zone: 'Baixa · Rio Mondego',
+    website: 'https://www.almeidahotels.pt/', email: 'astoria@almeidahotels.pt', phone: '+351 239 853 020', bookingType: 'website',
+    promoCode: 'CIRC2027',
+    benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
+    description: { pt: 'Sobre a melhor tarifa disponível (BAR), em quarto single ou duplo.', en: 'Off the best available rate (BAR), for single or double rooms.' },
+    booking: { pt: 'No site Almeida Hotels, selecione o Hotel Astória e indique o código CIRC2027.', en: 'On the Almeida Hotels website, select Hotel Astória and enter code CIRC2027.' },
+    dates: { pt: '7 a 11 de abril de 2027.', en: '7–11 April 2027.' },
+    breakfast: { pt: 'Pequeno-almoço buffet incluído.', en: 'Buffet breakfast included.' },
+    tax: { pt: '2,00 € por pessoa/noite, segundo a proposta recebida. Confirme o valor aplicável na reserva.', en: '€2.00 per person/night in the received offer. Confirm the applicable amount when booking.' },
+    conditions: { pt: 'Confirme o valor final e a política de cancelamento com o hotel antes de concluir a reserva.', en: 'Confirm the final price and cancellation policy with the hotel before completing your booking.' },
+  },
+  {
+    id: 'hotel-mondego', name: 'Hotel Mondego', zone: 'Baixa · Largo das Ameias',
+    website: 'https://hotelmondego.com/', email: 'info@hotelmondego.com', phone: '+351 239 496 239', bookingType: 'email',
+    reference: 'CIRC 2027 — Congresso Internacional de Radiologia de Coimbra',
+    benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
+    description: { pt: 'Sobre as tarifas do website, para reservas diretas por email ou telefone.', en: 'Off the website rates, for direct bookings by email or telephone.' },
+    booking: { pt: 'Contacte o hotel por email ou telefone e identifique o congresso.', en: 'Contact the hotel by email or telephone and identify the congress.' },
+    dates: eventDates, breakfast: confirmBreakfast, tax: confirmTax,
+    conditions: { pt: 'O desconto indicado aplica-se à reserva por contacto direto. Confirme as condições de cancelamento com o hotel.', en: 'The stated discount applies when booking by direct contact. Confirm cancellation terms with the hotel.' },
+  },
+  {
+    id: 'vila-gale-coimbra', name: 'Vila Galé Coimbra', zone: 'Coimbra · Rio Mondego',
+    website: 'https://reservas.vilagale.com/engine/search', bookingType: 'website',
+    promoCode: 'CIRC2027',
+    benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
+    description: { pt: 'Sobre a melhor tarifa disponível no momento da reserva.', en: 'Off the best available rate at the time of booking.' },
+    booking: { pt: 'No site Vila Galé, selecione Coimbra e introduza o código CIRC2027.', en: 'On the Vila Galé website, select Coimbra and enter code CIRC2027.' },
+    dates: { pt: '7 a 11 de abril de 2027.', en: '7–11 April 2027.' },
+    breakfast: confirmBreakfast, tax: confirmTax,
+    conditions: { pt: 'Não aplicável a tarifas não reembolsáveis. Sem bloqueio de quartos; sujeito à disponibilidade e às tarifas existentes no momento da consulta. Confirme a política de cancelamento da tarifa escolhida.', en: 'Not applicable to non-refundable rates. No rooms are held; subject to availability and rates at the time of enquiry. Confirm the cancellation policy for your selected rate.' },
+  },
+  {
+    id: 'tivoli-coimbra', name: 'Tivoli Coimbra Hotel', zone: 'Centro · Rua João Machado',
+    website: 'https://www.tivolihotels.com/pt/tivoli-coimbra', email: 'groups.coimbra@tivoli-hotels.com', phone: '+351 239 858 300', bookingType: 'website',
+    promoCode: 'TCOIWED',
+    benefit: { pt: '15%', en: '15%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
+    description: { pt: 'Sobre a tarifa selecionada no site Tivoli. O preço final depende da tarifa do dia.', en: 'Off the selected rate on the Tivoli website. The final price depends on the daily rate.' },
+    booking: { pt: 'No site Tivoli, selecione o hotel de Coimbra e introduza o código TCOIWED.', en: 'On the Tivoli website, select the Coimbra hotel and enter code TCOIWED.' },
+    dates: { pt: 'Datas abrangidas por confirmar com o hotel antes de reservar.', en: 'Confirm eligible dates with the hotel before booking.' },
+    breakfast: confirmBreakfast, tax: confirmTax,
+    conditions: { pt: 'Sem tarifa fixa ou bloco de quartos. Confirme a validade do código para as suas datas, a disponibilidade e as condições de cancelamento.', en: 'No fixed rate or room block. Confirm code validity for your dates, availability and cancellation terms.' },
+  },
+  {
+    id: 'nh-coimbra-dona-ines', name: 'NH Coimbra Dona Inês', zone: 'Centro · Rua Abel Dias Urbano',
+    website: 'https://www.nh-hotels.com/pt/hotel/nh-coimbra-dona-ines', phone: '+351 239 855 800', bookingType: 'website',
+    promoCode: 'NHDINESWED',
+    benefit: { pt: 'Tarifa especial', en: 'Special rate' }, benefitLabel: { pt: 'com código de reserva', en: 'with booking code' },
+    description: { pt: 'Desconto sobre as tarifas do dia. Percentagem a confirmar com o hotel.', en: 'Discount on daily rates. Confirm the percentage with the hotel.' },
+    booking: { pt: 'No site NH Hotels, selecione o NH Coimbra Dona Inês e introduza o código NHDINESWED.', en: 'On the NH Hotels website, select NH Coimbra Dona Inês and enter code NHDINESWED.' },
+    dates: { pt: '8, 9 e 10 de abril de 2027.', en: '8, 9 and 10 April 2027.' },
+    breakfast: confirmBreakfast, tax: confirmTax,
+    conditions: { pt: 'Confirme o desconto aplicado, o preço final e as condições de cancelamento antes de concluir a reserva. Não existe bloqueio de quartos confirmado.', en: 'Confirm the applied discount, final price and cancellation terms before completing your booking. No room block is confirmed.' },
+  },
+  {
+    id: 'hotel-vitoria', name: 'Hotel Vitória', zone: 'Baixa · Centro de Coimbra',
+    website: 'https://hotelvitoria.pt/', email: 'reservas@hotelvitoria.pt', phone: '+351 239 824 049', bookingType: 'email',
+    reference: 'CIRC 2027',
+    benefit: { pt: '5%', en: '5%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
+    description: { pt: 'Sobre a tarifa standard em vigor no momento da consulta.', en: 'Off the standard rate at the time of enquiry.' },
+    booking: { pt: 'Reserve diretamente com o hotel e mencione o CIRC 2027. Pode usar email, telefone, site ou balcão.', en: 'Book directly with the hotel and mention CIRC 2027. You can use email, telephone, the website or reception.' },
+    dates: eventDates, breakfast: confirmBreakfast, tax: confirmTax,
+    conditions: { pt: 'Sem tarifa fixa. Confirme a disponibilidade e as condições de cancelamento diretamente com o hotel.', en: 'No fixed rate. Confirm availability and cancellation terms directly with the hotel.' },
+  },
+];

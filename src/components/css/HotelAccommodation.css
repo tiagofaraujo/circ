@@ -1,0 +1,62 @@
+.coimbra-section-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 32px; }
+.coimbra-section-nav a { display: inline-flex; align-items: center; gap: 18px; min-height: 44px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 999px; font-size: .85rem; font-weight: 550; text-decoration: none; }
+.coimbra-section-nav a[href="#alojamento"] { background: var(--blue); color: #fff; border-color: var(--blue); }
+#local, #cursos, #alojamento { scroll-margin-top: 120px; }
+.hotel-section { margin-top: 72px; padding-top: 64px; border-top: 1px solid var(--line); }
+.hotel-section__heading { display: grid; grid-template-columns: 1.1fr 1fr; align-items: end; gap: 40px; margin-bottom: 30px; }
+.hotel-section__heading h2 { font-size: clamp(2.2rem,4vw,4rem); font-weight: 500; line-height: 1.06; letter-spacing: -.05em; margin: 0; color: var(--blue-deep); }
+.hotel-section__heading > p { margin: 0; max-width: 520px; color: var(--ink-soft); font-size: 1rem; line-height: 1.7; }
+.hotel-section__notice { padding: 24px 28px; margin-bottom: 28px; background: var(--mist); border-radius: 18px; border: 1px solid #dcd5e8; }
+.hotel-section__notice strong { display: block; margin-bottom: 8px; font-weight: 600; font-size: .95rem; }
+.hotel-section__notice p { margin: 0; color: var(--ink-soft); font-size: .86rem; line-height: 1.7; }
+.hotel-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.hotel-card { min-width: 0; padding: 30px; border: 1px solid #ded9e8; border-radius: 22px; background: #fff; color: var(--blue-deep); }
+.hotel-card__heading p { color: var(--ink-soft); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 10px; }
+.hotel-card__heading h3 { font-size: clamp(1.5rem,2.3vw,2rem); line-height: 1.2; letter-spacing: -.035em; font-weight: 550; margin: 0; }
+.hotel-card__benefit { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
+.hotel-card__benefit strong { font-size: clamp(1.8rem,3vw,2.7rem); font-weight: 600; line-height: 1.1; letter-spacing: -.05em; color: var(--blue); }
+.hotel-card__benefit span { font-size: .75rem; color: var(--ink-soft); }
+.hotel-card__description { margin: 12px 0 24px; font-size: .9rem; line-height: 1.6; color: var(--ink-soft); min-height: 2.9em; }
+.hotel-code, .hotel-reference { padding: 16px 18px; background: #f4f1f8; border: 1px solid #e4deee; border-radius: 12px; }
+.hotel-code { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
+.hotel-code > div { min-width: 0; }
+.hotel-code > div > span, .hotel-reference > span { display: block; margin-bottom: 5px; font-size: .7rem; color: var(--ink-soft); }
+.hotel-code code { font-family: var(--font-sans); font-size: 1.05rem; font-weight: 650; letter-spacing: .05em; color: var(--blue-deep); user-select: all; overflow-wrap: anywhere; }
+.hotel-code button { min-width: 72px; min-height: 44px; padding: 10px 12px; font-size: .76rem; font-weight: 600; color: var(--blue); background: #fff; border: 1px solid #d8d0e7; border-radius: 8px; cursor: pointer; }
+.hotel-code button:hover { background: var(--mist); }
+.hotel-code__status { width: 100%; font-size: .75rem; color: var(--ink-soft); }
+.hotel-code__status:empty { display: none; }
+.hotel-reference strong { display: block; font-size: .87rem; font-weight: 550; line-height: 1.6; }
+.hotel-card__booking { margin: 18px 0; font-size: .84rem; line-height: 1.65; color: var(--ink-soft); }
+.hotel-details { border-top: 1px solid var(--line); }
+.hotel-details summary { display: flex; justify-content: space-between; gap: 14px; align-items: center; min-height: 52px; padding: 14px 0; font-size: .84rem; font-weight: 550; cursor: pointer; list-style: none; }
+.hotel-details summary::-webkit-details-marker { display: none; }
+.hotel-details summary > span { font-size: 1.3rem; font-weight: 400; transition: transform .15s; }
+.hotel-details[open] summary > span { transform: rotate(45deg); }
+.hotel-details__body { padding: 4px 0 22px; font-size: .82rem; color: var(--ink-soft); line-height: 1.65; }
+.hotel-details__body dl { display: grid; gap: 16px; margin: 0; }
+.hotel-details__body dt { font-weight: 600; color: var(--blue-deep); }
+.hotel-details__body dd { margin: 3px 0 0; }
+.hotel-details__body > p { margin: 20px 0; }
+.hotel-details__contacts { display: flex; flex-direction: column; gap: 4px; }
+.hotel-details__contacts a { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; overflow-wrap: anywhere; text-underline-offset: 4px; }
+.hotel-card__action { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 50px; margin-top: 10px; padding: 14px 18px; border-radius: 10px; background: var(--blue); color: #fff; text-decoration: none; font-size: .84rem; font-weight: 550; }
+.hotel-card__action:hover { background: var(--blue-deep); color: #fff; }
+.hotel-section__updated { margin: 24px 0 0; font-size: .76rem; line-height: 1.7; color: var(--ink-soft); }
+.hotel-section a:focus-visible, .hotel-section button:focus-visible, .hotel-section summary:focus-visible, .coimbra-section-nav a:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+@media (max-width:760px) {
+  #local, #cursos, #alojamento { scroll-margin-top: 96px; }
+  .coimbra-section-nav { gap: 8px; margin-bottom: 24px; }
+  .coimbra-section-nav a { font-size: .75rem; padding: 10px 14px; gap: 10px; }
+  .hotel-section { margin-top: 48px; padding-top: 42px; }
+  .hotel-section__heading { grid-template-columns: 1fr; gap: 20px; }
+  .hotel-section__heading > p { font-size: .9rem; }
+  .hotel-section__notice { padding: 22px; }
+  .hotel-grid { grid-template-columns: 1fr; gap: 18px; }
+  .hotel-card { padding: 24px; border-radius: 18px; }
+  .hotel-card__description { min-height: 0; }
+  .hotel-card__benefit { margin-top: 22px; }
+  .hotel-card__benefit strong { font-size: 2rem; }
+  .hotel-code, .hotel-reference { padding: 14px; }
+}
+@media (prefers-reduced-motion:reduce) { .hotel-details summary > span { transition: none; } }
