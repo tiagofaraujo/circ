@@ -15,15 +15,15 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'tobias-gilk', name: 'Tobias “Toby” Gilk', initials: 'TG', image: 'tobias-gilk.jpg',
+    id: 'tobias-gilk', name: 'Tobias Gilk', initials: 'TG', image: 'tobias-gilk.jpg',
     institution: 'RAD-Planning · Gilk Radiology Consultants',
     pt: { field: 'Segurança em ressonância magnética', role: 'Arquiteto · Consultor · MRSO e MRSE', bio: [
-      'Tobias “Toby” Gilk é arquiteto de formação e iniciou a sua ligação à segurança em ressonância magnética há mais de duas décadas, através do projeto de instalações de RM. O seu interesse alargou-se rapidamente do espaço físico a todas as vertentes da segurança em RM.',
+      'Tobias Gilk é arquiteto de formação e iniciou a sua ligação à segurança em ressonância magnética há mais de duas décadas, através do projeto de instalações de RM. O seu interesse alargou-se rapidamente do espaço físico a todas as vertentes da segurança em RM.',
       'Integrou por duas vezes a Comissão de Segurança em RM do American College of Radiology (ACR) e é coautor das publicações de segurança em RM de 2007, 2019 e 2020. É membro fundador do conselho de administração do American Board of Magnetic Resonance Safety (ABMRS), ao qual já presidiu, e detém as credenciais MRSO e MRSE desta entidade.',
       'Continua a exercer arquitetura na RAD-Planning e presta consultoria em segurança e operações de RM através da sua empresa, Gilk Radiology Consultants. É também um dos fundadores e presidente da RSQS (Remote Scanning Quality and Safety), uma organização sem fins lucrativos.'
     ] },
     en: { field: 'MRI safety', role: 'Architect · Consultant · MRSO and MRSE', bio: [
-      'Tobias “Toby” Gilk trained as an architect and began his involvement in MRI safety more than twenty years ago, designing MRI facilities. His interest quickly expanded from the physical environment to all aspects of MRI safety.',
+      'Tobias Gilk trained as an architect and began his involvement in MRI safety more than twenty years ago, designing MRI facilities. His interest quickly expanded from the physical environment to all aspects of MRI safety.',
       'He has twice served on the ACR’s MRI Safety Committee and is a named author on its 2007, 2019 and 2020 MRI safety publications. He is a founding board member and past chair of the ABMRS, and holds its MRSO and MRSE credentials.',
       'He continues to work as an architect at RAD-Planning and provides MRI safety and operational consulting through Gilk Radiology Consultants. He is also a founder and President of the non-profit organisation RSQS (Remote Scanning Quality and Safety).'
     ] }
