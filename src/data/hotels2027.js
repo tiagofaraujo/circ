@@ -8,6 +8,7 @@ const eventDates = { pt: 'Estadia para o CIRC 2027. Confirme as noites abrangida
 export const hotels2027 = [
   {
     id: 'hotel-d-luis', name: 'Hotel D. Luís', zone: 'Santa Clara',
+    image: { src: '/hotels/hotel-d-luis.webp', width: 1024, height: 768, alt: { pt: 'Fachada do Hotel D. Luís', en: 'Hotel D. Luís exterior' } },
     website: 'https://www.hoteldluis.pt/', email: 'reservas@hoteldluis.pt', phone: '+351 239 802 120', bookingType: 'email',
     reference: 'CIRC 2027',
     benefit: { pt: '80 € / 90 €', en: '€80 / €90' },
@@ -21,6 +22,7 @@ export const hotels2027 = [
   },
   {
     id: 'hotel-astoria', name: 'Hotel Astória', zone: 'Baixa · Rio Mondego',
+    image: { src: '/hotels/hotel-astoria.webp', width: 1200, height: 700, alt: { pt: 'Fachada do Hotel Astória', en: 'Hotel Astória exterior' } },
     website: 'https://www.almeidahotels.pt/', email: 'astoria@almeidahotels.pt', phone: '+351 239 853 020', bookingType: 'website',
     promoCode: 'CIRC2027',
     benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
@@ -33,6 +35,7 @@ export const hotels2027 = [
   },
   {
     id: 'hotel-mondego', name: 'Hotel Mondego', zone: 'Baixa · Largo das Ameias',
+    image: { src: '/hotels/hotel-mondego.webp', width: 1190, height: 926, alt: { pt: 'Fachada do Hotel Mondego ao entardecer', en: 'Hotel Mondego exterior at dusk' } },
     website: 'https://hotelmondego.com/', email: 'info@hotelmondego.com', phone: '+351 239 496 239', bookingType: 'email',
     reference: 'CIRC 2027 — Congresso Internacional de Radiologia de Coimbra',
     benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
@@ -43,6 +46,7 @@ export const hotels2027 = [
   },
   {
     id: 'vila-gale-coimbra', name: 'Vila Galé Coimbra', zone: 'Coimbra · Rio Mondego',
+    image: { src: '/hotels/vila-gale-coimbra.webp', width: 1200, height: 900, alt: { pt: 'Vila Galé Coimbra e piscina exterior', en: 'Vila Galé Coimbra and outdoor pool' } },
     website: 'https://reservas.vilagale.com/engine/search', bookingType: 'website',
     promoCode: 'CIRC2027',
     benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
@@ -54,6 +58,7 @@ export const hotels2027 = [
   },
   {
     id: 'tivoli-coimbra', name: 'Tivoli Coimbra Hotel', zone: 'Centro · Rua João Machado',
+    image: { src: '/hotels/tivoli-coimbra.webp', width: 1200, height: 563, alt: { pt: 'Quarto do Tivoli Coimbra, imagem do site oficial', en: 'Tivoli Coimbra room, image from the official website' } },
     website: 'https://www.tivolihotels.com/pt/tivoli-coimbra', email: 'groups.coimbra@tivoli-hotels.com', phone: '+351 239 858 300', bookingType: 'website',
     promoCode: 'TCOIWED',
     benefit: { pt: '15%', en: '15%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
@@ -65,6 +70,7 @@ export const hotels2027 = [
   },
   {
     id: 'nh-coimbra-dona-ines', name: 'NH Coimbra Dona Inês', zone: 'Centro · Rua Abel Dias Urbano',
+    image: { src: '/hotels/nh-coimbra-dona-ines.webp', width: 1200, height: 811, alt: { pt: 'Entrada do NH Coimbra Dona Inês', en: 'NH Coimbra Dona Inês entrance' } },
     website: 'https://www.nh-hotels.com/pt/hotel/nh-coimbra-dona-ines', phone: '+351 239 855 800', bookingType: 'website',
     promoCode: 'NHDINESWED',
     benefit: { pt: 'Tarifa especial', en: 'Special rate' }, benefitLabel: { pt: 'com código de reserva', en: 'with booking code' },
@@ -76,6 +82,7 @@ export const hotels2027 = [
   },
   {
     id: 'hotel-vitoria', name: 'Hotel Vitória', zone: 'Baixa · Centro de Coimbra',
+    image: { src: '/hotels/hotel-vitoria.webp', width: 1200, height: 797, alt: { pt: 'Quarto twin do Hotel Vitória', en: 'Twin room at Hotel Vitória' } },
     website: 'https://hotelvitoria.pt/', email: 'reservas@hotelvitoria.pt', phone: '+351 239 824 049', bookingType: 'email',
     reference: 'CIRC 2027',
     benefit: { pt: '5%', en: '5%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
