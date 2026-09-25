@@ -59,7 +59,7 @@ function ScrollToTop() {
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      const target = hash === '#my-works' ? document.getElementById('my-works') : null;
+      const target = hash ? document.getElementById(hash.slice(1)) : null;
       if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
       else window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     });
