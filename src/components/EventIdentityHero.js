@@ -6,7 +6,7 @@ export default function EventIdentityHero({ en }) {
   const { user } = useAuth();
   return <>
     <section className="event-hero" aria-labelledby="event-title">
-      <div className="event-hero__art" aria-hidden="true"><img src="/identity2027/bell-radiograph.png" alt="" width="1122" height="1188" fetchPriority="high" /></div>
+      <div className="event-hero__art" aria-hidden="true"><img src="/identity2027/bell-radiograph-hq.jpg" alt="" width="1451" height="1536" fetchPriority="high" /></div>
       <div className="event-hero__inner">
         <div className="event-hero__copy">
           <p className="event-hero__edition">CIRC 2027 <span>03 / {en ? 'Third edition' : 'Terceira edição'}</span></p>
