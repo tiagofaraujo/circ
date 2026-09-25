@@ -1,0 +1,37 @@
+.guest-section, .guest-directory, .guest-profile { max-width: var(--max-width, 1440px); margin: 0 auto; padding: 88px 48px; color: #232eb7; }
+.guest-section { border-bottom: 1px solid rgba(35,46,183,.2); }
+.guest-heading { display: grid; grid-template-columns: 1.25fr 1fr; gap: 64px; align-items: end; margin-bottom: 48px; }
+.guest-heading h1, .guest-heading h2 { margin: 0; font-size: clamp(2.3rem,4.5vw,4.2rem); font-weight: 500; line-height: 1.06; letter-spacing: -.045em; max-width: 680px; }
+.guest-heading > p { margin: 0; max-width: 470px; color: #45465d; line-height: 1.65; font-size: 1.1rem; }
+.guest-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 28px; }
+.guest-card { min-width: 0; background: #fff; border: 1px solid rgba(35,46,183,.13); }
+.guest-card__link { color: inherit; display: flex; flex-direction: column; height: 100%; text-decoration: none; padding: 30px 26px 26px; }
+.guest-portrait { width: min(100%,240px); aspect-ratio: 1; margin: 0 auto; border-radius: 50%; overflow: hidden; background: #f5f1ec; }
+.guest-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.guest-portrait--fides-schwartz img { object-position: 50% 23%; }
+.guest-portrait--michael-fuller img { object-position: 50% 25%; }
+.guest-initials { display: grid; place-items: center; height: 100%; font-size: 4.5rem; font-weight: 300; color: #232eb7; background: #efe8df; }
+.guest-card__copy { display: flex; flex-direction: column; flex: 1; padding-top: 28px; }
+.guest-field { color: #a93727; font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; line-height: 1.5; margin: 0 0 12px; }
+.guest-card h3 { font-size: clamp(1.65rem,2.4vw,2.1rem); font-weight: 550; line-height: 1.15; letter-spacing: -.035em; margin: 0 0 12px; }
+.guest-institution { color: #55566a; font-size: .95rem; line-height: 1.55; margin: 0 0 24px; }
+.guest-more { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 20px; border-top: 1px solid #e2e2eb; font-size: .9rem; font-weight: 600; }
+.guest-card__link:hover { background: #faf8f5; color: #232eb7; }
+.guest-card__link:focus-visible, .guest-section a:focus-visible, .guest-profile a:focus-visible { outline: 3px solid #e6503b; outline-offset: 4px; }
+.guest-section__footer { display: flex; justify-content: space-between; align-items: center; gap: 32px; margin-top: 36px; }
+.guest-section__footer .eyebrow { display: block; margin-bottom: 8px; }
+.guest-section__footer p { margin: 0; line-height: 1.8; }
+.guest-section__footer p a { color: #232eb7; text-decoration: none; }
+.guest-section__footer p a:hover { text-decoration: underline; }
+.guest-directory, .guest-profile { padding-top: 160px; padding-bottom: 100px; }
+.guest-directory__note { margin-top: 48px; padding-top: 28px; border-top: 1px solid rgba(35,46,183,.2); color: #55566a; }
+.guest-back { display: inline-block; color: #232eb7; margin-bottom: 48px; text-decoration: none; }
+.guest-profile__layout { display: grid; grid-template-columns: minmax(220px,320px) minmax(0,760px); gap: 80px; }
+.guest-profile aside .guest-portrait { width: 100%; max-width: 300px; margin: 0 0 32px; }
+.guest-profile h1 { font-size: clamp(2.5rem,5vw,4.5rem); font-weight: 500; line-height: 1.05; letter-spacing: -.045em; margin: 0 0 20px; }
+.guest-role { font-size: 1.25rem; line-height: 1.5; color: #55566a; margin-bottom: 36px; }
+.guest-bio { color: #333548; font-size: 1.1rem; line-height: 1.8; margin-bottom: 36px; }
+.guest-bio p { margin: 0 0 24px; }
+@media(max-width:1000px) { .guest-heading { gap: 32px; } .guest-card__link { padding: 24px 18px; } .guest-profile__layout { gap: 40px; } .guest-section__footer { align-items: flex-start; flex-direction: column; } }
+@media(max-width:760px) { .guest-section, .guest-directory, .guest-profile { padding: 56px 24px; } .guest-directory, .guest-profile { padding-top: 120px; } .guest-heading { grid-template-columns: 1fr; gap: 22px; margin-bottom: 32px; } .guest-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; } .guest-profile__layout { grid-template-columns: 1fr; gap: 20px; } .guest-profile aside .guest-portrait { width: 220px; } .guest-profile .guest-back { margin-bottom: 28px; } }
+@media(max-width:520px) { .guest-grid { grid-template-columns: 1fr; } .guest-card__link { padding: 28px; } .guest-portrait { width: 210px; } .guest-card h3 { font-size: 1.9rem; } .guest-section__footer .button { width: 100%; justify-content: center; } }

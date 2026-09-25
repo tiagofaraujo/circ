@@ -202,7 +202,7 @@
   display: none;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1280px) {
   .site-header {
     grid-template-columns: 1fr auto;
   }
