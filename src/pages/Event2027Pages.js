@@ -22,19 +22,6 @@ function PageHero({ eyebrow, title, lead, status }) {
   );
 }
 
-function StatusBlock({ number, title, status, children }) {
-  return (
-    <article className="status-block">
-      <span className="status-block__number">{number}</span>
-      <div>
-        <p className="eyebrow">{status}</p>
-        <h2>{title}</h2>
-        <p>{children}</p>
-      </div>
-    </article>
-  );
-}
-
 function LegalSection({ title, children }) {
   return (
     <section className="legal-section">
@@ -54,128 +41,7 @@ function LegalMeta({ en }) {
   );
 }
 
-export function ProgramPage2027() {
-  const { language } = useLanguage();
-  const en = language === 'en';
-
-  return (
-    <main className="page">
-      <PageHero
-        eyebrow={en ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 abril'}
-        title={en ? 'Programme' : 'Programa'}
-        status={en ? 'In preparation' : 'Em preparação'}
-        lead={
-          en
-            ? 'CIRC 2027 begins on 8 April with two independent Pre-Congress Courses: one in the morning and one in the afternoon. The International Congress follows on 9 and 10 April.'
-            : 'O CIRC 2027 começa a 8 de abril com dois Cursos Pré-Congresso independentes: um de manhã e outro à tarde. O Congresso Internacional decorre nos dias 9 e 10 de abril.'
-        }
-      />
-
-      <section className="programme-phases programme-phases--three" aria-label={en ? 'CIRC 2027 programme structure' : 'Estrutura do programa CIRC 2027'}>
-        <article className="programme-phase programme-phase--course programme-phase--course-slot">
-          <span className="programme-phase__date">08</span>
-          <div>
-            <p className="eyebrow">{en ? 'April · Morning' : 'Abril · Manhã'}</p>
-            <h2>{en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}</h2>
-            <span className="status-chip">
-              {en ? 'Theme and programme to be announced' : 'Tema e programa a anunciar'}
-            </span>
-            <p>
-              {en
-                ? 'An independent morning training course. The theme, timetable, faculty, capacity and participation details will be published after final validation.'
-                : 'Curso de formação autónomo no período da manhã. O tema, horário, formadores, vagas e condições de participação serão divulgados após validação final.'}
-            </p>
-          </div>
-        </article>
-
-        <article className="programme-phase programme-phase--course programme-phase--course-slot">
-          <span className="programme-phase__date">08</span>
-          <div>
-            <p className="eyebrow">{en ? 'April · Afternoon' : 'Abril · Tarde'}</p>
-            <h2>{en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}</h2>
-            <span className="status-chip">
-              {en ? 'Theme and programme to be announced' : 'Tema e programa a anunciar'}
-            </span>
-            <p>
-              {en
-                ? 'A second, independent afternoon training course. Participants will be able to register for the morning course, the afternoon course or both.'
-                : 'Segundo curso de formação, independente, no período da tarde. Será possível inscrever-se no curso da manhã, no curso da tarde ou em ambos.'}
-            </p>
-          </div>
-        </article>
-
-        <article className="programme-phase programme-phase--congress">
-          <span className="programme-phase__date">09—10</span>
-          <div>
-            <p className="eyebrow">{en ? 'April · CIRC 2027' : 'Abril · CIRC 2027'}</p>
-            <h2>{en ? 'International Congress' : 'Congresso Internacional'}</h2>
-            <span className="status-chip">
-              {en ? 'Scientific programme in development' : 'Programa científico em desenvolvimento'}
-            </span>
-            <p>
-              {en
-                ? 'Two days of scientific sessions, round tables, professional updates, innovation and exchange between participants, speakers and partners.'
-                : 'Dois dias de sessões científicas, mesas-redondas, atualização profissional, inovação e encontro entre participantes, oradores e parceiros.'}
-            </p>
-          </div>
-        </article>
-      </section>
-
-      <section className="course-structure-note">
-        <p className="eyebrow">{en ? '8 April · Two courses' : '8 abril · Dois cursos'}</p>
-        <h2>{en ? 'Morning and afternoon are separate registration units.' : 'Manhã e tarde são inscrições autónomas.'}</h2>
-        <p>
-          {en
-            ? 'Each course has its own programme and capacity. Registration will therefore allow participants to choose one course or attend both.'
-            : 'Cada curso terá programa e lotação próprios. A inscrição permitirá escolher apenas um dos cursos ou participar nos dois.'}
-        </p>
-      </section>
-
-      <section className="status-list">
-        <StatusBlock
-          number="01"
-          title={en ? 'Pre-Congress Courses' : 'Cursos Pré-Congresso'}
-          status={en ? 'Two sessions confirmed' : 'Duas sessões confirmadas'}
-        >
-          {en
-            ? 'The structure is confirmed: one course in the morning and one in the afternoon on 8 April. Themes and detailed programmes are still being finalised.'
-            : 'A estrutura está confirmada: um curso de manhã e outro à tarde no dia 8 de abril. Os temas e programas detalhados encontram-se ainda em preparação.'}
-        </StatusBlock>
-        <StatusBlock
-          number="02"
-          title={en ? 'Speakers and guests' : 'Oradores e convidados'}
-          status={en ? 'Meet our guests' : 'Conheça os convidados'}
-        >
-          <Link to="/oradores">{en ? 'Explore the invited speakers and their biographies.' : 'Conheça os oradores convidados e os seus percursos profissionais.'}</Link>
-        </StatusBlock>
-        <StatusBlock
-          number="03"
-          title={en ? 'Detailed programme' : 'Programa detalhado'}
-          status={en ? 'To be published' : 'Por publicar'}
-        >
-          {en
-            ? 'Times, rooms and the final programme will be made available online in an easy-to-read format.'
-            : 'Horários, salas e versão final do programa serão disponibilizados para consulta online e em formato de fácil leitura.'}
-        </StatusBlock>
-      </section>
-
-      <section className="callout">
-        <div>
-          <p className="eyebrow">Save the Date</p>
-          <h2>{en ? '8–10 April 2027 · Coimbra' : '8–10 de abril de 2027 · Coimbra'}</h2>
-          <p>
-            {en
-              ? '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · CIRC 2027'
-              : '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · CIRC 2027'}
-          </p>
-        </div>
-        <Link className="button button--dark" to="/participar">
-          {en ? 'Attend' : 'Participar'}
-        </Link>
-      </section>
-    </main>
-  );
-}
+export { default as ProgramPage2027 } from './ProvisionalProgramme';
 
 export function ParticipatePage2027() {
   const { language } = useLanguage();
