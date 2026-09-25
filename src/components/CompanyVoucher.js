@@ -45,14 +45,15 @@ export default function CompanyVoucher({ eligible }) {
     catch (err) { setError(companyError(err)); }
     finally { setBusy(false); }
   };
-  return <form className="company-voucher" onSubmit={submit}>
-    <h3>Inscrição paga por uma empresa</h3>
-    <p>Um código cobre o congresso presencial para congressista externo, nos dois dias. Sem jantar nem cursos.</p>
-    {!eligible && <p>Selecione «Congressista externo» e «Presencial» e retire o jantar e os cursos para utilizar o código.</p>}
-    <label>Código da empresa<input autoComplete="off" spellCheck="false" maxLength={50} value={code} onChange={(e) => setCode(e.target.value)} disabled={busy || done} required /></label>
-    <button disabled={busy || !eligible || done || !code.trim()}>{busy ? 'A confirmar…' : 'Utilizar código e confirmar inscrição'}</button>
-    <small>Ao confirmar, o código fica associado à sua conta. Não é necessário outro pagamento.</small>
-    {error && <p role="alert">{error}</p>}
-    {done && <p role="status">Inscrição confirmada e paga pela empresa.</p>}
-  </form>;
+  return <details className="company-voucher">
+    <summary>Tem um voucher?</summary>
+    <form onSubmit={submit}>
+      <label>Código do voucher<input autoComplete="off" spellCheck="false" maxLength={50} value={code} onChange={(e) => setCode(e.target.value)} disabled={busy || done} required /></label>
+      {!eligible && code.trim() && <p>Para utilizar este voucher, selecione «Congressista externo» e «Presencial», sem jantar nem cursos.</p>}
+      <button disabled={busy || !eligible || done || !code.trim()}>{busy ? 'A confirmar…' : 'Confirmar inscrição com voucher'}</button>
+      <small>O voucher será associado à sua inscrição.</small>
+      {error && <p role="alert">{error}</p>}
+      {done && <p role="status">Inscrição confirmada com voucher.</p>}
+    </form>
+  </details>;
 }
