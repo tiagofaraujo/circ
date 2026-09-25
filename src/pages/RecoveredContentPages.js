@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ContactForm from '../components/js/ContactForm';
-import HotelAccommodation from '../components/HotelAccommodation';
+import HotelAccommodationAccess from '../components/HotelAccommodationAccess';
 import { useLanguage } from '../context/LanguageContext';
 import '../recoveredContent.css';
 
@@ -241,7 +241,7 @@ export function EnhancedCoimbraPage() {
         </div>
       </section>
 
-      <HotelAccommodation en={en} />
+      <HotelAccommodationAccess en={en} />
     </main>
   );
 }

@@ -183,7 +183,7 @@ export function LoginPage() {
 
       <p className="auth-switch">
         {isEnglish ? 'New to CIRC?' : 'Ainda não tem conta?'}{' '}
-        <Link to="/registar">{isEnglish ? 'Create account' : 'Criar conta'}</Link>
+        <Link to="/registar" state={{ from: destination }}>{isEnglish ? 'Create account' : 'Criar conta'}</Link>
       </p>
     </AuthLayout>
   );
