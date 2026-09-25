@@ -16,12 +16,14 @@ export function SpeakerCard({ speaker, language }) {
   const text = speaker[language];
   return <article className="guest-card">
     <Link className="guest-card__link" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${language === 'en' ? 'biography' : 'biografia'}`}>
-      <SpeakerPortrait speaker={speaker} />
-      <div className="guest-card__copy">
+      <div className="guest-card__top">
+        <SpeakerPortrait speaker={speaker} />
         <p className="guest-field">{text.field}</p>
+      </div>
+      <div className="guest-card__copy">
         <h3>{speaker.name}</h3>
         <p className="guest-institution">{speaker.institution}</p>
-        <span className="guest-more">{language === 'en' ? 'Explore biography' : 'Conhecer o percurso'} <span aria-hidden="true">↗</span></span>
+        <span className="guest-more">{language === 'en' ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></span>
       </div>
     </Link>
   </article>;
