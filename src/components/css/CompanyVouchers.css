@@ -1,5 +1,8 @@
 .company-voucher { background: #fff; color: #191b4f; border: 1px solid #cdcde0; border-radius: 12px; padding: 22px; margin: 20px 0; display: grid; gap: 12px; overflow-wrap: anywhere; }
 .company-voucher h2, .company-voucher h3, .company-voucher p { margin: 0; }
+details.company-voucher { display: block; padding: 14px 18px; }
+.company-voucher summary { cursor: pointer; font-weight: 600; }
+.company-voucher[open] > summary { margin-bottom: 16px; }
 .company-voucher form, .company-voucher label { display: grid; gap: 8px; }
 .company-voucher form { gap: 16px; }
 .company-voucher input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px; border: 1px solid #9b9cb8; border-radius: 5px; font: inherit; }
