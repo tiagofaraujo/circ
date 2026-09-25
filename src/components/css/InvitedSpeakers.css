@@ -58,5 +58,13 @@
 @media (prefers-reduced-motion:reduce) { .guest-card, .guest-more > span { transition: none; } .guest-card:hover { transform: none; } }
 
 .guest-linkedin { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 16px; border: 1px solid #c8c2bb; border-radius: 8px; color: #191d3e; text-decoration: none; font-size: .9rem; font-weight: 500; }
-.guest-linkedin__icon { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 3px; background: #0a66c2; color: #fff; font-family: Arial, sans-serif; font-weight: 700; font-size: 16px; }
-.guest-linkedin:hover { background: #e5ded4; border-color: #0a66c2; }
+.guest-linkedin svg { color: #232eb7; flex-shrink: 0; }
+.guest-linkedin:hover { background: #e5ded4; border-color: #232eb7; }
+
+/* Separate social link keeps biography and LinkedIn independently accessible. */
+.guest-card { position: relative; }
+.guest-card .guest-more { padding-right: 56px; min-height: 63px; }
+.guest-card__linkedin { position: absolute; right: 32px; bottom: 27px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: #232eb7; text-decoration: none; }
+.guest-card__linkedin:hover { background: rgba(255,255,255,.45); }
+.guest-card__linkedin:focus-visible { outline: 3px solid #232eb7; outline-offset: 3px; }
+@media (max-width:760px) { .guest-card__linkedin { right: 24px; bottom: 19px; } }

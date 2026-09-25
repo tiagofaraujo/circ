@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
-import { SpeakerCard, SpeakerPortrait } from '../components/InvitedSpeakers';
+import { SpeakerCard, SpeakerPortrait, LinkedInIcon } from '../components/InvitedSpeakers';
 import { NotFoundPage } from './InfoPages';
 
 export default function Speakers2027Page() {
@@ -18,7 +18,7 @@ export default function Speakers2027Page() {
       <div className="guest-profile__layout">
         <aside><SpeakerPortrait speaker={speaker} /><p className="guest-field">{text.field}</p><p className="guest-institution">{speaker.institution}</p>
           {speaker.linkedin && <a className="guest-linkedin" href={speaker.linkedin} target="_blank" rel="noopener noreferrer" aria-label={`${speaker.name} — LinkedIn (${en ? 'opens in a new tab' : 'abre num novo separador'})`}>
-            <span className="guest-linkedin__icon" aria-hidden="true">in</span> LinkedIn <span aria-hidden="true">↗</span>
+            <LinkedInIcon /> LinkedIn <span aria-hidden="true">↗</span>
           </a>}
         </aside>
         <article><p className="eyebrow">CIRC 2027 · {en ? 'Invited speaker' : 'Orador convidado'}</p><h1>{speaker.name}</h1><p className="guest-role">{text.role}</p>
