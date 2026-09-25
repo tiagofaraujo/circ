@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import InvitedSpeakers from '../components/InvitedSpeakers';
 import SocialConnect from '../components/js/SocialConnect';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -17,9 +18,9 @@ const content = {
       {
         index: '02',
         eyebrow: 'Programa científico',
-        title: 'Conteúdos em preparação',
-        text: 'Sessões, temas e oradores serão apresentados progressivamente, à medida que o programa científico for confirmado.',
-        to: '/programa',
+        title: 'Conheça os oradores convidados',
+        text: 'Descubra os percursos dos especialistas que participam no CIRC 2027. Os temas e horários das sessões serão divulgados progressivamente.',
+        to: '/oradores',
       },
       {
         index: '03',
@@ -75,9 +76,9 @@ const content = {
       {
         index: '02',
         eyebrow: 'Scientific programme',
-        title: 'Content in preparation',
-        text: 'Sessions, themes and speakers will be presented progressively as the scientific programme is confirmed.',
-        to: '/programa',
+        title: 'Meet the invited speakers',
+        text: 'Discover the specialists joining CIRC 2027. Session topics and schedules will be announced progressively.',
+        to: '/oradores',
       },
       {
         index: '03',
@@ -257,18 +258,7 @@ function Home() {
         </div>
       </section>
 
-      <section className="section section--intro">
-        <div className="section-heading">
-          <p className="eyebrow">{copy.officialInfo}</p>
-          <h2>{copy.officialTitle}</h2>
-        </div>
-        <div className="section-copy">
-          <p>{copy.officialText}</p>
-          <Link className="text-link" to="/programa">
-            {copy.programmeStatus} <span aria-hidden="true">→</span>
-          </Link>
-        </div>
-      </section>
+      <InvitedSpeakers />
 
       <section className="section section--cards">
         <div className="section-heading section-heading--compact">

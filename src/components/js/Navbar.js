@@ -7,6 +7,7 @@ import '../css/Navbar.css';
 
 const navItems = [
   { to: '/programa', pt: 'Programa', en: 'Programme' },
+  { to: '/oradores', pt: 'Oradores', en: 'Speakers' },
   { to: '/participar', pt: 'Participar', en: 'Attend' },
   { to: '/parcerias', pt: 'Parcerias', en: 'Partners' },
   { to: '/coimbra', pt: 'Coimbra', en: 'Coimbra' },

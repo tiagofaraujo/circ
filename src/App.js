@@ -10,6 +10,7 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import AdminRoute from './auth/AdminRoute';
 
 import Home from './pages/Home';
+import Speakers2027Page from './pages/Speakers2027Page';
 import { NotFoundPage } from './pages/InfoPages';
 import {
   EnhancedArchive2025Page,
@@ -88,6 +89,8 @@ function App() {
             <Route path="/app" element={<Navigate to="/conta" replace />} />
             <Route path="/2027" element={<Navigate to="/" replace />} />
             <Route path="/programa" element={<ProgramPage2027 />} />
+            <Route path="/oradores" element={<Speakers2027Page />} />
+            <Route path="/oradores/:speakerId" element={<Speakers2027Page />} />
             <Route path="/participar" element={<ParticipatePage2027 />} />
             <Route path="/parcerias" element={<EnhancedPartnersPage />} />
             <Route path="/coimbra" element={<EnhancedCoimbraPage />} />

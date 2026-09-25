@@ -144,11 +144,9 @@ export function ProgramPage2027() {
         <StatusBlock
           number="02"
           title={en ? 'Speakers and guests' : 'Oradores e convidados'}
-          status={en ? 'To be announced' : 'Por anunciar'}
+          status={en ? 'Meet our guests' : 'Conheça os convidados'}
         >
-          {en
-            ? 'Confirmations will be added progressively, including biography, topic and session.'
-            : 'As confirmações serão adicionadas progressivamente, com biografia, tema e sessão.'}
+          <Link to="/oradores">{en ? 'Explore the invited speakers and their biographies.' : 'Conheça os oradores convidados e os seus percursos profissionais.'}</Link>
         </StatusBlock>
         <StatusBlock
           number="03"
