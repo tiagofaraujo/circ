@@ -1127,3 +1127,38 @@
 .registration-paid-summary { position: static; width: 100%; max-width: 760px; margin: 0 auto 32px; }
 .registration-paid-reference { overflow-wrap: anywhere; font-size: .8rem; }
 #registration-addon-courses-title { scroll-margin-top: 120px; }
+
+/* Paid registration and supplements share consistent spacing and readable type. */
+.registration-builder--addons .registration-summary { border-radius: 18px; box-shadow: 0 10px 30px rgba(20,24,70,.06); }
+.registration-builder--addons .registration-summary__rate { align-items: center; padding: 16px 24px; }
+.registration-builder--addons .registration-summary__rate span { color: #fff; font-size: .72rem; }
+.registration-builder--addons .registration-summary__rate strong { font-size: .78rem; white-space: nowrap; }
+.registration-builder--addons .registration-summary h2 { font-size: clamp(1.5rem,2.2vw,1.9rem); line-height: 1.18; letter-spacing: -.025em; }
+.registration-paid-summary { margin-top: 24px; }
+.registration-paid-summary h2 { margin-top: 26px; }
+.registration-paid-summary > p { margin: 16px 24px; color: var(--ink-soft); font-size: .95rem; line-height: 1.65; }
+.registration-paid-summary > p:first-of-type { margin-top: 10px; color: var(--ink); font-size: 1rem; }
+.registration-builder--addons .registration-summary ul { min-height: 0; }
+.registration-builder--addons .registration-summary ul:empty { display: none; }
+.registration-builder--addons .registration-summary li { align-items: center; padding: 16px 0; }
+.registration-builder--addons .registration-summary li strong { color: var(--ink); font-size: .9rem; font-weight: 550; line-height: 1.45; }
+.registration-builder--addons .registration-summary li b { font-size: .85rem; white-space: nowrap; }
+.registration-builder--addons .registration-summary li small { font-size: .8rem; line-height: 1.5; }
+.registration-builder--addons .registration-summary__empty { min-height: 0; padding: 18px; border: 0; border-radius: 10px; background: #f3efe9; font-size: .9rem; line-height: 1.6; }
+.registration-builder--addons .registration-summary__total { align-items: center; padding-top: 20px; margin-top: 22px; }
+.registration-builder--addons .registration-summary__total span { font-size: .75rem; line-height: 1.5; }
+.registration-builder--addons .registration-summary__total strong { font-size: 1.85rem; line-height: 1.2; white-space: nowrap; }
+.registration-builder--addons .registration-summary__tax { text-align: left; font-size: .78rem; line-height: 1.5; margin-top: 12px; }
+.registration-summary--addons > p[role="status"] { margin: 20px 24px; padding: 16px; border-left: 3px solid var(--blue); border-radius: 0 8px 8px 0; background: #f0eff9; color: var(--ink-soft); font-size: .85rem; line-height: 1.65; }
+.registration-builder--addons .registration-summary > a { align-items: center; min-height: 44px; font-size: .88rem; line-height: 1.45; }
+.registration-paid-summary > a.button--dark { justify-content: center; gap: 12px; padding: 14px 18px; border-radius: 10px; color: #fff; background: var(--blue); text-align: center; }
+.registration-paid-summary > a.button--dark:hover { background: var(--blue-deep); color: #fff; }
+.registration-paid-summary > a:focus-visible { outline: 3px solid var(--coral); outline-offset: 3px; }
+.registration-paid-summary > .registration-paid-reference { font-size: .78rem; color: #626579; }
+@media (max-width:540px) {
+  .registration-builder--addons .registration-summary__rate { padding: 14px 20px; flex-wrap: wrap; gap: 8px; }
+  .registration-builder--addons .registration-summary h2 { font-size: 1.55rem; }
+  .registration-builder--addons .registration-summary li { gap: 12px; }
+  .registration-builder--addons .registration-summary__total { gap: 12px; }
+  .registration-paid-summary { margin-top: 20px; }
+}
