@@ -1,3 +1,4 @@
+import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Prices from '../components/js/Prices';
@@ -61,6 +62,12 @@ export function ParticipatePage2027() {
       />
 
       <Prices />
+
+      <section className="course-structure-note" aria-labelledby="stroke-course-title">
+        <p className="eyebrow">{en ? '8 April · 14:00–18:00 · Pre-Congress Course' : '8 abril · 14:00–18:00 · Curso Pré-Congresso'}</p>
+        <h2 id="stroke-course-title">{en ? strokeCourseTitle.en : strokeCourseTitle.pt}</h2>
+        <StrokeCourseDescription en={en} />
+      </section>
 
       <section className="editorial-grid">
         <article className="info-card info-card--course">
