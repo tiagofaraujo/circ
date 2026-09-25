@@ -1,7 +1,7 @@
 // Biographies and portrait assignments supplied by the CIRC organisation.
 export const speakers2027 = [
   {
-    id: 'fides-schwartz', name: 'Fides Schwartz', initials: 'FS', image: 'fides-schwartz.jpg',
+    id: 'fides-schwartz', linkedin: 'https://www.linkedin.com/in/fides-schwartz-97a723370', name: 'Fides Schwartz', initials: 'FS', image: 'fides-schwartz.jpg',
     institution: 'Brigham and Women’s Hospital · Harvard Medical School',
     pt: { field: 'TC por contagem de fotões', role: 'Investigadora Principal · Professora Assistente', bio: [
       'Dra. Fides Schwartz é Investigadora Principal do Center for Advanced CT Translation and Innovation (CACTI), integrado no Departamento de Radiologia do Brigham and Women’s Hospital, e Professora Assistente na Harvard Medical School.',
@@ -15,7 +15,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'tobias-gilk', name: 'Tobias Gilk', initials: 'TG', image: 'tobias-gilk.jpg',
+    id: 'tobias-gilk', linkedin: 'https://www.linkedin.com/in/tobiasgilk', name: 'Tobias Gilk', initials: 'TG', image: 'tobias-gilk.jpg',
     institution: 'RAD-Planning · Gilk Radiology Consultants',
     pt: { field: 'Segurança em ressonância magnética', role: 'Arquiteto · Consultor · MRSO e MRSE', bio: [
       'Tobias Gilk é arquiteto de formação e iniciou a sua ligação à segurança em ressonância magnética há mais de duas décadas, através do projeto de instalações de RM. O seu interesse alargou-se rapidamente do espaço físico a todas as vertentes da segurança em RM.',
@@ -29,7 +29,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'bill-faulkner', name: 'Bill Faulkner', initials: 'BF', image: 'bill-faulkner.jpg',
+    id: 'bill-faulkner', linkedin: 'https://www.linkedin.com/in/wfaulknerassociates', name: 'Bill Faulkner', initials: 'BF', image: 'bill-faulkner.jpg',
     institution: 'William Faulkner & Associates',
     pt: { field: 'Formação e prática clínica em RM', role: 'Consultor · Formador · MR Safety Officer', bio: [
       'Bill Faulkner é consultor independente através da sua empresa, William Faulkner & Associates. Há mais de 25 anos, desenvolve formação em RM e TC e presta consultoria em segurança e operações clínicas de RM.',
@@ -43,7 +43,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'kris-seitz', name: 'Kris Seitz', initials: 'KS', image: 'kris-seitz.jpg',
+    id: 'kris-seitz', linkedin: 'https://www.linkedin.com/in/kristin-seitz', name: 'Kris Seitz', initials: 'KS', image: 'kris-seitz.jpg',
     institution: 'The Ohio State University',
     pt: { field: 'Segurança em RM e ensino', role: 'Técnica de Radiologia · Docente · MRSO', bio: [
       'Kris Seitz trabalha em ressonância magnética há mais de 30 anos e é atualmente docente no programa de Radiografia da The Ohio State University.',
@@ -57,7 +57,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'samuel-oliveira', name: 'Samuel Oliveira', initials: 'SO', image: 'samuel-oliveira.jpg',
+    id: 'samuel-oliveira', linkedin: 'https://uk.linkedin.com/in/samueloliveiramri', name: 'Samuel Oliveira', initials: 'SO', image: 'samuel-oliveira.jpg',
     institution: 'Everything MRI · OMRIA',
     pt: { field: 'Operações remotas e inovação em RM', role: 'Fundador e CEO da Everything MRI', bio: [
       'Samuel Oliveira é técnico de Radiologia, líder de opinião na área das operações remotas e formador internacional em segurança em RM. Como fundador e CEO da Everything MRI, promove recursos educativos gratuitos, podcasts com especialistas e eventos virtuais gratuitos, reunindo uma comunidade global de profissionais de RM.',
@@ -77,7 +77,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'michael-fuller', name: 'Michael Fuller', initials: 'MF', image: 'michael-fuller.jpg',
+    id: 'michael-fuller', linkedin: 'https://au.linkedin.com/in/michael-fuller-60070a54', name: 'Michael Fuller', initials: 'MF', image: 'michael-fuller.jpg',
     institution: 'Flinders Medical Centre · South Australia',
     pt: { field: 'Radiologia de trauma e educação clínica', role: 'Técnico de Radiologia · Tutor e coorientador', bio: [
       'Michael Fuller é técnico de Radiologia com funções de tutor e coorientador de estudantes no Flinders Medical Centre, no sul da Austrália.',
@@ -91,7 +91,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'julien-greggio', name: 'Julien Greggio', initials: 'JG', image: 'julien-greggio.jpg',
+    id: 'julien-greggio', linkedin: 'https://uk.linkedin.com/in/julien-greggio', name: 'Julien Greggio', initials: 'JG', image: 'julien-greggio.jpg',
     institution: 'Everything MRI · City St George’s, University of London',
     pt: { field: 'RM, inteligência artificial e educação', role: 'Cofundador e COO da Everything MRI', bio: [
       'Julien Greggio é um profissional de saúde dedicado às técnicas avançadas de imagem, em particular à ressonância magnética. Desde o início da sua carreira em RM, em 2015, tem trabalhado na melhoria dos cuidados nos setores público e privado, conjugando a experiência clínica como técnico de Radiologia em RM com a formação de futuros profissionais.',
