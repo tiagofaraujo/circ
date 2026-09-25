@@ -69,7 +69,7 @@ function registrationModeLabel(mode, en) {
   return en ? 'Pre-Congress Courses only' : 'Apenas Cursos Pré-Congresso';
 }
 
-function ExistingRegistrationAddOns({ registration, orders, user, en, period }) {
+export function ExistingRegistrationAddOns({ registration, orders, user, en, period }) {
   const primary = registration.selection || {};
   const entitlements = registration.entitlements || {
     congressMode: primary.congressMode || '',
@@ -109,7 +109,7 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
     : (en ? 'Awaiting payment validation' : 'A aguardar validação do pagamento');
 
   const submitAddOnOrder = async () => {
-    if (!hasAdditions || orderState === 'saving') return;
+    if (!registration.isTest || !hasAdditions || orderState === 'saving') return;
     setOrderState('saving');
     setOrderError('');
     try {
@@ -134,23 +134,21 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
         <span><b>3</b>{en ? 'Separate payment' : 'Pagamento separado'}</span>
       </div>
 
-      <section className="registration-existing" aria-labelledby="registration-existing-title">
-        <div className="registration-existing__status">
-          <span>{en ? 'Single primary registration' : 'Inscrição principal única'}</span>
-          {registration.isTest && <strong>TESTE</strong>}
-        </div>
-        <div className="registration-existing__main">
-          <div>
-            <p className="eyebrow">{registration.id}</p>
-            <h2 id="registration-existing-title">{registrationModeLabel(primary.congressMode, en)}</h2>
-            <p>{en ? 'A second primary registration is blocked. You may still add available courses and any number of dinner tickets below.' : 'Está bloqueada a criação de uma segunda inscrição principal. Pode continuar a acrescentar cursos disponíveis e a quantidade de jantares pretendida.'}</p>
-          </div>
-          <dl>
-            <div><dt>{en ? 'Main payment' : 'Pagamento principal'}</dt><dd className={`is-${paymentStatus}`}>{paymentLabel}</dd></div>
-            <div><dt>{en ? 'Original amount' : 'Valor original'}</dt><dd>{formatEuro(Number(registration.payment?.amountCents || 0) / 100)}</dd></div>
-            <div><dt>{en ? 'Supplementary orders' : 'Pedidos complementares'}</dt><dd>{orders.length}</dd></div>
-          </dl>
-        </div>
+      <section className="registration-summary registration-paid-summary" aria-labelledby="registration-existing-title">
+        <div className="registration-summary__rate"><span>{en ? 'Your registration' : 'A sua inscrição'}</span><strong>{registration.isTest ? 'TESTE' : paymentLabel}</strong></div>
+        <h2 id="registration-existing-title">{en ? 'Registration summary' : 'Resumo da inscrição'}</h2>
+        <p><strong>{registration.participantName}</strong></p>
+        <ul>
+          <li><span><strong>{registrationModeLabel(primary.congressMode, en)}</strong><small>{en ? '9–10 April 2027' : '9 e 10 de abril de 2027'}</small></span><b>{en ? 'Included' : 'Incluído'}</b></li>
+          <li><span><strong>{en ? 'MRI post-processing · 8 April, morning' : 'Pós-processamento em RM · 8 abril, manhã'}</strong></span><b>{entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
+          <li><span><strong>Via Verde AVC · {en ? '8 April, afternoon' : '8 abril, tarde'}</strong></span><b>{entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
+          <li><span><strong>{en ? 'Congress dinner' : 'Jantar do congresso'}</strong></span><b>× {entitlements.dinnerQuantity || 0}</b></li>
+        </ul>
+        <div className="registration-summary__total"><span>{registration.voucherId ? (en ? 'Congress covered by voucher' : 'Congresso abrangido pelo voucher') : (en ? 'Original registration amount' : 'Valor da inscrição original')}</span><strong>{formatEuro(Number(registration.voucherId ? registration.payment?.coveredAmountCents || 0 : registration.payment?.amountCents || 0) / 100)}</strong></div>
+        {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The billing document belongs to the company purchase. Extras are paid separately.' : 'O documento de faturação pertence à compra da empresa. Os extras são pagos separadamente.'}</p>}
+        <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>
+        <a className="button button--dark" href="#registration-addon-courses-title">{en ? 'Add courses and dinners' : 'Adicionar cursos e jantares'} ↓</a>
+        <Link to="/conta/perfil">{en ? 'Review profile details' : 'Rever dados do perfil'}</Link>
       </section>
 
       <div className="registration-builder__layout">
@@ -242,13 +240,13 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
           {!hasAdditions && <p className="registration-summary__empty">{en ? 'Select a course or the number of dinner tickets to create a supplementary order.' : 'Selecione um curso ou a quantidade de jantares para criar um pedido complementar.'}</p>}
           <div className="registration-summary__total"><span>{en ? 'New order total' : 'Total do novo pedido'}</span><strong>{formatEuro(totals.total)}</strong></div>
           <small className="registration-summary__tax">{en ? 'This does not alter the original payment or invoice.' : 'Não altera o pagamento nem a fatura da inscrição original.'}</small>
-          <div className="registration-summary__test-mode">
+          {registration.isTest ? <div className="registration-summary__test-mode">
             <span>{en ? 'Administrator test mode' : 'Modo de teste administrativo'}</span>
             <small>{en ? 'Creates a separate supplementary order linked to the same registration.' : 'Cria um pedido complementar separado, associado à mesma inscrição.'}</small>
             <button type="button" onClick={submitAddOnOrder} disabled={!hasAdditions || orderState === 'saving'}>{orderState === 'saving' ? (en ? 'Saving…' : 'A guardar…') : (en ? 'Create supplementary test order' : 'Criar pedido complementar de teste')}</button>
             {orderState === 'saved' && <div className="registration-summary__success" role="status"><strong>{en ? 'Supplementary order saved.' : 'Pedido complementar guardado.'}</strong><Link to="/admin">{en ? 'View primary registration' : 'Ver inscrição principal'} →</Link></div>}
             {orderError && <p className="registration-summary__error" role="alert">{orderError}</p>}
-          </div>
+          </div> : <p role="status">{en ? 'You can plan your extras here. Supplementary payments are not available yet; this selection is not a reservation and does not change your confirmed registration.' : 'Pode preparar aqui os seus extras. O pagamento de complementos ainda não está disponível; esta seleção não constitui uma reserva nem altera a inscrição confirmada.'}</p>}
           <Link to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'} <span aria-hidden="true">→</span></Link>
         </aside>
       </div>
@@ -256,7 +254,7 @@ function ExistingRegistrationAddOns({ registration, orders, user, en, period }) 
   );
 }
 
-function RegistrationBuilder() {
+function RegistrationBuilder({ paidRegistration }) {
   const { language } = useLanguage();
   const { user, isAdmin } = useAuth();
   const ulsEligibility = useUlsEligibility(user);
@@ -366,6 +364,10 @@ function RegistrationBuilder() {
 
   if (isAdmin && !registrationLookupDone) {
     return <div className="registration-builder-loading" role="status">{en ? 'Checking your registration…' : 'A verificar a sua inscrição…'}</div>;
+  }
+
+  if (paidRegistration) {
+    return <ExistingRegistrationAddOns registration={paidRegistration} orders={[]} user={user} en={en} period={period} />;
   }
 
   if (isAdmin && existingRegistration) {
@@ -616,5 +618,5 @@ function RegistrationBuilder() {
 }
 
 export default function CompanyAwareRegistrationBuilder() {
-  return <CompanyRegistrationGate><RegistrationBuilder /></CompanyRegistrationGate>;
+  return <CompanyRegistrationGate>{(registration) => <RegistrationBuilder paidRegistration={registration} />}</CompanyRegistrationGate>;
 }

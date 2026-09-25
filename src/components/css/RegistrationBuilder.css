@@ -1123,3 +1123,7 @@
     font-size: 0.82rem;
   }
 }
+
+.registration-paid-summary { position: static; width: 100%; max-width: 760px; margin: 0 auto 32px; }
+.registration-paid-reference { overflow-wrap: anywhere; font-size: .8rem; }
+#registration-addon-courses-title { scroll-margin-top: 120px; }

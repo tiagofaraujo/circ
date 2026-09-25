@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { companyError, redeemCompanyVoucher, subscribeCompanyConfig, subscribeCompanyRegistration } from '../auth/companyVouchers';
 import './css/CompanyVouchers.css';
@@ -7,22 +6,17 @@ import './css/CompanyVouchers.css';
 export function CompanyRegistrationGate({ children }) {
   const { user } = useAuth();
   const [registration, setRegistration] = useState(null);
+  const [lookup, setLookup] = useState('loading');
   useEffect(() => {
     setRegistration(null);
-    if (!user?.emailVerified) return undefined;
-    return subscribeCompanyRegistration(user, setRegistration, () => setRegistration(null));
+    if (!user?.emailVerified) { setLookup('ready'); return undefined; }
+    setLookup('loading');
+    return subscribeCompanyRegistration(user, (value) => { setRegistration(value); setLookup('ready'); }, () => setLookup('error'));
   }, [user]);
-  if (registration && registration.userId === user?.uid) return <section className="company-voucher" role="status">
-    <h2>{registration.status === 'confirmed' ? 'Inscrição confirmada' : 'Estado da inscrição'}</h2>
-    <p><strong>{registration.participantName}</strong></p>
-    <p>Congressista externo · Presencial · 9 e 10 de abril de 2027</p>
-    <p>Paga pela empresa: <strong>{registration.payment?.payer}</strong></p>
-    <p>Estado: {registration.status === 'confirmed' ? 'Confirmada' : registration.status}. Sem jantar nem cursos.</p>
-    <p>Referência da inscrição: {registration.id}</p>
-    <p>O documento de faturação pertence à compra da empresa. Esta é a confirmação da sua inscrição.</p>
-    <Link to="/conta/perfil">Rever dados do perfil</Link>
-  </section>;
-  return children;
+  if (lookup === 'loading') return <p role="status">A consultar a sua inscrição…</p>;
+  if (lookup === 'error') return <p role="alert">Não foi possível consultar a inscrição. Atualize a página para tentar novamente.</p>;
+  if (registration && registration.userId === user?.uid) return children(registration);
+  return children(null);
 }
 export default function CompanyVoucher({ eligible }) {
   const { user } = useAuth();
