@@ -11,11 +11,18 @@ export default function EventIdentityHero({ en }) {
         <div className="event-hero__copy">
           <p className="event-hero__edition">CIRC 2027 <span>03 / {en ? 'Third edition' : 'Terceira edição'}</span></p>
           <p className="event-hero__name">{en ? 'Coimbra International Radiology Congress' : 'Congresso Internacional de Radiologia de Coimbra'}</p>
-          <h1 id="event-title" lang="en">The invisible<br /><span>becomes visible.</span></h1>
-          <p className="event-hero__lead">{en ? 'A new perspective on medical imaging. Science, innovation and people come together in Coimbra.' : 'Uma nova perspetiva sobre a Imagem Médica. Ciência, inovação e pessoas encontram-se em Coimbra.'}</p>
-          <div className="event-hero__actions"><Link className="button event-hero__primary" to="/programa">{en ? 'Explore the programme' : 'Explorar o programa'} <span aria-hidden="true">↗</span></Link><Link className="event-hero__secondary" to="/participar">{en ? 'Registration and fees' : 'Inscrições e tarifas'} <span aria-hidden="true">→</span></Link></div>
-          <div className="event-hero__location"><span>Coimbra · Portugal</span><strong>Convento São Francisco</strong></div>
-          <Link className="event-hero__account" to={user ? '/conta' : '/login'}>My CIRC <span>{en ? (user ? 'Open my account' : 'Sign in') : (user ? 'Aceder à minha conta' : 'Entrar na área reservada')} →</span></Link>
+          <h1 id="event-title" className="event-hero__slogan" lang="en">
+            <span>The</span>{' '}
+            <span>Invisible</span>{' '}
+            <span>becomes</span>{' '}
+            <span>visible</span>
+          </h1>
+          <div className="event-hero__details">
+            <p className="event-hero__lead">{en ? 'A new perspective on medical imaging. Science, innovation and people come together in Coimbra.' : 'Uma nova perspetiva sobre a Imagem Médica. Ciência, inovação e pessoas encontram-se em Coimbra.'}</p>
+            <div className="event-hero__actions"><Link className="button event-hero__primary" to="/programa">{en ? 'Explore the programme' : 'Explorar o programa'} <span aria-hidden="true">↗</span></Link><Link className="event-hero__secondary" to="/participar">{en ? 'Registration and fees' : 'Inscrições e tarifas'} <span aria-hidden="true">→</span></Link></div>
+            <div className="event-hero__location"><span>Coimbra · Portugal</span><strong>Convento São Francisco</strong></div>
+            <Link className="event-hero__account" to={user ? '/conta' : '/login'}>My CIRC <span>{en ? (user ? 'Open my account' : 'Sign in') : (user ? 'Aceder à minha conta' : 'Entrar na área reservada')} →</span></Link>
+          </div>
         </div>
       </div>
       <span className="event-hero__caption" lang="en">Imaging / Scientific / Talks</span>
