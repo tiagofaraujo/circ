@@ -12,7 +12,7 @@
 
 .prices-kicker {
     margin: 0 0 0.35rem;
-    color: #e55041 !important;
+    color: var(--coral) !important;
     font-family: 'Inter', sans-serif;
     font-size: 0.78rem !important;
     font-weight: 800;
@@ -22,8 +22,8 @@
 
 .prices h2 {
     margin: 0;
-    color: #171b54;
-    font-family: 'Source Serif 4', serif;
+    color: var(--blue-deep);
+    font-family: var(--font-sans);
     font-size: clamp(2rem, 4vw, 3.25rem);
     line-height: 1;
 }
@@ -67,7 +67,7 @@
 }
 
 .price-guide article > span {
-    color: #e55041;
+    color: var(--coral);
     font-size: 0.67rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -75,7 +75,7 @@
 
 .price-guide strong {
     display: block;
-    color: #171b54;
+    color: var(--blue-deep);
     font-size: 0.83rem;
 }
 
@@ -94,7 +94,7 @@
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    color: #171b54;
+    color: var(--blue-deep);
     font-family: 'Inter', sans-serif;
 }
 
@@ -115,7 +115,7 @@
 }
 
 .price-table thead th {
-    background: #171b54;
+    background: var(--blue-deep);
     color: #ffffff;
     font-size: 0.74rem;
     font-weight: 800;
@@ -144,8 +144,8 @@
 
 .price-table tbody th {
     background: #fffdfa;
-    color: #171b54;
-    font-family: 'Source Serif 4', serif;
+    color: var(--blue-deep);
+    font-family: var(--font-sans);
     font-size: clamp(1rem, 1.8vw, 1.28rem);
     font-weight: 700;
     line-height: 1.2;
@@ -165,7 +165,7 @@
 .row-label {
     display: block;
     margin-bottom: 0.28rem;
-    color: #e55041;
+    color: var(--coral);
     font-family: 'Inter', sans-serif;
     font-size: 0.67rem;
     font-weight: 800;
@@ -181,15 +181,15 @@
 }
 
 .price-main {
-    color: #e55041;
-    font-family: 'Source Serif 4', serif;
+    color: var(--coral);
+    font-family: var(--font-sans);
     font-size: clamp(1.45rem, 3vw, 2rem);
     font-weight: 800;
     line-height: 1;
 }
 
 .price-detail {
-    color: #171b54;
+    color: var(--blue-deep);
     font-size: 0.83rem;
     font-weight: 750;
 }
@@ -219,7 +219,7 @@
 }
 
 .price-table-footer strong {
-    color: #171b54;
+    color: var(--blue-deep);
 }
 
 .price-simulator-link {
@@ -229,7 +229,7 @@
     justify-content: space-between;
     gap: 1.5rem;
     border-top: 1px solid rgba(23, 27, 84, 0.12);
-    background: #171b54;
+    background: var(--blue-deep);
     color: #ffffff;
     text-align: left;
 }

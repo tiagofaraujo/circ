@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import EventIdentityHero from '../components/EventIdentityHero';
 import InvitedSpeakers from '../components/InvitedSpeakers';
 import SocialConnect from '../components/js/SocialConnect';
 import { useLanguage } from '../context/LanguageContext';
@@ -12,14 +12,14 @@ const content = {
         index: '01',
         eyebrow: 'Dois Cursos Pré-Congresso',
         title: 'Manhã e tarde no dia 8',
-        text: 'Dois cursos independentes no dia 8 de abril: um de manhã e outro à tarde. Os temas e programas serão divulgados após confirmação.',
+        text: 'Pós-processamento em RM de manhã e Via Verde AVC à tarde. Escolha um curso ou participe nos dois.',
         to: '/programa',
       },
       {
         index: '02',
         eyebrow: 'Programa científico',
         title: 'Conheça os oradores convidados',
-        text: 'Descubra os percursos dos especialistas que participam no CIRC 2027. Os temas e horários das sessões serão divulgados progressivamente.',
+        text: 'Conheça os especialistas convidados e explore os temas do programa científico provisório.',
         to: '/oradores',
       },
       {
@@ -50,7 +50,7 @@ const content = {
     officialTitle: 'Um evento em construção, com informação clara desde o primeiro dia.',
     officialText: 'Nesta fase, o website assume-se como ponto oficial de atualização da próxima edição. Publicamos apenas informação confirmada e assinalamos de forma transparente o que ainda está em preparação.',
     programmeStatus: 'Ver estado do programa',
-    updatesEyebrow: 'Próximas atualizações',
+    updatesEyebrow: 'A sua experiência CIRC',
     updatesTitle: 'Programa, participação e parcerias',
     archive: 'Arquivo · CIRC 2025',
     archiveTitle: 'Eyes on the Future.',
@@ -70,14 +70,14 @@ const content = {
         index: '01',
         eyebrow: 'Two Pre-Congress Courses',
         title: 'Morning and afternoon on 8 April',
-        text: 'Two independent courses on 8 April: one in the morning and one in the afternoon. Themes and programmes will be published once confirmed.',
+        text: 'MRI post-processing in the morning and the stroke fast-track pathway in the afternoon. Choose one course or attend both.',
         to: '/programa',
       },
       {
         index: '02',
         eyebrow: 'Scientific programme',
         title: 'Meet the invited speakers',
-        text: 'Discover the specialists joining CIRC 2027. Session topics and schedules will be announced progressively.',
+        text: 'Meet the invited specialists and explore the provisional scientific programme.',
         to: '/oradores',
       },
       {
@@ -108,7 +108,7 @@ const content = {
     officialTitle: 'An event in development, with clear information from the start.',
     officialText: 'At this stage, the website is the official reference point for the next edition. We publish only confirmed information and clearly identify what is still being prepared.',
     programmeStatus: 'View programme status',
-    updatesEyebrow: 'Next updates',
+    updatesEyebrow: 'Your CIRC experience',
     updatesTitle: 'Programme, attendance and partnerships',
     archive: 'Archive · CIRC 2025',
     archiveTitle: 'Eyes on the Future.',
@@ -124,139 +124,12 @@ const content = {
   },
 };
 
-const heroSlides = [
-  {
-    src: '/circ2025/hero-auditorium.webp',
-    position: 'auditorium',
-  },
-  {
-    src: '/circ2025/venue-auditorium.webp',
-    position: 'audience',
-  },
-  {
-    src: '/exhibition/exhibition-16.jpg',
-    position: 'exhibition',
-  },
-];
-
 function Home() {
   const { language } = useLanguage();
-  const { user, loading } = useAuth();
   const copy = content[language];
-  const [activeSlide, setActiveSlide] = useState(0);
-  const isEnglish = language === 'en';
-  const accountIdentity = user?.displayName?.trim()
-    ? user.displayName.trim().split(/\s+/)[0]
-    : user?.email || '';
-
-  useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    if (reducedMotion.matches) {
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setActiveSlide((currentSlide) => (currentSlide + 1) % heroSlides.length);
-    }, 5000);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
-
   return (
-    <main>
-      <section className="hero hero--official hero--without-artwork" id="save-the-date">
-        <div className="hero__slideshow" aria-hidden="true">
-          {heroSlides.map((slide, index) => (
-            <img
-              className={`hero__slide hero__slide--${slide.position}${index === activeSlide ? ' is-active' : ''}`}
-              src={slide.src}
-              alt=""
-              fetchPriority={index === 0 ? 'high' : 'auto'}
-              key={slide.src}
-            />
-          ))}
-        </div>
-
-        <div className="hero__slide-progress" aria-hidden="true">
-          {heroSlides.map((slide, index) => (
-            <span className={index === activeSlide ? 'is-active' : ''} key={slide.src} />
-          ))}
-        </div>
-
-        <div className="hero__copy">
-          <p className="eyebrow">{copy.heroEyebrow}</p>
-          <h1>
-            CIRC
-            <span>2027</span>
-          </h1>
-          <p className="hero__lead">{copy.heroLead}</p>
-
-          <div className="hero__date-grid" aria-label={copy.factsLabel}>
-            <Link
-              className="hero__date-card"
-              to="/programa"
-              aria-label={`${copy.courseDate} — ${copy.course}`}
-            >
-              <time className="hero__date" dateTime="2027-04-08">
-                <span>08</span>
-                <small>{language === 'en' ? 'APR' : 'ABR'}</small>
-              </time>
-              <span className="hero__date-rule" aria-hidden="true" />
-              <strong>{copy.course}</strong>
-              <span className="hero__date-arrow" aria-hidden="true">↗</span>
-            </Link>
-
-            <Link
-              className="hero__date-card"
-              to="/programa"
-              aria-label={`${copy.congressDate} — ${copy.congress}`}
-            >
-              <time className="hero__date hero__date--range" dateTime="2027-04-09">
-                <span>09—10</span>
-                <small>{language === 'en' ? 'APR' : 'ABR'}</small>
-              </time>
-              <span className="hero__date-rule" aria-hidden="true" />
-              <strong>{copy.congress}</strong>
-              <span className="hero__date-arrow" aria-hidden="true">↗</span>
-            </Link>
-          </div>
-
-          <div className="hero__actions">
-            <Link className="button button--dark" to="/programa">
-              {copy.followProgramme}
-            </Link>
-            <Link className="text-link" to="/2025">
-              {copy.revisit2025} <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
-
-          <Link
-            className={`hero__mobile-account${user ? ' is-authenticated' : ''}`}
-            to={user ? '/conta' : '/login'}
-            aria-label={user
-              ? `${isEnglish ? 'Open My CIRC account for' : 'Abrir conta My CIRC de'} ${accountIdentity}`
-              : (isEnglish ? 'Sign in to My CIRC' : 'Entrar no My CIRC')}
-          >
-            <span className="hero__mobile-account-mark" aria-hidden="true">
-              <i />
-              MY
-            </span>
-            <span className="hero__mobile-account-copy">
-              <small>My CIRC</small>
-              <strong>
-                {loading
-                  ? (isEnglish ? 'Checking session…' : 'A verificar sessão…')
-                  : user
-                    ? (isEnglish ? `Signed in · ${accountIdentity}` : `Sessão iniciada · ${accountIdentity}`)
-                    : (isEnglish ? 'Sign in to your account' : 'Entrar na área reservada')}
-              </strong>
-              {!user && !loading && <span>{isEnglish ? 'Registration, profile and documents' : 'Inscrições, perfil e documentos'}</span>}
-            </span>
-            <span className="hero__mobile-account-arrow" aria-hidden="true">→</span>
-          </Link>
-        </div>
-      </section>
+    <main className="event-home">
+      <EventIdentityHero en={language === 'en'} />
 
       <InvitedSpeakers />
 
