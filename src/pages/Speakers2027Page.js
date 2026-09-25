@@ -16,7 +16,11 @@ export default function Speakers2027Page() {
     return <main className="guest-profile">
       <Link className="guest-back" to="/oradores">← {en ? 'All invited speakers' : 'Todos os oradores convidados'}</Link>
       <div className="guest-profile__layout">
-        <aside><SpeakerPortrait speaker={speaker} /><p className="guest-field">{text.field}</p><p className="guest-institution">{speaker.institution}</p></aside>
+        <aside><SpeakerPortrait speaker={speaker} /><p className="guest-field">{text.field}</p><p className="guest-institution">{speaker.institution}</p>
+          {speaker.linkedin && <a className="guest-linkedin" href={speaker.linkedin} target="_blank" rel="noopener noreferrer" aria-label={`${speaker.name} — LinkedIn (${en ? 'opens in a new tab' : 'abre num novo separador'})`}>
+            <span className="guest-linkedin__icon" aria-hidden="true">in</span> LinkedIn <span aria-hidden="true">↗</span>
+          </a>}
+        </aside>
         <article><p className="eyebrow">CIRC 2027 · {en ? 'Invited speaker' : 'Orador convidado'}</p><h1>{speaker.name}</h1><p className="guest-role">{text.role}</p>
           <div className="guest-bio">{text.bio.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
           <Link className="button button--outline" to="/programa">{en ? 'Explore the programme' : 'Consultar o programa'} <span aria-hidden="true">→</span></Link>

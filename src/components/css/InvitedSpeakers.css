@@ -56,3 +56,7 @@
 @media (max-width:760px) { .guest-card__link { padding: 24px; } .guest-card__top { gap: 16px; min-height: 104px; } .guest-card .guest-portrait { flex-basis: 104px; width: 104px; } .guest-card .guest-field { font-size: .63rem; } }
 @media (max-width:600px) { .guest-grid { grid-template-columns: 1fr; } .guest-card__top { gap: 24px; } .guest-card__copy { padding-top: 24px; } .guest-card h3 { font-size: 1.8rem; } }
 @media (prefers-reduced-motion:reduce) { .guest-card, .guest-more > span { transition: none; } .guest-card:hover { transform: none; } }
+
+.guest-linkedin { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 16px; border: 1px solid #c8c2bb; border-radius: 8px; color: #191d3e; text-decoration: none; font-size: .9rem; font-weight: 500; }
+.guest-linkedin__icon { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 3px; background: #0a66c2; color: #fff; font-family: Arial, sans-serif; font-weight: 700; font-size: 16px; }
+.guest-linkedin:hover { background: #e5ded4; border-color: #0a66c2; }
