@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { saveParticipantProfile } from '../auth/profileStore';
 import { useLanguage } from '../context/LanguageContext';
@@ -33,6 +33,8 @@ export default function RegisterWithPhotoPage() {
   const isEnglish = language === 'en';
   const { configured, user, registerWithEmail, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const destination = location.state?.from || '/conta';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +43,7 @@ export default function RegisterWithPhotoPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to="/conta" replace />;
+  if (user) return <Navigate to={destination} replace />;
 
   const handleRegister = async (event) => {
     event.preventDefault();
@@ -64,7 +66,7 @@ export default function RegisterWithPhotoPage() {
         email: email.trim().toLowerCase(),
         photoURL: '',
       });
-      navigate('/conta', { replace: true, state: { newAccount: true } });
+      navigate(destination, { replace: true, state: { newAccount: true } });
     } catch (registerError) {
       setError(friendlyError(registerError, isEnglish));
     } finally {
@@ -83,7 +85,7 @@ export default function RegisterWithPhotoPage() {
           email: result.email || '',
           photoURL: result.photoURL || '',
         });
-        navigate('/conta', { replace: true });
+        navigate(destination, { replace: true });
       }
     } catch (googleError) {
       setError(friendlyError(googleError, isEnglish));
@@ -131,7 +133,7 @@ export default function RegisterWithPhotoPage() {
             <button className="auth-primary-button" type="submit" disabled={busy || !configured}>{busy ? (isEnglish ? 'Creating account…' : 'A criar conta…') : (isEnglish ? 'Create account' : 'Criar conta')}</button>
           </form>
 
-          <p className="auth-switch">{isEnglish ? 'Already have an account?' : 'Já tem conta?'}{' '}<Link to="/login">{isEnglish ? 'Sign in' : 'Entrar'}</Link></p>
+          <p className="auth-switch">{isEnglish ? 'Already have an account?' : 'Já tem conta?'}{' '}<Link to="/login" state={{ from: destination }}>{isEnglish ? 'Sign in' : 'Entrar'}</Link></p>
         </div>
 
         <aside className="auth-aside">

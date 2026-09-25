@@ -27,8 +27,12 @@ jobs:
         run: npm ci
       - name: Test application
         run: CI=true npm test -- --watchAll=false --silent
+      - name: Test protected accommodation API
+        run: node --test server/test/*.test.mjs
       - name: Build application
         run: npm run build
+      - name: Check public accommodation assets
+        run: node scripts/check-hotel-client-build.cjs
 
       - name: Test student deployment checker
         run: python3 -m unittest discover -s scripts/tests -v && bash -n scripts/activate-students.sh

@@ -4,11 +4,11 @@ Participant-facing information supplied by the organisation on 25 September 2026
 
 Seven hotels have booking instructions: D. Luís, Astória, Mondego, Vila Galé Coimbra, Tivoli Coimbra, NH Coimbra Dona Inês and Vitória. Quinta das Lágrimas is excluded while its booking code and agreement remain unresolved. Private speaker/organisation rates and negotiation contacts are not published.
 
-Maintain the public data in `src/data/hotels2027.js`. Do not infer an NH discount percentage, Tivoli eligible dates, breakfast inclusion, tourist tax or cancellation terms where the source does not specify them. Tourist tax amounts for Astória and D. Luís are explicitly attributed to the received offers and must be confirmed with the hotel. Preserve Vila Galé's exclusion of non-refundable rates and the absence of a room block.
+Maintain the participant data in `server/hotels2027.mjs`. Do not infer an NH discount percentage, Tivoli eligible dates, breakfast inclusion, tourist tax or cancellation terms where the source does not specify them. Tourist tax amounts for Astória and D. Luís are explicitly attributed to the received offers and must be confirmed with the hotel. Preserve Vila Galé's exclusion of non-refundable rates and the absence of a room block.
 
 Bookings and payments are direct with hotels. Codes are visible and copyable, with manual-copy fallback. A displayed code does not mean its acceptance was independently tested in a hotel checkout. Official sites were checked for link destinations and public contact information; no booking was made.
 
-The section is bilingual and accessible at `/coimbra#alojamento`. Conditions use keyboard-operable native disclosure panels. The page's anchor navigation must retain the header offset, including on direct entry.
+The section is bilingual and accessible after sign-in at `/coimbra#alojamento`. Conditions use keyboard-operable native disclosure panels. The page's anchor navigation must retain the header offset, including on direct entry.
 
 ## Hotel card images
 
@@ -25,3 +25,13 @@ Added 25 September 2026 from each hotel's official website/CDN. The source URLs 
 | `public/hotels/tivoli-coimbra.webp` | https://assets.tivolihotels.com/image/upload/q_auto,f_auto,c_limit,w_1200/media/minor/tivoli/images/hotels/tcoi/new-images/homepage/tivoli_coimbra_homepage-banner_1920x900_room.jpg |
 
 The Coimbra page is focused on accommodation, with a compact congress venue/date strip. Pre-congress course information and the historical 2025 accommodation/restaurant network have been removed from this page. The congress dates remain 9–10 April 2027.
+
+## Signed-in access
+
+The public Coimbra page shows the venue and an invitation to sign in or create an account. Hotel cards and all booking terms/codes are fetched only after Firebase authentication. Both login and account creation preserve `/coimbra#alojamento` as the return destination; My CIRC includes a hotels link. Registration payment is not required.
+
+`GET /api/accommodation/hotels` is handled by the Cloudflare Worker in `server/worker.mjs`, with the hotel dataset outside the browser bundle. It validates Firebase RS256 ID tokens against Google's public signing keys and the configured `FIREBASE_PROJECT_ID`, including issuer, audience, expiry, subject and authentication time. Anonymous tokens are rejected. No admin role or verified-email claim is required. Like standard Firebase ID-token verification without revocation checks, already-issued tokens remain valid until expiry; the UI clears its state at logout and never persists offers in local/session storage.
+
+Production and preview Wrangler configurations use the existing `circ-coimbra` Firebase project, an `ASSETS` binding and Worker-first routing for `/api/*`. No new Firebase console settings or secret keys are required. The API uses `private, no-store` plus `CDN-Cache-Control: no-store`; missing/invalid sessions fail closed with 401. The existing service worker does not cache this API. If signing keys are unavailable, no offers are returned.
+
+Validation: `node --test server/test/*.test.mjs` checks valid sessions, wrong issuer/audience, expired/future/anonymous tokens, forged signatures, unauthenticated requests, cache headers and static fallback. Frontend tests cover auth restoration, logout, late responses, network retry and token refresh. Browser checks use a local signed-session fixture; they do not create accounts or alter live Firebase users.

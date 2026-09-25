@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { hotels2027 } from '../data/hotels2027';
 import './css/HotelAccommodation.css';
 
 function BookingCode({ hotel, en }) {
@@ -23,7 +22,7 @@ function BookingCode({ hotel, en }) {
   </div>;
 }
 
-export default function HotelAccommodation({ en }) {
+export default function HotelAccommodation({ en, hotels }) {
   const language = en ? 'en' : 'pt';
   const text = (value) => value[language];
   return <section id="alojamento" className="hotel-section" aria-labelledby="hotel-heading">
@@ -39,7 +38,7 @@ export default function HotelAccommodation({ en }) {
       <p>{en ? 'Book and pay directly with the hotel. Confirm availability, eligible dates and the stated conditions before booking.' : 'Reservas e pagamentos são feitos com o hotel. Confirme a disponibilidade, as datas e as condições indicadas antes de reservar.'}</p>
     </div>
     <div className="hotel-grid">
-      {hotels2027.map((hotel) => {
+      {hotels.map((hotel) => {
         const bookingHref = hotel.bookingType === 'email' ? `mailto:${hotel.email}?subject=${encodeURIComponent('CIRC 2027 — Pedido de reserva / Booking enquiry')}` : hotel.website;
         return <article className="hotel-card" key={hotel.id} aria-labelledby={`${hotel.id}-name`}>
           <img className="hotel-card__photo" src={hotel.image.src} alt={text(hotel.image.alt)} width={hotel.image.width} height={hotel.image.height} loading="lazy" decoding="async" />

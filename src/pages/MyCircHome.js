@@ -104,6 +104,6 @@ export default function MyCircHome() {
     {modules.length > 0 && <section className="my-circ-management" aria-labelledby="my-circ-management-title"><header className="my-circ-section-heading"><h2 id="my-circ-management-title">{en ? 'Management area' : 'Área de gestão'}</h2><span>{en ? 'Your permissions' : 'As suas permissões'}</span></header><div>{modules.map(([to, icon, pt, english]) => <Link to={to} key={to}><AppIcon name={icon} /><span>{en ? english : pt}</span><AppIcon name="arrow-right" /></Link>)}</div></section>}
 
     <InstallMyCirc />
-    <div className="my-circ-useful"><Link to="/coimbra"><AppIcon name="location-dot" />{en ? 'Discover Coimbra' : 'Descobrir Coimbra'}</Link><Link to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Account security' : 'Segurança da conta'}</Link></div>
+    <div className="my-circ-useful"><Link to="/coimbra#alojamento"><AppIcon name="hotel" />{en ? 'Hotels and accommodation' : 'Hotéis e alojamento'}</Link><Link to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Account security' : 'Segurança da conta'}</Link></div>
   </main>;
 }
