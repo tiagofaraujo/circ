@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { speakers2027 } from '../data/speakers2027';
 import './ProvisionalProgramme.css';
 
 // Times and pending confirmations transcribed from the supplied provisional programme.
@@ -45,35 +46,69 @@ const days = [
   ] },
 ];
 
+const speakerMatches = [
+  ['Michael Fuller', 'michael-fuller'],
+  ['Fides R. Schwartz', 'fides-schwartz'],
+  ['Tobias Gilk', 'tobias-gilk'],
+  ['Julien Greggio', 'julien-greggio'],
+];
+
 function ProgrammeRow({ row, en, nested = false }) {
   const [time, pt, english, detail, detailEn, children] = row;
-  return <li className={`schedule-row${nested ? ' schedule-row--nested' : ''}`}>
-    <span className="schedule-time">{time}</span>
+  const match = speakerMatches.find(([name]) => `${pt} ${detail || ''}`.includes(name));
+  const speaker = match && speakers2027.find(person => person.id === match[1]);
+  const titleIsSpeaker = speaker && pt.includes(match[0]);
+  const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Visita guiada)/.test(pt);
+  const title = en ? english : pt;
+  const heading = nested ? <h4>{title}</h4> : <h3>{title}</h3>;
+  return <li className={`schedule-row${nested ? ' schedule-row--nested' : ''}${practical ? ' schedule-row--practical' : ''}`}>
+    {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
-      {nested ? <h4>{en ? english : pt}</h4> : <h3>{en ? english : pt}</h3>}
-      {detail && <p>{en ? detailEn || detail : detail}</p>}
-      {children && <ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol>}
+      {!titleIsSpeaker && heading}
+      {speaker && <Link className="schedule-speaker" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${en ? 'view biography' : 'ver biografia'}`}>
+        <img src={`/speakers/${speaker.image}`} alt="" width="52" height="52" loading="lazy" />
+        <span><strong>{titleIsSpeaker ? title : speaker.name}</strong><small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small></span>
+      </Link>}
+      {detail && (nested && !time ? <details className="schedule-affiliation"><summary>{en ? 'Affiliation and role' : 'Afiliação e funções'}</summary><p>{en ? detailEn || detail : detail}</p></details> : (!speaker || detail !== speaker.name) && <p>{en ? detailEn || detail : detail}</p>)}
+      {children && <details className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol></details>}
     </div>
   </li>;
+}
+
+function dayFromHash() {
+  const id = window.location.hash.replace('#dia-', '');
+  return days.some(day => day.day === id) ? id : '08';
 }
 
 export default function ProvisionalProgramme() {
   const { language } = useLanguage();
   const en = language === 'en';
+  const [selectedDay, setSelectedDay] = useState(dayFromHash);
+  useEffect(() => {
+    const sync = () => setSelectedDay(dayFromHash());
+    window.addEventListener('hashchange', sync);
+    window.addEventListener('popstate', sync);
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync); };
+  }, []);
+  const chooseDay = (day) => {
+    setSelectedDay(day);
+    window.history.replaceState(window.history.state, '', `#dia-${day}`);
+  };
   return <main className="page provisional-programme">
     <header className="schedule-hero">
-      <p className="eyebrow">CIRC 2027 · Coimbra</p>
-      <h1>{en ? 'Provisional programme' : 'Programa provisório'}</h1>
-      <p className="schedule-lead">{en ? '8–10 April 2027 · Three days of training, science and exchange in medical imaging.' : '8–10 abril 2027 · Três dias de formação, ciência e partilha em Imagem Médica.'}</p>
+      <p className="eyebrow">CIRC 2027 · Coimbra · 8–10 {en ? 'April' : 'abril'}</p>
+      <span className="schedule-status">{en ? 'Provisional' : 'Provisório'}</span>
+      <h1>{en ? 'Scientific programme' : 'Programa científico'}</h1>
+      <p className="schedule-lead">{en ? 'Explore each day. Meet the people behind each session.' : 'Explore cada dia. Conheça quem dá voz a cada sessão.'}</p>
       <p className="schedule-notice">{en ? 'Programme subject to change. Sessions marked “to be confirmed” are pending confirmation.' : 'Programa sujeito a alterações. As sessões assinaladas «a confirmar» aguardam confirmação.'}</p>
     </header>
-    <nav className="schedule-nav" aria-label={en ? 'Programme days' : 'Dias do programa'}>{days.map(day => <a key={day.day} href={`#dia-${day.day}`}><strong>{day.day} {en ? 'APR' : 'ABR'}</strong><span>{en ? day.en : day.pt}</span><span aria-hidden="true">↓</span></a>)}</nav>
-    {days.map(day => <section className="schedule-day" id={`dia-${day.day}`} key={day.day} aria-labelledby={`title-${day.day}`}>
-      <header className="schedule-day-heading"><span>{day.day}</span><div><p className="eyebrow">{en ? 'April 2027' : 'Abril 2027'}</p><h2 id={`title-${day.day}`}>{en ? day.en : day.pt}</h2></div></header>
+    <nav className="schedule-nav" aria-label={en ? 'Choose programme day' : 'Escolher dia do programa'}>{days.map(day => <button type="button" key={day.day} aria-pressed={selectedDay === day.day} aria-controls={`dia-${day.day}`} onClick={() => chooseDay(day.day)}><strong>{day.day} <small>{en ? 'APR' : 'ABR'}</small></strong><span>{day.day === '08' ? (en ? 'Pre-Congress' : 'Pré-Congresso') : (en ? `Day ${day.day === '09' ? '1' : '2'}` : `Dia ${day.day === '09' ? '1' : '2'}`)}</span></button>)}</nav>
+    {days.map(day => <section hidden={selectedDay !== day.day} className="schedule-day" id={`dia-${day.day}`} key={day.day} aria-labelledby={`title-${day.day}`}>
+      <header className="schedule-day-heading"><div><p className="eyebrow">{day.day} {en ? 'April 2027' : 'abril 2027'}</p><h2 id={`title-${day.day}`}>{en ? day.en : day.pt}</h2></div><span>{day.rows.length} {en ? 'sessions' : 'sessões'}</span></header>
       {day.day === '08' && <p className="schedule-day-note">{en ? 'The morning and afternoon courses have separate registrations.' : 'Os cursos da manhã e da tarde têm inscrições autónomas.'}</p>}
       <ol className="schedule-list">{day.rows.map((row, i) => <ProgrammeRow key={i} row={row} en={en} />)}</ol>
       {day.day === '10' && <p className="schedule-day-note">{en ? 'The afternoon MRI session times are being reviewed due to an overlap in this provisional version.' : 'Os horários das sessões de RM da tarde estão em revisão devido a uma sobreposição nesta versão provisória.'}</p>}
     </section>)}
-    <div className="schedule-footer"><Link className="button button--outline" to="/oradores">{en ? 'Meet the speakers' : 'Conhecer os oradores'}</Link><Link className="button button--dark" to="/participar">{en ? 'Registration information' : 'Informações de inscrição'}</Link></div>
+    <div className="schedule-footer"><Link className="button button--outline" to="/oradores">{en ? 'Meet all speakers' : 'Conhecer todos os oradores'}</Link><Link className="button button--dark" to="/participar">{en ? 'Registration information' : 'Informações de inscrição'}</Link></div>
   </main>;
 }
