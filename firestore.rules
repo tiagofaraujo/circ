@@ -675,6 +675,163 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Reviewers receive separate allowlisted documents. The original submission
+    // always retains its author data and is never readable through this role.
+    function scientificReviewsEnabled() {
+      return get(/databases/$(database)/documents/reviewConfiguration/circ-2027).data.enabled == true;
+    }
+    function ownReviewer(email) {
+      return hasVerifiedEmail() && request.auth.token.email.lower() == email;
+    }
+    function activeReviewer(email) {
+      return scientificReviewsEnabled()
+        && get(/databases/$(database)/documents/scientificReviewers/$(email)).data.active == true;
+    }
+    function validReviewer(data, email) {
+      return data.keys().hasOnly(['eventId', 'email', 'name', 'active', 'createdAt', 'updatedAt', 'updatedBy'])
+        && data.eventId == 'circ-2027' && data.email == email && email == email.lower()
+        && email.size() <= 254 && email.matches('^[^ /]+@[^ /]+[.][^ /]+$')
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 160
+        && data.active is bool && data.createdAt is timestamp
+        && data.updatedAt == request.time && data.updatedBy == request.auth.uid;
+    }
+    function validReviewerSlot(emails, index) {
+      return emails.size() <= index || (emails[index] is string && emails[index] == emails[index].lower());
+    }
+    function reviewAssignmentSlotSynced(emails, index, id, selected) {
+      return emails.size() <= index
+        || getAfter(/databases/$(database)/documents/scientificReviewers/$(emails[index])/works/$(id)).data.active == (emails[index] in selected);
+    }
+    function previousReviewAssignmentsSynced(id, selected, previous) {
+      return reviewAssignmentSlotSynced(previous, 0, id, selected)
+        && reviewAssignmentSlotSynced(previous, 1, id, selected)
+        && reviewAssignmentSlotSynced(previous, 2, id, selected);
+    }
+    function validReviewAssignment(data, id, previous) {
+      let source = get(/databases/$(database)/documents/submissions/$(id)).data;
+      return data.keys().hasOnly(['eventId', 'reviewerEmails', 'updatedAt', 'updatedBy'])
+        && data.eventId == 'circ-2027' && source.eventId == 'circ-2027' && source.status != 'draft'
+        && data.reviewerEmails is list && data.reviewerEmails.size() <= 3
+        && data.reviewerEmails.toSet().size() == data.reviewerEmails.size()
+        && validReviewerSlot(data.reviewerEmails, 0)
+        && validReviewerSlot(data.reviewerEmails, 1)
+        && validReviewerSlot(data.reviewerEmails, 2)
+        && reviewAssignmentSlotSynced(data.reviewerEmails, 0, id, data.reviewerEmails)
+        && reviewAssignmentSlotSynced(data.reviewerEmails, 1, id, data.reviewerEmails)
+        && reviewAssignmentSlotSynced(data.reviewerEmails, 2, id, data.reviewerEmails)
+        && previousReviewAssignmentsSynced(id, data.reviewerEmails, previous)
+        && data.updatedAt == request.time && data.updatedBy == request.auth.uid;
+    }
+    function validAnonymousReview(data, id, email, existingActive) {
+      let source = getAfter(/databases/$(database)/documents/submissions/$(id)).data;
+      let assignments = getAfter(/databases/$(database)/documents/scientificReviewAssignments/$(id)).data;
+      let code = source.get('code', '');
+      return data.keys().hasOnly(['eventId', 'submissionId', 'code', 'title', 'type', 'abstract', 'abstractSections', 'status', 'isTest', 'active', 'evaluation', 'updatedAt', 'assignedBy'])
+        && data.eventId == 'circ-2027' && source.eventId == 'circ-2027' && data.submissionId == id
+        && source.status in ['submitted', 'under_review', 'revisions', 'accepted', 'rejected']
+        && data.code == (code == '' ? id : code) && data.title == source.get('title', '')
+        && data.type == source.get('type', '') && data.abstract == source.get('abstract', '')
+        && data.abstractSections == source.get('abstractSections', null)
+        && (data.abstractSections == null || data.abstractSections.keys().hasOnly(['introduction', 'objective', 'methods', 'results', 'conclusion', 'keywords']))
+        && data.status == source.status && data.isTest == source.get('isTest', false)
+        && data.active is bool && data.active == (email in assignments.reviewerEmails)
+        && (!data.active || existingActive || activeReviewer(email))
+        && data.updatedAt == request.time && data.assignedBy == request.auth.uid;
+    }
+    function validReviewScore(value) { return value is number && value >= 0 && value <= 10; }
+    function validEvaluation(data) {
+      return data is map && data.keys().hasOnly(['scores', 'comment', 'reviewerUid', 'updatedAt'])
+        && data.scores is map && data.scores.keys().hasAll(['quality', 'originality', 'methodology', 'clinicalRelevance', 'impact'])
+        && data.scores.keys().hasOnly(['quality', 'originality', 'methodology', 'clinicalRelevance', 'impact'])
+        && validReviewScore(data.scores.quality) && validReviewScore(data.scores.originality)
+        && validReviewScore(data.scores.methodology) && validReviewScore(data.scores.clinicalRelevance)
+        && validReviewScore(data.scores.impact)
+        && data.comment is string && data.comment.size() <= 4000
+        && data.reviewerUid == request.auth.uid && data.updatedAt == request.time;
+    }
+    function canScoreReview(email, id) {
+      let source = get(/databases/$(database)/documents/submissions/$(id)).data;
+      return ownReviewer(email) && activeReviewer(email) && resource.data.active == true
+        && source.userId != request.auth.uid && source.eventId == 'circ-2027'
+        && source.status in ['submitted', 'under_review', 'revisions'];
+    }
+    function acceptedIdentityMatches(data, id) {
+      let source = getAfter(/databases/$(database)/documents/submissions/$(id)).data;
+      return source.status == 'accepted' && source.eventId == 'circ-2027'
+        && data.keys().hasOnly(['authors', 'contactName', 'affiliation'])
+        && data.authors == source.get('authors', '')
+        && data.contactName == source.get('contactName', '')
+        && data.affiliation == source.get('affiliation', '');
+    }
+    function reviewerCanReadIdentity(id) {
+      let email = request.auth.token.email.lower();
+      let work = get(/databases/$(database)/documents/scientificReviewers/$(email)/works/$(id)).data;
+      return activeReviewer(email) && work.active == true
+        && get(/databases/$(database)/documents/submissions/$(id)).data.status == 'accepted';
+    }
+    function reviewDecisionSlotSynced(emails, index, id, status) {
+      return emails.size() <= index
+        || getAfter(/databases/$(database)/documents/scientificReviewers/$(emails[index])/works/$(id)).data.status == status;
+    }
+    function assignedReviewDecisionSynced(id) {
+      let emails = get(/databases/$(database)/documents/scientificReviewAssignments/$(id)).data.reviewerEmails;
+      let status = request.resource.data.status;
+      return reviewDecisionSlotSynced(emails, 0, id, status)
+        && reviewDecisionSlotSynced(emails, 1, id, status)
+        && reviewDecisionSlotSynced(emails, 2, id, status)
+        && (emails.size() == 0 || status != 'accepted'
+          || acceptedIdentityMatches(getAfter(/databases/$(database)/documents/scientificReviewIdentities/$(id)).data, id));
+    }
+    function reviewDecisionSynced(id) {
+      return request.resource.data.status == resource.data.status
+        || !exists(/databases/$(database)/documents/scientificReviewAssignments/$(id))
+        || assignedReviewDecisionSynced(id);
+    }
+    function reviewDeletionSafe(id) {
+      return !exists(/databases/$(database)/documents/scientificReviewAssignments/$(id))
+        || get(/databases/$(database)/documents/scientificReviewAssignments/$(id)).data.reviewerEmails.size() == 0;
+    }
+    match /reviewConfiguration/{eventId} {
+      allow get: if hasVerifiedEmail() && eventId == 'circ-2027';
+      allow list: if false;
+      allow write: if isAdmin() && eventId == 'circ-2027';
+    }
+    match /scientificReviewers/{email} {
+      allow get: if canManageSubmissions() || ownReviewer(email);
+      allow list: if canManageSubmissions();
+      allow create, update: if canManageSubmissions() && scientificReviewsEnabled() && validReviewer(request.resource.data, email);
+      allow delete: if false;
+      match /works/{submissionId} {
+        allow read: if canManageSubmissions()
+          || (ownReviewer(email) && activeReviewer(email) && resource.data.active == true);
+        allow create: if canManageSubmissions() && scientificReviewsEnabled()
+          && validAnonymousReview(request.resource.data, submissionId, email, false)
+          && request.resource.data.evaluation == null;
+        allow update: if (canManageSubmissions() && scientificReviewsEnabled()
+            && validAnonymousReview(request.resource.data, submissionId, email, resource.data.active)
+            && request.resource.data.evaluation == resource.data.evaluation)
+          || (canScoreReview(email, submissionId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['evaluation', 'updatedAt'])
+            && validEvaluation(request.resource.data.evaluation) && request.resource.data.updatedAt == request.time);
+        allow delete: if false;
+      }
+    }
+    match /scientificReviewAssignments/{submissionId} {
+      allow read: if canManageSubmissions();
+      allow create: if canManageSubmissions() && scientificReviewsEnabled()
+        && validReviewAssignment(request.resource.data, submissionId, []);
+      allow update: if canManageSubmissions() && scientificReviewsEnabled()
+        && validReviewAssignment(request.resource.data, submissionId, resource.data.reviewerEmails);
+      allow delete: if false;
+    }
+    match /scientificReviewIdentities/{submissionId} {
+      allow get: if canManageSubmissions() || (hasVerifiedEmail() && reviewerCanReadIdentity(submissionId));
+      allow list: if false;
+      allow create, update: if canManageSubmissions() && scientificReviewsEnabled()
+        && acceptedIdentityMatches(request.resource.data, submissionId);
+      allow delete: if canManageSubmissions();
+    }
+
     match /submissions/{submissionId} {
       allow read: if isAdmin()
         || (
@@ -701,9 +858,10 @@ service cloud.firestore {
           && hasValidAbstractSections()
           && hasValidInitialSubmissionTimestamps()
         );
-      allow update: if isAdmin()
+      allow update: if (isAdmin() && reviewDecisionSynced(submissionId))
         || (
           canManageSubmissions()
+          && reviewDecisionSynced(submissionId)
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'review', 'updatedAt'])
           && request.resource.data.status in [
@@ -726,7 +884,7 @@ service cloud.firestore {
           && request.resource.data.status in ['draft', 'submitted']
           && isValidAuthorSubmissionUpdate()
         );
-      allow delete: if isAdmin()
+      allow delete: if reviewDeletionSafe(submissionId) && (isAdmin()
         || (
           canTestSubmissions()
           && resource.data.userId == request.auth.uid
@@ -737,12 +895,15 @@ service cloud.firestore {
           && resource.data.userId == request.auth.uid
           && resource.data.get('isTest', false) == false
           && resource.data.status == 'draft'
-        );
+        ));
     }
 
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAdmin()
+        || (canManageSubmissions() && hasOwnAuditActor()
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.action in ['scientific.reviewer.updated', 'scientific.assignment.updated', 'scientific.decision.updated'])
         || (
           canManageSubmissions()
           && hasOwnAuditActor()

@@ -34,8 +34,8 @@ jobs:
       - name: Check public accommodation assets
         run: node scripts/check-hotel-client-build.cjs
 
-      - name: Test student deployment checker
-        run: python3 -m unittest discover -s scripts/tests -v && bash -n scripts/activate-students.sh
+      - name: Test deployment checkers
+        run: python3 -m unittest discover -s scripts/tests -v && bash -n scripts/activate-students.sh scripts/activate-scientific-review.sh
 
       - name: Test private roster importer
         working-directory: functions

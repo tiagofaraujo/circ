@@ -8,6 +8,7 @@ import {
 } from '../auth/adminOperationsStore';
 import { normalizeAbstractSections } from '../auth/submissionAbstract';
 import { exportSubmissionPdf } from '../auth/submissionPdf';
+import { updateScientificDecision, useScientificReviewConfig } from '../auth/scientificReviewStore';
 import AdminModuleNav from '../components/AdminModuleNav';
 import '../admin.css';
 import '../adminOperations.css';
@@ -132,6 +133,8 @@ function exportSubmissions(items) {
 
 export default function AdminSubmissionsPage() {
   const { user, access } = useAuth();
+  const reviewConfig = useScientificReviewConfig();
+  const saveSubmissionDecision = reviewConfig.enabled ? updateScientificDecision : updateSubmissionReview;
   const [submissions, setSubmissions] = useState([]);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -206,7 +209,7 @@ export default function AdminSubmissionsPage() {
     setError('');
 
     try {
-      await updateSubmissionReview(
+      await saveSubmissionDecision(
         user,
         submission,
         nextStatus,
@@ -237,7 +240,7 @@ export default function AdminSubmissionsPage() {
     setSavingId(submission.id);
     setError('');
     try {
-      await updateSubmissionReview(user, submission, status, note);
+      await saveSubmissionDecision(user, submission, status, note);
       setStatusFeedbacks((current) => ({
         ...current,
         [submission.id]: { kind: 'saved', text: 'Decisão guardada' },
@@ -359,7 +362,7 @@ export default function AdminSubmissionsPage() {
                     </div>
                     <label className="admin-submission__status">
                       <span>Estado científico</span>
-                      <select className={`submission-status submission-status--${currentStatus}`} value={currentStatus} onChange={(event) => saveStatus(submission, event.target.value)} disabled={savingId === submission.id}>
+                      <select className={`submission-status submission-status--${currentStatus}`} value={currentStatus} onChange={(event) => saveStatus(submission, event.target.value)} disabled={reviewConfig.loading || savingId === submission.id}>
                         {reviewSubmissionStatuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
                       </select>
                       <small
@@ -409,10 +412,11 @@ export default function AdminSubmissionsPage() {
                         <small>{currentNote.length}/1000</small>
                       </label>
                       <div className="admin-submission__actions">
+                        {reviewConfig.enabled && <Link className="admin-submission__pdf" to={`/admin/avaliacoes?trabalho=${encodeURIComponent(submission.id)}`}>Revisores e pontuações →</Link>}
                         <button type="button" className="admin-submission__pdf" onClick={() => exportPdf(submission)}>
                           Exportar PDF
                         </button>
-                        <button type="button" className="admin-submission__save" onClick={() => saveReview(submission)} disabled={!changed || savingId === submission.id}>
+                        <button type="button" className="admin-submission__save" onClick={() => saveReview(submission)} disabled={reviewConfig.loading || !changed || savingId === submission.id}>
                           {savingId === submission.id ? 'A guardar…' : changed ? 'Guardar decisão' : 'Decisão guardada'}
                         </button>
                       </div>

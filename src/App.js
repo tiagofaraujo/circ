@@ -39,6 +39,8 @@ import AdminSecretariatPage from './pages/AdminSecretariatPage';
 import AdminCompaniesPage from './pages/AdminCompaniesPage';
 import AdminStudentsPage from './pages/AdminStudentsPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
+import ScientificReviewerPage from './pages/ScientificReviewerPage';
+import ScientificReviewManagementPage from './pages/ScientificReviewManagementPage';
 import MyCircHome from './pages/MyCircHome';
 import MyCircShell from './components/MyCircShell';
 import { MyCircInstallProvider } from './pwa/MyCircInstall';
@@ -116,6 +118,8 @@ function App() {
               }
             />
             <Route path="/conta/programa" element={<ProtectedRoute><ProgramPage2027 /></ProtectedRoute>} />
+            <Route path="/conta/revisoes" element={<AdminRoute permission="reviews"><ScientificReviewerPage /></AdminRoute>} />
+            <Route path="/admin/avaliacoes" element={<AdminRoute permission="submissions"><ScientificReviewManagementPage /></AdminRoute>} />
             <Route
               path="/conta/perfil"
               element={
