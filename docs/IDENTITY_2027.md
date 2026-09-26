@@ -21,3 +21,9 @@ Visual verification: main public pages at 1440px, 390px and 320px; Inter loading
 The replacement JPEG was checked at 1440px, 390px and 320px: original image dimensions loaded, matching background, no horizontal overflow or page errors. Production build passed.
 
 The poster slogan was checked at 1440px, 1024px, 768px, 390px and 320px in both languages: four unbroken lines, text contained within the panel, no horizontal overflow or page errors. The bell is subdued on tablet widths to preserve supporting text legibility. Production build passed.
+
+On 26 September 2026, the three photographs from the previous homepage were restored as a secondary layer behind the bell and poster slogan: `/circ2025/hero-auditorium.webp`, `/circ2025/venue-auditorium.webp`, and `/exhibition/exhibition-16.jpg`. The original files remain unchanged. CSS desaturates the photographs and adds blue gradients; the bell fades into this layer without a hard edge. Mobile uses a stronger blue overlay below the slogan and a soft lower edge on the bell.
+
+The photographs crossfade every nine seconds, with a 1.8-second transition and no zoom. A labelled pause/resume button is available in both languages. Rotation stops when the hero is off screen, the tab is hidden, or reduced motion is requested. Images are decorative and excluded from the accessibility tree. The existing high-priority bell image retains loading priority over the background photographs.
+
+Verification: production build; desktop/tablet/mobile widths of 2048, 1440, 1024, 768, 390 and 320 pixels; all three images load; no horizontal overflow or page errors; slideshow, pause/resume, reduced-motion preference and programme navigation checked in Chromium.

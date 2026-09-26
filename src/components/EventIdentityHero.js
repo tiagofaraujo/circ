@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import HeroPhotoBackdrop from './HeroPhotoBackdrop';
 
 export default function EventIdentityHero({ en }) {
   const { user } = useAuth();
   return <>
     <section className="event-hero" aria-labelledby="event-title">
+      <HeroPhotoBackdrop en={en} />
       <div className="event-hero__art" aria-hidden="true"><img src="/identity2027/bell-radiograph-hq.jpg" alt="" width="1451" height="1536" fetchPriority="high" /></div>
       <div className="event-hero__inner">
         <div className="event-hero__copy">
