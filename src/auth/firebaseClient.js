@@ -47,7 +47,7 @@ export function isAdminUser(user) {
   );
 }
 
-export function getUserAccess(user, storedRoles = {}) {
+export function getUserAccess(user, storedRoles = {}, scientificReviewer = false) {
   const email = user?.email?.trim().toLowerCase() || '';
   const verified = Boolean(user?.emailVerified && email);
   const isAdmin = verified && email === adminEmail;
@@ -70,14 +70,16 @@ export function getUserAccess(user, storedRoles = {}) {
     )
   );
   const canManageRegistrations = isAdmin;
+  const canReviewSubmissions = verified && scientificReviewer === true;
 
   return {
     isAdmin,
     canManageRegistrations,
     canManageSubmissions,
+    canReviewSubmissions,
     canTestSubmissions,
     canUseSecretariat,
-    hasBackOfficeAccess: canManageRegistrations || canManageSubmissions || canUseSecretariat,
+    hasBackOfficeAccess: canManageRegistrations || canManageSubmissions || canUseSecretariat || canReviewSubmissions,
   };
 }
 

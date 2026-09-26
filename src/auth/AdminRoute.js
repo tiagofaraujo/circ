@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 const permissionFields = {
   registrations: 'canManageRegistrations',
   submissions: 'canManageSubmissions',
+  reviews: 'canReviewSubmissions',
   secretariat: 'canUseSecretariat',
 };
 
@@ -12,6 +13,7 @@ function firstAllowedPath(access) {
   if (access?.canManageRegistrations) return '/admin';
   if (access?.canManageSubmissions) return '/admin/submissoes';
   if (access?.canUseSecretariat) return '/admin/secretariado';
+  if (access?.canReviewSubmissions) return '/conta/revisoes';
   return '/conta';
 }
 

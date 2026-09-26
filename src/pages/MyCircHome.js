@@ -58,6 +58,8 @@ export default function MyCircHome() {
   const modules = [
     access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management'],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management'],
+    access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor'],
+    access?.canReviewSubmissions && ['/conta/revisoes', 'pen-to-square', 'As minhas avaliações', 'My evaluations'],
     access?.canUseSecretariat && ['/admin/secretariado', 'id-card', 'Secretariado', 'Event desk'],
   ].filter(Boolean);
 

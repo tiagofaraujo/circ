@@ -59,6 +59,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [accountRoles, setAccountRoles] = useState({});
+  const [reviewerAccess, setReviewerAccess] = useState({ uid: null, active: false });
+  const [reviewerLoading, setReviewerLoading] = useState(false);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -105,6 +107,23 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
+    setReviewerAccess({ uid: null, active: false });
+    const db = getFirebaseFirestore();
+    if (!db || !user?.emailVerified || !user?.email) {
+      setReviewerAccess({ uid: user?.uid || null, active: false });
+      setReviewerLoading(false);
+      return undefined;
+    }
+    setReviewerLoading(true);
+    let active = true;
+    const unsubscribe = db.collection('scientificReviewers').doc(user.email.trim().toLowerCase()).onSnapshot(
+      snapshot => { if (active) { setReviewerAccess({ uid: user.uid, active: snapshot.data()?.active === true }); setReviewerLoading(false); } },
+      () => { if (active) { setReviewerAccess({ uid: user.uid, active: false }); setReviewerLoading(false); } }
+    );
+    return () => { active = false; unsubscribe(); };
+  }, [user]);
+
+  useEffect(() => {
     if (!user || typeof window === 'undefined') return undefined;
 
     const markActive = () => {
@@ -130,13 +149,14 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const value = useMemo(() => {
-    const access = getUserAccess(user, accountRoles);
+    const access = getUserAccess(user, accountRoles, reviewerAccess.uid === user?.uid && reviewerAccess.active);
 
     return {
       configured: firebaseConfigured,
       microsoftAuthEnabled,
       user,
-      loading: loading || rolesLoading,
+      loading: loading || rolesLoading || reviewerLoading
+        || Boolean(user?.emailVerified && user?.email && reviewerAccess.uid !== user.uid),
       access,
       isAdmin: isAdminUser(user),
 
@@ -274,7 +294,7 @@ export function AuthProvider({ children }) {
       setUser(null);
     },
     };
-  }, [accountRoles, loading, rolesLoading, user]);
+  }, [accountRoles, loading, rolesLoading, reviewerAccess, reviewerLoading, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

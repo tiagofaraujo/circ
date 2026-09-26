@@ -68,6 +68,7 @@ const content = {
     titlePlaceholder: 'Introduza um título claro e objetivo',
     authorsLabel: 'Autores',
     authorsPlaceholder: 'Um autor por linha, pela ordem de apresentação',
+    anonymousHint: 'Para garantir uma avaliação anónima, não inclua nomes de autores nem afiliações no título ou no texto do resumo. Utilize os campos próprios para essa informação.',
     contentLabel: 'Conteúdo científico',
     affiliationLabel: 'Instituição ou afiliação principal',
     affiliationPlaceholder: 'Ex.: ULS Coimbra',
@@ -164,6 +165,7 @@ const content = {
     titlePlaceholder: 'Enter a clear, objective title',
     authorsLabel: 'Authors',
     authorsPlaceholder: 'One author per line, in presentation order',
+    anonymousHint: 'For anonymous review, do not include author names or affiliations in the title or abstract. Use the dedicated fields for this information.',
     contentLabel: 'Scientific content',
     affiliationLabel: 'Main institution or affiliation',
     affiliationPlaceholder: 'E.g. ULS Coimbra',
@@ -398,6 +400,7 @@ function TestSubmissionForm({ t, onClose, onSave, submission }) {
             <span>{t.affiliationLabel}</span>
             <input value={form.affiliation} onChange={updateField('affiliation')} placeholder={t.affiliationPlaceholder} />
           </label>
+          <p>{t.anonymousHint}</p>
           <div className="submissions-abstract-grid">
             {abstractFields.map(([field, label, placeholder, rows]) => (
               <label key={field}>
