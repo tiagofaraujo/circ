@@ -408,7 +408,8 @@ export default function AdminSubmissionsPage() {
                       </div>
                       <label>
                         <span>Nota da Comissão Científica</span>
-                        <textarea rows="5" maxLength="1000" value={currentNote} onChange={(event) => setNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} placeholder="Registe aqui observações internas, pedido de revisão ou fundamento da decisão…" disabled={savingId === submission.id} />
+                        <textarea rows="5" maxLength="1000" value={currentNote} onChange={(event) => setNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} placeholder="Registe o pedido de revisão ou o fundamento da decisão…" disabled={savingId === submission.id} />
+                        <small>Esta nota é acessível ao autor do trabalho.</small>
                         <small>{currentNote.length}/1000</small>
                       </label>
                       <div className="admin-submission__actions">
