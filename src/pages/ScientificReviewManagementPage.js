@@ -503,7 +503,7 @@ function SubmissionReviewManagement({ submission, reviewers, user, en, onDirtyCh
           </select>
         </label>
         <label>
-          {en ? 'Internal decision note' : 'Nota interna da decisão'}
+          {en ? 'Decision note' : 'Nota da decisão'}
           <textarea
             rows="3"
             maxLength="1000"
@@ -511,6 +511,7 @@ function SubmissionReviewManagement({ submission, reviewers, user, en, onDirtyCh
             onChange={(e) => setNote(e.target.value)}
             disabled={busy}
           />
+          <small>{en ? 'This note is accessible to the submission author.' : 'Esta nota é acessível ao autor do trabalho.'}</small>
         </label>
         <button
           className="review-button"

@@ -54,7 +54,7 @@ Todos os critérios têm o mesmo peso. Cada nota admite valores de 0 a 10, inclu
 | Relevância e aplicabilidade clínica | 0–10 |
 | Impacto e contributo para a prática clínica e para a investigação | 0–10 |
 
-Total individual: **0–50**. Média individual: total ÷ 5. Média global: média das avaliações guardadas dos revisores atribuídos, normalizada para 0–10. Uma avaliação em falta não conta como zero. O comentário é opcional, até 4000 caracteres, e fica reservado ao revisor e aos gestores de submissões. A nota interna de decisão já existente permanece separada do comentário de cada revisor.
+Total individual: **0–50**. Média individual: total ÷ 5. Média global: média das avaliações guardadas dos revisores atribuídos, normalizada para 0–10. Uma avaliação em falta não conta como zero. O comentário é opcional, até 4000 caracteres, e fica reservado ao revisor e aos gestores de submissões. A nota da decisão permanece separada: fica no registo original da submissão, ao qual o autor tem acesso. Os dois formulários de decisão indicam essa distinção.
 
 ## Modelo de dados e regras
 
