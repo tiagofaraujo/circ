@@ -24,7 +24,7 @@ const days = [
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM', 'MRI panel', null, null, [
       ['14:00', 'RM Fetal · a confirmar', 'Fetal MRI · to be confirmed', 'Dr. Rui Pedro Faria Pais + Técnica Paula Marques'],
-      ['14:20', 'RM em Biópsia Mamária', 'MRI in breast biopsy', 'Dra. Amélia Estêvão + Técnica Diana Carvalho'],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão + Técnica Diana Carvalho'],
       ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes + Técnico Bruno Esteves'],
     ]],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões (online)', 'International Photon-Counting CT panel (online)', null, null, [
