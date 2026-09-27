@@ -1,0 +1,64 @@
+{
+  "published": false,
+  "documents": [
+    {
+      "id": "press-release",
+      "title": {
+        "pt": "Nota de imprensa",
+        "en": "Press release"
+      },
+      "description": {
+        "pt": "Apresentação do CIRC 2027, principais temas e participação internacional.",
+        "en": "Introducing CIRC 2027, its main themes and international participation."
+      },
+      "category": "press",
+      "language": "pt-PT",
+      "version": "Final",
+      "date": "2026-09-29",
+      "status": "draft",
+      "order": 1,
+      "files": {
+        "pdf": {
+          "name": "Nota_Imprensa_CIRC2027_FINAL.pdf",
+          "bytes": 128099,
+          "sha256": "02fd05f0f810854aca544a2b6854217ddb7e5f0af0690dca0504480a1b6884ef"
+        },
+        "docx": {
+          "name": "Nota_Imprensa_CIRC2027_FINAL.docx",
+          "bytes": 373986,
+          "sha256": "b0e81008238552c5f0e821ced20d2140aa25672e80c8db92af7686b434221fcb"
+        }
+      }
+    },
+    {
+      "id": "fact-sheet",
+      "title": {
+        "pt": "Fact Sheet",
+        "en": "Fact Sheet"
+      },
+      "description": {
+        "pt": "Os dados essenciais do evento numa página: datas, local, organização, participação e calendário.",
+        "en": "The essential event facts on one page: dates, venue, organisation, attendance and timeline."
+      },
+      "category": "press",
+      "language": "pt-PT",
+      "version": "Final",
+      "date": null,
+      "status": "draft",
+      "order": 2,
+      "files": {
+        "pdf": {
+          "name": "Fact_Sheet_CIRC2027_FINAL.pdf",
+          "bytes": 130024,
+          "sha256": "4cee99247c5a2b87df2c23bbe821a857c46e9cbf931f3fa66aab2c34d1a6c1f2"
+        },
+        "docx": {
+          "name": "Fact_Sheet_CIRC2027_FINAL.docx",
+          "bytes": 155219,
+          "sha256": "eb0d97c1b7172f29b695795e0c370cff1316650f45061604103118d4bb683361"
+        }
+      }
+    }
+  ],
+  "resources": []
+}

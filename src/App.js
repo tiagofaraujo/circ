@@ -10,6 +10,8 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import AdminRoute from './auth/AdminRoute';
 
 import Home from './pages/Home';
+import MediaCenterPage from './pages/MediaCenterPage';
+import { mediaVisible } from './data/mediaAccess';
 import Speakers2027Page from './pages/Speakers2027Page';
 import { NotFoundPage } from './pages/InfoPages';
 import {
@@ -91,6 +93,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/app" element={<Navigate to="/conta" replace />} />
             <Route path="/2027" element={<Navigate to="/" replace />} />
+            <Route path="/media" element={mediaVisible ? <MediaCenterPage /> : <NotFoundPage />} />
+            <Route path="/press" element={<Navigate to="/media" replace />} />
             <Route path="/programa" element={<ProgramPage2027 />} />
             <Route path="/oradores" element={<Speakers2027Page />} />
             <Route path="/oradores/:speakerId" element={<Speakers2027Page />} />

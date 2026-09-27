@@ -23,9 +23,11 @@
   "scripts": {
     "dev": "HOST=0.0.0.0 PORT=4173 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "node scripts/build-media.mjs",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "build:media-preview": "node scripts/build-media.mjs --preview",
+    "preview:media": "node scripts/preview-media.mjs"
   },
   "eslintConfig": {
     "extends": [

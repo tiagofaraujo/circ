@@ -289,3 +289,7 @@
     padding-right: 20px;
   }
 }
+
+/* Closed mobile navigation must not remain in the keyboard tab order. */
+@media(max-width:1280px) { .mobile-nav { visibility:hidden; max-height:calc(100dvh - 80px); overflow-y:auto; min-height:0; } .mobile-nav.is-open { visibility:visible; } }
+.site-header :focus-visible { outline:3px solid #232eb7; outline-offset:3px; }

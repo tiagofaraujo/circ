@@ -1,0 +1,40 @@
+.media-center { max-width: 1200px; margin: 0 auto; padding: 140px 40px 88px; color: #20167f; font-family: Inter, var(--font-sans), sans-serif; font-size: 1rem; line-height: 1.65; }
+.media-center *, .media-center *::before, .media-center *::after { box-sizing: border-box; }
+.media-preview-notice { padding: 10px 16px; background: #cbc3e2; color: #20167f; font-size: .875rem; border-radius: 4px; margin-bottom: 28px; }
+.media-kicker { font-size: .875rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 12px; }
+.media-intro { max-width: 820px; margin-bottom: 40px; }
+.media-intro h1 { font-size: clamp(2.8rem, 6vw, 4.8rem); letter-spacing: -.055em; font-weight: 600; line-height: 1.05; color: #232eb7; margin: 0 0 22px; }
+.media-intro h1 span { color: #f7301d; }
+.media-intro h2 { font-size: clamp(1.25rem, 2.3vw, 1.65rem); font-weight: 500; letter-spacing: -.02em; margin: 0 0 12px; }
+.media-intro > p:last-child { color: #514d66; max-width: 790px; margin: 0; }
+.media-section-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -.02em; margin: 0 0 22px; }
+.media-documents { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.media-document { background: white; border: 1px solid #d8d5e3; border-top: 3px solid #232eb7; border-radius: 0 0 12px 12px; padding: 28px; display: flex; flex-direction: column; min-width: 0; }
+.media-document-type { font-size: .875rem; color: #605976; margin: 0 0 18px; }
+.media-document h3 { font-size: 1.9rem; letter-spacing: -.04em; color: #232eb7; margin: 0 0 12px; font-weight: 600; }
+.media-document > p:not(.media-document-type) { color: #514d66; margin: 0 0 26px; }
+.media-downloads { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.media-button { display: inline-flex; gap: 32px; align-items: center; justify-content: space-between; padding: 12px 20px; min-height: 48px; border-radius: 6px; background: #232eb7; color: white; text-decoration: none; font-size: 1rem; font-weight: 550; }
+.media-button:hover { background: #20167f; color: white; }
+.media-file-size, .media-word span { font-size: .875rem; color: #605976; }
+.media-word { width: 100%; color: #20167f; padding: 6px 0; text-underline-offset: 4px; }
+.media-detail-grid { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 64px; padding-top: 56px; }
+.media-facts { margin: 0 0 24px; }
+.media-facts > div { display: grid; grid-template-columns: 155px 1fr; gap: 22px; padding: 14px 0; border-top: 1px solid #d8d5e3; }
+.media-facts dt { font-size: .875rem; font-weight: 600; }
+.media-facts dd { color: #514d66; margin: 0; white-space: pre-line; }
+.media-programme, .media-call { color: #232eb7; text-underline-offset: 5px; }
+.media-contact { align-self: start; border-top: 3px solid #f7301d; padding-top: 24px; }
+.media-contact h2 { font-size: 2rem; font-weight: 550; letter-spacing: -.04em; margin-bottom: 8px; }
+.media-contact > p:not(.media-kicker) { color: #514d66; }
+.media-contact address { display: grid; gap: 6px; font-style: normal; padding: 10px 0 18px; overflow-wrap: anywhere; }
+.media-contact address a { color: #20167f; text-underline-offset: 4px; }
+.media-contact-help { font-size: .9375rem; }
+.media-contact-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin-top: 24px; }
+.media-center :focus-visible { outline: 3px solid #232eb7; outline-offset: 5px; }
+.media-skip { position: fixed; left: 20px; top: -150px; z-index: 2000; padding: 12px; background: white; color: #232eb7; }
+.media-skip:focus { top: 12px; }
+#press-documents { scroll-margin-top: 120px; }
+@media(max-width: 760px) { .media-center { padding: 112px 20px 56px; } .media-documents, .media-detail-grid { grid-template-columns: 1fr; } .media-detail-grid { gap: 40px; padding-top: 40px; } .media-document { padding: 24px; } .media-facts > div { grid-template-columns: 1fr; gap: 4px; } .media-intro { margin-bottom: 30px; } }
+/* Preserve navigation spacing with the additional link. */
+@media(min-width:1281px) and (max-width:1440px) { .site-header:has(a[href="/media"]) { grid-template-columns: 180px auto auto; gap:16px; } .site-header:has(a[href="/media"]) .desktop-nav { gap:0; } .site-header:has(a[href="/media"]) .brand img { width:180px; } }
