@@ -42,6 +42,21 @@ Após entrar com o email verificado, a área **As minhas avaliações**, em `/co
 
 Os campos de autores, nome de contacto e afiliação só são disponibilizados quando o trabalho está aceite. Email do autor, UID e dados administrativos não são enviados à área do revisor. O título e o resumo são conteúdo submetido pelos autores: devem ser redigidos sem identificação. O formulário inclui essa indicação; o supervisor deve confirmar o anonimato do texto antes de distribuir trabalhos. Não há remoção automática de nomes que tenham sido escritos dentro do resumo.
 
+### Conta para testar o perfil de revisor
+
+`araujotiagofc@gmail.com` deixou de integrar as listas fixas de gestão de submissões e de testes administrativos, no cliente e nas regras do Firestore. As outras contas de gestão mantêm os seus acessos.
+
+Depois de atualizar `main`, executar no Google Cloud Shell:
+
+```bash
+bash scripts/activate-scientific-review.sh
+python3 scripts/prepare-reviewer-test-account.py --apply
+```
+
+O segundo comando verifica as regras publicadas, identifica a conta pelo email no Firebase Authentication e remove apenas o campo `roles` do respetivo perfil, caso exista. A escrita exige a mesma versão do documento que foi lida. Não altera a conta de autenticação, dados pessoais, inscrições, diretório de revisores ou avaliações. Sem `--apply`, apenas consulta. O resultado esperado é `VERIFICADO: araujotiagofc@gmail.com sem permissões de gestão.`
+
+Para testar, a administração deve adicionar esse email em **Gerir revisores** e atribuir um trabalho submetido por outra conta. Depois de atualizar o site e voltar a entrar, essa conta verá **As minhas avaliações**, sem as áreas de gestão. Enquanto não for adicionada ao diretório, funciona como participante normal.
+
 ## Grelha
 
 Todos os critérios têm o mesmo peso. Cada nota admite valores de 0 a 10, incluindo decimais até duas casas; zero é uma nota válida, enquanto um campo vazio impede guardar.

@@ -28,12 +28,10 @@ export const adminEmail = (process.env.REACT_APP_ADMIN_EMAIL || 'circ.chuc@gmail
 
 // Temporary test assignments. Future assignments live in users/{uid}.roles.
 export const submissionsManagerEmails = [
-  'araujotiagofc@gmail.com',
   'acbdgomes@gmail.com',
   'afsilvacarvalho@gmail.com',
 ];
 export const submissionTesterEmails = [
-  'araujotiagofc@gmail.com',
   'acbdgomes@gmail.com',
   'afsilvacarvalho@gmail.com',
 ];

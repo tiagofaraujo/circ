@@ -86,3 +86,22 @@ test('reviewer role never grants supervisor, registrations or secretariat access
       .canReviewSubmissions,
   ).toBe(false);
 });
+
+test('the former supervisor is a normal participant unless assigned as a reviewer', () => {
+  const user = { uid: 'former-supervisor', email: 'araujotiagofc@gmail.com', emailVerified: true };
+  expect(getUserAccess(user)).toEqual({
+    isAdmin: false,
+    canManageRegistrations: false,
+    canManageSubmissions: false,
+    canReviewSubmissions: false,
+    canTestSubmissions: false,
+    canUseSecretariat: false,
+    hasBackOfficeAccess: false,
+  });
+  expect(getUserAccess(user, {}, true)).toEqual({
+    ...getUserAccess(user), canReviewSubmissions: true, hasBackOfficeAccess: true,
+  });
+  for (const email of ['circ.chuc@gmail.com', 'acbdgomes@gmail.com', 'afsilvacarvalho@gmail.com']) {
+    expect(getUserAccess({ email, emailVerified: true }).canManageSubmissions).toBe(true);
+  }
+});
