@@ -171,3 +171,37 @@ test('an assigned submission cannot be deleted while reviewer access remains act
   await assertSucceeds(deleteDoc(doc(dbFor('admin'), 'submissions', sid)));
   await assertFails(getDoc(work(dbFor(), 'reviewer-a')));
 });
+
+test('the former supervisor has only participant access, then only assigned reviewer access', async () => {
+  const email = 'araujotiagofc@gmail.com', uid = 'former-supervisor';
+  const db = env.authenticatedContext(uid, { email, email_verified: true }).firestore();
+  await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'users', uid), { email, displayName: 'Participante' }));
+  await assertSucceeds(getDoc(doc(db, 'users', uid)));
+  await assertFails(getDoc(doc(db, 'submissions', sid)));
+  await assertFails(getDocs(collection(db, 'scientificReviewers')));
+  await assertFails(getDoc(control(db)));
+  await assertFails(updateDoc(doc(db, 'users', uid), { roles: { submissions: true } }));
+  await assertFails(updateDoc(doc(db, 'submissions', sid), { status: 'accepted' }));
+  const ownWork = doc(db, 'scientificReviewers', email, 'works', sid);
+  await assertFails(getDoc(ownWork));
+  await env.withSecurityRulesDisabled(async ctx => {
+    const fixture = ctx.firestore();
+    await setDoc(doc(fixture, 'scientificReviewers', email), { ...reviewerData(uid), email });
+    await setDoc(control(fixture), { eventId: 'circ-2027', reviewerEmails: [email], updatedAt: serverTimestamp(), updatedBy: 'super' });
+    await setDoc(doc(fixture, 'scientificReviewers', email, 'works', sid), projection());
+  });
+  await assertSucceeds(getDoc(ownWork));
+  await assertSucceeds(updateDoc(ownWork, { evaluation: { scores: scores(8), comment: 'Avaliação de teste', reviewerUid: uid, updatedAt: serverTimestamp() }, updatedAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(db, 'submissions', sid)));
+  await assertFails(getDoc(identity(db)));
+  await assertFails(getDoc(control(db)));
+  await assertFails(getDocs(collection(db, 'scientificReviewers')));
+});
+
+test('the administrator and remaining scientific managers retain supervisor access', async () => {
+  for (const email of ['circ.chuc@gmail.com', 'acbdgomes@gmail.com', 'afsilvacarvalho@gmail.com']) {
+    const db = env.authenticatedContext('manager-' + email, { email, email_verified: true }).firestore();
+    await assertSucceeds(getDocs(collection(db, 'scientificReviewers')));
+    await assertSucceeds(getDoc(doc(db, 'submissions', sid)));
+  }
+});
