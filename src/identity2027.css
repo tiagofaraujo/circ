@@ -168,3 +168,6 @@ body { font-family: var(--font-sans); }
  .event-home .editorial-card p:not(.eyebrow) { font-size: .9rem; }
  .App:not(.App--personal) .recovered-section__header h2 { font-size: 2rem; line-height: 1.12; }
 }
+
+/* Alike accent requested for the home page venue heading only. */
+.venue-section__header h2 { font-family: 'Alike', Georgia, serif; font-weight: 400; }
