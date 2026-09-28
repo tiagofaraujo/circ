@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import media from '../data/mediaCenter.json';
-import { mediaPreview } from '../data/mediaAccess';
+import { mediaPreview, useMediaAccess } from '../data/mediaAccess';
 import '../mediaCenter.css';
 
 const copy = {
@@ -62,7 +62,7 @@ function MediaMetadata({ description, language }) {
       changes.push(() => { if (!existed) el.remove(); else if (previous === null) el.removeAttribute(attr); else el.setAttribute(attr, previous); });
     };
     set('link[rel="canonical"]', 'href', 'https://circ-coimbra.org/media', 'link', 'rel', 'canonical');
-    for (const [name, value] of Object.entries({ description, 'twitter:title': 'Media Center | CIRC 2027', 'twitter:description': description, ...(mediaPreview ? {robots: 'noindex, nofollow'} : {}) })) {
+    for (const [name, value] of Object.entries({ description, 'twitter:title': 'Media Center | CIRC 2027', 'twitter:description': description, robots: 'noindex, nofollow' })) {
       set(`meta[name="${name}"]`, 'content', value, 'meta', 'name', name);
     }
     for (const [name, value] of Object.entries({'og:title': 'Media Center | CIRC 2027', 'og:description': description, 'og:url': 'https://circ-coimbra.org/media', 'og:locale': language === 'en' ? 'en_GB' : 'pt_PT'})) {
@@ -76,10 +76,26 @@ function MediaMetadata({ description, language }) {
 export default function MediaCenterPage() {
   const { language } = useLanguage();
   const t = copy[language] || copy.pt;
+  const allowed = useMediaAccess();
+  const en = language === 'en';
+  if (!allowed) return <main className="media-center media-access">
+    <MediaMetadata description={en ? 'Press access' : 'Acesso reservado à imprensa'} language={language} />
+    <header className="media-intro"><p className="media-kicker">CIRC 2027 · COIMBRA</p><h1>Media Center<span aria-hidden="true">.</span></h1>
+    <h2>{en ? 'Press access' : 'Acesso reservado à imprensa'}</h2>
+    <p>{en ? 'Enter the password provided by the organisers to access press materials.' : 'Introduza a palavra-passe enviada pela organização para aceder aos materiais de imprensa.'}</p></header>
+    <form method="post" action="/media-access" className="media-access-form">
+      <label htmlFor="media-password">{en ? 'Password' : 'Palavra-passe'}</label>
+      <input id="media-password" type="password" name="password" autoComplete="current-password" required maxLength={128} />
+      {new URLSearchParams(window.location.search).get('access') === 'denied' && <p role="alert">{en ? 'Incorrect password. Please try again.' : 'Palavra-passe incorreta. Tente novamente.'}</p>}
+      <button className="media-button" type="submit">{en ? 'Enter Media Center' : 'Entrar no Media Center'}</button>
+    </form>
+    <p>{en ? 'Need access? Contact ' : 'Precisa de acesso? Contacte '}<a href="mailto:circ.chuc@gmail.com">circ.chuc@gmail.com</a>.</p>
+  </main>;
   const docs = media.documents.filter(doc => doc.status === 'published' || mediaPreview).sort((a, b) => a.order - b.order);
   return (
     <main className="media-center" id="media-main">
       <MediaMetadata description={t.subtitle + ' — CIRC 2027. ' + t.requests} language={language} />
+      {!mediaPreview && <form method="post" action="/media-access" className="media-logout"><input type="hidden" name="action" value="logout" /><button type="submit">{en ? 'Sign out of Media' : 'Sair da área Media'}</button></form>}
       <a className="media-skip" href="#press-documents">{t.jump}</a>
       {mediaPreview && <p className="media-preview-notice">{t.preview}</p>}
       <header className="media-intro">

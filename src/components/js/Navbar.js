@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 import '../css/Navbar.css';
-import { mediaVisible } from '../../data/mediaAccess';
+import { useMediaAccess } from '../../data/mediaAccess';
 
 const navItems = [
   { to: '/programa', pt: 'Programa', en: 'Programme' },
@@ -12,11 +12,12 @@ const navItems = [
   { to: '/participar', pt: 'Participar', en: 'Attend' },
   { to: '/parcerias', pt: 'Parcerias', en: 'Partners' },
   { to: '/coimbra', pt: 'Coimbra', en: 'Coimbra' },
-  ...(mediaVisible ? [{ to: '/media', pt: 'Media', en: 'Media' }] : []),
   { to: '/2025', pt: 'CIRC 2025', en: 'CIRC 2025' },
 ];
 
 function Navbar() {
+  const mediaAllowed = useMediaAccess();
+  const visibleItems = mediaAllowed ? [...navItems.slice(0,-1), {to:'/media',pt:'Media',en:'Media'}, navItems[navItems.length-1]] : navItems;
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
   const { user, loading } = useAuth();
@@ -46,7 +47,7 @@ function Navbar() {
         className="desktop-nav"
         aria-label={isEnglish ? 'Main navigation' : 'Navegação principal'}
       >
-        {navItems.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -121,7 +122,7 @@ function Navbar() {
           {isEnglish ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 abril'}
         </p>
         <Link to="/" onClick={closeMenu}>{isEnglish ? 'Home' : 'Início'}</Link>
-        {navItems.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink key={item.to} to={item.to} onClick={closeMenu}>
             {isEnglish ? item.en : item.pt}
           </NavLink>

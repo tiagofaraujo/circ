@@ -59,3 +59,11 @@ Os testes de ficheiros usam os quatro documentos autorizados em `media-published
 
 Resultado desta implementação: compilação normal e de preview concluídas; 117 testes React e 13 testes Node aprovados. GET local dos quatro downloads confirmou HTTP 200, tamanho e SHA-256; o build de rascunho não continha a pasta media-files; após autorização, o build público inclui apenas os quatro documentos aprovados. Os dois PDFs foram revistos visualmente, uma página cada.
 Limitação: a revisão visual da página em browser (desktop/mobile, foco e overflow) não foi concluída porque o browser do ambiente não iniciou. Não há URL remoto de pré-visualização nem publicação efetuada.
+
+## Press access
+
+The public menu/footer hide Media until `/media-access` confirms access. Journalists use `/media` and submit the shared password over HTTPS. The Worker verifies a salted PBKDF2 credential; no password or bearer token is embedded in the JavaScript bundle or committed source. All four `/media-files/*` URLs check the HttpOnly, Secure, SameSite=Strict session cookie before accessing assets. Responses use private/no-store and noindex. The cookie is a password-equivalent credential, valid until the shared credential is rotated; browser session closure/logout removes the browser's copy. This is a shared press code, not individual identity management.
+
+The source repository and previously published press documents are public. Site access control does not revoke those public copies or Git history. Make the repository private if the documents need confidentiality outside the website.
+
+To test the configured password without committing it, supply `MEDIA_TEST_PASSWORD` locally when running `node --test server/test/*.test.mjs`. Rotate by generating a fresh random salt, deriving a 32-byte PBKDF2-SHA256 token with 100000 iterations, and storing only its SHA256 hex verifier in `server/media-auth.mjs`.

@@ -38,3 +38,13 @@
 @media(max-width: 760px) { .media-center { padding: 112px 20px 56px; } .media-documents, .media-detail-grid { grid-template-columns: 1fr; } .media-detail-grid { gap: 40px; padding-top: 40px; } .media-document { padding: 24px; } .media-facts > div { grid-template-columns: 1fr; gap: 4px; } .media-intro { margin-bottom: 30px; } }
 /* Preserve navigation spacing with the additional link. */
 @media(min-width:1281px) and (max-width:1440px) { .site-header:has(a[href="/media"]) { grid-template-columns: 180px auto auto; gap:16px; } .site-header:has(a[href="/media"]) .desktop-nav { gap:0; } .site-header:has(a[href="/media"]) .brand img { width:180px; } }
+
+.media-access { min-height: 60vh; }
+.media-access-form { max-width: 440px; display: grid; gap: 14px; margin: 32px 0; }
+.media-access-form label { font-weight: 700; }
+.media-access-form input { width: 100%; box-sizing: border-box; padding: 14px 16px; border: 1px solid #71778b; border-radius: 8px; font: inherit; }
+.media-access-form input:focus-visible { outline: 3px solid #232eb7; outline-offset: 3px; }
+.media-access-form button { font: inherit; cursor: pointer; border: 0; }
+.media-access-form [role="alert"] { color: #b42318; margin: 0; }
+.media-logout { text-align: right; }
+.media-logout button { background: transparent; border: 0; text-decoration: underline; color: #232eb7; cursor: pointer; font: inherit; }

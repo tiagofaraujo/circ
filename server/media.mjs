@@ -1,7 +1,10 @@
+import { handleMediaAccess, hasMediaAccess } from './media-auth.mjs';
 import manifest from '../src/data/mediaCenter.json' with { type: 'json' };
 const types = {pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
 const unavailable = () => new Response('Not found', {status: 404, headers: {'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex'}});
-export async function handleMedia(request, env, { preview = false, config = manifest } = {}) {
+export async function handleMedia(request, env, { preview = false, config = manifest, authorize = hasMediaAccess } = {}) {
+  const accessResponse = await handleMediaAccess(request);
+  if (accessResponse) return accessResponse;
   const url = new URL(request.url);
   const path = url.pathname;
   if (!['/media', '/media/', '/press', '/press/'].includes(path) && !path.startsWith('/media-files/')) return null;
@@ -9,6 +12,7 @@ export async function handleMedia(request, env, { preview = false, config = mani
   if (path === '/press' || path === '/press/') return new Response(null, {status: 301, headers: {Location: '/media' + url.search, 'Cache-Control': 'no-store'}});
   if (!config.published && !preview) return unavailable();
   if (path.startsWith('/media-files/')) {
+    if (!preview && !await authorize(request)) return new Response('Acesso reservado à imprensa.', {status:401,headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow','Vary':'Cookie'}});
     const file = config.documents.filter(d => d.status === 'published' || preview).flatMap(d => Object.entries(d.files)).find(([,f]) => path === '/media-files/' + f.name);
     if (!file) return unavailable();
     const [ext, meta] = file;
@@ -22,8 +26,8 @@ export async function handleMedia(request, env, { preview = false, config = mani
     return new Response(request.method === 'HEAD' ? null : bytes, {headers: {
       'Content-Type': types[ext], 'Content-Length': String(bytes.length),
       'Content-Disposition': `attachment; filename="${meta.name}"`,
-      'Cache-Control': preview ? 'private, no-store' : 'public, max-age=0, must-revalidate',
-      'X-Content-Type-Options': 'nosniff', ...(preview ? {'X-Robots-Tag': 'noindex, nofollow'} : {}),
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', 'Vary':'Cookie',
     }});
   }
   if (path === '/media/') return new Response(null, {status:301, headers:{Location:'/media' + url.search}});
@@ -35,5 +39,5 @@ export async function handleMedia(request, env, { preview = false, config = mani
     .replace(/(<meta\s+(?:name|property)="(?:description|og:description|twitter:description)"\s+content=")[^"]*/g, '$1' + description)
     .replace(/(<meta\s+(?:name|property)="(?:og:title|twitter:title)"\s+content=")[^"]*/g, '$1Media Center | CIRC 2027')
     .replace(/(<meta\s+property="og:url"\s+content=")[^"]*/, '$1https://circ-coimbra.org/media');
-  return new Response(request.method === 'HEAD' ? null : html, {status:response.status, headers:{'Content-Type':'text/html; charset=utf-8', 'Cache-Control': preview ? 'private, no-store' : 'no-cache', ...(preview ? {'X-Robots-Tag':'noindex, nofollow'} : {})}});
+  return new Response(request.method === 'HEAD' ? null : html, {status:response.status, headers:{'Content-Type':'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Robots-Tag':'noindex, nofollow', 'Vary':'Cookie'}});
 }

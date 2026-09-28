@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from '../context/LanguageContext';
 import MediaCenterPage from './MediaCenterPage';
 import manifest from '../data/mediaCenter.json';
-jest.mock('../data/mediaAccess',()=>({mediaPreview:true,mediaVisible:true}));
+jest.mock('../data/mediaAccess',()=>({mediaPreview:true,mediaVisible:true,useMediaAccess:()=>true}));
 function Toggle(){const {setLanguage}=useLanguage();return <button onClick={()=>setLanguage('en')}>English</button>;}
 beforeEach(()=>localStorage.clear());
 test('preview offers exactly four real file links, date and contact',()=>{
