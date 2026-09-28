@@ -66,6 +66,9 @@ function ProgrammeRow({ row, en, nested = false }) {
     {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
       {!titleIsSpeaker && heading}
+      {pt === 'Pós-processamento em RM' && <div className="stroke-course-description">
+        <p>{en ? 'A course dedicated to MRI image post-processing, focusing on reconstruction, visualisation and analysis tools. A clinically oriented approach to making better use of the acquired information and integrating post-processing into everyday practice.' : 'Curso dedicado ao pós-processamento de imagens de Ressonância Magnética, centrado nas ferramentas de reconstrução, visualização e análise. Uma abordagem orientada para a prática clínica, que explora como tirar maior partido da informação adquirida e integrar o pós-processamento no trabalho diário.'}</p>
+      </div>}
       {pt === strokeCourseTitle.pt && <StrokeCourseDescription en={en} />}
       {speaker && <Link className="schedule-speaker" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${en ? 'view biography' : 'ver biografia'}`}>
         <img src={`/speakers/${speaker.image}`} alt="" width="52" height="52" loading="lazy" />
