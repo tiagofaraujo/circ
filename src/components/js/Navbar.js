@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 import '../css/Navbar.css';
-import { useMediaAccess } from '../../data/mediaAccess';
+import { mediaVisible } from '../../data/mediaAccess';
 
 const navItems = [
   { to: '/programa', pt: 'Programa', en: 'Programme' },
@@ -16,8 +16,7 @@ const navItems = [
 ];
 
 function Navbar() {
-  const mediaAllowed = useMediaAccess();
-  const visibleItems = mediaAllowed ? [...navItems.slice(0,-1), {to:'/media',pt:'Media',en:'Media'}, navItems[navItems.length-1]] : navItems;
+  const visibleItems = mediaVisible ? [...navItems.slice(0,-1), {to:'/media',pt:'Media',en:'Media'}, navItems[navItems.length-1]] : navItems;
   const [isOpen, setIsOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
   const { user, loading } = useAuth();

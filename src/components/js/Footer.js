@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import '../css/Footer.css';
-import { useMediaAccess } from '../../data/mediaAccess';
+import { mediaVisible } from '../../data/mediaAccess';
 import { useLocation } from 'react-router-dom';
 
 function SocialIcon({ name }) {
@@ -38,7 +38,6 @@ const socialLinks = [
 ];
 
 function Footer() {
-  const mediaAllowed = useMediaAccess();
   const { language } = useLanguage();
   const en = language === 'en';
   const { pathname } = useLocation();
@@ -70,7 +69,7 @@ function Footer() {
           <p className="footer-label">{en ? 'Organisation' : 'Organização'}</p>
           <Link to="/organizacao">Associação Hemisfério Disciplinado</Link>
           <Link to="/organizacao">{en ? 'Organising structure' : 'Estrutura organizadora'}</Link>
-          {mediaAllowed && <Link to="/media">{en ? 'Press & Media' : 'Imprensa e Media'}</Link>}
+          {mediaVisible && <Link to="/media">{en ? 'Press & Media' : 'Imprensa e Media'}</Link>}
           <Link to="/contactos">{en ? 'Contact' : 'Contactos'}</Link>
           <span className="site-footer__muted">NIF 517 072 262 · Coimbra</span>
         </div>

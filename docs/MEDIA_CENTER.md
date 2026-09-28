@@ -62,7 +62,7 @@ Limitação: a revisão visual da página em browser (desktop/mobile, foco e ove
 
 ## Press access
 
-The public menu/footer hide Media until `/media-access` confirms access. Journalists use `/media` and submit the shared password over HTTPS. The Worker verifies a salted PBKDF2 credential; no password or bearer token is embedded in the JavaScript bundle or committed source. All four `/media-files/*` URLs check the HttpOnly, Secure, SameSite=Strict session cookie before accessing assets. Responses use private/no-store and noindex. The cookie is a password-equivalent credential, valid until the shared credential is rotated; browser session closure/logout removes the browser's copy. This is a shared press code, not individual identity management.
+The public menu/footer show Media to all visitors; the page requires `/media-access` to confirm access before showing the press materials. Journalists use `/media` and submit the shared password over HTTPS. The Worker verifies a salted PBKDF2 credential; no password or bearer token is embedded in the JavaScript bundle or committed source. All four `/media-files/*` URLs check the HttpOnly, Secure, SameSite=Strict session cookie before accessing assets. Responses use private/no-store and noindex. The cookie is a password-equivalent credential, valid until the shared credential is rotated; browser session closure/logout removes the browser's copy. This is a shared press code, not individual identity management.
 
 The source repository and previously published press documents are public. Site access control does not revoke those public copies or Git history. Make the repository private if the documents need confidentiality outside the website.
 
