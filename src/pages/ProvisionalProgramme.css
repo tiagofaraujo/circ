@@ -40,8 +40,6 @@
 .schedule-speaker strong { display: block; font-size: .94rem; font-weight: 600; line-height: 1.4; }
 .schedule-speaker small { display: block; margin-top: 4px; color: #252fb4; font-size: .75rem; }
 .schedule-speaker:hover { background: #e9e2d8; }
-.schedule-affiliation { margin-top: 8px; }
-.schedule-affiliation summary { color: #626274; font-size: .8rem; padding: 12px 0; cursor: pointer; }
 .schedule-day-note { color: #626274; line-height: 1.6; font-size: .85rem; margin: 20px 0; }
 .schedule-footer { display: flex; flex-wrap: wrap; gap: 16px; margin: 40px 0; }
 .schedule-nav button:focus-visible, .schedule-speaker:focus-visible, .provisional-programme summary:focus-visible { outline: 3px solid #e6503b; outline-offset: 3px; }

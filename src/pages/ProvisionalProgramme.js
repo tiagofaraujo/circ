@@ -31,8 +31,8 @@ const days = [
       ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes + Técnico Bruno Esteves'],
     ], {pt: 'Sofia Brandão (a confirmar)', en: 'Sofia Brandão (to be confirmed)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
-      ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD', 'Investigadora Principal, Center for Advanced CT Translation and Innovation (CACTI), Brigham and Women’s Hospital. Professora Assistente na Harvard Medical School.', 'Principal Investigator, Center for Advanced CT Translation and Innovation (CACTI), Brigham and Women’s Hospital. Assistant Professor at Harvard Medical School.'],
-      ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS', 'Professor Associado (CHS), Radiologia e Física Médica. Chefe de Imagem e Intervenção Abdominal e Chefe da Modalidade de Tomografia Computorizada. Escola de Medicina e Saúde Pública da Universidade de Wisconsin.', 'Associate Professor (CHS), Radiology and Medical Physics. Chief of Abdominal Imaging and Intervention and CT Modality Chief. University of Wisconsin School of Medicine and Public Health.'],
+      ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD'],
+      ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS'],
     ], {pt: 'Mário Monteiro e Ana Isabel Machado', en: 'Mário Monteiro and Ana Isabel Machado'}],
   ] },
   { day: '10', pt: 'Congresso · Dia 2', en: 'Congress · Day 2', rows: [
@@ -77,7 +77,7 @@ function ProgrammeRow({ row, en, nested = false }) {
         <img src={`/speakers/${speaker.image}`} alt="" width="52" height="52" loading="lazy" />
         <span><strong>{titleIsSpeaker ? title : speaker.name}</strong><small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small></span>
       </Link>}
-      {detail && (nested && !time ? <details className="schedule-affiliation"><summary>{en ? 'Affiliation and role' : 'Afiliação e funções'}</summary><p>{en ? detailEn || detail : detail}</p></details> : (!speaker || detail !== speaker.name) && <p>{en ? detailEn || detail : detail}</p>)}
+      {detail && (!speaker || detail !== speaker.name) && <p>{en ? detailEn || detail : detail}</p>}
       {moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>{en ? moderators.en : moderators.pt}</p>}
       {children && <details className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol></details>}
     </div>
