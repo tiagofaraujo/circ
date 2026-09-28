@@ -1,5 +1,5 @@
 {
-  "published": false,
+  "published": true,
   "documents": [
     {
       "id": "press-release",
@@ -15,7 +15,7 @@
       "language": "pt-PT",
       "version": "Final",
       "date": "2026-09-29",
-      "status": "draft",
+      "status": "published",
       "order": 1,
       "files": {
         "pdf": {
@@ -44,7 +44,7 @@
       "language": "pt-PT",
       "version": "Final",
       "date": null,
-      "status": "draft",
+      "status": "published",
       "order": 2,
       "files": {
         "pdf": {
