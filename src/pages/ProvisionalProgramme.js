@@ -16,21 +16,23 @@ const days = [
     ['08:50', 'Abertura da sala da Igreja', 'Church hall opens'],
     ['09:00', 'Boas-vindas', 'Welcome'],
     ['09:15', 'Imagem Médica e o Futuro', 'Medical Imaging and the Future'],
-    ['10:00', 'Intensificador de imagem e o contributo de imagens em 3D no Bloco Operatório', 'Image intensifier and the contribution of 3D imaging in the operating theatre', 'Técnica Rita Vaz'],
-    ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'Técnico a designar', 'Speaker to be announced'],
-    ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália) · por videoconferência', 'Michael Fuller (Australia) · via videoconference'],
+    ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
+      ['10:00', 'Intensificador de imagem e o contributo de imagens em 3D no Bloco Operatório', 'Image intensifier and the contribution of 3D imaging in the operating theatre', 'Técnica Rita Vaz'],
+      ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'Técnico a designar', 'Speaker to be announced'],
+      ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália) · por videoconferência', 'Michael Fuller (Australia) · via videoconference'],
+    ], {pt: 'Raquel Reis e Joana Santos (a confirmar)', en: 'Raquel Reis and Joana Santos (to be confirmed)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
     ['12:15–14:00', 'Brunch', 'Brunch'],
-    ['14:00–15:00', 'Painel de RM', 'MRI panel', null, null, [
+    ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
       ['14:00', 'RM Fetal · a confirmar', 'Fetal MRI · to be confirmed', 'Dr. Rui Pedro Faria Pais + Técnica Paula Marques'],
       ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão + Técnica Diana Carvalho'],
       ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes + Técnico Bruno Esteves'],
-    ]],
+    ], {pt: 'Sofia Brandão (a confirmar)', en: 'Sofia Brandão (to be confirmed)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões (online)', 'International Photon-Counting CT panel (online)', null, null, [
       ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD', 'Investigadora Principal, Center for Advanced CT Translation and Innovation (CACTI), Brigham and Women’s Hospital. Professora Assistente na Harvard Medical School.', 'Principal Investigator, Center for Advanced CT Translation and Innovation (CACTI), Brigham and Women’s Hospital. Assistant Professor at Harvard Medical School.'],
       ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS', 'Professor Associado (CHS), Radiologia e Física Médica. Chefe de Imagem e Intervenção Abdominal e Chefe da Modalidade de Tomografia Computorizada. Escola de Medicina e Saúde Pública da Universidade de Wisconsin.', 'Associate Professor (CHS), Radiology and Medical Physics. Chief of Abdominal Imaging and Intervention and CT Modality Chief. University of Wisconsin School of Medicine and Public Health.'],
-    ]],
+    ], {pt: 'Mário Monteiro e Ana Isabel Machado', en: 'Mário Monteiro and Ana Isabel Machado'}],
   ] },
   { day: '10', pt: 'Congresso · Dia 2', en: 'Congress · Day 2', rows: [
     ['09:15–10:00', 'Brunch', 'Brunch'],
@@ -38,24 +40,25 @@ const days = [
     ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
     ['13:05–14:00', 'Almoço', 'Lunch'],
     ['14:00–15:00', 'Radiologia de Intervenção / Mamografia', 'Interventional Radiology / Mammography'],
-    ['15:05–16:05', 'Painel de RM', 'MRI panel', null, null, [
-      ['15:10–15:30', 'Tobias Gilk', 'Tobias Gilk'],
-      ['15:30–15:50', 'F. Faulkner', 'F. Faulkner'],
+    ['15:05–16:05', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', null, null, [
+      ['15:10–15:30', 'Toby Gilk', 'Toby Gilk'],
+      ['15:30–15:50', 'Bill Faulkner', 'Bill Faulkner'],
       ['16:00–16:20', 'Kirsten (confirmada)', 'Kirsten (confirmed)'],
-    ]],
-    ['16:10–16:40', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio'],
+    ], {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
+    ['16:10–16:40', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
   ] },
 ];
 
 const speakerMatches = [
   ['Michael Fuller', 'michael-fuller'],
   ['Fides R. Schwartz', 'fides-schwartz'],
-  ['Tobias Gilk', 'tobias-gilk'],
+  ['Toby Gilk', 'tobias-gilk'],
+  ['Bill Faulkner', 'bill-faulkner'],
   ['Julien Greggio', 'julien-greggio'],
 ];
 
 function ProgrammeRow({ row, en, nested = false }) {
-  const [time, pt, english, detail, detailEn, children] = row;
+  const [time, pt, english, detail, detailEn, children, moderators] = row;
   const match = speakerMatches.find(([name]) => `${pt} ${detail || ''}`.includes(name));
   const speaker = match && speakers2027.find(person => person.id === match[1]);
   const titleIsSpeaker = speaker && pt.includes(match[0]);
@@ -75,6 +78,7 @@ function ProgrammeRow({ row, en, nested = false }) {
         <span><strong>{titleIsSpeaker ? title : speaker.name}</strong><small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small></span>
       </Link>}
       {detail && (nested && !time ? <details className="schedule-affiliation"><summary>{en ? 'Affiliation and role' : 'Afiliação e funções'}</summary><p>{en ? detailEn || detail : detail}</p></details> : (!speaker || detail !== speaker.name) && <p>{en ? detailEn || detail : detail}</p>)}
+      {moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>{en ? moderators.en : moderators.pt}</p>}
       {children && <details className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol></details>}
     </div>
   </li>;
