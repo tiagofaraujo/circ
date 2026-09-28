@@ -16,7 +16,9 @@
       "/press",
       "/press/",
       "/media-files/*",
-      "/media-access"
+      "/media-access",
+      "/programa",
+      "/programa/"
     ]
   },
   "compatibility_flags": [

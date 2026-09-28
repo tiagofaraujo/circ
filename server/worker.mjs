@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { handleSocialMetadata } from './social-metadata.mjs';
 import { handleMedia } from './media.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
@@ -40,6 +41,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       const { pathname } = new URL(request.url);
       const mediaResponse = await handleMedia(request, env);
       if (mediaResponse) return mediaResponse;
+      const socialResponse = await handleSocialMetadata(request, env);
+      if (socialResponse) return socialResponse;
       if (!pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
       if (pathname !== '/api/accommodation/hotels') return json({ error: 'not_found' }, 404);
       if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405, { Allow: 'GET' });
