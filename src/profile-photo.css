@@ -9,7 +9,7 @@
   border: 1px solid rgba(35, 46, 183, 0.18);
   background: rgba(35, 46, 183, 0.08);
   color: #232eb7;
-  font-family: "Alike Angular", serif;
+  font-family: var(--font-sans);
   font-size: 2.6rem;
 }
 

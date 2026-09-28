@@ -28,7 +28,7 @@
   margin: 10px 0 14px;
   max-width: 680px;
   color: var(--blue-deep, #141846);
-  font-family: var(--font-sans, 'Barlow', sans-serif);
+  font-family: var(--font-sans, 'Inter', sans-serif);
   font-size: clamp(2.7rem, 5vw, 5rem);
   font-weight: 500;
   line-height: 0.98;
@@ -86,7 +86,7 @@
 .auth-primary-button,
 .auth-signout-button,
 .auth-verification-banner button {
-  font-family: var(--font-sans, 'Barlow', sans-serif);
+  font-family: var(--font-sans, 'Inter', sans-serif);
 }
 
 .auth-google-button {

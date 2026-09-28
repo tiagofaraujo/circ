@@ -43,7 +43,7 @@
 
 .about-right h2 {
   font-size: 2.5rem;
-  font-family: 'Source Serif 4', serif; /* Fonte secundária */
+  font-family: var(--font-sans);
   font-style: italic; /* Estilo itálico */
   color: #2E3191; /* Azul do evento */
   margin-bottom: 1rem;
@@ -56,7 +56,7 @@
 }
 
 .highlight {
-  font-family: 'Source Serif 4', serif; /* Fonte secundária */
+  font-family: var(--font-sans);
   font-style: italic; /* Estilo itálico */
   color: #2E3191; /* Azul do evento */
 }

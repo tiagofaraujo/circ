@@ -16,7 +16,9 @@
   --radius: 24px;
   --max-width: 1440px;
   --font-sans: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  --font-display: 'Alike Angular', Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-sans);
+  --bs-font-sans-serif: var(--font-sans);
+  --bs-body-font-family: var(--font-sans);
 }
 
 * {
@@ -42,7 +44,11 @@ body {
 body,
 button,
 input,
-textarea {
+textarea,
+select,
+optgroup,
+h1, h2, h3, h4, h5, h6,
+code, kbd, samp, pre {
   font-family: var(--font-sans);
 }
 

@@ -203,7 +203,7 @@
   place-items: center;
   align-self: flex-end;
   color: var(--coral);
-  font-family: Georgia, serif;
+  font-family: var(--font-sans);
   font-size: 1.5rem;
   font-style: italic;
 }
