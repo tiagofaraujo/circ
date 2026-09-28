@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import './ProvisionalProgramme.css';
+import MriCourseDescription, { mriCourseTitle } from '../components/MriCourseDescription';
 import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
 
 // Times and pending confirmations transcribed from the supplied provisional programme.
 const days = [
   { day: '08', pt: 'Pré-Congresso', en: 'Pre-Congress', rows: [
-    ['09:00–13:00', 'Pós-processamento em RM', 'MRI post-processing', 'Daniel Leitão (Siemens)'],
+    ['09:00–13:00', mriCourseTitle.pt, mriCourseTitle.en],
     ['14:00–18:00', strokeCourseTitle.pt, strokeCourseTitle.en],
   ] },
   { day: '09', pt: 'Congresso · Dia 1', en: 'Congress · Day 1', rows: [
@@ -46,6 +47,7 @@ const days = [
       ['16:00–16:20', 'Kirsten (confirmada)', 'Kirsten (confirmed)'],
     ], {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
     ['16:10–16:40', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
+    ['17:00', 'Coffee break', 'Coffee break'],
   ] },
 ];
 
@@ -62,16 +64,14 @@ function ProgrammeRow({ row, en, nested = false }) {
   const match = speakerMatches.find(([name]) => `${pt} ${detail || ''}`.includes(name));
   const speaker = match && speakers2027.find(person => person.id === match[1]);
   const titleIsSpeaker = speaker && pt.includes(match[0]);
-  const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Visita guiada)/.test(pt);
+  const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada)/.test(pt);
   const title = en ? english : pt;
   const heading = nested ? <h4>{title}</h4> : <h3>{title}</h3>;
   return <li className={`schedule-row${nested ? ' schedule-row--nested' : ''}${practical ? ' schedule-row--practical' : ''}`}>
     {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
       {!titleIsSpeaker && heading}
-      {pt === 'Pós-processamento em RM' && <div className="stroke-course-description">
-        <p>{en ? 'A course dedicated to MRI image post-processing, focusing on reconstruction, visualisation and analysis tools. A clinically oriented approach to making better use of the acquired information and integrating post-processing into everyday practice.' : 'Curso dedicado ao pós-processamento de imagens de Ressonância Magnética, centrado nas ferramentas de reconstrução, visualização e análise. Uma abordagem orientada para a prática clínica, que explora como tirar maior partido da informação adquirida e integrar o pós-processamento no trabalho diário.'}</p>
-      </div>}
+      {pt === mriCourseTitle.pt && <MriCourseDescription en={en} />}
       {pt === strokeCourseTitle.pt && <StrokeCourseDescription en={en} />}
       {speaker && <Link className="schedule-speaker" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${en ? 'view biography' : 'ver biografia'}`}>
         <img src={`/speakers/${speaker.image}`} alt="" width="52" height="52" loading="lazy" />

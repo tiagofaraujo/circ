@@ -1,0 +1,15 @@
+.mri-course-description { margin-top: 20px; color: #45455b; font-size: .92rem; line-height: 1.65; }
+.mri-course-facts { margin: 0 0 20px; }
+.mri-course-facts > div { display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 12px; margin: 7px 0; }
+.mri-course-facts dt { font-weight: 650; color: #232eb7; }
+.mri-course-facts dd { margin: 0; }
+.mri-course-section { border-top: 1px solid #d7cfc5; padding: 14px 0; }
+.mri-course-section summary { cursor: pointer; font-weight: 650; color: #232eb7; }
+.mri-course-section summary:focus-visible { outline: 3px solid #232eb7; outline-offset: 4px; }
+.mri-course-description ul { padding-left: 22px; margin: 12px 0; }
+.mri-course-description li { margin: 5px 0; }
+.mri-course-sessions { list-style: none; padding: 0; margin: 18px 0 0; }
+.mri-course-sessions > li { padding: 14px 0; border-bottom: 1px solid #e0d9d1; }
+.mri-course-sessions h4 span { display: block; color: #232eb7; font-variant-numeric: tabular-nums; font-size: .85rem; }
+.mri-course-description > h4 { margin-top: 18px; }
+@media(max-width:480px) { .mri-course-facts > div { grid-template-columns: 1fr; gap: 0; margin: 12px 0; } }
