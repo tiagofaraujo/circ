@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 import '../css/Navbar.css';
+import { mediaVisible } from '../../data/mediaAccess';
 
 const navItems = [
   { to: '/programa', pt: 'Programa', en: 'Programme' },
@@ -11,6 +12,7 @@ const navItems = [
   { to: '/participar', pt: 'Participar', en: 'Attend' },
   { to: '/parcerias', pt: 'Parcerias', en: 'Partners' },
   { to: '/coimbra', pt: 'Coimbra', en: 'Coimbra' },
+  ...(mediaVisible ? [{ to: '/media', pt: 'Media', en: 'Media' }] : []),
   { to: '/2025', pt: 'CIRC 2025', en: 'CIRC 2025' },
 ];
 

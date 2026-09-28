@@ -31,3 +31,7 @@ yarn-error.log*
 /private-data/
 /functions/private-data/
 /functions/coverage/
+
+# Media editorial preview and generated public copies
+/.media-preview/
+/public/media-files/
