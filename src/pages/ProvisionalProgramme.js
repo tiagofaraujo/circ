@@ -20,7 +20,7 @@ const days = [
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
       ['10:00', 'Intensificador de imagem e o contributo de imagens em 3D no Bloco Operatório', 'Image intensifier and the contribution of 3D imaging in the operating theatre', 'Técnica Rita Vaz'],
       ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'Técnico a designar', 'Speaker to be announced'],
-      ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália) · por videoconferência', 'Michael Fuller (Australia) · via videoconference'],
+      ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália)', 'Michael Fuller (Australia)'],
     ], {pt: 'Raquel Reis e Joana Santos (a confirmar)', en: 'Raquel Reis and Joana Santos (to be confirmed)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
@@ -30,7 +30,7 @@ const days = [
       ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão + Técnica Diana Carvalho'],
       ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes + Técnico Bruno Esteves'],
     ], {pt: 'Sofia Brandão (a confirmar)', en: 'Sofia Brandão (to be confirmed)'}],
-    ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões (online)', 'International Photon-Counting CT panel (online)', null, null, [
+    ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
       ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD', 'Investigadora Principal, Center for Advanced CT Translation and Innovation (CACTI), Brigham and Women’s Hospital. Professora Assistente na Harvard Medical School.', 'Principal Investigator, Center for Advanced CT Translation and Innovation (CACTI), Brigham and Women’s Hospital. Assistant Professor at Harvard Medical School.'],
       ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS', 'Professor Associado (CHS), Radiologia e Física Médica. Chefe de Imagem e Intervenção Abdominal e Chefe da Modalidade de Tomografia Computorizada. Escola de Medicina e Saúde Pública da Universidade de Wisconsin.', 'Associate Professor (CHS), Radiology and Medical Physics. Chief of Abdominal Imaging and Intervention and CT Modality Chief. University of Wisconsin School of Medicine and Public Health.'],
     ], {pt: 'Mário Monteiro e Ana Isabel Machado', en: 'Mário Monteiro and Ana Isabel Machado'}],
@@ -108,7 +108,7 @@ export default function ProvisionalProgramme() {
       <p className="eyebrow">CIRC 2027 · Coimbra · 8–10 {en ? 'April' : 'abril'}</p>
       <span className="schedule-status">{en ? 'Provisional' : 'Provisório'}</span>
       <h1>{en ? 'Scientific programme' : 'Programa científico'}</h1>
-      <p className="schedule-lead">{en ? 'Explore each day. Meet the people behind each session.' : 'Explore cada dia. Conheça quem dá voz a cada sessão.'}</p>
+      <p className="schedule-lead">{en ? 'International perspectives, advances in medical imaging and practical learning. Explore the programme and meet the speakers at CIRC 2027.' : 'Perspetivas internacionais, inovação em Imagem Médica e formação prática. Explore o programa e conheça os oradores do CIRC 2027.'}</p>
       <p className="schedule-notice">{en ? 'Programme subject to change. Sessions marked “to be confirmed” are pending confirmation.' : 'Programa sujeito a alterações. As sessões assinaladas «a confirmar» aguardam confirmação.'}</p>
     </header>
     <nav className="schedule-nav" aria-label={en ? 'Choose programme day' : 'Escolher dia do programa'}>{days.map(day => <button type="button" key={day.day} aria-pressed={selectedDay === day.day} aria-controls={`dia-${day.day}`} onClick={() => chooseDay(day.day)}><strong>{day.day} <small>{en ? 'APR' : 'ABR'}</small></strong><span>{day.day === '08' ? (en ? 'Pre-Congress' : 'Pré-Congresso') : (en ? `Day ${day.day === '09' ? '1' : '2'}` : `Dia ${day.day === '09' ? '1' : '2'}`)}</span></button>)}</nav>
