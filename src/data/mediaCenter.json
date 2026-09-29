@@ -13,20 +13,20 @@
       },
       "category": "press",
       "language": "pt-PT",
-      "version": "Final",
+      "version": "1.2",
       "date": "2026-09-29",
       "status": "published",
       "order": 1,
       "files": {
         "pdf": {
-          "name": "Nota_Imprensa_CIRC2027_FINAL.pdf",
-          "bytes": 128099,
-          "sha256": "02fd05f0f810854aca544a2b6854217ddb7e5f0af0690dca0504480a1b6884ef"
+          "name": "Nota_Imprensa_CIRC2027_v1_2_CA.pdf",
+          "bytes": 73128,
+          "sha256": "9c1ee317eedccf7e51928bce75b3b56d8ebd615d82f11f40f963b5b45c8cdeb0"
         },
         "docx": {
-          "name": "Nota_Imprensa_CIRC2027_FINAL.docx",
-          "bytes": 373986,
-          "sha256": "b0e81008238552c5f0e821ced20d2140aa25672e80c8db92af7686b434221fcb"
+          "name": "Nota_Imprensa_CIRC2027_v1_2_CA.docx",
+          "bytes": 157766,
+          "sha256": "2ada743da800c22086a845fb5a23a7c74831ecfe742668d6900bea9da353a65a"
         }
       }
     },
@@ -56,6 +56,30 @@
           "name": "Fact_Sheet_CIRC2027_FINAL.docx",
           "bytes": 155219,
           "sha256": "eb0d97c1b7172f29b695795e0c370cff1316650f45061604103118d4bb683361"
+        }
+      }
+    },
+    {
+      "id": "press-photos",
+      "title": {
+        "pt": "Fotografias para imprensa",
+        "en": "Press photographs"
+      },
+      "description": {
+        "pt": "Seleção de 12 fotografias em formato JPG, com 1600 px, reunidas num ficheiro ZIP.",
+        "en": "A selection of 12 photographs in JPG format at 1600 px, bundled in a ZIP file."
+      },
+      "category": "photos",
+      "language": "JPG",
+      "version": "1600 px",
+      "date": null,
+      "status": "published",
+      "order": 3,
+      "files": {
+        "zip": {
+          "name": "CIRC_Fotografias_JPG_1600px.zip",
+          "bytes": 1510724,
+          "sha256": "fb56dc418e139c759fc6080c4436ac54cbfb134cfc066103e9d464c14113200c"
         }
       }
     }

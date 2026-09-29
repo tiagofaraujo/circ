@@ -113,7 +113,9 @@ export default function MediaCenterPage() {
             <p>{doc.description[language] || doc.description.pt}</p>
             <div className="media-downloads">
               {doc.files.pdf && <a className="media-button" href={`/media-files/${doc.files.pdf.name}`} download aria-label={`${t.pdf} — ${doc.title[language] || doc.title.pt}`}><span>{t.pdf}</span><span aria-hidden="true">↓</span></a>}
-              <span className="media-file-size">PDF · {fileSize(doc.files.pdf.bytes, language)}</span>
+              {doc.files.pdf && <span className="media-file-size">PDF · {fileSize(doc.files.pdf.bytes, language)}</span>}
+              {doc.files.zip && <a className="media-button" href={`/media-files/${doc.files.zip.name}`} download><span>{en ? 'Download photographs' : 'Descarregar fotografias'}</span><span aria-hidden="true">↓</span></a>}
+              {doc.files.zip && <span className="media-file-size">ZIP · {fileSize(doc.files.zip.bytes, language)}</span>}
               {doc.files.docx && <a className="media-word" href={`/media-files/${doc.files.docx.name}`} download>{t.word} <span>· DOCX · {fileSize(doc.files.docx.bytes, language)}</span></a>}
             </div>
           </article>)}

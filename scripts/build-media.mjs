@@ -13,7 +13,7 @@ fs.rmSync('public/media-files', {recursive:true, force:true});
 fs.rmSync(output, {recursive:true, force:true});
 const selected = config.documents.filter(d => preview || (config.published && d.status === 'published'));
 for (const doc of selected) for (const [ext, file] of Object.entries(doc.files)) {
-  if (!/^[A-Za-z0-9_-]+\.(pdf|docx)$/.test(file.name)) throw new Error('Invalid media filename');
+  if (!/^[A-Za-z0-9_-]+\.(pdf|docx|zip)$/.test(file.name)) throw new Error('Invalid media filename');
   const bytes = fs.readFileSync(sourceFor(doc, file));
   if (bytes.length !== file.bytes || crypto.createHash('sha256').update(bytes).digest('hex') !== file.sha256) throw new Error('Update verified metadata for ' + file.name);
   if (ext === 'pdf' ? bytes.subarray(0,5).toString() !== '%PDF-' : bytes.subarray(0,4).toString('hex') !== '504b0304') throw new Error('Invalid file format: ' + file.name);

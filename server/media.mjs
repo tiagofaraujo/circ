@@ -1,6 +1,6 @@
 import { handleMediaAccess, hasMediaAccess } from './media-auth.mjs';
 import manifest from '../src/data/mediaCenter.json' with { type: 'json' };
-const types = {pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
+const types = {zip: 'application/zip', pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
 const unavailable = () => new Response('Not found', {status: 404, headers: {'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex'}});
 export async function handleMedia(request, env, { preview = false, config = manifest, authorize = hasMediaAccess } = {}) {
   const accessResponse = await handleMediaAccess(request);
