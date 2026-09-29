@@ -41,12 +41,12 @@ const days = [
     ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
     ['13:05–14:00', 'Almoço', 'Lunch'],
     ['14:00–15:00', 'Radiologia de Intervenção / Mamografia', 'Interventional Radiology / Mammography'],
-    ['15:05–16:05', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', null, null, [
+    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', null, null, [
       ['15:10–15:30', 'Toby Gilk', 'Toby Gilk'],
       ['15:30–15:50', 'Bill Faulkner', 'Bill Faulkner'],
-      ['16:00–16:20', 'Kirsten (confirmada)', 'Kirsten (confirmed)'],
+      ['15:50–16:10', 'Kris Seitz', 'Kris Seitz'],
     ], {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
-    ['16:10–16:40', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
+    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
     ['17:00', 'Coffee break', 'Coffee break'],
   ] },
 ];
@@ -56,6 +56,7 @@ const speakerMatches = [
   ['Fides R. Schwartz', 'fides-schwartz'],
   ['Toby Gilk', 'tobias-gilk'],
   ['Bill Faulkner', 'bill-faulkner'],
+  ['Kris Seitz', 'kris-seitz'],
   ['Julien Greggio', 'julien-greggio'],
 ];
 
@@ -116,7 +117,6 @@ export default function ProvisionalProgramme() {
       <header className="schedule-day-heading"><div><p className="eyebrow">{day.day} {en ? 'April 2027' : 'abril 2027'}</p><h2 id={`title-${day.day}`}>{en ? day.en : day.pt}</h2></div><span>{day.rows.length} {en ? 'sessions' : 'sessões'}</span></header>
       {day.day === '08' && <p className="schedule-day-note">{en ? 'The morning and afternoon courses have separate registrations.' : 'Os cursos da manhã e da tarde têm inscrições autónomas.'}</p>}
       <ol className="schedule-list">{day.rows.map((row, i) => <ProgrammeRow key={i} row={row} en={en} />)}</ol>
-      {day.day === '10' && <p className="schedule-day-note">{en ? 'The afternoon MRI session times are being reviewed due to an overlap in this provisional version.' : 'Os horários das sessões de RM da tarde estão em revisão devido a uma sobreposição nesta versão provisória.'}</p>}
     </section>)}
     <div className="schedule-footer"><Link className="button button--outline" to="/oradores">{en ? 'Meet all speakers' : 'Conhecer todos os oradores'}</Link><Link className="button button--dark" to="/participar">{en ? 'Registration information' : 'Informações de inscrição'}</Link></div>
   </main>;
