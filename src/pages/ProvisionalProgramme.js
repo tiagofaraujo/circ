@@ -6,6 +6,9 @@ import './ProvisionalProgramme.css';
 import MriCourseDescription, { mriCourseTitle } from '../components/MriCourseDescription';
 import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
 
+// Temporarily hide moderator credits while retaining programme data.
+const SHOW_MODERATORS = false;
+
 // Times and pending confirmations transcribed from the supplied provisional programme.
 const days = [
   { day: '08', pt: 'Pré-Congresso', en: 'Pre-Congress', rows: [
@@ -79,7 +82,7 @@ function ProgrammeRow({ row, en, nested = false }) {
         <span><strong>{titleIsSpeaker ? title : speaker.name}</strong><small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small></span>
       </Link>}
       {detail && (!speaker || detail !== speaker.name) && <p>{en ? detailEn || detail : detail}</p>}
-      {moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>{en ? moderators.en : moderators.pt}</p>}
+      {SHOW_MODERATORS && moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>{en ? moderators.en : moderators.pt}</p>}
       {children && <details className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol></details>}
     </div>
   </li>;
