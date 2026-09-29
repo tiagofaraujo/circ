@@ -19,7 +19,8 @@ test('switching interface to English keeps Portuguese document language',()=>{
  render(<MemoryRouter initialEntries={['/media']}><LanguageProvider><Toggle/><MediaCenterPage/></LanguageProvider></MemoryRouter>);
  fireEvent.click(screen.getByText('English'));
  expect(screen.getByText('Information and resources for the press')).toBeInTheDocument();
- expect(screen.getAllByText(/Portuguese · Final version/)).toHaveLength(1);
+ expect(screen.getByText(/Portuguese · 1.1/)).toBeInTheDocument();
+ expect(screen.getByText(/Portuguese · 1.2/)).toBeInTheDocument();
  expect(document.title).toBe('Media Center | CIRC 2027');
  expect(document.head.querySelector('link[rel="canonical"]').href).toBe('https://circ-coimbra.org/media');
 });

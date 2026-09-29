@@ -42,20 +42,20 @@
       },
       "category": "press",
       "language": "pt-PT",
-      "version": "Final",
+      "version": "1.1",
       "date": null,
       "status": "published",
       "order": 2,
       "files": {
         "pdf": {
-          "name": "Fact_Sheet_CIRC2027_FINAL.pdf",
-          "bytes": 130024,
-          "sha256": "4cee99247c5a2b87df2c23bbe821a857c46e9cbf931f3fa66aab2c34d1a6c1f2"
+          "name": "Fact_Sheet_CIRC2027_v1_1.pdf",
+          "bytes": 76889,
+          "sha256": "787cdff520501ffe2d87d6a5469f1d8faaacc1758f2cdbff880d5bcf6f88a47c"
         },
         "docx": {
-          "name": "Fact_Sheet_CIRC2027_FINAL.docx",
-          "bytes": 155219,
-          "sha256": "eb0d97c1b7172f29b695795e0c370cff1316650f45061604103118d4bb683361"
+          "name": "Fact_Sheet_CIRC2027_v1_1.docx",
+          "bytes": 157492,
+          "sha256": "a080b34e450ef1d5cfc9a3ebcebe77365431f35092efd9557359c1deeb1686d9"
         }
       }
     },
