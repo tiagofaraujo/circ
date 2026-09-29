@@ -21,7 +21,7 @@ const days = [
     ['09:00', 'Boas-vindas', 'Welcome'],
     ['09:15', 'Imagem Médica e o Futuro', 'Medical Imaging and the Future'],
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
-      ['10:00', 'Intensificador de imagem e o contributo de imagens em 3D no Bloco Operatório', 'Image intensifier and the contribution of 3D imaging in the operating theatre', 'Técnica Rita Vaz'],
+      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Técnica Rita Vaz'],
       ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'Técnico a designar', 'Speaker to be announced'],
       ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália)', 'Michael Fuller (Australia)'],
     ], {pt: 'Raquel Reis e Joana Santos (a confirmar)', en: 'Raquel Reis and Joana Santos (to be confirmed)'}],
