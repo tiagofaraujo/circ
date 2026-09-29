@@ -27,15 +27,15 @@ test('only approval unlocks student participation; external remains available', 
   const congress = screen.getByRole('radio', { name: /CIRC 2027/ });
   expect(congress).toBeEnabled();
   fireEvent.click(congress);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante IMR/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
   expect(congress).toBeDisabled();
   expect(congress).not.toBeChecked();
-  expect(screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Manhã/ })).toBeDisabled();
+  expect(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ })).toBeDisabled();
   expect(screen.getByRole('radio', { name: /Apenas cursos/ })).toBeDisabled();
   useStudentVerification.mockReturnValue({ approved: true });
   rerender(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
   expect(congress).toBeEnabled();
-  expect(screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Manhã/ })).toBeEnabled();
+  expect(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ })).toBeEnabled();
   expect(screen.getByRole('radio', { name: /Apenas cursos/ })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Inscrições abrem a 15 de novembro' })).toBeDisabled();
 });
@@ -43,10 +43,10 @@ test('only approval unlocks student participation; external remains available', 
 test('students can select both courses and lose access when approval is withdrawn', () => {
   useStudentVerification.mockReturnValue({ approved: true });
   const { rerender } = render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante IMR/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
   const mode = screen.getByRole('radio', { name: /Apenas cursos/ });
-  const morning = screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Manhã/ });
-  const afternoon = screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Tarde/ });
+  const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
+  const afternoon = screen.getByRole('checkbox', { name: /Via Verde AVC/ });
   fireEvent.click(mode);
   fireEvent.click(morning);
   fireEvent.click(afternoon);
@@ -64,12 +64,12 @@ test('students can select both courses and lose access when approval is withdraw
 test('student courses-only simulation requires a course and submits the selected courses', async () => {
   useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });
   render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante IMR/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
   fireEvent.click(screen.getByRole('radio', { name: /Apenas cursos/ }));
   const submit = screen.getByRole('button', { name: 'Criar inscrição de teste' });
   expect(submit).toBeDisabled();
-  fireEvent.click(screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Manhã/ }));
-  fireEvent.click(screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Tarde/ }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
   expect(submit).toBeEnabled();
   fireEvent.click(submit);
   await waitFor(() => expect(saveAdminTestRegistration).toHaveBeenCalledWith(
@@ -87,8 +87,8 @@ test('a legacy student registration can add the remaining course without buying 
     return () => {};
   });
   render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  const morning = screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Manhã/ });
-  const afternoon = screen.getByRole('checkbox', { name: /Curso Pré-Congresso · Tarde/ });
+  const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
+  const afternoon = screen.getByRole('checkbox', { name: /Via Verde AVC/ });
   expect(morning).toBeChecked();
   expect(morning).toBeDisabled();
   expect(afternoon).toBeEnabled();
@@ -101,7 +101,7 @@ test('a legacy student registration can add the remaining course without buying 
 test('administrative simulation remains clearly labelled as a test', () => {
   useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });
   render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante IMR/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
   expect(screen.getByRole('radio', { name: /CIRC 2027/ })).toBeEnabled();
   expect(screen.getByText('Modo de teste administrativo')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Criar inscrição de teste' })).toBeDisabled();

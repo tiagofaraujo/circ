@@ -102,7 +102,7 @@ export default function StudentVerification({ user, verification, en = false }) 
                   <label>{en ? 'School / institution' : 'Escola / instituição'}<input required minLength={2} maxLength={160} value={school} onChange={(e) => setSchool(e.target.value)} disabled={busy} /></label>
                 </div>
                 <p>{en ? 'Send an enrolment document showing your full name, school and academic year 2026/2027. You may hide unrelated information such as your address or tax number.' : 'Envie um comprovativo de matrícula com o nome completo, escola e ano letivo 2026/2027. Pode ocultar informação desnecessária, como morada ou NIF.'}</p>
-                <div className={`student-upload${dragging ? ' is-dragging' : ''}`} role="group" aria-label={en ? 'Document upload' : 'Upload do comprovativo'} aria-busy={busy}
+                <div className={`student-upload${dragging ? ' is-dragging' : ''}`} role="group" aria-label={en ? 'Document upload' : 'Carregamento do comprovativo'} aria-busy={busy}
                   onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }}
                   onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
                   onDrop={(event) => { event.preventDefault(); setDragging(false); chooseFiles(event.dataTransfer.files); }}>

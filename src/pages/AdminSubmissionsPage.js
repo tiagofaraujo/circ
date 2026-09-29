@@ -16,15 +16,15 @@ import '../adminOperations.css';
 const statusLabels = {
   draft: 'Rascunho',
   submitted: 'Por avaliar',
-  under_review: 'Em revisão',
-  revisions: 'Revisões pedidas',
+  under_review: 'Em avaliação',
+  revisions: 'Correções solicitadas',
   accepted: 'Aceite',
   rejected: 'Não aceite',
 };
 
 const typeLabels = {
   oral: 'Comunicação livre',
-  poster: 'Poster',
+  poster: 'Póster',
 };
 
 const abstractSectionLabels = [

@@ -117,7 +117,7 @@ export default function AdminStudentsPage() {
           {proofLoading && <p role="status">A carregar comprovativo privado…</p>}
           {!selected.proofAvailable && <p>O comprovativo já foi apagado. Uma nova aprovação exige novo envio pelo estudante.</p>}
           <StudentProofPreview proof={proof} />
-          {proof && <label className="student-verification__check"><input type="checkbox" checked={checked} disabled={busy || ownRequest} onChange={(e) => setChecked(e.target.checked)} />Conferi o documento: corresponde ao nome do perfil acima, à escola e comprova matrícula elegível em 2026/2027.</label>}
+          {proof && <label className="student-verification__check"><input type="checkbox" checked={checked} disabled={busy || ownRequest} onChange={(e) => setChecked(e.target.checked)} />Conferi o documento: o nome e a instituição de ensino correspondem aos dados do pedido, e a matrícula é elegível para o ano letivo de 2026/2027.</label>}
           {ownRequest && <p role="note">O seu próprio pedido tem de ser analisado por outro membro do secretariado.</p>}
           <label>Nota para o estudante<textarea maxLength={1000} rows={4} value={note} disabled={busy || ownRequest} onChange={(e) => setNote(e.target.value)} /></label>
           <small>Para pedir correção ou recusar, indique um motivo claro com pelo menos 5 caracteres.</small>

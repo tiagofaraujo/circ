@@ -24,7 +24,7 @@ export function LanguageProvider({ children }) {
     document.title = pathname === '/media' ? 'Media Center | CIRC 2027' :
       language === 'en'
         ? 'CIRC 2027 · 8–10 April · Coimbra'
-        : 'CIRC 2027 · 8–10 abril · Coimbra';
+        : 'CIRC 2027 · 8–10 de abril · Coimbra';
   }, [language, pathname]);
 
   const value = useMemo(

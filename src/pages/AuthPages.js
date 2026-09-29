@@ -21,7 +21,7 @@ function authErrorMessage(error, isEnglish = false) {
     'auth/weak-password': 'A palavra-passe não cumpre os requisitos mínimos de segurança.',
     'auth/too-many-requests': 'Foram efetuadas demasiadas tentativas. Aguarde alguns minutos e tente novamente.',
     'auth/popup-closed-by-user': 'A janela de autenticação Google foi fechada antes de concluir o acesso.',
-    'auth/popup-blocked': 'O browser bloqueou a janela do Google. Autorize pop-ups para este site e tente novamente.',
+    'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Autorize pop-ups para este site e tente novamente.',
     'auth/cancelled-popup-request': 'O pedido de autenticação anterior foi cancelado. Tente novamente.',
     'auth/network-request-failed': 'Não foi possível contactar o serviço de autenticação. Verifique a ligação à internet.',
     'auth/unauthorized-domain': 'Este domínio ainda não está autorizado no serviço de autenticação.',
@@ -75,7 +75,7 @@ function AuthLayout({ eyebrow, title, subtitle, children, asideTitle, asideText 
         <aside className="auth-aside">
           <div>
             <span className="auth-aside__date">08—10</span>
-            <p className="eyebrow">{isEnglish ? 'April 2027 · Coimbra' : 'Abril 2027 · Coimbra'}</p>
+            <p className="eyebrow">{isEnglish ? 'April 2027 · Coimbra' : 'Abril de 2027 · Coimbra'}</p>
           </div>
           <div>
             <h2>{asideTitle}</h2>
@@ -358,7 +358,7 @@ export function ForgotPasswordPage() {
       title={isEnglish ? 'Reset your password' : 'Recuperar palavra-passe'}
       subtitle={isEnglish ? 'Enter your account email. We will send you secure recovery instructions.' : 'Indique o email da sua conta. Enviaremos as instruções de recuperação.'}
       asideTitle={isEnglish ? 'Recover access securely.' : 'Recupere o acesso com segurança.'}
-      asideText={isEnglish ? 'Your password is never sent by email. You will receive a secure link to create a new one.' : 'A palavra-passe nunca é enviada por email. Receberá um link seguro para definir uma nova.'}
+      asideText={isEnglish ? 'Your password is never sent by email. You will receive a secure link to create a new one.' : 'A palavra-passe nunca é enviada por email. Receberá uma ligação segura para definir uma nova.'}
     >
       {!configured && <ConfigurationNotice isEnglish={isEnglish} />}
       <form className="auth-form" onSubmit={handleReset}>
@@ -398,7 +398,7 @@ export function ForgotPasswordPage() {
           {buttonLabel}
         </button>
       </form>
-      <p className="auth-switch"><Link to="/login">{isEnglish ? '← Back to sign in' : '← Voltar ao login'}</Link></p>
+      <p className="auth-switch"><Link to="/login">{isEnglish ? '← Back to sign in' : '← Voltar ao início de sessão'}</Link></p>
     </AuthLayout>
   );
 }
@@ -512,7 +512,7 @@ export function AuthenticatedAccountPage() {
         <div>
           <p className="eyebrow">My CIRC · {areaLabel}</p>
           <h1>{isEnglish ? 'Hello' : 'Olá'}, {displayName}</h1>
-          <p>{isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 abril'}</p>
+          <p>{isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 de abril'}</p>
         </div>
         {user?.photoURL ? <img className="auth-account-avatar" src={user.photoURL} alt="" /> : <div className="auth-account-avatar auth-account-avatar--initials">{displayName.slice(0, 1).toUpperCase()}</div>}
       </section>

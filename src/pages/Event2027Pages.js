@@ -1,3 +1,4 @@
+import MriCourseDescription, { mriCourseTitle } from '../components/MriCourseDescription';
 import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -35,7 +36,7 @@ function LegalSection({ title, children }) {
 function LegalMeta({ en }) {
   return (
     <div className="legal-meta">
-      <span>{en ? 'Last updated · 30 August 2026' : 'Última atualização · 30 agosto 2026'}</span>
+      <span>{en ? 'Last updated · 30 August 2026' : 'Última atualização · 30 de agosto de 2026'}</span>
       <span>circ-coimbra.org</span>
       <span>Associação Hemisfério Disciplinado · NIF 517 072 262</span>
     </div>
@@ -53,30 +54,36 @@ export function ParticipatePage2027() {
       <PageHero
         eyebrow={en ? 'Attend' : 'Participar'}
         title={en ? 'Registration and submissions' : 'Inscrições e trabalhos'}
-        status={en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026'}
+        status={en ? 'Opens 15 November 2026' : 'Abertura a 15 de novembro de 2026'}
         lead={
           en
             ? 'CIRC 2027 registration fees are available. On 8 April there are two separate Pre-Congress Courses, one in the morning and one in the afternoon, each with its own registration.'
-            : 'Os valores de inscrição do CIRC 2027 já estão disponíveis. No dia 8 de abril existem dois Cursos Pré-Congresso distintos, um de manhã e outro à tarde, cada um com inscrição própria.'
+            : 'Os valores de inscrição do CIRC 2027 já estão disponíveis. No dia 8 de abril realizam-se dois cursos pré-congresso distintos, um de manhã e outro à tarde, cada um com inscrição própria.'
         }
       />
 
       <Prices />
 
+      <section className="course-structure-note" aria-labelledby="mri-course-title">
+        <p className="eyebrow">{en ? '8 April · 09:00–13:00 · Pre-Congress Course' : '8 de abril · 09:00–13:00 · Curso Pré-Congresso'}</p>
+        <h2 id="mri-course-title">{en ? mriCourseTitle.en : mriCourseTitle.pt}</h2>
+        <MriCourseDescription en={en} />
+      </section>
+
       <section className="course-structure-note" aria-labelledby="stroke-course-title">
-        <p className="eyebrow">{en ? '8 April · 14:00–18:00 · Pre-Congress Course' : '8 abril · 14:00–18:00 · Curso Pré-Congresso'}</p>
+        <p className="eyebrow">{en ? '8 April · 14:00–18:00 · Pre-Congress Course' : '8 de abril · 14:00–18:00 · Curso Pré-Congresso'}</p>
         <h2 id="stroke-course-title">{en ? strokeCourseTitle.en : strokeCourseTitle.pt}</h2>
         <StrokeCourseDescription en={en} />
       </section>
 
       <section className="editorial-grid">
         <article className="info-card info-card--course">
-          <p className="eyebrow">{en ? '8 April · Two Pre-Congress Courses' : '8 abril · Dois Cursos Pré-Congresso'}</p>
-          <h2>{en ? 'Choose morning, afternoon or both' : 'Escolha manhã, tarde ou ambos'}</h2>
+          <p className="eyebrow">{en ? '8 April · Two Pre-Congress Courses' : '8 de abril · Dois Cursos Pré-Congresso'}</p>
+          <h2>{en ? 'Choose morning, afternoon or both' : 'Escolha o curso da manhã, o da tarde ou ambos'}</h2>
           <p>
             {en
               ? 'The published course fee applies per course. Morning and afternoon courses are independent, so participants may register for either one or for both, subject to capacity.'
-              : 'O preço publicado é por curso. Os cursos da manhã e da tarde são independentes, pelo que será possível inscrever-se apenas num deles ou nos dois, sujeito à lotação.'}
+              : 'O preço publicado é por curso. Os cursos da manhã e da tarde são independentes, pelo que será possível inscrever-se apenas num deles ou nos dois, consoante a disponibilidade de vagas.'}
           </p>
         </article>
         <article className="info-card info-card--accent">
@@ -85,15 +92,15 @@ export function ParticipatePage2027() {
           <div className="submission-deadline-list">
             <div>
               <span>{en ? 'Opening' : 'Abertura'}</span>
-              <strong>{en ? '15 Nov. 2026' : '15 nov. 2026'}</strong>
+              <strong>{en ? '15 Nov. 2026' : '15 de nov. de 2026'}</strong>
             </div>
             <div>
-              <span>{en ? 'Abstracts · Free communications' : 'Abstracts · Comunicações livres'}</span>
-              <strong>{en ? 'By 15 Jan. 2027' : 'Até 15 jan. 2027'}</strong>
+              <span>{en ? 'Abstracts · Free communications' : 'Resumos · Comunicações livres'}</span>
+              <strong>{en ? 'By 15 Jan. 2027' : 'Até 15 de jan. de 2027'}</strong>
             </div>
             <div>
-              <span>{en ? 'Posters' : 'Posters'}</span>
-              <strong>{en ? 'By 28 Feb. 2027' : 'Até 28 fev. 2027'}</strong>
+              <span>{en ? 'Posters' : 'Pósteres'}</span>
+              <strong>{en ? 'By 28 Feb. 2027' : 'Até 28 de fev. de 2027'}</strong>
             </div>
           </div>
         </article>
@@ -106,7 +113,7 @@ export function ParticipatePage2027() {
           <p>
             {en
               ? '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · International Congress.'
-              : '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · Congresso Internacional.'}
+              : '8 de abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 de abril · Congresso Internacional.'}
           </p>
         </div>
       </section>
@@ -138,7 +145,7 @@ export function CoimbraPage2027() {
           <small>{en ? 'APR · 2027' : 'ABR · 2027'}</small>
         </div>
         <div className="venue-feature__copy">
-          <p className="eyebrow">Venue</p>
+          <p className="eyebrow">{en ? 'Venue' : 'Local'}</p>
           <h2>Convento São Francisco</h2>
           <p>Coimbra · Portugal</p>
           <p>{en ? 'Confirmed main venue for the International Congress on 9 and 10 April 2027.' : 'Local principal confirmado para o Congresso Internacional nos dias 9 e 10 de abril de 2027.'}</p>
@@ -147,7 +154,7 @@ export function CoimbraPage2027() {
 
       <section className="course-location-section">
         <div>
-          <p className="eyebrow">{en ? '8 April · Pre-Congress' : '8 abril · Pré-Congresso'}</p>
+          <p className="eyebrow">{en ? '8 April · Pre-Congress' : '8 de abril · Pré-Congresso'}</p>
           <h2>{en ? 'Two courses, two moments of training.' : 'Dois cursos, dois momentos de formação.'}</h2>
           <p>
             {en
@@ -200,8 +207,8 @@ export function EventRegulationPage2027() {
           <li>{en ? 'Each participant may hold only one primary registration for CIRC 2027. A second in-person, virtual or courses-only registration cannot be created for the same account.' : 'Cada participante pode ter apenas uma inscrição principal no CIRC 2027. Não é possível criar uma segunda inscrição presencial, virtual ou apenas para cursos com a mesma conta.'}</li>
           <li>{en ? 'Registration may be subject to capacity limits and category-specific conditions.' : 'A inscrição poderá estar sujeita a limites de lotação e condições específicas por categoria.'}</li>
           <li>{en ? 'The participant is responsible for checking personal, professional and invoicing details before confirmation.' : 'O participante é responsável por confirmar os dados pessoais, profissionais e de faturação antes da validação.'}</li>
-          <li>{en ? 'Student rates require a 2026/2027 enrolment document matching the full name in the profile, school and eligible IMR or equivalent course, approved by the secretariat. There is no age limit. Professional categories may require separate validation.' : 'A tarifa de estudante exige comprovativo de matrícula de 2026/2027 correspondente ao nome completo do perfil, escola e curso elegível de IMR ou equivalente, aprovado pelo secretariado. Não existe limite de idade. As categorias profissionais podem exigir validação própria.'}</li>
-          <li>{en ? 'A registration is only considered completed when all required steps, including payment where applicable, are successfully concluded.' : 'A inscrição apenas será considerada concluída quando todos os passos exigidos, incluindo pagamento quando aplicável, forem finalizados com sucesso.'}</li>
+          <li>{en ? 'Student rates require a 2026/2027 enrolment document matching the full name in the profile, school and eligible IMR or equivalent course, approved by the secretariat. There is no age limit. Professional categories may require separate validation.' : 'A tarifa de estudante exige um comprovativo de matrícula no ano letivo de 2026/2027, aprovado pelo secretariado. O documento deve indicar o nome completo, coincidente com o do perfil, a instituição de ensino e o curso elegível de IMR ou equivalente. Não existe limite de idade. As categorias profissionais podem exigir validação própria.'}</li>
+          <li>{en ? 'A registration is only considered completed when all required steps, including payment where applicable, are successfully concluded.' : 'A inscrição apenas será considerada concluída quando todos os passos exigidos, incluindo o pagamento quando aplicável, forem finalizados com sucesso.'}</li>
         </ul>
       </LegalSection>
 
@@ -209,7 +216,7 @@ export function EventRegulationPage2027() {
         <p>
           {en
             ? 'CIRC 2027 comprises two independent Pre-Congress Courses on 8 April — one in the morning and one in the afternoon — and the International Congress on 9 and 10 April. Registration options may distinguish between either course separately, both courses, the congress and the complete experience. Access credentials, tickets or QR codes are personal and may not be transferred unless the final regulation expressly allows a formal substitution process.'
-            : 'O CIRC 2027 integra dois Cursos Pré-Congresso independentes no dia 8 de abril — um de manhã e outro à tarde — e o Congresso Internacional nos dias 9 e 10. As modalidades de inscrição poderão distinguir cada curso separadamente, os dois cursos, o congresso e a experiência completa. Credenciais de acesso, bilhetes ou QR codes são pessoais e não podem ser transmitidos, salvo se o regulamento final permitir expressamente um processo formal de substituição.'}
+            : 'O CIRC 2027 integra dois Cursos Pré-Congresso independentes no dia 8 de abril — um de manhã e outro à tarde — e o Congresso Internacional nos dias 9 e 10. As modalidades de inscrição poderão distinguir cada curso separadamente, os dois cursos, o congresso e a experiência completa. Credenciais de acesso, bilhetes ou códigos QR são pessoais e não podem ser transmitidos, salvo se o regulamento final permitir expressamente um processo formal de substituição.'}
         </p>
         <p>
           {en
@@ -219,11 +226,11 @@ export function EventRegulationPage2027() {
       </LegalSection>
 
       <LegalSection title={en ? '3. Cancellation and refunds' : '3. Cancelamentos e reembolsos'}>
-        <p>{en ? 'The cancellation, substitution and refund policy for CIRC 2027 has not yet been approved. It will be published together with prices and registration conditions. No cancellation percentage or deadline from CIRC 2025 applies automatically to CIRC 2027.' : 'A política de cancelamento, substituição e reembolso do CIRC 2027 ainda não está aprovada. Será publicada em conjunto com preços e condições de inscrição. Nenhuma percentagem ou prazo de cancelamento do CIRC 2025 é automaticamente aplicável ao CIRC 2027.'}</p>
+        <p>{en ? 'The cancellation, substitution and refund policy for CIRC 2027 has not yet been approved. It will be published before registration opens. No cancellation percentage or deadline from CIRC 2025 applies automatically to CIRC 2027.' : 'A política de cancelamento, substituição e reembolso do CIRC 2027 ainda não está aprovada. Será publicada antes da abertura das inscrições. Nenhuma percentagem ou prazo de cancelamento do CIRC 2025 é automaticamente aplicável ao CIRC 2027.'}</p>
       </LegalSection>
 
       <LegalSection title={en ? '4. Certificates and attendance' : '4. Certificados e presença'}>
-        <p>{en ? 'Where certificates are issued, their availability may depend on registration status, attendance/check-in requirements and completion of the event. The final criteria will be stated before the event.' : 'Quando sejam emitidos certificados, a respetiva disponibilização poderá depender do estado da inscrição, requisitos de presença/check-in e conclusão do evento. Os critérios finais serão indicados antes do evento.'}</p>
+        <p>{en ? 'Where certificates are issued, their availability may depend on registration status, attendance/check-in requirements and completion of the event. The final criteria will be stated before the event.' : 'Quando sejam emitidos certificados, a respetiva disponibilização poderá depender do estado da inscrição, dos requisitos de presença e da conclusão do evento. Os critérios finais serão indicados antes do evento.'}</p>
       </LegalSection>
 
       <LegalSection title={en ? '5. Photography, video and streaming' : '5. Fotografia, vídeo e streaming'}>
@@ -232,7 +239,7 @@ export function EventRegulationPage2027() {
 
       <LegalSection title={en ? '6. Personal data' : '6. Dados pessoais'}>
         <p>{en ? 'Personal data used for registration and participation will be processed in accordance with the CIRC Privacy Policy and the information provided at the moment each service is activated.' : 'Os dados pessoais utilizados para inscrição e participação serão tratados de acordo com a Política de Privacidade do CIRC e com a informação disponibilizada no momento em que cada serviço seja ativado.'}</p>
-        <p><Link className="text-link" to="/privacidade">{en ? 'Read the Privacy Policy' : 'Consultar Política de Privacidade'}</Link></p>
+        <p><Link className="text-link" to="/privacidade">{en ? 'Read the Privacy Policy' : 'Consultar a Política de Privacidade'}</Link></p>
       </LegalSection>
 
       <LegalMeta en={en} />
@@ -260,7 +267,7 @@ export function AccountRegistrationsPage2027() {
 
       <section className="account-registration-section">
         <div className="account-registration-alert">
-          <span className="account-status account-status--neutral">{en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026'}</span>
+          <span className="account-status account-status--neutral">{en ? 'Opens 15 November 2026' : 'Abertura a 15 de novembro de 2026'}</span>
           <p>{en ? 'Each participant has one primary registration. Courses and dinner tickets can be added later without creating a second registration.' : 'Cada participante terá uma única inscrição principal. Os cursos e bilhetes de jantar poderão ser acrescentados mais tarde, sem criar uma segunda inscrição.'}</p>
         </div>
         <RegistrationBuilder />

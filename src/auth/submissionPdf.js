@@ -33,12 +33,12 @@ const copy = {
     abstract: 'Resumo',
     generatedAt: 'Documento gerado em',
     printHint: 'Na janela de impressão, selecione “Guardar como PDF”.',
-    typeLabels: { oral: 'Comunicação livre', poster: 'Poster' },
+    typeLabels: { oral: 'Comunicação livre', poster: 'Póster' },
     statusLabels: {
       draft: 'Rascunho',
       submitted: 'Por avaliar',
-      under_review: 'Em revisão',
-      revisions: 'Revisões pedidas',
+      under_review: 'Em avaliação',
+      revisions: 'Correções solicitadas',
       accepted: 'Aceite',
       rejected: 'Não aceite',
     },
@@ -186,7 +186,7 @@ export function buildSubmissionPrintDocument(submission, options = {}) {
     + '<style>' + styles + '</style></head><body>'
     + '<div class="screen-note">' + escapeHtml(t.printHint) + '</div>'
     + '<main class="page">'
-    + '<header class="masthead"><div class="brand">CIRC 2027<small>Coimbra · 9—10 abril</small></div>'
+    + '<header class="masthead"><div class="brand">CIRC 2027<small>Coimbra · 9—10 de abril</small></div>'
     + '<div class="document-label">' + escapeHtml(t.documentTitle) + '<strong>' + escapeHtml(code) + '</strong></div></header>'
     + '<section class="title-block">' + testBadge + '<h1>' + escapeHtml(printableValue(submission?.title, language === 'en' ? 'Untitled submission' : 'Trabalho sem título')) + '</h1></section>'
     + '<section class="meta">' + meta + '</section>'

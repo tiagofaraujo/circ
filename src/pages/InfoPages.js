@@ -39,7 +39,7 @@ export function ProgramPage() {
   return (
     <main className="page">
       <PageHero
-        eyebrow={en ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 abril'}
+        eyebrow={en ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 de abril'}
         title={en ? 'Programme' : 'Programa'}
         status={en ? 'In preparation' : 'Em preparação'}
         lead={
@@ -120,7 +120,7 @@ export function ProgramPage() {
           <p>
             {en
               ? '8 April · Pre-Congress Course · 9–10 April · CIRC 2027'
-              : '8 abril · Curso Pré-Congresso · 9–10 abril · CIRC 2027'}
+              : '8 de abril · Curso Pré-Congresso · 9–10 de abril · CIRC 2027'}
           </p>
         </div>
         <Link className="button button--dark" to="/participar">
@@ -152,7 +152,7 @@ export function ParticipatePage() {
 
       <section className="editorial-grid">
         <article className="info-card info-card--course">
-          <p className="eyebrow">{en ? '8 April · Pre-Congress Course' : '8 abril · Curso Pré-Congresso'}</p>
+          <p className="eyebrow">{en ? '8 April · Pre-Congress Course' : '8 de abril · Curso Pré-Congresso'}</p>
           <h2>{en ? 'Fees confirmed' : 'Preços confirmados'}</h2>
           <p>
             {en
@@ -178,7 +178,7 @@ export function ParticipatePage() {
           <p>
             {en
               ? '8 April · Pre-Congress Course · 9–10 April · International Congress.'
-              : '8 abril · Curso Pré-Congresso · 9–10 abril · Congresso Internacional.'}
+              : '8 de abril · Curso Pré-Congresso · 9–10 de abril · Congresso Internacional.'}
           </p>
         </div>
       </section>
@@ -205,7 +205,7 @@ export function PartnersPage() {
 
       <section className="split-content">
         <div>
-          <p className="eyebrow">{en ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 abril'}</p>
+          <p className="eyebrow">{en ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 de abril'}</p>
           <h2>{en ? 'A dedicated area for partners.' : 'Uma área própria para parceiros.'}</h2>
         </div>
         <div>
@@ -337,11 +337,11 @@ export function ContactPage() {
         <div>
           <p className="eyebrow">CIRC 2027</p>
           <h2>{en ? 'Coimbra International Radiology Congress' : 'Congresso Internacional de Radiologia de Coimbra'}</h2>
-          <p>{en ? '8–10 April 2027 · Coimbra' : '8–10 abril 2027 · Coimbra'}</p>
+          <p>{en ? '8–10 April 2027 · Coimbra' : '8–10 de abril de 2027 · Coimbra'}</p>
           <p>
             {en
               ? '8 April · Pre-Congress Course · 9–10 April · Congress'
-              : '8 abril · Curso Pré-Congresso · 9–10 abril · Congresso'}
+              : '8 de abril · Curso Pré-Congresso · 9–10 de abril · Congresso'}
           </p>
           <p className="contact-layout__note">
             {en

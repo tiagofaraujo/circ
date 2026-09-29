@@ -87,7 +87,7 @@ function AssignedWork({ work, user, en, onDirtyChange }) {
         <div>
           <p className="review-eyebrow">
             {work.code} ·{' '}
-            {work.type === 'poster' ? 'Poster' : en ? 'Oral communication' : 'Comunicação livre'}
+            {work.type === 'poster' ? (en ? 'Poster' : 'Póster') : en ? 'Oral communication' : 'Comunicação livre'}
             {work.isTest ? ' · TESTE' : ''}
           </p>
           <h2>{work.title}</h2>

@@ -4,8 +4,8 @@ export const speakers2027 = [
     id: 'fides-schwartz', linkedin: 'https://www.linkedin.com/in/fides-schwartz-97a723370', name: 'Fides Schwartz', initials: 'FS', image: 'fides-schwartz.jpg',
     institution: 'Brigham and Women’s Hospital · Harvard Medical School',
     pt: { field: 'TC por contagem de fotões', role: 'Investigadora Principal · Professora Assistente', bio: [
-      'Dra. Fides Schwartz é Investigadora Principal do Center for Advanced CT Translation and Innovation (CACTI), integrado no Departamento de Radiologia do Brigham and Women’s Hospital, e Professora Assistente na Harvard Medical School.',
-      'Os seus principais interesses de investigação centram-se na otimização e simplificação dos processos associados à realização de exames de Tomografia Computorizada (TC) em diferentes departamentos de Imagiologia, com especial enfoque na nova tecnologia de TC por Contagem de Fotões (Photon-Counting CT – PCCT). Está envolvida em projetos de investigação com todas as áreas clínicas que utilizam os equipamentos de PCCT instalados no Mass General Brigham.',
+      'A Dra. Fides Schwartz é investigadora principal do Center for Advanced CT Translation and Innovation (CACTI), integrado no Departamento de Radiologia do Brigham and Women’s Hospital, e professora assistente na Harvard Medical School.',
+      'Os seus principais interesses de investigação centram-se na otimização e simplificação dos processos associados à realização de exames de tomografia computorizada (TC) em diferentes departamentos de Imagiologia, com especial enfoque na nova tecnologia de TC por contagem de fotões (Photon-Counting CT – PCCT). Está envolvida em projetos de investigação com todas as áreas clínicas que utilizam os equipamentos de PCCT instalados no Mass General Brigham.',
       'Concluiu o curso de Medicina na Universidade de Heidelberg, na Alemanha, tendo realizado um ano do programa ERASMUS em Pamplona, Espanha. Completou a especialidade em Radiologia de Diagnóstico no Hospital Universitário de Basileia, na Suíça, bem como fellowships de investigação no Departamento de Radiologia da Duke University, em Durham, Carolina do Norte, EUA.'
     ] },
     en: { field: 'Photon-counting CT', role: 'Principal Investigator · Assistant Professor', bio: [
@@ -34,7 +34,7 @@ export const speakers2027 = [
     pt: { field: 'Formação e prática clínica em RM', role: 'Consultor · Formador · MR Safety Officer', bio: [
       'Bill Faulkner é consultor independente através da sua empresa, William Faulkner & Associates. Há mais de 25 anos, desenvolve formação em RM e TC e presta consultoria em segurança e operações clínicas de RM.',
       'Entre os seus clientes encontram-se instituições de saúde e empresas como GE, Philips, Siemens, Aspect Imaging, Invivo, Medtronic, Abbott, Nevro, Inspire, Bracco Diagnostics, Guerbet, Kopp Development e Metrasens.',
-      'É docente e palestrante na área da RM há mais de 35 anos e autor ou coautor de vários livros e artigos sobre o tema. É membro ativo e Fellow da SMRT, tendo sido o seu primeiro presidente. Detém também a credencial de MR Safety Officer.'
+      'É docente e orador na área da RM há mais de 35 anos e autor ou coautor de vários livros e artigos sobre o tema. É membro ativo e Fellow da SMRT, tendo sido o seu primeiro presidente. Detém também a credencial de MR Safety Officer.'
     ] },
     en: { field: 'MRI education and clinical practice', role: 'Consultant · Educator · MR Safety Officer', bio: [
       'Bill Faulkner works as an independent consultant through William Faulkner & Associates, providing MRI and CT education and MRI safety and clinical operations consulting for over 25 years.',
@@ -45,7 +45,7 @@ export const speakers2027 = [
   {
     id: 'kris-seitz', linkedin: 'https://www.linkedin.com/in/kristin-seitz', name: 'Kris Seitz', initials: 'KS', image: 'kris-seitz.jpg',
     institution: 'The Ohio State University',
-    pt: { field: 'Segurança em RM e ensino', role: 'Técnica de Radiologia · Docente · MRSO', bio: [
+    pt: { field: 'Segurança em RM e ensino', role: 'Técnica de radiologia · Docente · MRSO', bio: [
       'Kris Seitz trabalha em ressonância magnética há mais de 30 anos e é atualmente docente no programa de Radiografia da The Ohio State University.',
       'É certificada em Radiografia, Tomografia Computorizada e Ressonância Magnética pela ARRT e como MR Safety Officer (MRSO) pelo International Board of Magnetic Resonance Safety (IBMRS). Integra os conselhos de administração do IBMRS e da Ohio Society of Radiologic Technologists.',
       'É autora de artigos sobre RM e segurança em RM nas publicações ASRT Scanner e Radiologic Technology.'
@@ -60,7 +60,7 @@ export const speakers2027 = [
     id: 'samuel-oliveira', linkedin: 'https://uk.linkedin.com/in/samueloliveiramri', name: 'Samuel Oliveira', initials: 'SO', image: 'samuel-oliveira.jpg',
     institution: 'Everything MRI · OMRIA',
     pt: { field: 'Operações remotas e inovação em RM', role: 'Fundador e CEO da Everything MRI', bio: [
-      'Samuel Oliveira é técnico de Radiologia, líder de opinião na área das operações remotas e formador internacional em segurança em RM. Como fundador e CEO da Everything MRI, promove recursos educativos gratuitos, podcasts com especialistas e eventos virtuais gratuitos, reunindo uma comunidade global de profissionais de RM.',
+      'Samuel Oliveira é técnico de radiologia, líder de opinião na área das operações remotas e formador internacional em segurança em RM. Como fundador e CEO da Everything MRI, promove recursos educativos gratuitos, podcasts com especialistas e eventos virtuais gratuitos, reunindo uma comunidade global de profissionais de RM.',
       'É também Chief Innovation Officer da OMRIA, empresa alemã que disponibiliza operações remotas de RM a hospitais e clínicas em todo o mundo.',
       'Anteriormente, foi Head of Global Remote Operations Training & Development na Ionic Health, onde liderou iniciativas de teleoperação, incluindo uma parceria exclusiva com a GE Healthcare. Na HCA International UK, exerceu funções de Lead MRI Superintendent e MRSO, desenvolveu um módulo de formação online em segurança em RM reconhecido pela Society of Radiographers e elaborou o quadro de políticas de RM da HCA Healthcare UK.',
       'É fundador e presidente permanente do London MRI Leads Group, que reúne responsáveis de instituições públicas e privadas para promover a qualidade das práticas de RM em Londres.',
@@ -79,9 +79,9 @@ export const speakers2027 = [
   {
     id: 'michael-fuller', linkedin: 'https://au.linkedin.com/in/michael-fuller-60070a54', name: 'Michael Fuller', initials: 'MF', image: 'michael-fuller.jpg',
     institution: 'Flinders Medical Centre · South Australia',
-    pt: { field: 'Radiologia de trauma e educação clínica', role: 'Técnico de Radiologia · Tutor e coorientador', bio: [
-      'Michael Fuller é técnico de Radiologia com funções de tutor e coorientador de estudantes no Flinders Medical Centre, no sul da Austrália.',
-      'Ao longo de uma carreira de 42 anos, participou em numerosas conferências como orador convidado e keynote speaker, na Austrália e internacionalmente. Os seus interesses profissionais centram-se na radiologia de trauma, interpretação de imagem e educação clínica.',
+    pt: { field: 'Radiologia de trauma e educação clínica', role: 'Técnico de radiologia · Tutor e coorientador', bio: [
+      'Michael Fuller é técnico de radiologia com funções de tutor e coorientador de estudantes no Flinders Medical Centre, no sul da Austrália.',
+      'Ao longo de uma carreira de 42 anos, participou em numerosas conferências como orador convidado e keynote speaker, na Austrália e internacionalmente. Os seus interesses profissionais centram-se na radiologia de trauma, na interpretação de imagem e na formação clínica.',
       'É um interveniente regular nos webinars da Radiology Across Borders.'
     ] },
     en: { field: 'Trauma radiography and clinical education', role: 'Tutor Radiographer · Student Co-supervisor', bio: [
@@ -94,10 +94,10 @@ export const speakers2027 = [
     id: 'julien-greggio', linkedin: 'https://uk.linkedin.com/in/julien-greggio', name: 'Julien Greggio', initials: 'JG', image: 'julien-greggio.jpg',
     institution: 'Everything MRI · City St George’s, University of London',
     pt: { field: 'RM, inteligência artificial e educação', role: 'Cofundador e COO da Everything MRI', bio: [
-      'Julien Greggio é um profissional de saúde dedicado às técnicas avançadas de imagem, em particular à ressonância magnética. Desde o início da sua carreira em RM, em 2015, tem trabalhado na melhoria dos cuidados nos setores público e privado, conjugando a experiência clínica como técnico de Radiologia em RM com a formação de futuros profissionais.',
+      'Julien Greggio é um profissional de saúde dedicado às técnicas avançadas de imagem, em particular à ressonância magnética. Desde o início da sua carreira em RM, em 2015, tem trabalhado na melhoria dos cuidados nos setores público e privado, conjugando a experiência clínica como técnico de radiologia em RM com a formação de futuros profissionais.',
       'Como cofundador e COO da Everything MRI, desenvolve conteúdos educativos e lidera projetos dedicados à inovação em RM, incluindo a integração da inteligência artificial na imagem médica.',
       'É mestre e encontra-se a realizar um doutoramento em imagem médica. O seu trabalho centra-se na aplicação destas tecnologias à melhoria dos cuidados e dos resultados clínicos. É também docente convidado na City St George’s, University of London, mantendo uma ligação ativa ao ensino e à investigação académica.',
-      'O seu propósito é fazer avançar a imagem médica através da colaboração, inovação e educação.'
+      'O seu propósito é fazer avançar a imagem médica através da colaboração, da inovação e da formação.'
     ] },
     en: { field: 'MRI, artificial intelligence and education', role: 'Co-Founder and COO of Everything MRI', bio: [
       'Julien Greggio is a healthcare professional focused on advanced imaging techniques, particularly MRI. Since starting his MRI career in 2015, he has worked to improve standards of care in public and private healthcare, combining his clinical expertise as an MRI radiographer with a commitment to educating future radiographers.',

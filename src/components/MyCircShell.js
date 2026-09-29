@@ -103,7 +103,7 @@ export default function MyCircShell({ children }) {
             <button className="my-circ-icon-button" type="button" onClick={logout} disabled={busy} aria-label={en ? 'Sign out' : 'Terminar sessão'} title={en ? 'Sign out' : 'Terminar sessão'}>
               <AppIcon name="arrow-right-from-bracket" />
             </button>
-          </> : <Link className="my-circ-site-link" to="/">{en ? 'CIRC website' : 'Website CIRC'} <AppIcon name="arrow-up-right-from-square" /></Link>}
+          </> : <Link className="my-circ-site-link" to="/">{en ? 'CIRC website' : 'Site CIRC'} <AppIcon name="arrow-up-right-from-square" /></Link>}
         </div>
       </header>
 
@@ -117,9 +117,9 @@ export default function MyCircShell({ children }) {
         <div className="my-circ-sidebar__support">
           <NavLink to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Security' : 'Segurança'}</NavLink>
           <Link to="/contactos"><AppIcon name="circle-question" />{en ? 'Help & contacts' : 'Ajuda e contactos'}</Link>
-          <Link to="/"><AppIcon name="arrow-up-right-from-square" />{en ? 'CIRC website' : 'Website CIRC'}</Link>
+          <Link to="/"><AppIcon name="arrow-up-right-from-square" />{en ? 'CIRC website' : 'Site CIRC'}</Link>
         </div>
-        <div className="my-circ-sidebar__edition"><strong>2027<span>↗</span></strong><p>Imaging Scientific Talks</p><span>Coimbra · {en ? '8–10 April' : '8–10 abril'}</span></div>
+        <div className="my-circ-sidebar__edition"><strong>2027<span>↗</span></strong><p>Imaging Scientific Talks</p><span>Coimbra · {en ? '8–10 April' : '8–10 de abril'}</span></div>
       </aside>}
 
       <div key={user?.uid || 'guest'} className="my-circ-content" id="my-circ-content" tabIndex="-1">

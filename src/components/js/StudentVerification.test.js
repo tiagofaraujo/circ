@@ -58,7 +58,7 @@ test('withdrawal requires explicit confirmation', async () => {
 test('dragging one file prepares it, while removing it or dropping several cannot submit', async () => {
   show();
   const file = new File(['%PDF-1.4\n'], 'matricula.pdf', { type: 'application/pdf' });
-  const dropzone = screen.getByRole('group', { name: 'Upload do comprovativo' });
+  const dropzone = screen.getByRole('group', { name: 'Carregamento do comprovativo' });
   fireEvent.drop(dropzone, { dataTransfer: { files: [file] } });
   await screen.findByRole('checkbox');
   expect(screen.getByText('matricula.pdf')).toBeInTheDocument();

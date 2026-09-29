@@ -13,7 +13,7 @@ function friendlySecurityError(error, isEnglish) {
     'auth/weak-password': isEnglish ? 'Use a stronger password.' : 'Utilize uma palavra-passe mais segura.',
     'auth/requires-recent-login': isEnglish ? 'For security, please sign in again and retry.' : 'Por segurança, volte a iniciar sessão e tente novamente.',
     'auth/popup-closed-by-user': isEnglish ? 'Google reauthentication was cancelled.' : 'A reautenticação Google foi cancelada.',
-    'auth/popup-blocked': isEnglish ? 'Your browser blocked the Google window.' : 'O browser bloqueou a janela do Google.',
+    'auth/popup-blocked': isEnglish ? 'Your browser blocked the Google window.' : 'O navegador bloqueou a janela do Google.',
   };
   return messages[code] || (isEnglish ? 'The operation could not be completed. Please try again.' : 'Não foi possível concluir a operação. Tente novamente.');
 }

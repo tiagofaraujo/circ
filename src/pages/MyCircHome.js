@@ -9,7 +9,7 @@ import { InstallMyCirc } from '../pwa/MyCircInstall';
 
 const statuses = {
   draft: ['Rascunho', 'Draft'], submitted: ['Submetido', 'Submitted'],
-  under_review: ['Em avaliação', 'Under review'], revisions: ['Em revisão', 'Revisions'],
+  under_review: ['Em avaliação', 'Under review'], revisions: ['Correções solicitadas', 'Revisions'],
   accepted: ['Aceite', 'Accepted'], rejected: ['Não aceite', 'Not accepted'],
 };
 
@@ -84,7 +84,7 @@ export default function MyCircHome() {
     <div className="my-circ-home-grid">
       <section className="my-circ-event" aria-labelledby="my-circ-event-title">
         <div className="my-circ-event__image"><img src="/circ-hero-convento-2025.webp" alt={en ? 'CIRC at Convento São Francisco, Coimbra' : 'CIRC no Convento São Francisco, Coimbra'} width="900" height="600" /><span>Imaging Scientific Talks</span></div>
-        <div className="my-circ-event__body"><p className="my-circ-label">{en ? 'Next edition' : 'Próxima edição'}</p><h2 id="my-circ-event-title">CIRC <span>2027</span></h2><p className="my-circ-event__date"><AppIcon name="calendar-days" />{en ? '8–10 April · Coimbra' : '8–10 abril · Coimbra'}</p><p>{en ? 'Pre-Congress Courses · 8 April' : 'Cursos Pré-Congresso · 8 abril'}<br />{en ? 'International Congress · 9–10 April' : 'Congresso Internacional · 9–10 abril'}</p><Link className="my-circ-button" to="/conta/programa">{en ? 'Explore programme' : 'Explorar programa'}<AppIcon name="arrow-right" /></Link></div>
+        <div className="my-circ-event__body"><p className="my-circ-label">{en ? 'Next edition' : 'Próxima edição'}</p><h2 id="my-circ-event-title">CIRC <span>2027</span></h2><p className="my-circ-event__date"><AppIcon name="calendar-days" />{en ? '8–10 April · Coimbra' : '8–10 de abril · Coimbra'}</p><p>{en ? 'Pre-Congress Courses · 8 April' : 'Cursos Pré-Congresso · 8 de abril'}<br />{en ? 'International Congress · 9–10 April' : 'Congresso Internacional · 9–10 de abril'}</p><Link className="my-circ-button" to="/conta/programa">{en ? 'Explore programme' : 'Explorar programa'}<AppIcon name="arrow-right" /></Link></div>
       </section>
 
       <section className="my-circ-profile-card" aria-labelledby="my-circ-profile-title">

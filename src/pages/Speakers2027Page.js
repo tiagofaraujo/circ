@@ -29,7 +29,7 @@ export default function Speakers2027Page() {
     </main>;
   }
   return <main className="guest-directory">
-    <header className="guest-heading"><div><p className="eyebrow">CIRC 2027 · Coimbra</p><h1>{en ? 'Invited speakers' : 'Oradores convidados'}</h1></div><p>{en ? 'Different perspectives. A shared commitment to medical imaging. Discover the people and the experience they bring to this edition.' : 'Diferentes perspetivas. Um compromisso comum com a Imagem Médica. Conheça os percursos e a experiência dos convidados desta edição.'}</p></header>
+    <header className="guest-heading"><div><p className="eyebrow">CIRC 2027 · Coimbra</p><h1>{en ? 'Invited speakers' : 'Oradores convidados'}</h1></div><p>{en ? 'Different perspectives. A shared commitment to medical imaging. Discover the people and the experience they bring to this edition.' : 'Diferentes perspetivas. Um compromisso comum com a imagem médica. Conheça os percursos e a experiência dos convidados desta edição.'}</p></header>
     <div className="guest-grid">{speakers2027.map((item) => <SpeakerCard key={item.id} speaker={item} language={language} />)}</div>
     <div className="guest-directory__note"><p>{en ? 'Session topics and schedules will be published as the scientific programme is finalised.' : 'Os temas e horários das intervenções serão divulgados à medida que o programa científico for finalizado.'}</p><Link className="text-link" to="/programa">{en ? 'View programme' : 'Consultar programa'} →</Link></div>
   </main>;

@@ -48,11 +48,11 @@ function Footer() {
         <div className="site-footer__brand">
           <img src="/logo.png" alt="CIRC" />
           <p>{en ? 'Coimbra International Radiology Congress' : 'Congresso Internacional de Radiologia de Coimbra'}</p>
-          <strong>{en ? '8–10 April 2027 · Coimbra' : '8–10 abril 2027 · Coimbra'}</strong>
+          <strong>{en ? '8–10 April 2027 · Coimbra' : '8–10 de abril de 2027 · Coimbra'}</strong>
           <small className="site-footer__format">
             {en
               ? '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · CIRC 2027'
-              : '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · CIRC 2027'}
+              : '8 de abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 de abril · CIRC 2027'}
           </small>
         </div>
 
@@ -60,7 +60,7 @@ function Footer() {
           <p className="footer-label">CIRC 2027</p>
           <Link to="/programa">{en ? 'Programme' : 'Programa'}</Link>
           <Link to="/participar">{en ? 'Attend' : 'Participar'}</Link>
-          <Link to="/parcerias">{en ? 'Partners & Exhibition' : 'Parcerias & Exhibition'}</Link>
+          <Link to="/parcerias">{en ? 'Partners & Exhibition' : 'Parcerias e exposição'}</Link>
           <Link to="/coimbra">Coimbra</Link>
           <Link to="/conta">My CIRC</Link>
         </div>
@@ -75,7 +75,7 @@ function Footer() {
         </div>
 
         <div className="site-footer__column">
-          <p className="footer-label">{en ? 'Archive & legal' : 'Arquivo & legal'}</p>
+          <p className="footer-label">{en ? 'Archive & legal' : 'Arquivo e informação legal'}</p>
           <Link to="/2025">CIRC 2025</Link>
           <Link to="/regulamento">{en ? 'Event Regulation' : 'Regulamento do Evento'}</Link>
           <Link to="/privacidade">{en ? 'Privacy Policy' : 'Política de Privacidade'}</Link>
@@ -105,7 +105,7 @@ function Footer() {
             href="https://www.portugal.gov.pt/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={en ? 'Portuguese Government website' : 'Website do Governo de Portugal'}
+            aria-label={en ? 'Portuguese Government website' : 'Site do Governo de Portugal'}
           >
             <img src="/governo-portugal-logo-monochrome.png" alt="Governo de Portugal" />
           </a>
@@ -114,7 +114,7 @@ function Footer() {
             href="https://www.sns.gov.pt/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={en ? 'Portuguese National Health Service website' : 'Website do Serviço Nacional de Saúde'}
+            aria-label={en ? 'Portuguese National Health Service website' : 'Site do Serviço Nacional de Saúde'}
           >
             <img src="/sns-logo-negative.svg" alt="Serviço Nacional de Saúde" />
           </a>
@@ -123,7 +123,7 @@ function Footer() {
             href="https://www.ulscoimbra.min-saude.pt/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={en ? 'ULS Coimbra website' : 'Website da ULS Coimbra'}
+            aria-label={en ? 'ULS Coimbra website' : 'Site da ULS Coimbra'}
           >
             <img src="/uls-coimbra-logo-negative.svg" alt="ULS Coimbra" />
           </a>
@@ -132,7 +132,7 @@ function Footer() {
             href="https://www.cm-coimbra.pt/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={en ? 'Coimbra City Council website' : 'Website da Câmara Municipal de Coimbra'}
+            aria-label={en ? 'Coimbra City Council website' : 'Site da Câmara Municipal de Coimbra'}
           >
             <img src="/cmc-logo-negative.png" alt="Câmara Municipal de Coimbra" />
           </a>
@@ -141,7 +141,7 @@ function Footer() {
             href="https://coimbraconvento.pt/pt/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={en ? 'Convento São Francisco website' : 'Website do Convento São Francisco'}
+            aria-label={en ? 'Convento São Francisco website' : 'Site do Convento São Francisco'}
           >
             <img src="/convento-sao-francisco-logo.svg" alt="Convento São Francisco · Coimbra Cultura e Congressos" />
           </a>

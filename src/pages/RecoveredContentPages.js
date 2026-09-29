@@ -80,7 +80,7 @@ export function OrganizationPage() {
         lead={tx(
           en,
           'CIRC is organised by Associação Hemisfério Disciplinado (AHD), a non-profit association created in Coimbra in 2022 around medical imaging, professional development and scientific exchange.',
-          'O CIRC é organizado pela Associação Hemisfério Disciplinado (AHD), uma associação sem fins lucrativos criada em Coimbra, em 2022, em torno da imagem médica, desenvolvimento profissional e partilha científica.'
+          'O CIRC é organizado pela Associação Hemisfério Disciplinado (AHD), uma associação sem fins lucrativos criada em Coimbra, em 2022, em torno da imagem médica, do desenvolvimento profissional e da partilha científica.'
         )}
       />
 
@@ -91,13 +91,13 @@ export function OrganizationPage() {
           text={tx(
             en,
             'AHD emerged from an intergenerational group of diagnostic and therapeutic radiology professionals linked to medical imaging in Coimbra. Its purpose is broader than organising a congress: it creates platforms where knowledge circulates, disciplines meet and professional networks grow.',
-            'A AHD nasceu de um grupo intergeracional de profissionais TSDT — área de Radiologia ligados à imagem médica em Coimbra. O seu propósito vai além da organização de um congresso: criar plataformas onde o conhecimento circule, as disciplinas se cruzem e novas redes profissionais possam crescer.'
+            'A AHD nasceu de um grupo intergeracional de técnicos superiores de diagnóstico e terapêutica da área de radiologia ligados à imagem médica em Coimbra. O seu propósito vai além da organização de um congresso: criar plataformas onde o conhecimento circule, as disciplinas se cruzem e novas redes profissionais possam crescer.'
           )}
         />
         <div className="recovered-grid">
           <FeatureCard number="01" title={tx(en, 'Advance medical imaging.', 'Aprofundar a imagem médica.')} text={tx(en, 'Promote innovation, knowledge sharing, scientific activity, research and publication.', 'Promover inovação, partilha de conhecimento, atividade científica, investigação e publicação.')} />
           <FeatureCard number="02" title={tx(en, 'Connect generations and disciplines.', 'Cruzar gerações e disciplinas.')} text={tx(en, 'Create opportunities for professionals to exchange experiences across disciplines and generations.', 'Criar oportunidades de troca de experiências entre profissionais, disciplinas e diferentes gerações.')} />
-          <FeatureCard number="03" accent title={tx(en, 'Turn knowledge into experiences.', 'Transformar conhecimento em experiências.')} text={tx(en, 'Organise congresses, courses, seminars, exhibitions and training initiatives related to radiology and medical imaging.', 'Organizar congressos, cursos, seminários, exposições e ações de formação ligadas à Radiologia e Imagem Médica.')} />
+          <FeatureCard number="03" accent title={tx(en, 'Turn knowledge into experiences.', 'Transformar conhecimento em experiências.')} text={tx(en, 'Organise congresses, courses, seminars, exhibitions and training initiatives related to radiology and medical imaging.', 'Organizar congressos, cursos, seminários, exposições e ações de formação ligadas à radiologia e à imagem médica.')} />
         </div>
       </section>
 
@@ -168,12 +168,12 @@ export function EnhancedPartnersPage() {
         eyebrow={tx(en, 'Partners', 'Parcerias')}
         title={tx(en, 'Science meets industry', 'A ciência encontra a indústria')}
         status={tx(en, 'Commercial proposal in preparation', 'Proposta comercial em preparação')}
-        lead={tx(en, 'CIRC 2027 is designed as a scientific congress and a professional meeting point for institutions, industry and the medical imaging ecosystem.', 'O CIRC 2027 é desenhado como congresso científico e ponto de encontro profissional entre instituições, indústria e todo o ecossistema da imagem médica.')}
+        lead={tx(en, 'CIRC 2027 brings together professionals, institutions and companies to share scientific knowledge, discover new solutions and discuss the future of medical imaging.', 'O CIRC 2027 reúne profissionais, instituições e empresas para partilhar conhecimento científico, conhecer novas soluções e discutir o futuro da imagem médica.')}
       />
 
       <section className="recovered-feature">
         <div className="recovered-feature__mark">
-          <span>{tx(en, 'Concept evolved from CIRC 2025', 'Conceito evoluído do CIRC 2025')}</span>
+          <span>{tx(en, 'Concept evolved from CIRC 2025', 'Um conceito desenvolvido a partir do CIRC 2025')}</span>
           <strong>MRE</strong>
         </div>
         <div className="recovered-feature__copy">
@@ -194,10 +194,10 @@ export function EnhancedPartnersPage() {
         />
         <div className="recovered-grid">
           <FeatureCard number="01" title={tx(en, 'Scientific proximity', 'Proximidade científica')} text={tx(en, 'An environment where innovation is discussed by the professionals who use it every day.', 'Um ambiente onde a inovação é discutida pelos profissionais que a utilizam diariamente.')} />
-          <FeatureCard number="02" title={tx(en, 'Business and networking', 'Negócio e networking')} text={tx(en, 'Opportunities to receive guests, demonstrate solutions and create professional relationships.', 'Oportunidades para receber convidados, demonstrar soluções e criar relações profissionais.')} />
+          <FeatureCard number="02" title={tx(en, 'Business and networking', 'Negócios e contactos profissionais')} text={tx(en, 'Opportunities to receive guests, demonstrate solutions and create professional relationships.', 'Oportunidades para receber convidados, demonstrar soluções e criar relações profissionais.')} />
           <FeatureCard number="03" accent title={tx(en, 'Coimbra connection', 'Ligação a Coimbra')} text={tx(en, 'A congress that intentionally connects medical imaging with Coimbra and its knowledge economy.', 'Um congresso que liga deliberadamente a imagem médica a Coimbra e à sua economia do conhecimento.')} />
         </div>
-        <div className="recovered-note">{tx(en, 'Prices, sponsorship levels and stand conditions from CIRC 2025 are historical and will not be reused. The CIRC 2027 dossier will only be published after formal approval.', 'Preços, níveis de patrocínio e condições de stands do CIRC 2025 são históricos e não serão reutilizados. O dossier CIRC 2027 será publicado apenas após aprovação formal.')}</div>
+        <div className="recovered-note">{tx(en, 'Prices, sponsorship levels and stand conditions from CIRC 2025 are historical and will not be reused. The CIRC 2027 dossier will only be published after formal approval.', 'Preços, níveis de patrocínio e condições de stands do CIRC 2025 são históricos e não serão reutilizados. O dossiê CIRC 2027 será publicado apenas após aprovação formal.')}</div>
       </section>
 
       <section className="callout">
@@ -206,7 +206,7 @@ export function EnhancedPartnersPage() {
           <h2>{tx(en, 'Interested in becoming a partner?', 'Interessado em ser parceiro?')}</h2>
           <p>{tx(en, 'The organisation is preparing the commercial and exhibition framework.', 'A organização está a preparar o enquadramento comercial e da exposição.')}</p>
         </div>
-        <Link className="button button--dark" to="/contactos">{tx(en, 'Contact CIRC', 'Contactar CIRC')}</Link>
+        <Link className="button button--dark" to="/contactos">{tx(en, 'Contact CIRC', 'Contactar o CIRC')}</Link>
       </section>
     </main>
   );
@@ -261,7 +261,7 @@ function CommissionBlock({ en, titlePt, titleEn, names, notePt, noteEn }) {
 export function EnhancedArchive2025Page() {
   const { language } = useLanguage();
   const en = language === 'en';
-  const exhibitionText = tx(en, 'The 2025 website described the exhibition as an inseparable dimension of CIRC: a commercial and networking area for equipment, intervention, contrast media, digital transformation, consulting, training and other services relevant to modern radiology departments.', 'O website de 2025 apresentava a exposição como uma dimensão indissociável do CIRC: uma área comercial e de networking para equipamentos, intervenção, meios de contraste, transformação digital, consultoria, formação e outros serviços relevantes para os modernos departamentos de Radiologia.');
+  const exhibitionText = tx(en, 'The 2025 website described the exhibition as an inseparable dimension of CIRC: a commercial and networking area for equipment, intervention, contrast media, digital transformation, consulting, training and other services relevant to modern radiology departments.', 'O site de 2025 apresentava a exposição como uma dimensão indissociável do CIRC: uma área comercial e de networking para equipamentos, intervenção, meios de contraste, transformação digital, consultoria, formação e outros serviços relevantes para os modernos departamentos de Radiologia.');
 
   return (
     <main className="page">
@@ -269,7 +269,7 @@ export function EnhancedArchive2025Page() {
         eyebrow={tx(en, 'Historical archive', 'Arquivo histórico')}
         title="CIRC 2025"
         status={tx(en, '2nd edition · completed', '2.ª edição · concluída')}
-        lead={tx(en, 'The global CIRC 2025 programme ran from 3 to 5 April in Coimbra, with the congress on 4 and 5 April at Convento São Francisco. This archive preserves relevant content from the previous website without mixing it with CIRC 2027 information.', 'O programa global do CIRC 2025 decorreu de 3 a 5 de abril, em Coimbra, com o congresso nos dias 4 e 5 no Convento São Francisco. Este arquivo preserva conteúdos relevantes do website anterior sem os misturar com a informação do CIRC 2027.')}
+        lead={tx(en, 'The global CIRC 2025 programme ran from 3 to 5 April in Coimbra, with the congress on 4 and 5 April at Convento São Francisco. This archive preserves relevant content from the previous website without mixing it with CIRC 2027 information.', 'O programa global do CIRC 2025 decorreu de 3 a 5 de abril, em Coimbra, com o congresso nos dias 4 e 5 no Convento São Francisco. Este arquivo preserva conteúdos relevantes do site anterior sem os misturar com a informação do CIRC 2027.')}
       />
 
       <section className="archive-page">
@@ -297,21 +297,21 @@ export function EnhancedArchive2025Page() {
       <div className="archive-metrics">
         <div className="archive-metric"><strong>972</strong><span>{tx(en, 'photographs referenced in the former digital gallery', 'fotografias referenciadas na antiga galeria digital')}</span></div>
         <div className="archive-metric"><strong>3</strong><span>{tx(en, 'historical commission structures preserved', 'estruturas de comissões históricas preservadas')}</span></div>
-        <div className="archive-metric"><strong>4</strong><span>{tx(en, 'partnership categories used in the former website', 'categorias de parceria usadas no website anterior')}</span></div>
+        <div className="archive-metric"><strong>4</strong><span>{tx(en, 'partnership categories used in the former website', 'categorias de parceria usadas no site anterior')}</span></div>
         <div className="archive-metric"><strong>3—5</strong><span>{tx(en, 'April 2025 · global programme', 'abril 2025 · programa global')}</span></div>
       </div>
 
       <section className="recovered-section">
         <SectionHeader eyebrow={tx(en, 'People who built the edition', 'Pessoas que construíram a edição')} title={tx(en, 'Historical commissions · CIRC 2025', 'Comissões históricas · CIRC 2025')} text={tx(en, 'These names are preserved as a historical record and do not represent the composition of CIRC 2027.', 'Estes nomes são preservados como registo histórico e não representam a composição do CIRC 2027.')} />
         <div className="archive-details">
-          <CommissionBlock en={en} titlePt="Comissão Organizadora" titleEn="Organising Committee" names={organisingCommission2025} notePt="O website anterior identificava estes elementos como estrutura organizadora do CIRC 2025." noteEn="The former website identified these members as the CIRC 2025 organising structure." />
+          <CommissionBlock en={en} titlePt="Comissão Organizadora" titleEn="Organising Committee" names={organisingCommission2025} notePt="O site anterior identificava estes elementos como estrutura organizadora do CIRC 2025." noteEn="The former website identified these members as the CIRC 2025 organising structure." />
           <CommissionBlock en={en} titlePt="Comissão Científica" titleEn="Scientific Committee" names={scientificCommission2025} notePt="Lista histórica de profissionais da ULS Coimbra e de outras instituições." noteEn="Historical list including professionals from ULS Coimbra and other institutions." />
           <CommissionBlock en={en} titlePt="Comissões Técnicas" titleEn="Technical Committees" names={technicalCommission2025} notePt="Estrutura histórica de apoio técnico do CIRC 2025." noteEn="Historical technical support structure from CIRC 2025." />
         </div>
       </section>
 
       <section className="recovered-section recovered-section--soft">
-        <SectionHeader eyebrow={tx(en, 'Partnership legacy', 'Legado de parcerias')} title={tx(en, 'Institutional, scientific, commercial and community links.', 'Ligações institucionais, científicas, comerciais e à comunidade.')} text={tx(en, 'The former website organised the CIRC 2025 network into institutional, scientific, commercial and other partnerships. This remains a useful model, while 2027 logos and statuses will only be published after confirmation.', 'O website anterior organizava a rede CIRC 2025 em parcerias institucionais, científicas, comerciais e outras parcerias. Este modelo continua útil, mas os logótipos e estatutos de 2027 só serão publicados após confirmação.')} />
+        <SectionHeader eyebrow={tx(en, 'Partnership legacy', 'Legado de parcerias')} title={tx(en, 'Institutional, scientific, commercial and community links.', 'Ligações institucionais, científicas, comerciais e à comunidade.')} text={tx(en, 'The former website organised the CIRC 2025 network into institutional, scientific, commercial and other partnerships. This remains a useful model, while 2027 logos and statuses will only be published after confirmation.', 'O site anterior organizava a rede CIRC 2025 em parcerias institucionais, científicas, comerciais e outras parcerias. Este modelo continua útil, mas os logótipos e estatutos de 2027 só serão publicados após confirmação.')} />
       </section>
     </main>
   );
@@ -322,11 +322,11 @@ export function EnhancedContactPage() {
   const en = language === 'en';
   const topics = en
     ? [['Registration', 'Participant account, registration and attendance questions.'], ['Scientific programme', 'Programme, speakers, submissions and scientific content.'], ['Partnerships & Exhibition', 'Sponsorship, stands and Medical Radiology Exhibition.'], ['Coimbra', 'Venue, accommodation and practical participant information.']]
-    : [['Inscrições', 'Área de participante, inscrição e questões de participação.'], ['Programa científico', 'Programa, oradores, submissões e conteúdos científicos.'], ['Parcerias & Exhibition', 'Patrocínio, stands e Medical Radiology Exhibition.'], ['Coimbra', 'Local, alojamento e informação prática para participantes.']];
+    : [['Inscrições', 'Área de participante, inscrição e questões de participação.'], ['Programa científico', 'Programa, oradores, submissões e conteúdos científicos.'], ['Parcerias e exposição', 'Patrocínio, stands e Medical Radiology Exhibition.'], ['Coimbra', 'Local, alojamento e informação prática para participantes.']];
 
   return (
     <main className="page">
-      <PageHero eyebrow={tx(en, 'Contact', 'Contactos')} title={tx(en, 'One contact point. The right team.', 'Um contacto. A equipa certa.')} lead={tx(en, 'The new website keeps the operational logic of the former contact structure while simplifying the experience: send one message and the organisation routes it internally.', 'O novo website preserva a lógica operacional dos contactos anteriores, mas simplifica a experiência: envie uma única mensagem e a organização encaminha-a internamente.')} />
+      <PageHero eyebrow={tx(en, 'Contact', 'Contactos')} title={tx(en, 'One contact point. The right team.', 'Um contacto. A equipa certa.')} lead={tx(en, 'Contact us with questions about the congress, registration or partnerships. The organisers will forward your message to the relevant team.', 'Contacte-nos para esclarecer dúvidas sobre o congresso, as inscrições ou as parcerias. A organização encaminhará a sua mensagem para a equipa responsável.')} />
 
       <div className="contact-topic-grid">
         {topics.map(([title, text]) => <div className="contact-topic" key={title}><strong>{title}</strong><span>{text}</span></div>)}
@@ -336,8 +336,8 @@ export function EnhancedContactPage() {
         <div>
           <p className="eyebrow">CIRC 2027</p>
           <h2>{tx(en, 'Tell us what you need.', 'Diga-nos do que precisa.')}</h2>
-          <p>{tx(en, '8–10 April 2027 · Coimbra', '8–10 abril 2027 · Coimbra')}</p>
-          <p>{tx(en, '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · International Congress', '8 abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 abril · Congresso Internacional')}</p>
+          <p>{tx(en, '8–10 April 2027 · Coimbra', '8–10 de abril de 2027 · Coimbra')}</p>
+          <p>{tx(en, '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · International Congress', '8 de abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 de abril · Congresso Internacional')}</p>
           <p className="contact-layout__note">{tx(en, 'When confirmed information is already available on the programme, participation, partnerships or Coimbra pages, those pages remain the official reference.', 'Quando já exista informação confirmada nas páginas Programa, Participar, Parcerias ou Coimbra, essas páginas mantêm-se como referência oficial.')}</p>
         </div>
         <ContactForm />

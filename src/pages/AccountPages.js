@@ -156,7 +156,7 @@ export function AccountOverviewPage() {
   return (
     <AccountShell
       title={`${isEnglish ? 'Hello' : 'Olá'}, ${displayName}`}
-      subtitle={isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 abril'}
+      subtitle={isEnglish ? 'CIRC 2027 · Coimbra · 8–10 April' : 'CIRC 2027 · Coimbra · 8–10 de abril'}
     >
       <section className="account-dashboard">
         <div className="account-dashboard__topline">

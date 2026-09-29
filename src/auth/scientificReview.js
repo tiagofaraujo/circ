@@ -19,7 +19,7 @@ export const reviewableStatuses = ['submitted', 'under_review', 'revisions'];
 export const reviewStatusLabels = {
   submitted: ['Por avaliar', 'Awaiting review'],
   under_review: ['Em avaliação', 'Under review'],
-  revisions: ['Revisões pedidas', 'Revisions requested'],
+  revisions: ['Correções solicitadas', 'Revisions requested'],
   accepted: ['Aceite', 'Accepted'],
   rejected: ['Não aceite', 'Not accepted'],
 };

@@ -43,7 +43,7 @@ export default function InvitedSpeakers() {
     <div className="guest-heading">
       <div><p className="eyebrow">CIRC 2027 · {en ? 'Invited speakers' : 'Oradores convidados'}</p>
         <h2 id="invited-speakers-title">{en ? 'Expertise that connects us.' : 'Conhecimento que nos aproxima.'}</h2></div>
-      <p>{en ? 'Meet the specialists joining us in Coimbra to share experience, research and new perspectives in medical imaging.' : 'Conheça os especialistas que se juntam a nós em Coimbra para partilhar experiência, investigação e novas perspetivas na Imagem Médica.'}</p>
+      <p>{en ? 'Meet the specialists joining us in Coimbra to share experience, research and new perspectives in medical imaging.' : 'Conheça os especialistas que se juntam a nós em Coimbra para partilhar experiência, investigação e novas perspetivas na imagem médica.'}</p>
     </div>
     <div className="guest-grid">{speakers2027.slice(0, 3).map((speaker) => <SpeakerCard key={speaker.id} speaker={speaker} language={language} />)}</div>
     <div className="guest-section__footer"><div><span className="eyebrow">{en ? 'Also joining us' : 'Também connosco'}</span>

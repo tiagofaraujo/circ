@@ -31,7 +31,7 @@ function CookiesConsent() {
         <p>
           {en
             ? 'We use essential technologies to operate the website, remember your preferences and support secure sign-in.'
-            : 'Utilizamos tecnologias essenciais para o funcionamento do website, memorizar preferências e suportar o acesso seguro.'}
+            : 'Utilizamos tecnologias essenciais para garantir o funcionamento do site, memorizar as suas preferências e permitir o acesso seguro.'}
         </p>
         <Link className="cookies-consent__link" to="/cookies">
           {en ? 'Learn more' : 'Saber mais'}

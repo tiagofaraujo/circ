@@ -30,7 +30,7 @@ function LegalSection({ title, children }) {
 function LegalMeta({ en }) {
   return (
     <div className="legal-meta">
-      <span>{en ? 'Last updated · 19 August 2026' : 'Última atualização · 19 agosto 2026'}</span>
+      <span>{en ? 'Last updated · 19 August 2026' : 'Última atualização · 19 de agosto de 2026'}</span>
       <span>circ-coimbra.org</span>
       <span>Associação Hemisfério Disciplinado · NIF 517 072 262</span>
     </div>
@@ -49,21 +49,21 @@ export function PrivacyPolicyPage() {
         lead={
           en
             ? 'A clear description of the personal data used by the CIRC website, the participant area and the contact channels.'
-            : 'Uma descrição clara dos dados pessoais utilizados pelo website CIRC, pelo My CIRC e pelos canais de contacto.'
+            : 'Uma descrição clara dos dados pessoais utilizados pelo site CIRC, pelo My CIRC e pelos canais de contacto.'
         }
       />
 
       <div className="legal-intro">
         {en
           ? 'This policy modernises the privacy information from the former CIRC website and reflects the current website architecture. It will be reviewed again before registrations and payments for CIRC 2027 open.'
-          : 'Esta política atualiza a informação de privacidade do antigo website CIRC e reflete a arquitetura atual do site. Será novamente revista antes da abertura das inscrições e pagamentos do CIRC 2027.'}
+          : 'Esta política atualiza a informação de privacidade do antigo site CIRC e reflete a arquitetura atual do site. Será novamente revista antes da abertura das inscrições e dos pagamentos do CIRC 2027.'}
       </div>
 
       <LegalSection title={en ? '1. Who is responsible for the data' : '1. Quem é responsável pelos dados'}>
         <p>
           {en
             ? 'The website and CIRC event are organised by Associação Hemisfério Disciplinado (AHD), a non-profit association based in Coimbra, Portugal, tax number 517 072 262. Questions regarding personal data may be submitted through the official contact page.'
-            : 'O website e o evento CIRC são organizados pela Associação Hemisfério Disciplinado (AHD), associação sem fins lucrativos sediada em Coimbra, Portugal, NIF 517 072 262. Questões relativas a dados pessoais podem ser apresentadas através da página oficial de contactos.'}
+            : 'O site e o evento CIRC são organizados pela Associação Hemisfério Disciplinado (AHD), associação sem fins lucrativos sediada em Coimbra, Portugal, NIF 517 072 262. Questões relativas a dados pessoais podem ser apresentadas através da página oficial de contactos.'}
         </p>
         <p><Link className="text-link" to="/contactos">{en ? 'Contact CIRC' : 'Contactar o CIRC'}</Link></p>
       </LegalSection>
@@ -72,7 +72,7 @@ export function PrivacyPolicyPage() {
         <ul>
           <li>{en ? 'Contact form: name, email address, subject and message.' : 'Formulário de contacto: nome, endereço de email, assunto e mensagem.'}</li>
           <li>{en ? 'My CIRC account: email address, account identifier and, where provided by the user or Google, name and profile photograph.' : 'Conta My CIRC: endereço de email, identificador da conta e, quando fornecidos pelo utilizador ou pela conta Google, nome e fotografia de perfil.'}</li>
-          <li>{en ? 'Authentication security data processed by the authentication provider, which may include device/browser information and IP address for security and abuse prevention.' : 'Dados técnicos de segurança tratados pelo fornecedor de autenticação, que podem incluir informação do dispositivo/browser e endereço IP para segurança e prevenção de abuso.'}</li>
+          <li>{en ? 'Authentication security data processed by the authentication provider, which may include device/browser information and IP address for security and abuse prevention.' : 'Dados técnicos de segurança tratados pelo fornecedor de autenticação, que podem incluir informação do dispositivo ou navegador e endereço IP para segurança e prevenção de abuso.'}</li>
           <li>{en ? 'Student eligibility: school, course, academic year, profile name, private enrolment document and secretariat decision. The document is accessible only to its owner and authorised secretariat staff.' : 'Elegibilidade de estudante: escola, curso, ano letivo, nome do perfil, comprovativo privado de matrícula e decisão do secretariado. O comprovativo é acessível apenas ao titular e ao secretariado autorizado.'}</li>
           <li>{en ? 'Future registration data: professional, institutional, attendance, invoicing and payment information, once registration services are activated.' : 'Futuros dados de inscrição: informação profissional, institucional, de participação, faturação e pagamento, quando os serviços de inscrição forem ativados.'}</li>
         </ul>
@@ -92,7 +92,7 @@ export function PrivacyPolicyPage() {
         <p>
           {en
             ? 'The website is delivered through Cloudflare infrastructure. My CIRC uses Google Firebase Authentication and, when registrations are active, Cloud Firestore and private Cloud Storage for registration records and related documents. The contact form is transmitted through EmailJS to the organisation email account. These providers process data only to the extent required to provide their respective technical services and according to their own contractual and privacy frameworks.'
-            : 'O website é disponibilizado através de infraestrutura Cloudflare. O My CIRC utiliza Google Firebase Authentication e, quando as inscrições estiverem ativas, Cloud Firestore e Cloud Storage privado para registos de inscrição e documentos associados. O formulário de contacto é transmitido através do EmailJS para a caixa de correio da organização. Estes prestadores tratam dados na medida necessária à prestação dos respetivos serviços técnicos e de acordo com os seus enquadramentos contratuais e de privacidade.'}
+            : 'O site é disponibilizado através de infraestrutura Cloudflare. O My CIRC utiliza Google Firebase Authentication e, quando as inscrições estiverem ativas, Cloud Firestore e Cloud Storage privado para registos de inscrição e documentos associados. O formulário de contacto é transmitido através do EmailJS para a caixa de correio da organização. Estes prestadores tratam dados na medida necessária à prestação dos respetivos serviços técnicos e de acordo com os seus enquadramentos contratuais e de privacidade.'}
         </p>
         <p>
           <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">Firebase · Privacy &amp; Security</a>{' · '}
@@ -144,7 +144,7 @@ export function CookiesPolicyPage() {
         lead={
           en
             ? 'What the CIRC website stores in your browser and why.'
-            : 'O que o website CIRC guarda no seu browser e porquê.'
+            : 'O que o site CIRC guarda no seu navegador e porquê.'
         }
       />
 
@@ -152,7 +152,7 @@ export function CookiesPolicyPage() {
         <p>
           {en
             ? 'The current CIRC website is designed to minimise tracking. It does not intentionally use advertising or behavioural profiling cookies. It uses browser storage and essential technologies required to remember preferences and support secure website functions.'
-            : 'O website CIRC atual foi desenhado para minimizar mecanismos de rastreio. Não utiliza intencionalmente cookies de publicidade ou de criação de perfis comportamentais. Utiliza armazenamento do browser e tecnologias essenciais para memorizar preferências e suportar funções seguras do site.'}
+            : 'O site CIRC atual foi desenhado para minimizar mecanismos de rastreio. Não utiliza intencionalmente cookies de publicidade ou de criação de perfis comportamentais. Utiliza armazenamento do navegador e tecnologias essenciais para memorizar preferências e suportar funções seguras do site.'}
         </p>
       </LegalSection>
 
@@ -169,15 +169,15 @@ export function CookiesPolicyPage() {
         <p>
           {en
             ? 'If analytics, marketing or other non-essential technologies are introduced later, the website will update this policy and, where required, request an appropriate choice before those technologies are activated.'
-            : 'Se forem introduzidas posteriormente ferramentas de analítica, marketing ou outras tecnologias não essenciais, o website atualizará esta política e, quando exigível, solicitará uma escolha adequada antes da respetiva ativação.'}
+            : 'Se forem introduzidas posteriormente ferramentas de analítica, marketing ou outras tecnologias não essenciais, o site atualizará esta política e, quando exigível, solicitará uma escolha adequada antes da respetiva ativação.'}
         </p>
       </LegalSection>
 
-      <LegalSection title={en ? '4. Managing browser data' : '4. Gerir dados do browser'}>
+      <LegalSection title={en ? '4. Managing browser data' : '4. Gerir dados do navegador'}>
         <p>
           {en
             ? 'You can clear cookies and local website data using your browser settings. Doing so may reset the language, privacy preference or signed-in session.'
-            : 'Pode eliminar cookies e dados locais do website através das definições do seu browser. Ao fazê-lo poderá repor o idioma, a preferência de privacidade ou terminar a sessão autenticada.'}
+            : 'Pode eliminar cookies e dados locais do site através das definições do seu navegador. Ao fazê-lo, poderá repor o idioma, a preferência de privacidade ou terminar a sessão autenticada.'}
         </p>
       </LegalSection>
 
@@ -202,7 +202,7 @@ export function TermsOfUsePage() {
         }
       />
 
-      <LegalSection title={en ? '1. Website purpose' : '1. Finalidade do website'}>
+      <LegalSection title={en ? '1. Website purpose' : '1. Finalidade do site'}>
         <p>{en ? 'circ-coimbra.org is the official digital information point for CIRC 2027 and its historical archive. Content may evolve as programme, participation and partnership information is formally confirmed.' : 'circ-coimbra.org é o ponto digital oficial de informação do CIRC 2027 e do respetivo arquivo histórico. Os conteúdos podem evoluir à medida que programa, participação e parcerias sejam formalmente confirmados.'}</p>
       </LegalSection>
 
@@ -210,7 +210,7 @@ export function TermsOfUsePage() {
         <ul>
           <li>{en ? 'Users are responsible for providing accurate account information and protecting their access credentials.' : 'Os utilizadores são responsáveis por fornecer informação correta e proteger as respetivas credenciais de acesso.'}</li>
           <li>{en ? 'Accounts may not be used to impersonate another person, interfere with the service or attempt unauthorised access.' : 'As contas não podem ser utilizadas para representar falsamente outra pessoa, interferir com o serviço ou tentar acessos não autorizados.'}</li>
-          <li>{en ? 'CIRC may suspend access where necessary to protect users, the platform or the organisation from abuse or security incidents.' : 'O CIRC poderá suspender o acesso quando necessário para proteger utilizadores, plataforma ou organização perante abuso ou incidente de segurança.'}</li>
+          <li>{en ? 'CIRC may suspend access where necessary to protect users, the platform or the organisation from abuse or security incidents.' : 'O CIRC poderá suspender o acesso quando necessário para proteger os utilizadores, a plataforma ou a organização em caso de abuso ou de incidente de segurança.'}</li>
         </ul>
       </LegalSection>
 
@@ -219,11 +219,11 @@ export function TermsOfUsePage() {
       </LegalSection>
 
       <LegalSection title={en ? '4. Intellectual property' : '4. Propriedade intelectual'}>
-        <p>{en ? 'The CIRC name, visual identity, website design, texts and event materials may be protected by intellectual property rights. Reuse for commercial or misleading purposes is not authorised without appropriate permission.' : 'O nome CIRC, identidade visual, design do website, textos e materiais do evento podem estar protegidos por direitos de propriedade intelectual. A reutilização para fins comerciais ou suscetíveis de induzir em erro não é autorizada sem a devida permissão.'}</p>
+        <p>{en ? 'The CIRC name, visual identity, website design, texts and event materials may be protected by intellectual property rights. Reuse for commercial or misleading purposes is not authorised without appropriate permission.' : 'O nome CIRC, a identidade visual, o design do site, os textos e os materiais do evento podem estar protegidos por direitos de propriedade intelectual. A reutilização para fins comerciais ou suscetíveis de induzir em erro não é autorizada sem a devida permissão.'}</p>
       </LegalSection>
 
       <LegalSection title={en ? '5. External links' : '5. Ligações externas'}>
-        <p>{en ? 'The website may link to third-party services for information or technical functions. CIRC does not control the content or availability of external websites and users should review the applicable terms and privacy information of those services.' : 'O website pode incluir ligações a serviços de terceiros para informação ou funções técnicas. O CIRC não controla o conteúdo ou disponibilidade de websites externos e o utilizador deve consultar os respetivos termos e informação de privacidade.'}</p>
+        <p>{en ? 'The website may link to third-party services for information or technical functions. CIRC does not control the content or availability of external websites and users should review the applicable terms and privacy information of those services.' : 'O site pode incluir ligações a serviços de terceiros para informação ou funções técnicas. O CIRC não controla o conteúdo ou a disponibilidade de sites externos e o utilizador deve consultar os respetivos termos e informação de privacidade.'}</p>
       </LegalSection>
 
       <LegalSection title={en ? '6. Changes' : '6. Alterações'}>
@@ -262,13 +262,13 @@ export function EventRegulationPage() {
         <ul>
           <li>{en ? 'Registration may be subject to capacity limits and category-specific conditions.' : 'A inscrição poderá estar sujeita a limites de lotação e condições específicas por categoria.'}</li>
           <li>{en ? 'The participant is responsible for checking personal, professional and invoicing details before confirmation.' : 'O participante é responsável por confirmar os dados pessoais, profissionais e de faturação antes da validação.'}</li>
-          <li>{en ? 'Student rates require a 2026/2027 enrolment document matching the full name in the profile, school and eligible IMR or equivalent course, approved by the secretariat. There is no age limit. Professional categories may require separate validation.' : 'A tarifa de estudante exige comprovativo de matrícula de 2026/2027 correspondente ao nome completo do perfil, escola e curso elegível de IMR ou equivalente, aprovado pelo secretariado. Não existe limite de idade. As categorias profissionais podem exigir validação própria.'}</li>
-          <li>{en ? 'A registration is only considered completed when all required steps, including payment where applicable, are successfully concluded.' : 'A inscrição apenas será considerada concluída quando todos os passos exigidos, incluindo pagamento quando aplicável, forem finalizados com sucesso.'}</li>
+          <li>{en ? 'Student rates require a 2026/2027 enrolment document matching the full name in the profile, school and eligible IMR or equivalent course, approved by the secretariat. There is no age limit. Professional categories may require separate validation.' : 'A tarifa de estudante exige um comprovativo de matrícula no ano letivo de 2026/2027, aprovado pelo secretariado. O documento deve indicar o nome completo, coincidente com o do perfil, a instituição de ensino e o curso elegível de IMR ou equivalente. Não existe limite de idade. As categorias profissionais podem exigir validação própria.'}</li>
+          <li>{en ? 'A registration is only considered completed when all required steps, including payment where applicable, are successfully concluded.' : 'A inscrição apenas será considerada concluída quando todos os passos exigidos, incluindo o pagamento quando aplicável, forem finalizados com sucesso.'}</li>
         </ul>
       </LegalSection>
 
       <LegalSection title={en ? '2. Course, congress and access' : '2. Curso, congresso e acessos'}>
-        <p>{en ? 'CIRC 2027 comprises a Pre-Congress Course on 8 April and the International Congress on 9 and 10 April. Registration options may distinguish between the course, congress and complete experience. Access credentials, tickets or QR codes are personal and may not be transferred unless the final regulation expressly allows a formal substitution process.' : 'O CIRC 2027 integra um Curso Pré-Congresso no dia 8 de abril e o Congresso Internacional nos dias 9 e 10. As modalidades de inscrição poderão distinguir curso, congresso e experiência completa. Credenciais de acesso, bilhetes ou QR codes são pessoais e não podem ser transmitidos, salvo se o regulamento final permitir expressamente um processo formal de substituição.'}</p>
+        <p>{en ? 'CIRC 2027 comprises a Pre-Congress Course on 8 April and the International Congress on 9 and 10 April. Registration options may distinguish between the course, congress and complete experience. Access credentials, tickets or QR codes are personal and may not be transferred unless the final regulation expressly allows a formal substitution process.' : 'O CIRC 2027 integra um Curso Pré-Congresso no dia 8 de abril e o Congresso Internacional nos dias 9 e 10. As modalidades de inscrição poderão distinguir curso, congresso e experiência completa. Credenciais de acesso, bilhetes ou códigos QR são pessoais e não podem ser transmitidos, salvo se o regulamento final permitir expressamente um processo formal de substituição.'}</p>
       </LegalSection>
 
       <LegalSection title={en ? '3. Cancellation and refunds' : '3. Cancelamentos e reembolsos'}>
@@ -276,7 +276,7 @@ export function EventRegulationPage() {
       </LegalSection>
 
       <LegalSection title={en ? '4. Certificates and attendance' : '4. Certificados e presença'}>
-        <p>{en ? 'Where certificates are issued, their availability may depend on registration status, attendance/check-in requirements and completion of the event. The final criteria will be stated before the event.' : 'Quando sejam emitidos certificados, a respetiva disponibilização poderá depender do estado da inscrição, requisitos de presença/check-in e conclusão do evento. Os critérios finais serão indicados antes do evento.'}</p>
+        <p>{en ? 'Where certificates are issued, their availability may depend on registration status, attendance/check-in requirements and completion of the event. The final criteria will be stated before the event.' : 'Quando sejam emitidos certificados, a respetiva disponibilização poderá depender do estado da inscrição, dos requisitos de presença e da conclusão do evento. Os critérios finais serão indicados antes do evento.'}</p>
       </LegalSection>
 
       <LegalSection title={en ? '5. Photography, video and streaming' : '5. Fotografia, vídeo e streaming'}>
@@ -285,7 +285,7 @@ export function EventRegulationPage() {
 
       <LegalSection title={en ? '6. Personal data' : '6. Dados pessoais'}>
         <p>{en ? 'Personal data used for registration and participation will be processed in accordance with the CIRC Privacy Policy and the information provided at the moment each service is activated.' : 'Os dados pessoais utilizados para inscrição e participação serão tratados de acordo com a Política de Privacidade do CIRC e com a informação disponibilizada no momento em que cada serviço seja ativado.'}</p>
-        <p><Link className="text-link" to="/privacidade">{en ? 'Read the Privacy Policy' : 'Consultar Política de Privacidade'}</Link></p>
+        <p><Link className="text-link" to="/privacidade">{en ? 'Read the Privacy Policy' : 'Consultar a Política de Privacidade'}</Link></p>
       </LegalSection>
 
       <LegalMeta en={en} />

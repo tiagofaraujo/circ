@@ -61,7 +61,7 @@ function Navbar() {
         <div
           className="language-switch"
           role="group"
-          aria-label={isEnglish ? 'Website language' : 'Idioma do website'}
+          aria-label={isEnglish ? 'Website language' : 'Idioma do site'}
         >
           <button
             type="button"
@@ -118,7 +118,7 @@ function Navbar() {
         className={isOpen ? 'mobile-nav is-open' : 'mobile-nav'}
       >
         <p className="mobile-nav__title">
-          {isEnglish ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 abril'}
+          {isEnglish ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 de abril'}
         </p>
         <Link to="/" onClick={closeMenu}>{isEnglish ? 'Home' : 'Início'}</Link>
         {visibleItems.map((item) => (

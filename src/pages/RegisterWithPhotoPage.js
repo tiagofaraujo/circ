@@ -23,7 +23,7 @@ function friendlyError(error, isEnglish) {
     'auth/invalid-email': isEnglish ? 'Enter a valid email address.' : 'Introduza um endereço de email válido.',
     'auth/weak-password': isEnglish ? 'Use a stronger password.' : 'Utilize uma palavra-passe mais segura.',
     'auth/popup-closed-by-user': isEnglish ? 'Google sign-in was cancelled.' : 'O acesso Google foi cancelado.',
-    'auth/popup-blocked': isEnglish ? 'Your browser blocked the Google sign-in window.' : 'O browser bloqueou a janela de acesso Google.',
+    'auth/popup-blocked': isEnglish ? 'Your browser blocked the Google sign-in window.' : 'O navegador bloqueou a janela de acesso Google.',
   };
   return messages[code] || (isEnglish ? 'The operation could not be completed.' : 'Não foi possível concluir a operação.');
 }
@@ -137,7 +137,7 @@ export default function RegisterWithPhotoPage() {
         </div>
 
         <aside className="auth-aside">
-          <div><span className="auth-aside__date">08—10</span><p className="eyebrow">{isEnglish ? 'April 2027 · Coimbra' : 'Abril 2027 · Coimbra'}</p></div>
+          <div><span className="auth-aside__date">08—10</span><p className="eyebrow">{isEnglish ? 'April 2027 · Coimbra' : 'Abril de 2027 · Coimbra'}</p></div>
           <div><h2>{isEnglish ? 'One account for the complete CIRC experience.' : 'Uma conta para toda a experiência CIRC.'}</h2><p>{isEnglish ? 'Google accounts use the Google profile avatar. Email accounts use a simple initials avatar for now.' : 'As contas Google utilizam o avatar do perfil Google. As contas por email utilizam, para já, um avatar simples com iniciais.'}</p></div>
         </aside>
       </section>

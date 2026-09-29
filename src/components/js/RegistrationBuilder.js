@@ -1,4 +1,6 @@
 import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
+import { mriCourseTitle } from '../MriCourseDescription';
+import { strokeCourseTitle } from '../StrokeCourseDescription';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -140,8 +142,8 @@ export function ExistingRegistrationAddOns({ registration, orders, user, en, per
         <p><strong>{registration.participantName}</strong></p>
         <ul>
           <li><span><strong>{registrationModeLabel(primary.congressMode, en)}</strong><small>{en ? '9–10 April 2027' : '9 e 10 de abril de 2027'}</small></span><b>{en ? 'Included' : 'Incluído'}</b></li>
-          <li><span><strong>{en ? 'MRI post-processing · 8 April, morning' : 'Pós-processamento em RM · 8 abril, manhã'}</strong></span><b>{entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
-          <li><span><strong>Via Verde AVC · {en ? '8 April, afternoon' : '8 abril, tarde'}</strong></span><b>{entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
+          <li><span><strong>{en ? 'MRI post-processing · 8 April, morning' : 'Pós-processamento em RM · 8 de abril, manhã'}</strong></span><b>{entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
+          <li><span><strong>Via Verde AVC · {en ? '8 April, afternoon' : '8 de abril, tarde'}</strong></span><b>{entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
           <li><span><strong>{en ? 'Congress dinner' : 'Jantar do congresso'}</strong></span><b>× {entitlements.dinnerQuantity || 0}</b></li>
         </ul>
         <div className="registration-summary__total"><span>{registration.voucherId ? (en ? 'Congress covered by voucher' : 'Congresso abrangido pelo voucher') : (en ? 'Original registration amount' : 'Valor da inscrição original')}</span><strong>{formatEuro(Number(registration.voucherId ? registration.payment?.coveredAmountCents || 0 : registration.payment?.amountCents || 0) / 100)}</strong></div>
@@ -157,7 +159,7 @@ export function ExistingRegistrationAddOns({ registration, orders, user, en, per
             <div className="registration-step__heading">
               <span>01</span>
               <div>
-                <p>{en ? '8 April · Optional supplement' : '8 abril · Complemento opcional'}</p>
+                <p>{en ? '8 April · Optional supplement' : '8 de abril · Complemento opcional'}</p>
                 <h2 id="registration-addon-courses-title">{en ? 'Add an available course' : 'Acrescente um curso disponível'}</h2>
               </div>
             </div>
@@ -169,7 +171,7 @@ export function ExistingRegistrationAddOns({ registration, orders, user, en, per
                 onChange={setMorningCourse}
                 date="08"
                 period={en ? 'AM' : 'MANHÃ'}
-                title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
+                title={en ? mriCourseTitle.en : mriCourseTitle.pt}
                 text={entitlements.morningCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
                 price={entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
               />
@@ -179,7 +181,7 @@ export function ExistingRegistrationAddOns({ registration, orders, user, en, per
                 onChange={setAfternoonCourse}
                 date="08"
                 period={en ? 'PM' : 'TARDE'}
-                title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
+                title={en ? strokeCourseTitle.en : strokeCourseTitle.pt}
                 text={entitlements.afternoonCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
                 price={entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
               />
@@ -318,9 +320,9 @@ function RegistrationBuilder({ paidRegistration }) {
   }), [afternoonCourse, congressMode, courseAffiliation, dinnerQuantity, morningCourse, period, profile]);
 
   const profileLabels = {
-    uls: en ? 'ULS Coimbra delegate' : 'Congressista ULS Coimbra',
+    uls: en ? 'ULS Coimbra delegate' : 'Congressista da ULS Coimbra',
     external: en ? 'External delegate' : 'Congressista externo',
-    student: en ? 'IMR student' : 'Estudante IMR',
+    student: en ? 'IMR student' : 'Estudante de IMR',
   };
   const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse || dinnerQuantity);
   const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
@@ -417,8 +419,8 @@ function RegistrationBuilder({ paidRegistration }) {
                 value="student"
                 selected={profile === 'student'}
                 onChange={setProfile}
-                eyebrow={en ? 'Student rate' : 'Tarifa estudante'}
-                title={en ? 'IMR student' : 'Estudante IMR'}
+                eyebrow={en ? 'Student rate' : 'Tarifa de estudante'}
+                title={en ? 'IMR student' : 'Estudante de IMR'}
                 text={en ? 'Enrolment document subject to approval.' : 'Comprovativo de matrícula sujeito a aprovação.'}
               />
             </div>
@@ -431,7 +433,7 @@ function RegistrationBuilder({ paidRegistration }) {
             <div className="registration-step__heading">
               <span>02</span>
               <div>
-                <p>{en ? '9–10 April' : '9–10 abril'}</p>
+                <p>{en ? '9–10 April' : '9–10 de abril'}</p>
                 <h2 id="registration-congress-title">{en ? 'How will you attend the congress?' : 'Como pretende participar no congresso?'}</h2>
               </div>
             </div>
@@ -476,7 +478,7 @@ function RegistrationBuilder({ paidRegistration }) {
             <div className="registration-step__heading">
               <span>03</span>
               <div>
-                <p>{en ? '8 April · Optional' : '8 abril · Opcional'}</p>
+                <p>{en ? '8 April · Optional' : '8 de abril · Opcional'}</p>
                 <h2 id="registration-courses-title">
                   {en ? 'Add one or both courses' : 'Acrescente um ou os dois cursos'}
                 </h2>
@@ -486,7 +488,7 @@ function RegistrationBuilder({ paidRegistration }) {
             <div className="registration-course-note">
               <span>{en ? 'Price per course' : 'Preço por curso'}</span>
               <strong>{coursesReady ? formatEuro(totals.courseUnit) : '—'}</strong>
-              <p>{en ? 'Morning and afternoon are charged independently.' : 'Manhã e tarde são cobradas de forma independente.'}</p>
+              <p>{en ? 'Morning and afternoon are charged independently.' : 'Os cursos da manhã e da tarde são pagos separadamente.'}</p>
             </div>
             <div className="registration-toggle-list">
               <ToggleCard
@@ -495,8 +497,8 @@ function RegistrationBuilder({ paidRegistration }) {
                 onChange={setMorningCourse}
                 date="08"
                 period={en ? 'AM' : 'MANHÃ'}
-                title={en ? 'Pre-Congress Course · Morning' : 'Curso Pré-Congresso · Manhã'}
-                text={en ? 'Programme and capacity to be announced.' : 'Programa e lotação a anunciar.'}
+                title={en ? mriCourseTitle.en : mriCourseTitle.pt}
+                text={en ? '09:00–13:00 · Practical demonstrations and clinical cases.' : '09:00–13:00 · Demonstrações práticas e casos clínicos.'}
                 price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
               />
               <ToggleCard
@@ -505,8 +507,8 @@ function RegistrationBuilder({ paidRegistration }) {
                 onChange={setAfternoonCourse}
                 date="08"
                 period={en ? 'PM' : 'TARDE'}
-                title={en ? 'Pre-Congress Course · Afternoon' : 'Curso Pré-Congresso · Tarde'}
-                text={en ? 'Independent course with separate capacity.' : 'Curso autónomo, com lotação própria.'}
+                title={en ? strokeCourseTitle.en : strokeCourseTitle.pt}
+                text={en ? '14:00–18:00 · From diagnosis to treatment decisions.' : '14:00–18:00 · Do diagnóstico à decisão terapêutica.'}
                 price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
               />
             </div>
@@ -555,7 +557,7 @@ function RegistrationBuilder({ paidRegistration }) {
         <aside className="registration-summary" aria-live="polite">
           <div className="registration-summary__rate">
             <span>{period === 'early' ? (en ? 'Early rate' : 'Tarifa antecipada') : (en ? 'Standard rate' : 'Tarifa regular')}</span>
-            <strong>{period === 'early' ? (en ? 'Until 31 Jan 2027' : 'Até 31 jan. 2027') : (en ? 'From 1 Feb 2027' : 'Desde 1 fev. 2027')}</strong>
+            <strong>{period === 'early' ? (en ? 'Until 31 Jan 2027' : 'Até 31 de jan. de 2027') : (en ? 'From 1 Feb 2027' : 'Desde 1 de fev. de 2027')}</strong>
           </div>
           <p className="registration-summary__eyebrow">{en ? 'Your selection' : 'A sua seleção'}</p>
           <h2>{completeExperience ? (en ? 'Complete experience' : 'Experiência completa') : (en ? 'Registration summary' : 'Resumo da inscrição')}</h2>
@@ -565,12 +567,12 @@ function RegistrationBuilder({ paidRegistration }) {
             {totals.congress > 0 && (
               <SummaryLine
                 label={congressMode === 'virtual' ? (en ? 'Virtual congress' : 'Congresso virtual') : 'CIRC 2027'}
-                detail={congressMode === 'onsite' ? (en ? '9–10 April · In person' : '9–10 abril · Presencial') : (en ? '9–10 April · Online' : '9–10 abril · Online')}
+                detail={congressMode === 'onsite' ? (en ? '9–10 April · In person' : '9–10 de abril · Presencial') : (en ? '9–10 April · Online' : '9–10 de abril · Online')}
                 amount={totals.congress}
               />
             )}
-            {morningCourse && <SummaryLine label={en ? 'Morning course' : 'Curso da manhã'} detail={en ? '8 April' : '8 abril'} amount={totals.courseUnit} />}
-            {afternoonCourse && <SummaryLine label={en ? 'Afternoon course' : 'Curso da tarde'} detail={en ? '8 April' : '8 abril'} amount={totals.courseUnit} />}
+            {morningCourse && <SummaryLine label={en ? 'Morning course' : 'Curso da manhã'} detail={en ? '8 April' : '8 de abril'} amount={totals.courseUnit} />}
+            {afternoonCourse && <SummaryLine label={en ? 'Afternoon course' : 'Curso da tarde'} detail={en ? '8 April' : '8 de abril'} amount={totals.courseUnit} />}
             {totals.dinner > 0 && (
               <SummaryLine
                 label={`${en ? 'Congress dinner' : 'Jantar do congresso'} × ${totals.dinnerQuantity}`}

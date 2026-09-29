@@ -34,9 +34,9 @@ function Prices() {
             </div>
 
             <div className="price-guide" aria-label={en ? 'How the registration price is calculated' : 'Como é calculado o preço da inscrição'}>
-                <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante IMR.'}</p></div></article>
+                <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante de IMR.'}</p></div></article>
                 <article><span>02</span><div><strong>{en ? 'Congress format' : 'Formato do congresso'}</strong><p>{en ? 'In person, virtual or courses only.' : 'Presencial, virtual ou apenas cursos.'}</p></div></article>
-                <article><span>03</span><div><strong>{en ? 'Pre-Congress Courses' : 'Cursos Pré-Congresso'}</strong><p>{en ? 'Morning, afternoon or both, for professionals and IMR students.' : 'Manhã, tarde ou ambos, para profissionais e estudantes IMR.'}</p></div></article>
+                <article><span>03</span><div><strong>{en ? 'Pre-Congress Courses' : 'Cursos Pré-Congresso'}</strong><p>{en ? 'Morning, afternoon or both, for professionals and IMR students.' : 'Curso da manhã, curso da tarde ou ambos, para profissionais e estudantes de IMR.'}</p></div></article>
                 <article><span>04</span><div><strong>{en ? 'Congress dinner' : 'Jantar do congresso'}</strong><p>{en ? 'Choose the quantity · €30 per person, with every category.' : 'Escolha a quantidade · 30 € por pessoa, em qualquer modalidade.'}</p></div></article>
             </div>
 
@@ -53,17 +53,17 @@ function Prices() {
                                 <th scope="col">{en ? 'Category' : 'Modalidade'}</th>
                                 <th scope="col">
                                     {en ? 'Until' : 'Até'}
-                                    <span>{en ? '31 Jan 2027' : '31 jan. 2027'}</span>
+                                    <span>{en ? '31 Jan 2027' : '31 de jan. de 2027'}</span>
                                 </th>
                                 <th scope="col">
                                     {en ? 'From' : 'A partir de'}
-                                    <span>{en ? '1 Feb 2027' : '1 fev. 2027'}</span>
+                                    <span>{en ? '1 Feb 2027' : '1 de fev. de 2027'}</span>
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <th scope="row">{en ? 'ULS Coimbra delegates' : 'Congressistas ULS Coimbra'}</th>
+                                <th scope="row">{en ? 'ULS Coimbra delegates' : 'Congressistas da ULS Coimbra'}</th>
                                 <td><PriceValue amount={formatEuro(CONGRESS_RATES.uls.early)} /></td>
                                 <td><PriceValue amount={formatEuro(CONGRESS_RATES.uls.regular)} /></td>
                             </tr>
@@ -73,7 +73,7 @@ function Prices() {
                                 <td><PriceValue amount={formatEuro(CONGRESS_RATES.external.regular)} /></td>
                             </tr>
                             <tr>
-                                <th scope="row">{en ? 'IMR students' : 'Estudantes IMR'}</th>
+                                <th scope="row">{en ? 'IMR students' : 'Estudantes de IMR'}</th>
                                 <td><PriceValue amount={formatEuro(CONGRESS_RATES.student.early)} /></td>
                                 <td><PriceValue amount={formatEuro(CONGRESS_RATES.student.regular)} /></td>
                             </tr>
@@ -98,7 +98,7 @@ function Prices() {
                             <tr className="course-row">
                                 <th scope="row">
                                     <span className="row-label">{en ? 'Pre-congress courses' : 'Cursos pré-congresso'}</span>
-                                    {en ? 'External delegates and IMR students' : 'Externos e estudantes IMR'}
+                                    {en ? 'External delegates and IMR students' : 'Externos e estudantes de IMR'}
                                 </th>
                                 <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} /></td>
                                 <td><PriceValue amount={formatEuro(COURSE_RATES.external)} note={perCourse} /></td>
@@ -118,11 +118,11 @@ function Prices() {
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}
                         {en
                             ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The fee is per course. IMR students may register after their enrolment document is approved.'
-                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso. Os estudantes IMR podem inscrever-se após aprovação do comprovativo de matrícula.'}
+                            : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso. Os estudantes de IMR podem inscrever-se após aprovação do comprovativo de matrícula.'}
                     </p>
                 </div>
                 <div className="price-simulator-link">
-                    <div><strong>{en ? 'Prefer a guided calculation?' : 'Prefere um cálculo guiado?'}</strong><span>{en ? 'Build a combination and see the estimated total immediately.' : 'Construa a combinação e veja imediatamente o total estimado.'}</span></div>
+                    <div><strong>{en ? 'Prefer a guided calculation?' : 'Prefere um cálculo guiado?'}</strong><span>{en ? 'Build a combination and see the estimated total immediately.' : 'Escolha as opções de participação e consulte o total estimado.'}</span></div>
                     <Link to="/conta/inscricoes">{en ? 'Open simulator' : 'Abrir simulador'} <span aria-hidden="true">→</span></Link>
                 </div>
             </div>

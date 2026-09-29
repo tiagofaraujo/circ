@@ -48,10 +48,10 @@ function SocialConnect() {
 
   const handleShare = async () => {
     const shareData = {
-      title: en ? 'CIRC 2027 · 8–10 April · Coimbra' : 'CIRC 2027 · 8–10 abril · Coimbra',
+      title: en ? 'CIRC 2027 · 8–10 April · Coimbra' : 'CIRC 2027 · 8–10 de abril · Coimbra',
       text: en
         ? 'CIRC 2027 — 8 April: two Pre-Congress Courses, morning and afternoon · 9–10 April: Coimbra International Radiology Congress.'
-        : 'CIRC 2027 — 8 abril: dois Cursos Pré-Congresso, manhã e tarde · 9–10 abril: Congresso Internacional de Radiologia de Coimbra.',
+        : 'CIRC 2027 — 8 de abril: dois Cursos Pré-Congresso, manhã e tarde · 9–10 de abril: Congresso Internacional de Radiologia de Coimbra.',
       url: getShareUrl(),
     };
 

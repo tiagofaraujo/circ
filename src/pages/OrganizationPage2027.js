@@ -67,7 +67,7 @@ export default function OrganizationPage2027() {
         lead={tx(
           en,
           'CIRC is organised by Associação Hemisfério Disciplinado (AHD), a non-profit association created in Coimbra in 2022 around medical imaging, professional development and scientific exchange.',
-          'O CIRC é organizado pela Associação Hemisfério Disciplinado (AHD), uma associação sem fins lucrativos criada em Coimbra, em 2022, em torno da imagem médica, desenvolvimento profissional e partilha científica.'
+          'O CIRC é organizado pela Associação Hemisfério Disciplinado (AHD), uma associação sem fins lucrativos criada em Coimbra, em 2022, em torno da imagem médica, do desenvolvimento profissional e da partilha científica.'
         )}
       />
 
@@ -78,7 +78,7 @@ export default function OrganizationPage2027() {
           text={tx(
             en,
             'AHD emerged from an intergenerational group of diagnostic and therapeutic radiology professionals linked to medical imaging in Coimbra. Its purpose is broader than organising a congress: it creates platforms where knowledge circulates, disciplines meet and professional networks grow.',
-            'A AHD nasceu de um grupo intergeracional de profissionais TSDT — área de Radiologia ligados à imagem médica em Coimbra. O seu propósito vai além da organização de um congresso: criar plataformas onde o conhecimento circule, as disciplinas se cruzem e novas redes profissionais possam crescer.'
+            'A AHD nasceu de um grupo intergeracional de técnicos superiores de diagnóstico e terapêutica da área de radiologia ligados à imagem médica em Coimbra. O seu propósito vai além da organização de um congresso: criar plataformas onde o conhecimento circule, as disciplinas se cruzem e novas redes profissionais possam crescer.'
           )}
         />
         <div className="recovered-grid">
@@ -96,7 +96,7 @@ export default function OrganizationPage2027() {
             number="03"
             accent
             title={tx(en, 'Turn knowledge into experiences.', 'Transformar conhecimento em experiências.')}
-            text={tx(en, 'Organise congresses, courses, seminars, exhibitions and training initiatives related to radiology and medical imaging.', 'Organizar congressos, cursos, seminários, exposições e ações de formação ligadas à Radiologia e Imagem Médica.')}
+            text={tx(en, 'Organise congresses, courses, seminars, exhibitions and training initiatives related to radiology and medical imaging.', 'Organizar congressos, cursos, seminários, exposições e ações de formação ligadas à radiologia e à imagem médica.')}
           />
         </div>
       </section>
