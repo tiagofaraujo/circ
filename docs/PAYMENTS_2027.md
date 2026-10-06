@@ -1,70 +1,65 @@
-# Pagamentos CIRC 2027 — integração em preparação
+# Pagamentos CIRC 2027 — estado em 06/10/2026
 
-Atualização: 28/09/2026. Decisões do organizador: Eupago (conta aprovada e acesso API) e TOConline (faturas-recibo).
+Eupago é o prestador escolhido; TOConline será usado para faturação. O organizador confirmou acesso à sandbox e indicou ter guardado `EUPAGO_SANDBOX_API_KEY` como Secret no Worker Cloudflare `circ`. A presença da chave só fica comprovada na resposta autenticada de `/api/payments/sandbox/config`; a sua validade depende de uma chamada real de teste.
 
-## Implementado nesta primeira etapa
+## Disponível nesta etapa: consola de testes da organização
 
-`server/payments/quote.mjs` é uma biblioteca de domínio sem rotas nem chamadas externas.
-Reutiliza o catálogo de preços do site, calcula em cêntimos e ignora preços/períodos recebidos do navegador. Valida a elegibilidade ULS através dos registos de elegibilidade, claim e roster; estudante através de aprovação associada ao nome, utilizador, evento e ano letivo. Suporta inscrição principal e complementos, incluindo titulares de voucher de empresa. Os complementos não voltam a cobrar o congresso nem concedem direitos durante o orçamento.
+Página `/admin/pagamentos-teste`, protegida pela autorização de administração de inscrições existente. APIs do servidor verificam independentemente o token Firebase e exigem `email_verified` e a conta `circ.chuc@gmail.com`, tal como `isAdmin` nas regras Firestore.
 
-Verificação: `node --test server/test/payment-quote.test.mjs` (8 testes).
+- `GET /api/payments/sandbox/config`: indica apenas presença da chave, ambiente sandbox e valor de teste.
+- `POST /api/payments/sandbox/attempts`: recebe UUID v4, método (`multibanco`/`mbway`) e telefone de teste MB WAY. O servidor fixa o valor em 100 cêntimos; não recebe preços do navegador.
+- `GET /api/payments/sandbox/attempts/{uuid}`: recupera o registo existente.
+- `POST /api/payments/sandbox/attempts/{uuid}/inspect`: consulta o estado na Eupago, sem confirmar qualquer inscrição.
 
-O módulo NÃO implementa autenticação HTTP, leitura da BD, bloqueios transacionais, reservas de vagas, chamadas Eupago, callback, reconciliação, faturação, notificações ou interface de checkout. Não está importado pelo Worker. Nada foi ativado em produção. As validações deste módulo só serão uma fronteira de segurança quando receberem exclusivamente registos lidos no servidor autenticado.
+O token Firebase do administrador é encaminhado exclusivamente para a API REST Firestore, sujeita às regras existentes. As tentativas ficam em `settings/circ-eupago-sandbox-{uid}-{uuid}`, coleção já reservada ao administrador. Não se escrevem registos em inscrições, pagamentos reais ou faturação. Nenhuma alteração de permissões Firestore é necessária para esta consola.
 
-## Fluxo a implementar
+A tentativa é persistida antes da chamada à Eupago, com precondição de inexistência. Atualizações usam precondição `updateTime`. Uma repetição com o mesmo UUID devolve o registo existente; seleção diferente é rejeitada. Pedidos simultâneos com o mesmo UUID não criam duas referências. A página retém o UUID na sessão do navegador e recupera-o ao recarregar. Preparar outro teste gera deliberadamente outro UUID.
 
-1. Validar token Firebase e email; consultar perfil, elegibilidade e inscrição principal pelo ID `circ-2027-{uid}`.
-2. Confirmar abertura do módulo e disponibilidade. Calcular orçamento no servidor; guardar linhas, valor, moeda, dados de faturação e versão da configuração. Não confiar em totais do cliente.
-3. Reservar a encomenda e uma tentativa de pagamento numa transação. Chave de idempotência por utilizador/operação; bloquear pagamentos simultâneos da mesma compra e sobreposição de cursos em encomendas pendentes. Revalidar o contexto usado no orçamento dentro da transação.
-4. Criar pagamento Eupago com identificador opaco da tentativa. Guardar referência e estado. Um timeout não prova que o pedido falhou: reconciliar antes de repetir. Não colocar dados pessoais em identificadores/URLs de callback.
-5. Confirmar o recebimento com o mecanismo autenticado suportado pelo canal Eupago, verificando também a transação junto do prestador. Validar conta/canal, transação, moeda e montante contra a tentativa persistida. Um retorno do navegador nunca confirma pagamento. Callbacks repetidos/fora de ordem não podem repetir efeitos.
-6. Numa transação, marcar pagamento recebido, atualizar inscrição/direitos exatamente uma vez e criar tarefa durável de faturação. Resolver pagamentos tardios e reservas expiradas sem apagar recebimentos.
-7. Emitir FR no TOConline apenas com configuração fiscal validada. Manter o pagamento como recebido se a faturação falhar. Guardar ID, número e acesso ao PDF. Antes de repetir uma emissão cujo resultado seja incerto, reconciliar; `external_reference` não deve ser assumida como chave idempotente garantida pelo fornecedor.
-8. Mostrar estados separados no My CIRC: pagamento e faturação. Manter trilho de auditoria e permitir reconciliação administrativa.
+O host do adaptador é fixo `sandbox.eupago.pt`; não existe caminho para produção. Não há retries automáticos de criação. Timeout, erro de transporte ou resposta incerta deixam `creation_unknown` (ou `creating` se nem a atualização puder ser gravada): consultar o backoffice e reconciliar antes de qualquer nova tentativa. O botão de novo teste só é mostrado após referência criada. Respostas brutas do prestador, tokens e chaves não são devolvidos nem registados em logs. O telefone MB WAY não é persistido; apenas um fingerprint da seleção evita reutilização do UUID com dados diferentes.
 
-Inscrições individuais continuam previstas para 15/11/2026. Testes precisam de canal/credenciais sandbox Eupago e contexto de faturação de testes confirmado pelo TOConline. Não usar produção para emitir documentos fictícios. A API v1 de vendas do TOConline finaliza documentos na criação.
+## Como validar com a conta
 
-## Dados ainda necessários
+1. Entrar no site com a conta administradora e abrir `/admin/pagamentos-teste`.
+2. Confirmar que a página não indica falta da chave.
+3. Criar um teste Multibanco de 1 €. Verificar entidade/referência no canal sandbox.
+4. Recarregar a página e confirmar que recupera a mesma referência; consultar o estado.
+5. Usar apenas os mecanismos de simulação disponibilizados pela Eupago. Não pagar referências de sandbox no banco/app real.
+6. Testar MB WAY com números indicados pela Eupago. A documentação indica `987654321` para uma referência em erro e `999999999` para alias inexistente.
 
-- Canal sandbox Eupago e métodos contratados/ativos; escolher endpoints e autenticação compatíveis com esse canal antes de implementar adaptadores. Documentação consultada cobre MB WAY e Multibanco, mas não comprova ativação na conta.
-- Configuração do callback e acesso à consulta de transações para reconciliação.
-- Acesso TOConline: Empresa > Dados API (ou Empresa > Configurações > Dados API), com utilizador administrador/empresário. O integrador recebe acesso temporário às credenciais. Obter client ID/secret, URLs OAuth/API e autorização commercial; armazenar/renovar tokens no servidor.
-- Contabilidade: série FR, serviços associados ao congresso/cursos/jantar, taxas ou motivos de isenção aplicáveis a cada serviço, conta de recebimento e correspondência de meios de pagamento. Não assumir isenção por se tratar de associação.
-- Confirmar necessidades de fatura em nome de empresa distinta do participante e contexto de testes do TOConline.
-- Escrita autenticada do backend no Firestore com permissões restritas, armazenamento de segredos e execução durável da faturação/reconciliação. A infraestrutura atual não inclui esta ligação.
+Esta consola testa criação e consulta. Não substitui um teste completo de inscrição, callback e confirmação automática. O estado devolvido pela consulta permanece uma pista de reconciliação: a documentação de `multibanco/info` não inclui prova completa de montante/moeda/transação liquidados.
 
-Segredos nunca em variáveis REACT_APP, repositório, logs, anexos ou mensagens do chat.
+## Preparado, mas ainda desligado do checkout público
 
-## Documentação oficial consultada
+- `quote.mjs`: cálculo no servidor a partir do catálogo atual, validações ULS/estudante e complementos (incluindo titulares de voucher). Os registos de elegibilidade têm de ser lidos no servidor e revalidados na transação final.
+- `eupago-notification.mjs`: validação pura de callback 1.0 contra tentativa persistida (chave/canal/referência/identificador/montante/método/entidade). Não está exposta como rota e não concede direitos.
 
-- https://www.eupago.pt/integracoes/api-gateway-pagamento
-- https://eupago.readme.io/reference/multibanco
-- https://eupago.readme.io/reference/mb-way
-- https://api-docs.toconline.pt/setup-do-postman
-- https://api-docs.toconline.pt/autenticacao-simplificada
-- https://api-docs.toconline.pt/apis/vendas/documentos-de-venda
+Não ativar ainda a notificação URL no backoffice. O URL definitivo só será fornecido após implementação da rota autenticada e persistência/reconciliação sem sessão humana. Callback 1.0 inclui chave na query: avaliar webhook 2.0 e configurar observabilidade sem URLs com segredos antes de o publicar.
 
-## Etapa sandbox — 06/10/2026
+## Falta para inscrições e faturação automáticas
 
-Acesso à sandbox confirmado pelo organizador. Canal apresentado: `demo-Hemisfério Disciplinado Lda`.
+1. Autorizar o backend a ler/escrever os registos necessários sem depender da sessão de administrador: identidade de serviço com permissões limitadas e credenciais no servidor.
+2. Definir consulta autenticada de transações Eupago para verificar montante, moeda, canal e transação; confirmar credenciais necessárias e resposta real da sandbox.
+3. Implementar checkout autenticado, orçamento com dados de servidor, reservas de vagas, bloqueios transacionais e idempotência por compra (não apenas por tentativa técnica).
+4. Confirmar pagamento numa transação, aplicar direitos exatamente uma vez, tratar repetições/eventos fora de ordem/pagamentos tardios e criar tarefa durável de faturação.
+5. Ligar My CIRC, compras posteriores de cursos/jantar, estados de falha/expiração e trilho de auditoria.
+6. TOConline: acesso API, autorização OAuth, série, produtos/serviços, taxas de IVA ou motivos de isenção, conta de recebimento e contexto de testes validados com contabilidade. A criação de documentos pela API pode finalizá-los: não testar documentos fictícios em produção.
+7. Testar circuito completo antes da abertura pública prevista para 15/11/2026. Uma falha na faturação não pode apagar um pagamento confirmado; emissões incertas exigem reconciliação antes de repetir.
 
-Implementado em `payments/eupago-sandbox`, a partir do main atual e reutilizando os módulos da branch anterior:
-- `eupago-sandbox.mjs`: criação Multibanco/MB WAY e consulta de referência; host fixo sandbox, valores em cêntimos, sem retries de criação e sem expor respostas/segredos.
-- `eupago-notification.mjs`: validação pura de callback 1.0 contra tentativa previamente persistida: chave, canal, referência, identificador, montante, método e entidade. Não é uma rota HTTP nem confirma inscrições.
-- 16 testes locais no total (8 cálculo + 8 adaptador/notificações). Respostas do prestador simuladas a partir dos formatos documentados; não substituem testes com a conta.
+## Validação local
 
-A consulta `multibanco/info` documentada não devolve prova completa do valor/moeda/transação recebidos. O estado é apenas uma pista para reconciliação, nunca motivo isolado para conceder acesso. Falta escolher e validar a consulta autenticada de transações (e respetivas credenciais) antes de confirmar pagamentos automaticamente.
+- `node --test server/test/*.test.mjs`: inclui 8 testes de orçamento, 8 de transporte/notificação e 8 de API/persistência, além das proteções existentes do servidor.
+- `CI=true npm test -- --watchAll=false --runInBand src/pages/AdminSandboxPaymentsPage.test.js`: criação explícita e recuperação sem nova cobrança.
+- `npm run build`.
 
-### Próximo passo operacional
+Os testes de prestador usam respostas simuladas e não comprovam acesso real à conta. O primeiro pedido sandbox deve ser feito pelo organizador na página autenticada. Nunca colocar segredos em REACT_APP, repositório, capturas, anexos ou mensagens.
 
-Guardar `EUPAGO_SANDBOX_API_KEY` como **Secret** no Worker Cloudflare `circ` (nunca REACT_APP, git ou chat). Este nome está reservado para a futura ligação ao Worker; os módulos ainda não estão importados pelo Worker nem leem variáveis de ambiente automaticamente. O ponto de composição terá de passar explicitamente `environment: 'sandbox'` e a chave. Credenciais de produção não são aceites como configuração de ambiente.
+## Documentação oficial
 
-Não ativar callbacks no backoffice ainda. É necessário implementar armazenamento transacional das tentativas, autenticação/autorização dos testes, acesso backend ao Firestore, reconciliação e a rota HTTP antes de fornecer o URL definitivo. O callback 1.0 inclui chave API na query; o alojamento não pode registar essas URLs com segredos. Avaliar webhook 2.0 e a configuração de logs antes de publicação.
-
-Nenhum ficheiro de produção, preço, inscrição, direito de acesso ou documento fiscal foi alterado. Os módulos estão deliberadamente desligados da aplicação pública. Não foi efetuada qualquer chamada à conta Eupago nem criado pagamento.
-
-Documentação do adaptador:
 - https://docs.eupago.pt/reference/multibanco
 - https://docs.eupago.pt/reference/mb-way
 - https://docs.eupago.pt/reference/reference-information
 - https://docs.eupago.pt/reference/webhooks
+- https://firebase.google.com/docs/firestore/use-rest-api
+- https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/patch
+- https://api-docs.toconline.pt/setup-do-postman
+- https://api-docs.toconline.pt/apis/vendas/documentos-de-venda
