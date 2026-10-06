@@ -14,7 +14,8 @@ export function createSandboxStore({ projectId, token, uid, fetchImpl = fetch })
     const operation = method === 'GET' ? 'read' : url.includes('exists=false') ? 'create' : 'update';
     let response;
     try {
-      response = await fetchImpl(url, { method, redirect: 'error',
+      // workerd rejects redirect: error. Manual returns 3xx, rejected by the !ok check.
+      response = await fetchImpl(url, { method, redirect: 'manual',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         ...(value ? { body: JSON.stringify({ fields: { payload: { stringValue: JSON.stringify(value) } } }) } : {}),
         signal: AbortSignal.timeout(10000) });

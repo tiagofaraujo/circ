@@ -86,7 +86,7 @@ test('Firestore uses only admin settings paths, session token and CAS preconditi
   const seen = [];
   const store = createSandboxStore({ projectId: 'circ-coimbra', uid: 'admin', token: 'firebase-token', fetchImpl: async (url, options) => {
     seen.push({ url, options });
-    assert.equal(options.headers.Authorization, 'Bearer firebase-token'); assert.equal(options.redirect, 'error');
+    assert.equal(options.headers.Authorization, 'Bearer firebase-token'); assert.equal(options.redirect, 'manual');
     return Response.json({ fields: { payload: { stringValue: JSON.stringify(record) } }, updateTime: '2026-10-06T22:00:00Z' });
   } });
   await store.create(ID, record); await store.replace(ID, record, '2026-10-06T22:00:00Z');
@@ -113,4 +113,14 @@ test('storage network failures and malformed saved records are distinguishable w
     const store = createSandboxStore({ projectId: 'circ-coimbra', uid: 'admin', token: 'super-secret', fetchImpl });
     await assert.rejects(store.read(ID), e => { assert.equal(e.diagnostic, diagnostic); assert.ok(!e.message.includes('secret')); return true; });
   }
+});
+
+test('Firestore redirects fail closed before creating a payment', async () => {
+  let calls = 0;
+  const store = createSandboxStore({ projectId: 'circ-coimbra', token: 'test-token', uid: 'admin', fetchImpl: async (url, options) => {
+    calls++; assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://example.invalid' } });
+  } });
+  await assert.rejects(store.read(ID), error => error.code === 'storage_unavailable' && error.diagnostic === 'read/http-302/UNKNOWN');
+  assert.equal(calls, 1);
 });

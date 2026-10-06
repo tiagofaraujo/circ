@@ -18,7 +18,7 @@ test('Multibanco goes only to sandbox with exact cents and single payment', asyn
   const result = await adapter(async (url, options) => {
     calls++;
     assert.equal(url, 'https://sandbox.eupago.pt/clientes/rest_api/multibanco/create');
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     assert.equal(options.headers.Authorization, `ApiKey ${apiKey}`);
     assert.deepEqual(JSON.parse(options.body), { chave: apiKey, id: input.identifier, valor: 123.45, failOver: '0', per_dup: 0 });
     return Response.json({ ...success, chave: apiKey, resposta: apiKey });
@@ -81,4 +81,13 @@ test('callback rejects duplicate fields and production attempts', () => {
   const params = notification(); params.append('valor', '123.45');
   assert.throws(() => validateSandboxNotification(params, attempt, config));
   assert.throws(() => validateSandboxNotification(notification(), { ...attempt, environment: 'production' }, config));
+});
+
+ test('provider redirects are rejected without retrying or following the destination', async () => {
+  let calls = 0;
+  await assert.rejects(adapter(async (url, options) => {
+    calls++; assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://example.invalid' } });
+  }).createPayment(input), error => error.code === 'provider-unavailable' && error.uncertain);
+  assert.equal(calls, 1);
 });

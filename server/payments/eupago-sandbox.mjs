@@ -17,8 +17,9 @@ export function createEupagoSandbox({ apiKey, environment, fetchImpl = fetch, ti
   async function post(path, fields, creating = false) {
     let response, data;
     try {
+      // workerd rejects redirect: error. Manual returns 3xx, rejected by the !ok check.
       response = await fetchImpl(`${BASE}/${path}`, {
-        method: 'POST', redirect: 'error',
+        method: 'POST', redirect: 'manual',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `ApiKey ${apiKey}` },
         body: JSON.stringify({ ...fields, chave: apiKey }),
         signal: AbortSignal.timeout(timeoutMs),
