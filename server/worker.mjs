@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { handleSocialMetadata } from './social-metadata.mjs';
 import { handleMedia } from './media.mjs';
+import { createSandboxApi } from './payments/sandbox-api.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -36,6 +37,7 @@ function json(body, status = 200, headers = {}) {
 
 // The injected verifier is only used by local tests. Production always uses Google's keys.
 export function createWorker(verify = verifyFirebaseToken) {
+  const sandbox = createSandboxApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
@@ -43,6 +45,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (mediaResponse) return mediaResponse;
       const socialResponse = await handleSocialMetadata(request, env);
       if (socialResponse) return socialResponse;
+      const sandboxResponse = await sandbox(request, env);
+      if (sandboxResponse) return sandboxResponse;
       if (!pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
       if (pathname !== '/api/accommodation/hotels') return json({ error: 'not_found' }, 404);
       if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405, { Allow: 'GET' });
