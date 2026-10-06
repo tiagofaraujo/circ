@@ -6,6 +6,7 @@ import '../components/css/CompanyVouchers.css';
 
 const errors = {
   sandbox_not_configured: 'A chave da sandbox ainda não está disponível neste servidor.',
+  storage_session_expired: 'O Firebase recusou a sessão. Termine a sessão e volte a entrar com a conta administradora.',
   storage_forbidden: 'O Firebase recusou o registo do teste. Confirme as permissões da conta administradora.',
   storage_unavailable: 'Não foi possível consultar ou guardar o teste. Atualize o estado antes de voltar a tentar.',
   creation_unknown: 'A Eupago não confirmou o resultado. Consulte o backoffice da sandbox antes de iniciar outro teste.',
@@ -16,6 +17,11 @@ const errors = {
   admin_required: 'Esta página requer a conta administradora do CIRC.',
   invalid_session: 'A sessão expirou. Volte a iniciar sessão.',
   sign_in_required: 'Inicie sessão com a conta administradora.',
+};
+const diagnosticMessage = (data) => {
+  const message = errors[data.error] || 'Não foi possível concluir o pedido. Atualize o estado antes de repetir.';
+  return typeof data.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(data.diagnostic)
+    ? `${message} Código de diagnóstico: ${data.diagnostic}` : message;
 };
 const labels = { creating: 'Criação em curso ou por confirmar', pending: 'Referência criada — pagamento por verificar', creation_unknown: 'Resultado da criação por confirmar' };
 function savedId(key) { try { return sessionStorage.getItem(key) || ''; } catch { return ''; } }
@@ -36,7 +42,7 @@ export default function AdminSandboxPaymentsPage() {
       headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}), cache: 'no-store' });
     const data = await response.json();
-    if (!response.ok) { const issue = new Error(data.error); issue.attempt = data.attempt; throw issue; }
+    if (!response.ok) { const issue = new Error(diagnosticMessage(data)); issue.safeMessage = true; issue.attempt = data.attempt; throw issue; }
     return data;
   }
   useEffect(() => {
@@ -53,10 +59,10 @@ export default function AdminSandboxPaymentsPage() {
         if (previous && config.configured) {
           const result = await fetch(`/api/payments/sandbox/attempts/${previous}`, { headers, cache: 'no-store' });
           const data = await result.json();
-          if (!result.ok) throw new Error(data.error);
+          if (!result.ok) { const issue = new Error(diagnosticMessage(data)); issue.safeMessage = true; throw issue; }
           if (active) setAttempt(data.attempt);
         }
-      } catch (e) { if (active) setError(errors[e.message] || 'Não foi possível carregar o teste. Tente novamente.'); }
+      } catch (e) { if (active) setError(e.safeMessage ? e.message : errors[e.message] || 'Não foi possível carregar o teste. Tente novamente.'); }
       finally { if (active) setBusy(false); }
     }
     load(); return () => { active = false; };
@@ -64,7 +70,7 @@ export default function AdminSandboxPaymentsPage() {
   async function run(work) {
     if (busy) return; setBusy(true); setError('');
     try { await work(); }
-    catch (e) { if (e.attempt) setAttempt(e.attempt); setError(errors[e.message] || 'Não foi possível concluir o pedido. Atualize o estado antes de repetir.'); }
+    catch (e) { if (e.attempt) setAttempt(e.attempt); setError(e.safeMessage ? e.message : errors[e.message] || 'Não foi possível concluir o pedido. Atualize o estado antes de repetir.'); }
     finally { setBusy(false); }
   }
   function create(event) {

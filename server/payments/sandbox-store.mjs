@@ -1,7 +1,7 @@
 // Admin-session REST access remains subject to the existing Firestore rules.
 // Sandbox attempts live under admin-only settings, never registrations/payments.
 export class SandboxStoreError extends Error {
-  constructor(code) { super(code); this.code = code; }
+  constructor(code, diagnostic) { super(code); this.code = code; this.diagnostic = diagnostic; }
 }
 export function createSandboxStore({ projectId, token, uid, fetchImpl = fetch }) {
   if (!/^[a-z0-9-]+$/.test(projectId) || typeof uid !== 'string' || !uid) throw new SandboxStoreError('storage_unavailable');
@@ -11,23 +11,39 @@ export function createSandboxStore({ projectId, token, uid, fetchImpl = fetch })
     return `${root}circ-eupago-sandbox-${encodeURIComponent(uid)}-${id}`;
   };
   async function call(url, method = 'GET', value) {
+    const operation = method === 'GET' ? 'read' : url.includes('exists=false') ? 'create' : 'update';
     let response;
     try {
       response = await fetchImpl(url, { method, redirect: 'error',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         ...(value ? { body: JSON.stringify({ fields: { payload: { stringValue: JSON.stringify(value) } } }) } : {}),
         signal: AbortSignal.timeout(10000) });
-    } catch { throw new SandboxStoreError('storage_unavailable'); }
+    } catch (error) {
+      const failure = ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'network';
+      throw new SandboxStoreError('storage_unavailable', `${operation}/${failure}`);
+    }
     if (method === 'GET' && response.status === 404) return null;
     if ([409, 412].includes(response.status)) throw new SandboxStoreError('conflict');
-    if (!response.ok) throw new SandboxStoreError(response.status === 403 ? 'storage_forbidden' : 'storage_unavailable');
+    if (!response.ok) {
+      // Return only allowlisted protocol codes, never Google error messages/details,
+      // request URLs, tokens, document paths or provider bodies.
+      let status = 'UNKNOWN';
+      try {
+        const body = await response.json();
+        if (['INVALID_ARGUMENT', 'UNAUTHENTICATED', 'PERMISSION_DENIED', 'NOT_FOUND',
+          'RESOURCE_EXHAUSTED', 'FAILED_PRECONDITION', 'ABORTED', 'INTERNAL', 'UNAVAILABLE',
+          'DEADLINE_EXCEEDED'].includes(body?.error?.status)) status = body.error.status;
+      } catch { /* Keep UNKNOWN for non-JSON errors. */ }
+      const code = response.status === 403 ? 'storage_forbidden' : response.status === 401 ? 'storage_session_expired' : 'storage_unavailable';
+      throw new SandboxStoreError(code, `${operation}/http-${response.status}/${status}`);
+    }
     try {
       const document = await response.json();
       const record = JSON.parse(document.fields.payload.stringValue);
       if (record.owner !== uid || record.environment !== 'sandbox' || record.kind !== 'gateway-test'
         || !document.updateTime) throw new Error('invalid record');
       return { record, version: document.updateTime };
-    } catch { throw new SandboxStoreError('storage_unavailable'); }
+    } catch { throw new SandboxStoreError('storage_unavailable', `${operation}/invalid-record`); }
   }
   return {
     read: id => call(docUrl(id)),

@@ -93,8 +93,9 @@ export function createSandboxApi({ verify, storeFactory = createSandboxStore, pr
       catch { return reply({ attempt: publicRecord(record), error: 'storage_after_creation_failed' }, 503); }
       return reply({ attempt: publicRecord(saved.record) }, 201);
     } catch (error) {
-      const code = ['storage_forbidden', 'storage_unavailable', 'conflict'].includes(error.code) ? error.code : 'provider_unavailable';
-      return reply({ error: code }, code === 'conflict' ? 409 : 503);
+      const code = ['storage_forbidden', 'storage_session_expired', 'storage_unavailable', 'conflict'].includes(error.code) ? error.code : 'provider_unavailable';
+      const diagnostic = typeof error.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(error.diagnostic) ? error.diagnostic : undefined;
+      return reply({ error: code, ...(diagnostic ? { diagnostic } : {}) }, code === 'conflict' ? 409 : 503);
     }
   };
 }

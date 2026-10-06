@@ -95,3 +95,22 @@ test('Firestore uses only admin settings paths, session token and CAS preconditi
   assert.match(seen[1].url, /currentDocument.updateTime=/);
   assert.ok(seen.every(x => !/\/registrations\//.test(x.url)));
 });
+
+test('storage diagnostics expose stage/status only, never tokens or Google messages', async () => {
+  const store = createSandboxStore({ projectId: 'circ-coimbra', uid: 'admin', token: 'super-secret', fetchImpl: async () =>
+    Response.json({ error: { status: 'INVALID_ARGUMENT', message: 'super-secret private document data' } }, { status: 400 }) });
+  const f = fixture({ storeFactory: () => store });
+  const result = await (await f.handle(req(), env)).json();
+  assert.deepEqual(result, { error: 'storage_unavailable', diagnostic: 'read/http-400/INVALID_ARGUMENT' });
+  assert.equal(f.calls(), 0);
+});
+test('storage network failures and malformed saved records are distinguishable without raw errors', async () => {
+  for (const [fetchImpl, diagnostic] of [
+    [async () => { throw new Error('secret URL'); }, 'read/network'],
+    [async () => { throw Object.assign(new Error('secret URL'), { name: 'TimeoutError' }); }, 'read/timeout'],
+    [async () => Response.json({ fields: {} }), 'read/invalid-record'],
+  ]) {
+    const store = createSandboxStore({ projectId: 'circ-coimbra', uid: 'admin', token: 'super-secret', fetchImpl });
+    await assert.rejects(store.read(ID), e => { assert.equal(e.diagnostic, diagnostic); assert.ok(!e.message.includes('secret')); return true; });
+  }
+});
