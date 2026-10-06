@@ -23,6 +23,7 @@ export default function Speakers2027Page() {
         </aside>
         <article><p className="eyebrow">CIRC 2027 · {en ? 'Invited speaker' : 'Orador convidado'}</p><h1>{speaker.name}</h1><p className="guest-role">{text.role}</p>
           <div className="guest-bio">{text.bio.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
+          {speaker.profileUrl && <p><a className="text-link" href={speaker.profileUrl} target="_blank" rel="noopener noreferrer">{en ? 'Official university profile' : 'Perfil oficial na universidade'} <span aria-hidden="true">↗</span></a></p>}
           <Link className="button button--outline" to="/programa">{en ? 'Explore the programme' : 'Consultar o programa'} <span aria-hidden="true">→</span></Link>
         </article>
       </div>

@@ -105,5 +105,32 @@ export const speakers2027 = [
       'He holds an MSc and is undertaking a PhD in medical imaging. His work focuses on applying these technologies to improve patient care and clinical outcomes. He is also a visiting lecturer at City St George’s, University of London, maintaining close connections with teaching and academic research.',
       'His purpose is to advance medical imaging through collaboration, innovation and education.'
     ] }
+  },
+  // Biography adapted from the official UW–Madison profile, checked 6 October 2026.
+  {
+    "id": "giuseppe-toia",
+    "name": "Giuseppe V. Toia",
+    "initials": "GT",
+    "image": "giuseppe-toia.jpg",
+    "institution": "University of Wisconsin–Madison",
+    "profileUrl": "https://www.radiology.wisc.edu/profile/giuseppe-toia",
+    "pt": {
+      "field": "TC avançada e imagem abdominal",
+      "role": "Professor associado · Médico radiologista",
+      "bio": [
+        "Giuseppe V. Toia, MD, MS, é professor associado de radiologia e física médica na Universidade de Wisconsin–Madison.",
+        "Dirige a secção de Imagem Abdominal e Intervenção, é responsável pela tomografia computorizada (TC) e diretor médico do CT Education and Collaboration Collective (CTECC).",
+        "Dedica-se à imagem abdominal e à intervenção guiada por imagem. Os seus interesses incluem a TC por contagem de fotões, a TC espectral e multienergética, os biomarcadores quantitativos, a inteligência artificial e a otimização dos fluxos de trabalho em TC."
+      ]
+    },
+    "en": {
+      "field": "Advanced CT and abdominal imaging",
+      "role": "Associate professor · Radiologist",
+      "bio": [
+        "Giuseppe V. Toia, MD, MS, holds an associate professorship in radiology and medical physics at the University of Wisconsin–Madison.",
+        "He heads Abdominal Imaging and Intervention, oversees computed tomography (CT) and is medical director of the CT Education and Collaboration Collective (CTECC).",
+        "His work combines abdominal imaging with image-guided procedures. His interests include photon-counting, spectral and multi-energy CT, quantitative biomarkers, artificial intelligence and more efficient CT workflows."
+      ]
+    }
   }
 ];

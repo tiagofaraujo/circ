@@ -57,6 +57,7 @@ const days = [
 const speakerMatches = [
   ['Michael Fuller', 'michael-fuller'],
   ['Fides R. Schwartz', 'fides-schwartz'],
+  ['Giuseppe V. Toia', 'giuseppe-toia'],
   ['Toby Gilk', 'tobias-gilk'],
   ['Bill Faulkner', 'bill-faulkner'],
   ['Kris Seitz', 'kris-seitz'],
