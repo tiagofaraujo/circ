@@ -21,17 +21,17 @@ const days = [
     ['09:00', 'Boas-vindas', 'Welcome'],
     ['09:15', 'Imagem Médica e o Futuro', 'Medical Imaging and the Future'],
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
-      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Técnica Rita Vaz'],
-      ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'Técnico a designar', 'Speaker to be announced'],
+      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'TSDT Rita Vaz'],
+      ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'TSDT a designar', 'Speaker to be announced'],
       ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália)', 'Michael Fuller (Australia)'],
     ], {pt: 'Raquel Reis e Joana Santos (a confirmar)', en: 'Raquel Reis and Joana Santos (to be confirmed)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
-      ['14:00', 'RM Fetal · a confirmar', 'Fetal MRI · to be confirmed', 'Dr. Rui Pedro Faria Pais e Técnica Paula Marques', 'Dr. Rui Pedro Faria Pais and Técnica Paula Marques'],
-      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão e Técnica Diana Carvalho', 'Dra. Amélia Estêvão and Técnica Diana Carvalho'],
-      ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes e Técnico Bruno Esteves', 'Dra. Célia Antunes and Técnico Bruno Esteves'],
+      ['14:00', 'RM Fetal · a confirmar', 'Fetal MRI · to be confirmed', 'Dr. Rui Pedro Faria Pais e TSDT Paula Marques', 'Dr. Rui Pedro Faria Pais and TSDT Paula Marques'],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão e TSDT Diana Carvalho', 'Dra. Amélia Estêvão and TSDT Diana Carvalho'],
+      ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes e TSDT Bruno Esteves', 'Dra. Célia Antunes and TSDT Bruno Esteves'],
     ], {pt: 'Sofia Brandão (a confirmar)', en: 'Sofia Brandão (to be confirmed)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
       ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD'],
