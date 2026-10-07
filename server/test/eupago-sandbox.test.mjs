@@ -91,3 +91,13 @@ test('callback rejects duplicate fields and production attempts', () => {
   }).createPayment(input), error => error.code === 'provider-unavailable' && error.uncertain);
   assert.equal(calls, 1);
 });
+
+ test('inspection normalizes text but never interprets numeric codes as payment confirmation', async () => {
+  for (const [estado, expected, code] of [[' Pendente ', 'pendente', null], ['PAGO', 'pago', null], [0, 'unknown', 0], ['0', 'unknown', 0], [undefined, 'unknown', null], ['private raw message', 'unknown', null]]) {
+    const result = await adapter(async () => Response.json({ sucesso: true, referencia: attempt.reference,
+      entidade: attempt.entity, identificador: attempt.identifier, estado })).inspectReference(attempt);
+    assert.equal(result.providerState, expected); assert.equal(result.providerStateCode, code);
+    assert.equal(result.status, undefined); assert.equal(result.requiresReconciliation, true);
+    assert.ok(!JSON.stringify(result).includes('private raw message'));
+  }
+});

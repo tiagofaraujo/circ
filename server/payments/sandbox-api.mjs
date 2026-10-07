@@ -13,7 +13,8 @@ function publicRecord(record) {
   return { id: record.id, method: record.method, amountCents: record.amountCents,
     currency: record.currency, environment: 'sandbox', status: record.status,
     reference: record.reference || null, entity: record.entity || null,
-    providerState: record.providerState || null, createdAt: record.createdAt,
+    providerState: record.providerState || null, providerStateCode: record.providerStateCode ?? null,
+    inspectedAt: record.inspectedAt || null, createdAt: record.createdAt,
     identifier: record.identifier };
 }
 
@@ -65,7 +66,7 @@ export function createSandboxApi({ verify, storeFactory = createSandboxStore, pr
         if (match[2]) {
           if (!saved.record.reference) return reply({ attempt: publicRecord(saved.record), error: 'reference_unavailable' }, 409);
           const hint = await provider.inspectReference(saved.record);
-          saved = await store.replace(id, { ...saved.record, providerState: hint.providerState, inspectedAt: now() }, saved.version);
+          saved = await store.replace(id, { ...saved.record, providerState: hint.providerState, providerStateCode: hint.providerStateCode ?? null, inspectedAt: now() }, saved.version);
         }
         return reply({ attempt: publicRecord(saved.record) });
       }

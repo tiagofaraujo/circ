@@ -65,9 +65,13 @@ export function createEupagoSandbox({ apiKey, environment, fetchImpl = fetch, ti
       }
       // The documented info response has no payment amount/currency/transaction proof.
       // Expose only a bounded status hint. It must never confirm an inscription by itself.
-      const providerState = ['pendente', 'pago', 'paga', 'expirado', 'cancelado', 'erro'].includes(data.estado)
-        ? data.estado : 'unknown';
-      return { reference: attempt.reference, providerState, requiresReconciliation: true };
+      const state = typeof data.estado === 'string' ? data.estado.trim().toLowerCase() : null;
+      const providerState = ['pendente', 'pago', 'paga', 'expirado', 'cancelado', 'erro'].includes(state)
+        ? state : 'unknown';
+      // Numeric response codes are not documented payment states. Never infer paid/pending.
+      const providerStateCode = Number.isSafeInteger(data.estado) && Math.abs(data.estado) <= 9999
+        ? data.estado : typeof state === 'string' && /^-?\d{1,4}$/.test(state) ? Number(state) : null;
+      return { reference: attempt.reference, providerState, providerStateCode, requiresReconciliation: true };
     },
   };
 }

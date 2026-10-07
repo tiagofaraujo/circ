@@ -23,6 +23,7 @@ const diagnosticMessage = (data) => {
   return typeof data.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(data.diagnostic)
     ? `${message} Código de diagnóstico: ${data.diagnostic}` : message;
 };
+const providerLabels = { pendente: 'Pendente', pago: 'Pago (informação da Eupago)', paga: 'Pago (informação da Eupago)', expirado: 'Expirado', cancelado: 'Cancelado', erro: 'Erro', unknown: 'A resposta não contém um estado de pagamento reconhecido. Confirme no backoffice da sandbox.' };
 const labels = { creating: 'Criação em curso ou por confirmar', pending: 'Referência criada — pagamento por verificar', creation_unknown: 'Resultado da criação por confirmar' };
 function savedId(key) { try { return sessionStorage.getItem(key) || ''; } catch { return ''; } }
 function saveId(key, id) { try { if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* The current tab state still retains the ID. */ } }
@@ -97,7 +98,9 @@ export default function AdminSandboxPaymentsPage() {
         {attempt.entity && <><dt>Entidade de teste</dt><dd>{attempt.entity}</dd></>}
         {attempt.reference && <><dt>Referência de teste</dt><dd>{attempt.reference}</dd></>}
         <dt>Valor de teste</dt><dd>1,00 €</dd><dt>Identificador na Eupago</dt><dd>{attempt.identifier}</dd>
-        {attempt.providerState && <><dt>Estado devolvido pela Eupago</dt><dd>{attempt.providerState}</dd></>}
+        {attempt.inspectedAt && <><dt>Última consulta à Eupago</dt><dd>Consulta concluída em {new Date(attempt.inspectedAt).toLocaleString('pt-PT')}.</dd></>}
+        {attempt.providerState && <><dt>Estado devolvido pela Eupago</dt><dd>{providerLabels[attempt.providerState] || providerLabels.unknown}</dd></>}
+        {Number.isInteger(attempt.providerStateCode) && <><dt>Código devolvido pela API</dt><dd>{attempt.providerStateCode} — este código não confirma o pagamento.</dd></>}
       </dl>}
       {id && <button disabled={busy} onClick={() => run(async () => setAttempt((await api(`attempts/${id}`)).attempt))}>Atualizar registo do teste</button>}
       {attempt?.reference && <button disabled={busy} onClick={() => run(async () => setAttempt((await api(`attempts/${id}/inspect`, {})).attempt))}>Consultar estado na Eupago</button>}
