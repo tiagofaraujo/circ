@@ -197,7 +197,6 @@ export function EnhancedPartnersPage() {
           <FeatureCard number="02" title={tx(en, 'Business and networking', 'Negócios e contactos profissionais')} text={tx(en, 'Opportunities to receive guests, demonstrate solutions and create professional relationships.', 'Oportunidades para receber convidados, demonstrar soluções e criar relações profissionais.')} />
           <FeatureCard number="03" accent title={tx(en, 'Coimbra connection', 'Ligação a Coimbra')} text={tx(en, 'A congress that intentionally connects medical imaging with Coimbra and its knowledge economy.', 'Um congresso que liga deliberadamente a imagem médica a Coimbra e à sua economia do conhecimento.')} />
         </div>
-        <div className="recovered-note">{tx(en, 'Prices, sponsorship levels and stand conditions from CIRC 2025 are historical and will not be reused. The CIRC 2027 dossier will only be published after formal approval.', 'Preços, níveis de patrocínio e condições de stands do CIRC 2025 são históricos e não serão reutilizados. O dossiê CIRC 2027 será publicado apenas após aprovação formal.')}</div>
       </section>
 
       <section className="callout">
