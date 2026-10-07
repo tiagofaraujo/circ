@@ -24,7 +24,7 @@ const diagnosticMessage = (data) => {
     ? `${message} Código de diagnóstico: ${data.diagnostic}` : message;
 };
 const providerLabels = { pendente: 'Pendente', pago: 'Pago (informação da Eupago)', paga: 'Pago (informação da Eupago)', expirado: 'Expirado', cancelado: 'Cancelado', transferida: 'Transferida (informação da Eupago)', erro: 'Erro', unknown: 'A resposta não contém um estado de pagamento reconhecido. Confirme no backoffice da sandbox.' };
-const labels = { creating: 'Criação em curso ou por confirmar', pending: 'Referência criada — pagamento por verificar', creation_unknown: 'Resultado da criação por confirmar' };
+const labels = { creating: 'Criação em curso ou por confirmar', pending: 'Referência criada — pagamento por verificar', creation_unknown: 'Resultado da criação por confirmar', sandbox_paid: 'Pagamento de teste validado por notificação e consulta à Eupago' };
 function savedId(key) { try { return sessionStorage.getItem(key) || ''; } catch { return ''; } }
 function saveId(key, id) { try { if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* The current tab state still retains the ID. */ } }
 export default function AdminSandboxPaymentsPage() {
@@ -35,6 +35,7 @@ export default function AdminSandboxPaymentsPage() {
   const [phone, setPhone] = useState('');
   const [attempt, setAttempt] = useState(null);
   const [configured, setConfigured] = useState(false);
+  const [webhook, setWebhook] = useState(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   async function api(path, body) {
@@ -54,7 +55,7 @@ export default function AdminSandboxPaymentsPage() {
         const headers = { Authorization: `Bearer ${token}` };
         const response = await fetch('/api/payments/sandbox/config', { headers, cache: 'no-store' });
         const config = await response.json(); if (!response.ok) throw new Error(config.error);
-        if (!active) return; setConfigured(config.configured);
+        if (!active) return; setConfigured(config.configured); setWebhook(config.webhook || null);
         if (!config.configured) setError(errors.sandbox_not_configured);
         const previous = savedId(storageKey);
         if (previous && config.configured) {
@@ -68,6 +69,21 @@ export default function AdminSandboxPaymentsPage() {
     }
     load(); return () => { active = false; };
   }, [user, storageKey]);
+  const webhookConfigured = Boolean(webhook?.signingKeyPresent && webhook?.channelPresent && webhook?.serviceAccountPresent);
+  useEffect(() => {
+    if (!webhookConfigured || !attempt?.reference || attempt.status === 'sandbox_paid' || busy) return undefined;
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/payments/sandbox/attempts/${id}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error();
+        if (active) setAttempt(data.attempt);
+      } catch { if (active) setError('A atualização automática parou. Use Atualizar registo do teste.'); }
+    }, 10000);
+    return () => { active = false; clearTimeout(timer); };
+  }, [webhookConfigured, attempt, busy, id, user]);
   async function run(work) {
     if (busy) return; setBusy(true); setError('');
     try { await work(); }
@@ -93,7 +109,8 @@ export default function AdminSandboxPaymentsPage() {
         <button disabled={busy || !configured}>{busy ? 'A preparar…' : 'Criar pagamento de teste de 1,00 €'}</button>
       </form>}
       {id && <p>Identificador do teste: <code>{id}</code></p>}
-      {attempt && <dl><dt>Estado</dt><dd>{labels[attempt.status] || 'Por verificar'}</dd>
+      {attempt && <dl><dt>Estado</dt><dd>{attempt.status === 'pending' && ['pago', 'paga', 'transferida'].includes(attempt.providerState)
+        ? 'Pago indicado pela Eupago — aguarda notificação validada' : labels[attempt.status] || 'Por verificar'}</dd>
         <dt>Meio de pagamento</dt><dd>{attempt.method === 'multibanco' ? 'Multibanco' : 'MB WAY'}</dd>
         {attempt.entity && <><dt>Entidade de teste</dt><dd>{attempt.entity}</dd></>}
         {attempt.reference && <><dt>Referência de teste</dt><dd>{attempt.reference}</dd></>}
@@ -101,12 +118,23 @@ export default function AdminSandboxPaymentsPage() {
         {attempt.inspectedAt && <><dt>Última consulta à Eupago</dt><dd>Consulta concluída em {new Date(attempt.inspectedAt).toLocaleString('pt-PT')}.</dd></>}
         {attempt.providerState && <><dt>Estado devolvido pela Eupago</dt><dd>{providerLabels[attempt.providerState] || providerLabels.unknown}</dd></>}
         {Number.isInteger(attempt.providerStateCode) && <><dt>Código devolvido pela API</dt><dd>{attempt.providerStateCode} — este código não confirma o pagamento.</dd></>}
+        {attempt.notification && <><dt>Notificação automática</dt><dd>Recebida em {new Date(attempt.notification.receivedAt).toLocaleString('pt-PT')}{attempt.notification.verifiedAt ? ' — validada.' : ' — aguarda reconciliação com a Eupago.'}</dd>
+          <dt>Transação de teste</dt><dd>{attempt.notification.transactionId}</dd></>}
       </dl>}
       {id && <button disabled={busy} onClick={() => run(async () => setAttempt((await api(`attempts/${id}`)).attempt))}>Atualizar registo do teste</button>}
       {attempt?.reference && <button disabled={busy} onClick={() => run(async () => setAttempt((await api(`attempts/${id}/inspect`, {})).attempt))}>Consultar estado na Eupago</button>}
-      {attempt?.status === 'pending' && <button disabled={busy} onClick={() => { saveId(storageKey, ''); setId(''); setAttempt(null); setError(''); }}>Preparar outro teste</button>}
+      {['pending', 'sandbox_paid'].includes(attempt?.status) && <button disabled={busy} onClick={() => { saveId(storageKey, ''); setId(''); setAttempt(null); setError(''); }}>Preparar outro teste</button>}
       <p>A confirmação automática das inscrições ainda não está ativa. A consulta do estado serve apenas para verificar a ligação à Eupago.</p>
     </section>
+    {webhook && <section className="company-voucher"><h2>Notificações automáticas — sandbox</h2>
+      <p>{attempt?.notification?.verifiedAt ? 'Receção e validação da notificação comprovadas neste teste.' : webhookConfigured ? 'Configuração presente. Falta comprovar a receção de uma notificação real da sandbox.' : 'A receção automática aguarda a configuração do servidor e do canal da Eupago.'}</p>
+      <ul><li>Chave de assinatura: {webhook.signingKeyPresent ? 'presente' : 'em falta'}</li>
+        <li>Nome do canal: {webhook.channelPresent ? 'presente' : 'em falta'}</li>
+        <li>Credencial de serviço Firebase: {webhook.serviceAccountPresent ? 'presente' : 'em falta'}</li></ul>
+      <p>URL para o canal de testes:</p><code style={{ overflowWrap: 'anywhere' }}>{window.location.origin}{webhook.path}</code>
+      <p>Webhook 2.0 · POST JSON · evento PAID · assinatura X-Signature · encrypt=false. A chave fica apenas no servidor.</p>
+      <p>Após configurar e gerar um novo pagamento simulado, esta página atualiza o registo a cada 10 segundos enquanto aguarda a notificação. Fechar a página não impede a receção no servidor.</p>
+    </section>}
     {error && <p role="alert">{error}</p>}{busy && <p role="status">A processar…</p>}
   </main>;
 }

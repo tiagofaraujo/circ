@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createEupagoSandbox } from './eupago-sandbox.mjs';
 import { createSandboxStore } from './sandbox-store.mjs';
+import { webhookConfiguration } from './sandbox-webhook.mjs';
 
 const PREFIX = '/api/payments/sandbox';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -15,7 +16,10 @@ function publicRecord(record) {
     reference: record.reference || null, entity: record.entity || null,
     providerState: record.providerState || null, providerStateCode: record.providerStateCode ?? null,
     inspectedAt: record.inspectedAt || null, createdAt: record.createdAt,
-    identifier: record.identifier };
+    identifier: record.identifier, notification: record.notification ? {
+      receivedAt: record.notification.receivedAt, verifiedAt: record.notification.verifiedAt || null,
+      transactionId: record.notification.transactionId,
+    } : null };
 }
 
 export function createSandboxApi({ verify, storeFactory = createSandboxStore, providerFactory = createEupagoSandbox,
@@ -33,7 +37,8 @@ export function createSandboxApi({ verify, storeFactory = createSandboxStore, pr
     if (claims.email_verified !== true || claims.email !== adminEmail) return reply({ error: 'admin_required' }, 403);
     if (request.method === 'POST' && request.headers.get('Origin') !== url.origin) return reply({ error: 'invalid_origin' }, 403);
     const configured = Boolean(env.EUPAGO_SANDBOX_API_KEY?.trim());
-    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured, environment: 'sandbox', amountCents: 100 });
+    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured, environment: 'sandbox', amountCents: 100,
+      webhook: webhookConfiguration(env, claims.sub) });
     if (!configured) return reply({ error: 'sandbox_not_configured' }, 503);
     const create = url.pathname === `${PREFIX}/attempts` && request.method === 'POST';
     const match = url.pathname.match(/^\/api\/payments\/sandbox\/attempts\/([^/]+)(\/inspect)?$/);

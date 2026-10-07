@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import AdminSandboxPaymentsPage from './AdminSandboxPaymentsPage';
 const mockUser = { uid: 'admin-test', getIdToken: jest.fn(async () => 'test-token') };
 jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
@@ -28,4 +28,24 @@ test('reload restores an existing attempt without creating a second payment', as
   expect(fetch.mock.calls).toHaveLength(2);
   expect(fetch.mock.calls.every(([, options]) => !options.body)).toBe(true);
   expect(screen.getByText(/A confirmação automática das inscrições ainda não está ativa/)).toBeInTheDocument();
+});
+test('configured page observes a server notification without creating or inspecting a payment', async () => {
+  jest.useFakeTimers();
+  try {
+    sessionStorage.setItem('circ-eupago-sandbox-admin-test', ID);
+    global.fetch.mockResolvedValueOnce(response({ configured: true, webhook: {
+      signingKeyPresent: true, channelPresent: true, serviceAccountPresent: true, path: '/api/payments/sandbox/notifications/test',
+    } })).mockResolvedValueOnce(response({ attempt })).mockResolvedValueOnce(response({ attempt: {
+      ...attempt, status: 'sandbox_paid', notification: { receivedAt: '2026-10-07T10:00:00Z', verifiedAt: '2026-10-07T10:00:01Z', transactionId: '1234' },
+    } }));
+    render(<AdminSandboxPaymentsPage />);
+    await screen.findByText('123456789');
+    await act(async () => { jest.advanceTimersByTime(10000); });
+    expect(await screen.findByText('Pagamento de teste validado por notificação e consulta à Eupago')).toBeInTheDocument();
+    expect(fetch.mock.calls).toHaveLength(3);
+    expect(fetch.mock.calls.every(([path, options]) => !path.endsWith('/inspect') && !options.body)).toBe(true);
+    await act(async () => { jest.advanceTimersByTime(20000); });
+    expect(fetch.mock.calls).toHaveLength(3);
+    expect(screen.getByText(/A confirmação automática das inscrições ainda não está ativa/)).toBeInTheDocument();
+  } finally { jest.useRealTimers(); }
 });

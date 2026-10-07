@@ -35,7 +35,9 @@ test('only verified administrator can use sandbox; origins and configuration are
   assert.equal((await f.handle(req(), { FIREBASE_PROJECT_ID: 'circ-coimbra' })).status, 503);
   assert.equal(f.calls(), 0);
   const config = await (await f.handle(req('config', null), env)).json();
-  assert.deepEqual(config, { configured: true, environment: 'sandbox', amountCents: 100 });
+  assert.equal(config.configured, true); assert.equal(config.environment, 'sandbox'); assert.equal(config.amountCents, 100);
+  assert.deepEqual(config.webhook, { signingKeyPresent: false, channelPresent: false, serviceAccountPresent: false,
+    path: '/api/payments/sandbox/notifications/YWRtaW4' });
   assert.ok(!JSON.stringify(config).includes(env.EUPAGO_SANDBOX_API_KEY));
 });
 test('server fixes test amount and persists before provider call', async () => {

@@ -2,6 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { handleSocialMetadata } from './social-metadata.mjs';
 import { handleMedia } from './media.mjs';
 import { createSandboxApi } from './payments/sandbox-api.mjs';
+import { createSandboxWebhook } from './payments/sandbox-webhook.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -38,9 +39,12 @@ function json(body, status = 200, headers = {}) {
 // The injected verifier is only used by local tests. Production always uses Google's keys.
 export function createWorker(verify = verifyFirebaseToken) {
   const sandbox = createSandboxApi({ verify });
+  const sandboxWebhook = createSandboxWebhook();
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
+      const notificationResponse = await sandboxWebhook(request, env);
+      if (notificationResponse) return notificationResponse;
       const mediaResponse = await handleMedia(request, env);
       if (mediaResponse) return mediaResponse;
       const socialResponse = await handleSocialMetadata(request, env);

@@ -31,9 +31,9 @@ Esta consola testa criação e consulta. Não substitui um teste completo de ins
 ## Preparado, mas ainda desligado do checkout público
 
 - `quote.mjs`: cálculo no servidor a partir do catálogo atual, validações ULS/estudante e complementos (incluindo titulares de voucher). Os registos de elegibilidade têm de ser lidos no servidor e revalidados na transação final.
-- `eupago-notification.mjs`: validação pura de callback 1.0 contra tentativa persistida (chave/canal/referência/identificador/montante/método/entidade). Não está exposta como rota e não concede direitos.
+- `eupago-notification.mjs`: validação pura do formato antigo 1.0, sem rota pública. A nova rota sandbox usa exclusivamente webhook 2.0 assinado, descrito abaixo.
 
-Não ativar ainda a notificação URL no backoffice. O URL definitivo só será fornecido após implementação da rota autenticada e persistência/reconciliação sem sessão humana. Callback 1.0 inclui chave na query: avaliar webhook 2.0 e configurar observabilidade sem URLs com segredos antes de o publicar.
+Não configurar callback 1.0 nesta rota: inclui uma chave na query e não é aceite. A configuração do webhook 2.0 abaixo continua dependente das credenciais de servidor e da validação real do formato entregue pela sandbox.
 
 ## Falta para inscrições e faturação automáticas
 
@@ -63,3 +63,52 @@ Os testes de prestador usam respostas simuladas e não comprovam acesso real à 
 - https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/patch
 - https://api-docs.toconline.pt/setup-do-postman
 - https://api-docs.toconline.pt/apis/vendas/documentos-de-venda
+
+
+## Webhook 2.0 de sandbox — implementação de 07/10/2026
+
+A criação de uma referência Multibanco e a mudança manual Pendente → Pago foram observadas no site e na sandbox em 07/10/2026. Isto não testa a notificação automática. A nova rota abaixo tem testes locais com assinaturas e respostas simuladas; o teste real depende da configuração externa.
+
+`POST /api/payments/sandbox/notifications/{ownerBase64url}` é tratada antes da autenticação de sessão. A consola administrativa apresenta o URL específico da conta autenticada. O sufixo identifica o proprietário do teste, não é segredo nem substitui a assinatura. O webhook funciona sem navegador aberto.
+
+Contrato atualmente implementado:
+
+- HTTPS, POST JSON sem encriptação (`encrypt=false`), apenas evento PAID.
+- `X-Signature`: base64 de HMAC-SHA256 sobre os bytes exatos do corpo, com a chave de assinatura do canal. A verificação ocorre antes de qualquer acesso ao Firebase/Eupago. Não aceitar ausência de assinatura, digest hexadecimal ou callback 1.0 como alternativa.
+- Corpo limitado a 16 KiB; objeto `transactions` da documentação (ou objeto singular `transaction`, exclusivamente um deles); listas e mensagens encriptadas são rejeitadas.
+- `channel.name` corresponde exatamente ao canal configurado. `identifier` tem o formato `circ_test_{uuid_sem_hifens}`. Método Multibanco/Mbway; `reference`, `entity`, `trid`; estado `Paid`; `amount.value=1` e `amount.currency=EUR`; `date` ISO em UTC.
+- O objeto interno de `amount`, a serialização efetiva da data e a assinatura sobre o corpo precisam de confirmação com uma entrega real da conta. Não foi obtida ainda uma amostra assinada real; qualquer divergência falha fechada e exige adaptação explícita, nunca desativar validações.
+- Confere todos os dados com a tentativa já persistida, que deve pertencer ao proprietário do URL e ser `kind=gateway-test`, `environment=sandbox` e 100 cêntimos. Nunca cria uma tentativa a partir do callback.
+- Persiste um recibo autenticado mínimo (digest, transação, data e hora de receção). Consulta novamente a referência na API da sandbox. Só com pista de estado paga/pago/transferida altera o estado interno para `sandbox_paid`, estritamente no registo técnico de testes.
+- O recibo assinado contém o montante/moeda/transação; a consulta de referência é apenas a verificação adicional do estado. Não representa reconciliação contabilística nem prova de liquidação bancária.
+- Escritas usam `updateTime` para impedir perdas por concorrência. Notificação igual já validada devolve HTTP 200 sem novas escritas; transação diferente não substitui a anterior. Falhas de armazenamento/prestador e estado ainda pendente devolvem 503, permitindo reenvio. HTTP 200 só após confirmação persistida ou duplicado já concluído.
+- Não escreve inscrições, direitos, pagamentos de produção ou faturas. Eventos de reembolso/cancelamento/expiração ainda não estão implementados nesta rota de teste.
+- O navegador lê o registo a cada 10 segundos se as configurações estiverem presentes e o teste aguardar notificação; este polling não consulta a Eupago nem cria pagamentos. Para ao validar o teste ou ao ocorrer erro de atualização.
+
+### Configuração externa necessária
+
+No Worker Cloudflare `circ`, acrescentar (nunca em `REACT_APP`, no git ou neste documento):
+
+| Nome | Tipo | Conteúdo |
+| --- | --- | --- |
+| `FIREBASE_SANDBOX_SERVICE_ACCOUNT` | Secret | JSON da conta de serviço dedicada a este teste, do projeto `circ-coimbra` |
+| `EUPAGO_SANDBOX_WEBHOOK_KEY` | Secret | Chave de assinatura correspondente ao canal sandbox, exatamente como configurada na Eupago |
+| `EUPAGO_SANDBOX_CHANNEL` | Variável de servidor | Nome completo e exato do canal sandbox |
+
+Mantém-se `EUPAGO_SANDBOX_API_KEY`, já usada na criação/consulta. A chave de assinatura não deve ser presumida igual à chave API.
+
+A conta de serviço deve ter apenas as permissões de leitura e atualização necessárias (`datastore.entities.get`, `datastore.entities.update` numa função IAM dedicada), sem administração de utilizadores, criação ou eliminação de documentos. Tokens OAuth de conta de serviço usam IAM e não as regras de segurança Firestore; estas permissões não se limitam a uma coleção pelo código IAM. O adaptador desta rota restringe os caminhos a documentos existentes `settings/circ-eupago-sandbox-{uid}-{uuid}`. Não atribuir Owner/Editor nem reutilizar uma credencial de administração geral. Para isolamento adicional, a evolução deve usar uma base/projeto dedicado aos pagamentos de teste.
+
+O servidor valida `project_id`, assina um JWT RS256 com scope datastore e troca-o apenas em `https://oauth2.googleapis.com/token`. Ignora `token_uri` do JSON; rejeita redirects e usa timeout. O token fica apenas em memória, com renovação antes de expirar. Credenciais, corpos de callbacks, respostas brutas e URLs com segredos nunca são registados pelo código.
+
+Na Eupago sandbox, editar o canal correto e configurar webhook 2.0 POST JSON, PAID, `encrypt=false`, assinatura e URL copiado da consola. Se o ecrã só mostrar callback 1.0, não o apontar à nova rota; obter a configuração 2.0 com a Eupago. Os indicadores da consola confirmam presença de variáveis, não validade das credenciais, permissões IAM ou configuração externa.
+
+### Teste real ainda por executar
+
+1. Configurar identidade de serviço, nome do canal e chave de assinatura; publicar as variáveis no Worker.
+2. Configurar o canal sandbox com o URL apresentado no site.
+3. Criar um novo teste Multibanco. A referência previamente marcada paga não comprova um callback posterior à configuração.
+4. Marcar a nova referência como paga na sandbox. Sem clicar em Consultar estado, observar notificação recebida e estado `Pagamento de teste validado por notificação e consulta à Eupago`.
+5. Confirmar persistência depois de recarregar; testar reenvio da mesma notificação e confirmação com o navegador fechado. Inscrições reais devem permanecer inalteradas.
+
+Documentação: https://docs.eupago.pt/reference/realtime-webhooks-20 e https://developers.google.com/identity/protocols/oauth2/service-account .
