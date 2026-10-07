@@ -22,18 +22,23 @@ test('unauthenticated direct requests expose no hotel information and cannot be 
     assert.equal(response.status, 401);
     assert.match(response.headers.get('cache-control'), /no-store/);
     const body = await response.text();
-    assert.doesNotMatch(body, /hotels|TCOIWED|Hotel/);
+    assert.doesNotMatch(body, /hotels|TCOIWED|LOVECOIMBRA|Hotel/);
   }
 });
 
-test('a signed session for this Firebase project can read the seven offers', async () => {
+test('a signed session for this Firebase project can read the eight offers', async () => {
   const response = await protectedWorker.fetch(request(await token()), env);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
   assert.equal(response.headers.get('vary'), 'Authorization');
   const body = await response.json();
-  assert.equal(body.hotels.length, 7);
+  assert.equal(body.hotels.length, 8);
   assert.equal(body.hotels.find(h => h.id === 'tivoli-coimbra').promoCode, 'TCOIWED');
+  const oslo = body.hotels.find(h => h.id === 'hotel-oslo-coimbra');
+  assert.equal(oslo.promoCode, 'LOVECOIMBRA');
+  assert.equal(oslo.benefit.pt, '10%');
+  assert.equal(oslo.bookingType, 'website');
+  assert.equal(oslo.website, 'https://www.hoteloslo-coimbra.pt/');
 });
 
 test('expired, foreign-project, future and anonymous tokens are rejected', async () => {

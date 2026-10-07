@@ -8,7 +8,7 @@ assert.ok(fs.existsSync(root), 'Build the application before checking public ass
 for (const name of fs.readdirSync(root)) {
   if (!/\.(js|map)$/.test(name)) continue;
   const source = fs.readFileSync(path.join(root, name), 'utf8');
-  for (const privateCode of ['TCOIWED', 'NHDINESWED']) {
+  for (const privateCode of ['TCOIWED', 'NHDINESWED', 'LOVECOIMBRA']) {
     assert.ok(!source.includes(privateCode), `Protected hotel data found in public asset ${name}`);
   }
 }

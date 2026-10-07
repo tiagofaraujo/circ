@@ -1,4 +1,4 @@
-// Participant conditions supplied by the organisation on 25 September 2026.
+// Participant conditions supplied by the organisation; Oslo added on 7 October 2026.
 // These are received offers, not a declaration of official hotel status.
 // Keep private speaker rates and negotiation notes out of this public dataset.
 const confirmBreakfast = { pt: 'A confirmar com o hotel.', en: 'Confirm with the hotel.' };
@@ -79,6 +79,17 @@ export const hotels2027 = [
     dates: { pt: '8, 9 e 10 de abril de 2027.', en: '8, 9 and 10 April 2027.' },
     breakfast: confirmBreakfast, tax: confirmTax,
     conditions: { pt: 'Confirme o desconto aplicado, o preço final e as condições de cancelamento antes de concluir a reserva. Não existe bloqueio de quartos confirmado.', en: 'Confirm the applied discount, final price and cancellation terms before completing your booking. No room block is confirmed.' },
+  },
+  {
+    id: 'hotel-oslo-coimbra', name: 'Hotel Oslo Coimbra', zone: 'Baixa · Rio Mondego',
+    image: { src: '/hotels/hotel-oslo-coimbra.webp', width: 960, height: 639, alt: { pt: 'Rooftop do Hotel Oslo Coimbra com vista sobre o centro histórico', en: 'Hotel Oslo Coimbra rooftop overlooking the historic centre' } },
+    website: 'https://www.hoteloslo-coimbra.pt/', email: 'mail@hoteloslo-coimbra.pt', phone: '+351 239 829 071', bookingType: 'website',
+    promoCode: 'LOVECOIMBRA',
+    benefit: { pt: '10%', en: '10%' }, benefitLabel: { pt: 'de desconto', en: 'discount' },
+    description: { pt: 'Sobre qualquer tarifa disponível no site. Localização central, estacionamento gratuito e rooftop com vista sobre Coimbra.', en: 'Off any rate available on the hotel website. Central location, free parking and a rooftop overlooking Coimbra.' },
+    booking: { pt: 'Reserve no site do Hotel Oslo e utilize o código LOVECOIMBRA ou mencione a participação no CIRC 2027.', en: 'Book on the Hotel Oslo website and use code LOVECOIMBRA or mention your participation in CIRC 2027.' },
+    dates: eventDates, breakfast: confirmBreakfast, tax: confirmTax,
+    conditions: { pt: 'Desconto adicional para reservas no site do hotel. Confirme as noites abrangidas, a disponibilidade, o preço final e as condições de cancelamento antes de reservar.', en: 'Additional discount for bookings on the hotel website. Confirm eligible nights, availability, the final price and cancellation terms before booking.' },
   },
   {
     id: 'hotel-vitoria', name: 'Hotel Vitória', zone: 'Baixa · Centro de Coimbra',

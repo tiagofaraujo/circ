@@ -2,7 +2,9 @@
 
 Participant-facing information supplied by the organisation on 25 September 2026, from its hotel partnership workbook (updated 15 September). The workbook records received offers and pending decisions, not closed official-hotel agreements. The website therefore describes these as received accommodation offers, with confirmation and availability caveats.
 
-Seven hotels have booking instructions: D. Luís, Astória, Mondego, Vila Galé Coimbra, Tivoli Coimbra, NH Coimbra Dona Inês and Vitória. Quinta das Lágrimas is excluded while its booking code and agreement remain unresolved. Private speaker/organisation rates and negotiation contacts are not published.
+Eight hotels have booking instructions: D. Luís, Astória, Mondego, Vila Galé Coimbra, Tivoli Coimbra, NH Coimbra Dona Inês, Oslo and Vitória. Quinta das Lágrimas is excluded while its booking code and agreement remain unresolved. Private speaker/organisation rates and negotiation contacts are not published.
+
+Hotel Oslo Coimbra was added on 7 October 2026 using the email supplied by the organisation and `CIRC_2027_Gestao_Emails_Parcerias_Hoteleiras_v7_Oslo.xlsx` (Hotéis row 11; Propostas recebidas row 13). Participants receive an additional 10% discount on any website rate by mentioning CIRC 2027 or using LOVECOIMBRA. The offer confirms free parking and a rooftop overlooking Coimbra. Eligible nights, breakfast inclusion, tourist tax and cancellation terms remain to be confirmed with the hotel. Use the public contact mail@hoteloslo-coimbra.pt and +351 239 829 071 from https://www.hoteloslo-coimbra.pt/ (checked 7 October 2026), not internal negotiation contacts. No organiser/speaker offer is published.
 
 Maintain the participant data in `server/hotels2027.mjs`. Do not infer an NH discount percentage, Tivoli eligible dates, breakfast inclusion, tourist tax or cancellation terms where the source does not specify them. Tourist tax amounts for Astória and D. Luís are explicitly attributed to the received offers and must be confirmed with the hotel. Preserve Vila Galé's exclusion of non-refundable rates and the absence of a room block.
 
@@ -23,6 +25,7 @@ Added 25 September 2026 from each hotel's official website/CDN. The source URLs 
 | `public/hotels/nh-coimbra-dona-ines.webp` | https://img.nh-hotels.net/q83R6/gvYLXr/original/NH_Coimbra_Dona_Ines_Facade_Exterior.jpg?output-quality=80&resize=1200:* |
 | `public/hotels/hotel-vitoria.webp` | https://hotelvitoria.pt/wp-content/uploads/2025/04/Hotel-vitoria-Quarto-duplo-20.webp |
 | `public/hotels/tivoli-coimbra.webp` | https://assets.tivolihotels.com/image/upload/q_auto,f_auto,c_limit,w_1200/media/minor/tivoli/images/hotels/tcoi/new-images/homepage/tivoli_coimbra_homepage-banner_1920x900_room.jpg |
+| `public/hotels/hotel-oslo-coimbra.webp` (added 7 October 2026) | https://www.hoteloslo-coimbra.pt/wp-content/uploads/Hotel-com-vista-coimbra-hotel-oslo.jpg |
 
 The Coimbra page is focused on accommodation, with a compact congress venue/date strip. Pre-congress course information and the historical 2025 accommodation/restaurant network have been removed from this page. The congress dates remain 9–10 April 2027.
 
