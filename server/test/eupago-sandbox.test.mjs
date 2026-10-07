@@ -101,3 +101,14 @@ test('callback rejects duplicate fields and production attempts', () => {
     assert.ok(!JSON.stringify(result).includes('private raw message'));
   }
 });
+
+test('reference payment state takes priority over the API response code', async () => {
+  for (const [estado_referencia, expected] of [['pendente', 'pendente'], [' Paga ', 'paga'], ['transferida', 'transferida'], ['unrecognized', 'unknown']]) {
+    const result = await adapter(async () => Response.json({ sucesso: true, referencia: attempt.reference,
+      entidade: attempt.entity, identificador: attempt.identifier, estado: 0, estado_referencia })).inspectReference(attempt);
+    assert.equal(result.providerState, expected);
+    assert.equal(result.providerStateCode, 0);
+    assert.equal(result.status, undefined);
+    assert.equal(result.requiresReconciliation, true);
+  }
+});

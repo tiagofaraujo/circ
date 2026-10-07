@@ -23,7 +23,7 @@ const diagnosticMessage = (data) => {
   return typeof data.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(data.diagnostic)
     ? `${message} Código de diagnóstico: ${data.diagnostic}` : message;
 };
-const providerLabels = { pendente: 'Pendente', pago: 'Pago (informação da Eupago)', paga: 'Pago (informação da Eupago)', expirado: 'Expirado', cancelado: 'Cancelado', erro: 'Erro', unknown: 'A resposta não contém um estado de pagamento reconhecido. Confirme no backoffice da sandbox.' };
+const providerLabels = { pendente: 'Pendente', pago: 'Pago (informação da Eupago)', paga: 'Pago (informação da Eupago)', expirado: 'Expirado', cancelado: 'Cancelado', transferida: 'Transferida (informação da Eupago)', erro: 'Erro', unknown: 'A resposta não contém um estado de pagamento reconhecido. Confirme no backoffice da sandbox.' };
 const labels = { creating: 'Criação em curso ou por confirmar', pending: 'Referência criada — pagamento por verificar', creation_unknown: 'Resultado da criação por confirmar' };
 function savedId(key) { try { return sessionStorage.getItem(key) || ''; } catch { return ''; } }
 function saveId(key, id) { try { if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* The current tab state still retains the ID. */ } }
