@@ -33,6 +33,20 @@ function cents(value) {
   const [whole, fraction = ''] = text.split('.');
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0').slice(0, 2));
 }
+const paymentMethods = new Map([
+  ['Multibanco', 'multibanco'], ['PC:PT', 'multibanco'],
+  ['Mbway', 'mbway'], ['MW:PT', 'mbway'],
+]);
+function paymentDate(value) {
+  if (typeof value !== 'string') return null;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d{1,3})?(Z|\+00:00)?$/.exec(value);
+  if (!match) return null;
+  // Validate calendar fields without depending on the runtime's local timezone.
+  const date = new Date(`${match[1]}${match[2] || ''}Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 19) !== match[1]) return null;
+  // The support sample has no offset. Preserve it rather than inventing a UTC instant.
+  return match[3] ? date.toISOString() : value;
+}
 // Webhook 2.0: cleartext JSON over HTTPS, base64 HMAC-SHA256 over exact body bytes.
 // Encrypted payloads and webhook 1.0 are deliberately not accepted by this route.
 export function parseSignedPayment(bytes, signature, key, channel) {
@@ -45,18 +59,19 @@ export function parseSignedPayment(bytes, signature, key, channel) {
   // Accept either single-object spelling, never both or a batch.
   if (!body || body.data != null || (body.transactions != null && body.transaction != null)) throw new Error('invalid_event');
   const tx = body.transactions ?? body.transaction;
+  const method = paymentMethods.get(tx?.method);
+  const paidAt = paymentDate(tx?.date);
   if (!tx || Array.isArray(tx) || body.channel?.name !== channel || tx.status !== 'Paid'
     || !/^circ_test_[a-f0-9]{32}$/.test(tx.identifier || '')
-    || !['Multibanco', 'Mbway'].includes(tx.method) || !digits(tx.reference) || !digits(tx.trid)
+    || !method || !digits(tx.reference) || !digits(tx.trid)
     || tx.amount?.currency !== 'EUR' || cents(tx.amount?.value) !== 100
-    || typeof tx.date !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|\+00:00)$/.test(tx.date)
-    || !Number.isFinite(Date.parse(tx.date))) throw new Error('invalid_event');
+    || !paidAt) throw new Error('invalid_event');
   const hex = tx.identifier.slice(10);
   const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   if (!UUID.test(id)) throw new Error('invalid_event');
-  const event = { id, identifier: tx.identifier, method: tx.method === 'Multibanco' ? 'multibanco' : 'mbway',
+  const event = { id, identifier: tx.identifier, method,
     reference: digits(tx.reference), entity: tx.entity == null ? null : digits(tx.entity),
-    transactionId: digits(tx.trid), amountCents: 100, currency: 'EUR', paidAt: new Date(tx.date).toISOString() };
+    transactionId: digits(tx.trid), amountCents: 100, currency: 'EUR', paidAt };
   return { ...event, digest: createHash('sha256').update(JSON.stringify(event)).digest('hex') };
 }
 export function createSandboxWebhook({ tokenProvider = createServiceTokenProvider(), storeFactory = createSandboxStore,

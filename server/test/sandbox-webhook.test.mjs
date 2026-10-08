@@ -11,6 +11,14 @@ const env = { FIREBASE_PROJECT_ID: 'circ-coimbra', FIREBASE_SANDBOX_SERVICE_ACCO
 const payload = () => ({ transactions: { identifier: `circ_test_${ID.replaceAll('-', '')}`, method: 'Multibanco',
   entity: 82142, reference: 104100507, trid: 123456, amount: { value: 1, currency: 'EUR' },
   date: '2026-10-07T09:50:00Z', status: 'Paid' }, channel: { name: 'demo-channel' } });
+// Shape supplied by Eupago support on 8 October 2026; identifiers are synthetic.
+const supportPayload = () => ({
+  channel: { account: 'demo-channel', name: 'demo-channel' },
+  transaction: { entity: '82142', reference: '104100507', identifier: payload().transactions.identifier,
+    method: 'PC:PT', amount: { value: '1.00000', currency: 'EUR' },
+    fees: { value: 0.8364, currency: 'EUR' }, date: '2026-10-07T14:58:25',
+    trid: '123456', status: 'Paid', local: 'demo' },
+});
 const sign = body => createHmac('sha256', key).update(body).digest('base64');
 const request = (data = payload(), signature, path = 'YWRtaW4') => {
   const body = JSON.stringify(data);
@@ -52,6 +60,55 @@ test('simultaneous deliveries converge to one persisted confirmation', async () 
   const f = fixture();
   const responses = await Promise.all([f.handle(request(), env), f.handle(request(), env), f.handle(request(), env)]);
   assert.ok(responses.every(r => r.status === 200)); assert.equal(f.writes(), 2);
+  assert.equal(f.record().status, 'sandbox_paid');
+});
+test('support JSON shape reconciles and duplicate delivery performs no extra work', async () => {
+  const f = fixture();
+  assert.equal((await f.handle(request(supportPayload()), env)).status, 200);
+  assert.equal(f.record().status, 'sandbox_paid');
+  assert.equal(f.record().notification.paidAt, '2026-10-07T14:58:25');
+  assert.ok(f.record().notification.verifiedAt);
+  assert.equal(f.inspectCalls(), 1);
+  assert.deepEqual(await (await f.handle(request(supportPayload()), env)).json(), { received: true, duplicate: true });
+  assert.equal(f.writes(), 2); assert.equal(f.inspectCalls(), 1);
+});
+test('provider method codes and legacy labels normalize to the same event', () => {
+  for (const [label, code, method] of [['Multibanco', 'PC:PT', 'multibanco'], ['Mbway', 'MW:PT', 'mbway']]) {
+    const p = payload(); p.transactions.method = label;
+    const a = JSON.stringify(p);
+    p.transactions.method = code; const b = JSON.stringify(p);
+    const first = parseSignedPayment(Buffer.from(a), sign(a), key, env.EUPAGO_SANDBOX_CHANNEL);
+    assert.equal(first.method, method);
+    assert.deepEqual(parseSignedPayment(Buffer.from(b), sign(b), key, env.EUPAGO_SANDBOX_CHANNEL), first);
+  }
+});
+test('offset-free dates are preserved, UTC dates normalize and invalid calendar fields fail closed', async () => {
+  for (const [date, expected] of [['2026-10-07T14:58:25', '2026-10-07T14:58:25'],
+    ['2026-10-07T14:58:25.12', '2026-10-07T14:58:25.12'],
+    ['2026-10-07T14:58:25Z', '2026-10-07T14:58:25.000Z'],
+    ['2026-10-07T14:58:25+00:00', '2026-10-07T14:58:25.000Z']]) {
+    const p = supportPayload(); p.transaction.date = date; const b = JSON.stringify(p);
+    assert.equal(parseSignedPayment(Buffer.from(b), sign(b), key, env.EUPAGO_SANDBOX_CHANNEL).paidAt, expected);
+  }
+  const f = fixture();
+  for (const date of ['2026-02-30T14:58:25', '2026-02-30T14:58:25Z', '2026-13-07T14:58:25',
+    '2026-10-07T24:00:00', '2026-10-07T14:60:25', '2026-10-07', '2026-10-07T14:58', '', null]) {
+    const p = supportPayload(); p.transaction.date = date;
+    assert.equal((await f.handle(request(p), env)).status, 422);
+  }
+  assert.equal(f.calls(), 0); assert.equal(f.writes(), 0);
+});
+test('support format still requires signature, exact amount and independent provider confirmation', async () => {
+  const f = fixture();
+  assert.equal((await f.handle(request(supportPayload(), 'bad'), env)).status, 401);
+  const invalid = supportPayload(); invalid.transaction.amount.value = '1.00001';
+  assert.equal((await f.handle(request(invalid), env)).status, 422);
+  assert.equal(f.calls(), 0);
+  f.setPaid(false);
+  assert.equal((await f.handle(request(supportPayload()), env)).status, 503);
+  assert.equal(f.record().status, 'pending'); assert.equal(f.record().notification.verifiedAt, null);
+  f.setPaid(true);
+  assert.equal((await f.handle(request(supportPayload()), env)).status, 200);
   assert.equal(f.record().status, 'sandbox_paid');
 });
 test('invalid signatures, body tampering and excessive streamed data do no privileged work', async () => {

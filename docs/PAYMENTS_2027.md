@@ -76,8 +76,9 @@ Contrato atualmente implementado:
 - HTTPS, POST JSON sem encriptação (`encrypt=false`), apenas evento PAID.
 - `X-Signature`: base64 de HMAC-SHA256 sobre os bytes exatos do corpo, com a chave de assinatura do canal. A verificação ocorre antes de qualquer acesso ao Firebase/Eupago. Não aceitar ausência de assinatura, digest hexadecimal ou callback 1.0 como alternativa.
 - Corpo limitado a 16 KiB; objeto `transactions` da documentação (ou objeto singular `transaction`, exclusivamente um deles); listas e mensagens encriptadas são rejeitadas.
-- `channel.name` corresponde exatamente ao canal configurado. `identifier` tem o formato `circ_test_{uuid_sem_hifens}`. Método Multibanco/Mbway; `reference`, `entity`, `trid`; estado `Paid`; `amount.value=1` e `amount.currency=EUR`; `date` ISO em UTC.
-- O objeto interno de `amount`, a serialização efetiva da data e a assinatura sobre o corpo precisam de confirmação com uma entrega real da conta. Não foi obtida ainda uma amostra assinada real; qualquer divergência falha fechada e exige adaptação explícita, nunca desativar validações.
+- `channel.name` corresponde exatamente ao canal configurado. `identifier` tem o formato `circ_test_{uuid_sem_hifens}`. Métodos `PC:PT`/`MW:PT` normalizados para Multibanco/MB WAY, mantendo os rótulos anteriores `Multibanco`/`Mbway`; `reference`, `entity`, `trid`; estado `Paid`; `amount.value=1` (incluindo `"1.00000"`) e `amount.currency=EUR`. Datas com segundos, com UTC explícito ou sem fuso, são validadas também quanto ao calendário.
+- Em 08/10/2026, o suporte da Eupago forneceu o JSON da entrega anteriormente rejeitada com 422: objeto singular `transaction`, método `PC:PT`, montante textual `"1.00000"` e data `2026-10-07T14:58:25` sem fuso. O parser anterior rejeitava o método e a data. A correção aceita explicitamente esses formatos, mantendo as restantes validações. A data sem fuso é conservada tal como recebida em `paidAt`; não se assume UTC nem Europe/Lisbon. `receivedAt` e `verifiedAt` continuam a ser instantes UTC do servidor. O digest inclui a data preservada; alterações nessa data continuam sujeitas à deteção de conflito.
+- Os testes de regressão usam a estrutura do suporte com identificadores fictícios e uma assinatura de teste. Campos `fees`, `local` e `channel.account` não autorizam confirmação e não são usados para contabilização. Esta validação local não comprova uma nova entrega real assinada; é necessário reenvio pela Eupago ou novo teste sandbox após a publicação.
 - Confere todos os dados com a tentativa já persistida, que deve pertencer ao proprietário do URL e ser `kind=gateway-test`, `environment=sandbox` e 100 cêntimos. Nunca cria uma tentativa a partir do callback.
 - Persiste um recibo autenticado mínimo (digest, transação, data e hora de receção). Consulta novamente a referência na API da sandbox. Só com pista de estado paga/pago/transferida altera o estado interno para `sandbox_paid`, estritamente no registo técnico de testes.
 - O recibo assinado contém o montante/moeda/transação; a consulta de referência é apenas a verificação adicional do estado. Não representa reconciliação contabilística nem prova de liquidação bancária.
@@ -103,11 +104,11 @@ O servidor valida `project_id`, assina um JWT RS256 com scope datastore e troca-
 
 Na Eupago sandbox, editar o canal correto e configurar webhook 2.0 POST JSON, PAID, `encrypt=false`, assinatura e URL copiado da consola. Se o ecrã só mostrar callback 1.0, não o apontar à nova rota; obter a configuração 2.0 com a Eupago. Os indicadores da consola confirmam presença de variáveis, não validade das credenciais, permissões IAM ou configuração externa.
 
-### Teste real ainda por executar
+### Teste real após a correção de 08/10/2026
 
-1. Configurar identidade de serviço, nome do canal e chave de assinatura; publicar as variáveis no Worker.
-2. Configurar o canal sandbox com o URL apresentado no site.
-3. Criar um novo teste Multibanco. A referência previamente marcada paga não comprova um callback posterior à configuração.
+1. Manter a identidade de serviço, o nome do canal e a chave de assinatura configurados no Worker; confirmar a publicação da correção.
+2. Manter o webhook 2.0 sandbox com o URL apresentado no site.
+3. Solicitar à Eupago o reenvio da notificação anterior ou criar um novo teste Multibanco. Não reconstruir nem assinar manualmente uma notificação para a rota real: o JSON formatado do email não recupera os bytes originais da assinatura. A referência previamente marcada paga não comprova uma entrega posterior à correção.
 4. Marcar a nova referência como paga na sandbox. Sem clicar em Consultar estado, observar notificação recebida e estado `Pagamento de teste validado por notificação e consulta à Eupago`.
 5. Confirmar persistência depois de recarregar; testar reenvio da mesma notificação e confirmação com o navegador fechado. Inscrições reais devem permanecer inalteradas.
 
