@@ -88,13 +88,15 @@ Contrato atualmente implementado:
 
 ### Configuração externa necessária
 
-No Worker Cloudflare `circ`, acrescentar (nunca em `REACT_APP`, no git ou neste documento):
+No Worker Cloudflare `circ`, configurar os seguintes valores de servidor. As credenciais e chaves nunca devem estar em `REACT_APP`, no git ou neste documento; apenas o nome não secreto do canal é versionado:
 
 | Nome | Tipo | Conteúdo |
 | --- | --- | --- |
 | `FIREBASE_SANDBOX_SERVICE_ACCOUNT` | Secret | JSON da conta de serviço dedicada a este teste, do projeto `circ-coimbra` |
 | `EUPAGO_SANDBOX_WEBHOOK_KEY` | Secret | Chave de assinatura correspondente ao canal sandbox, exatamente como configurada na Eupago |
 | `EUPAGO_SANDBOX_CHANNEL` | Variável de servidor | Nome completo e exato do canal sandbox |
+
+O nome não secreto do canal sandbox está versionado em `wrangler.jsonc`, em `vars.EUPAGO_SANDBOX_CHANNEL`, com o valor exato confirmado pelo suporte: `demo-Hemisfério Disciplinado Lda`. As publicações do Worker `circ` devem manter este binding; uma variável configurada apenas no painel pode ser removida pelo deploy quando não consta do ficheiro Wrangler. O Worker de preview tem configuração independente. Credenciais e chaves continuam exclusivamente nos secrets da Cloudflare.
 
 Mantém-se `EUPAGO_SANDBOX_API_KEY`, já usada na criação/consulta. A chave de assinatura não deve ser presumida igual à chave API.
 

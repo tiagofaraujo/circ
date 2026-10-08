@@ -26,6 +26,7 @@
   ],
   "main": "server/worker.mjs",
   "vars": {
-    "FIREBASE_PROJECT_ID": "circ-coimbra"
+    "FIREBASE_PROJECT_ID": "circ-coimbra",
+    "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda"
   }
 }
