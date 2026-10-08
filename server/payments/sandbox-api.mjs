@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createEupagoSandbox } from './eupago-sandbox.mjs';
+import { createEupagoSandbox, safeProviderDiagnostic } from './eupago-sandbox.mjs';
 import { createSandboxStore } from './sandbox-store.mjs';
 import { webhookConfiguration } from './sandbox-webhook.mjs';
 
@@ -15,6 +15,7 @@ function publicRecord(record) {
     currency: record.currency, environment: 'sandbox', status: record.status,
     reference: record.reference || null, entity: record.entity || null,
     providerState: record.providerState || null, providerStateCode: record.providerStateCode ?? null,
+    creationDiagnostic: safeProviderDiagnostic(record.creationDiagnostic),
     inspectedAt: record.inspectedAt || null, createdAt: record.createdAt,
     identifier: record.identifier, notification: record.notification ? {
       receivedAt: record.notification.receivedAt, verifiedAt: record.notification.verifiedAt || null,
@@ -91,16 +92,18 @@ export function createSandboxApi({ verify, storeFactory = createSandboxStore, pr
       }
       let result;
       try { result = await provider.createPayment({ ...record, phone: body.phone }); }
-      catch {
-        try { await store.replace(id, { ...record, status: 'creation_unknown' }, saved.version); } catch { /* Preserve the original creating record. */ }
-        return reply({ attempt: publicRecord({ ...record, status: 'creation_unknown' }), error: 'creation_unknown' }, 502);
+      catch (error) {
+        const diagnostic = safeProviderDiagnostic(error?.diagnostic) || 'provider/unknown';
+        const failed = { ...record, status: 'creation_unknown', creationDiagnostic: diagnostic };
+        try { await store.replace(id, failed, saved.version); } catch { /* Preserve the original creating record. */ }
+        return reply({ attempt: publicRecord(failed), error: 'creation_unknown', diagnostic }, 502);
       }
       try { saved = await store.replace(id, { ...record, ...result }, saved.version); }
       catch { return reply({ attempt: publicRecord(record), error: 'storage_after_creation_failed' }, 503); }
       return reply({ attempt: publicRecord(saved.record) }, 201);
     } catch (error) {
       const code = ['storage_forbidden', 'storage_session_expired', 'storage_unavailable', 'conflict'].includes(error.code) ? error.code : 'provider_unavailable';
-      const diagnostic = typeof error.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(error.diagnostic) ? error.diagnostic : undefined;
+      const diagnostic = safeProviderDiagnostic(error.diagnostic) || (typeof error.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(error.diagnostic) ? error.diagnostic : undefined);
       return reply({ error: code, ...(diagnostic ? { diagnostic } : {}) }, code === 'conflict' ? 409 : 503);
     }
   };

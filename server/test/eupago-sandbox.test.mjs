@@ -56,6 +56,27 @@ test('uncertain outcomes are never retried and provider errors never leak secret
     assert.equal(calls, 1);
   }
 });
+test('creation diagnostics distinguish transport, rejection and malformed responses without raw content', async () => {
+  for (const [reply, diagnostic] of [
+    [() => { throw Object.assign(new Error(apiKey), { name: 'TimeoutError' }); }, 'provider/timeout'],
+    [() => { throw new Error(apiKey); }, 'provider/network'],
+    [() => new Response(apiKey, { status: 503 }), 'provider/http-503'],
+    [() => Response.json({ estado: -7, message: apiKey }, { status: 400 }), 'provider/http-400/code--7'],
+    [() => new Response(apiKey), 'provider/invalid-json'],
+    [() => Response.json([]), 'provider/invalid-response'],
+    [() => Response.json({ sucesso: false, estado: '-8', resposta: apiKey }), 'provider/rejected/code--8'],
+    [() => Response.json({ sucesso: false, estado: apiKey }), 'provider/rejected'],
+    [() => Response.json({ sucesso: true, referencia: apiKey }), 'provider/invalid-reference'],
+    [() => Response.json({ sucesso: true, referencia: '123456789', entidade: apiKey }), 'provider/invalid-entity'],
+  ]) {
+    let calls = 0;
+    await assert.rejects(adapter(async () => { calls++; return reply(); }).createPayment(input), error => {
+      assert.equal(error.diagnostic, diagnostic); assert.equal(error.uncertain, true);
+      assert.ok(!JSON.stringify(error).includes(apiKey)); assert.ok(!error.message.includes(apiKey)); return true;
+    });
+    assert.equal(calls, 1);
+  }
+});
 const attempt = { ...input, environment: 'sandbox', reference: '123456789', entity: '12345' };
 test('reference status is only a reconciliation hint, never a paid registration', async () => {
   const client = adapter(async () => Response.json({ sucesso: true, referencia: attempt.reference,

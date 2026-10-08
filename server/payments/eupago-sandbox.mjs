@@ -2,9 +2,19 @@
 // Callers MUST persist an attempt before creating a reference and reconcile uncertain outcomes.
 const BASE = 'https://sandbox.eupago.pt/clientes/rest_api';
 export class EupagoError extends Error {
-  constructor(code, uncertain = false) {
+  constructor(code, uncertain = false, diagnostic) {
     super(`eupago/${code}`); this.code = code; this.uncertain = uncertain;
+    this.diagnostic = safeProviderDiagnostic(diagnostic);
   }
+}
+export function safeProviderDiagnostic(value) {
+  return typeof value === 'string' && /^provider\/(?:unknown|timeout|network|invalid-json|invalid-response|invalid-reference|invalid-entity|rejected(?:\/code--?\d{1,4})?|http-[1-5]\d{2}(?:\/code--?\d{1,4})?)$/.test(value) ? value : null;
+}
+function responseCode(data) {
+  const value = data?.estado;
+  const code = Number.isSafeInteger(value) && Math.abs(value) <= 9999 ? String(value)
+    : typeof value === 'string' && /^-?\d{1,4}$/.test(value) ? value : null;
+  return code === null ? '' : `/code-${code}`;
 }
 const invalid = () => { throw new EupagoError('invalid-input'); };
 const isReference = value => typeof value === 'string' && /^\d{1,30}$/.test(value);
@@ -24,14 +34,16 @@ export function createEupagoSandbox({ apiKey, environment, fetchImpl = fetch, ti
         body: JSON.stringify({ ...fields, chave: apiKey }),
         signal: AbortSignal.timeout(timeoutMs),
       });
-      if (!response.ok) throw new Error('HTTP failure');
-      data = await response.json();
-      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid response');
-    } catch {
+    } catch (error) {
       // Never copy provider bodies, URLs or transport errors into logs/client responses.
-      throw new EupagoError('provider-unavailable', creating);
+      const reason = ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'network';
+      throw new EupagoError('provider-unavailable', creating, `provider/${reason}`);
     }
-    if (data.sucesso !== true) throw new EupagoError('provider-rejected', creating);
+    try { data = await response.json(); }
+    catch { throw new EupagoError('provider-unavailable', creating, response.ok ? 'provider/invalid-json' : `provider/http-${response.status}`); }
+    if (!response.ok) throw new EupagoError('provider-unavailable', creating, `provider/http-${response.status}${responseCode(data)}`);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new EupagoError('provider-unavailable', creating, 'provider/invalid-response');
+    if (data.sucesso !== true) throw new EupagoError('provider-rejected', creating, `provider/rejected${responseCode(data)}`);
     return data;
   }
   return {
@@ -47,7 +59,7 @@ export function createEupagoSandbox({ apiKey, environment, fetchImpl = fetch, ti
       const reference = String(data.referencia ?? '');
       const entity = data.entidade == null ? null : String(data.entidade);
       if (!isReference(reference) || (method === 'multibanco' && !/^\d{5}$/.test(entity || ''))) {
-        throw new EupagoError('invalid-provider-response', true);
+        throw new EupagoError('invalid-provider-response', true, !isReference(reference) ? 'provider/invalid-reference' : 'provider/invalid-entity');
       }
       // A successful creation is NOT evidence of payment.
       return { environment: 'sandbox', method, identifier, amountCents, currency,

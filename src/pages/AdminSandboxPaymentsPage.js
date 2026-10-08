@@ -20,9 +20,10 @@ const errors = {
 };
 const diagnosticMessage = (data) => {
   const message = errors[data.error] || 'Não foi possível concluir o pedido. Atualize o estado antes de repetir.';
-  return typeof data.diagnostic === 'string' && /^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(data.diagnostic)
+  return typeof data.diagnostic === 'string' && (/^(read|create|update)\/(timeout|network|invalid-record|http-\d{3}\/[A-Z_]+)$/.test(data.diagnostic) || isProviderDiagnostic(data.diagnostic))
     ? `${message} Código de diagnóstico: ${data.diagnostic}` : message;
 };
+const isProviderDiagnostic = value => typeof value === 'string' && /^provider\/(?:unknown|timeout|network|invalid-json|invalid-response|invalid-reference|invalid-entity|rejected(?:\/code--?\d{1,4})?|http-[1-5]\d{2}(?:\/code--?\d{1,4})?)$/.test(value);
 const providerLabels = { pendente: 'Pendente', pago: 'Pago (informação da Eupago)', paga: 'Pago (informação da Eupago)', expirado: 'Expirado', cancelado: 'Cancelado', transferida: 'Transferida (informação da Eupago)', erro: 'Erro', unknown: 'A resposta não contém um estado de pagamento reconhecido. Confirme no backoffice da sandbox.' };
 const labels = { creating: 'Criação em curso ou por confirmar', pending: 'Referência criada — pagamento por verificar', creation_unknown: 'Resultado da criação por confirmar', sandbox_paid: 'Pagamento de teste validado por notificação e consulta à Eupago' };
 function savedId(key) { try { return sessionStorage.getItem(key) || ''; } catch { return ''; } }
@@ -38,6 +39,7 @@ export default function AdminSandboxPaymentsPage() {
   const [webhook, setWebhook] = useState(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [checkedBackoffice, setCheckedBackoffice] = useState(false);
   async function api(path, body) {
     const token = await user.getIdToken();
     const response = await fetch(`/api/payments/sandbox/${path}`, { method: body ? 'POST' : 'GET',
@@ -118,12 +120,14 @@ export default function AdminSandboxPaymentsPage() {
         {attempt.inspectedAt && <><dt>Última consulta à Eupago</dt><dd>Consulta concluída em {new Date(attempt.inspectedAt).toLocaleString('pt-PT')}.</dd></>}
         {attempt.providerState && <><dt>Estado devolvido pela Eupago</dt><dd>{providerLabels[attempt.providerState] || providerLabels.unknown}</dd></>}
         {Number.isInteger(attempt.providerStateCode) && <><dt>Código devolvido pela API</dt><dd>{attempt.providerStateCode} — este código não confirma o pagamento.</dd></>}
+        {isProviderDiagnostic(attempt.creationDiagnostic) && <><dt>Diagnóstico da criação</dt><dd>{attempt.creationDiagnostic}</dd></>}
         {attempt.notification && <><dt>Notificação automática</dt><dd>Recebida em {new Date(attempt.notification.receivedAt).toLocaleString('pt-PT')}{attempt.notification.verifiedAt ? ' — validada.' : ' — aguarda reconciliação com a Eupago.'}</dd>
           <dt>Transação de teste</dt><dd>{attempt.notification.transactionId}</dd></>}
       </dl>}
       {id && <button disabled={busy} onClick={() => run(async () => setAttempt((await api(`attempts/${id}`)).attempt))}>Atualizar registo do teste</button>}
       {attempt?.reference && <button disabled={busy} onClick={() => run(async () => setAttempt((await api(`attempts/${id}/inspect`, {})).attempt))}>Consultar estado na Eupago</button>}
-      {['pending', 'sandbox_paid'].includes(attempt?.status) && <button disabled={busy} onClick={() => { saveId(storageKey, ''); setId(''); setAttempt(null); setError(''); }}>Preparar outro teste</button>}
+      {attempt?.status === 'creation_unknown' && <label><input type="checkbox" checked={checkedBackoffice} onChange={e => setCheckedBackoffice(e.target.checked)} disabled={busy} /> Confirmei no backoffice da sandbox que este pedido não existe nem está pendente ou pago. O registo atual será conservado.</label>}
+      {['pending', 'sandbox_paid', 'creation_unknown'].includes(attempt?.status) && <button disabled={busy || (attempt.status === 'creation_unknown' && !checkedBackoffice)} onClick={() => { saveId(storageKey, ''); setId(''); setAttempt(null); setError(''); setPhone(''); setCheckedBackoffice(false); }}>Preparar outro teste</button>}
       <p>A confirmação automática das inscrições ainda não está ativa. A consulta do estado serve apenas para verificar a ligação à Eupago.</p>
     </section>
     {webhook && <section className="company-voucher"><h2>Notificações automáticas — sandbox</h2>

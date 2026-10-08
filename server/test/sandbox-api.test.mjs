@@ -65,6 +65,30 @@ test('creation timeout remains uncertain across retries', async () => {
   assert.equal(retry.attempt.status, 'creation_unknown'); assert.equal(count, 1);
   assert.ok(!JSON.stringify(retry).includes('secret'));
 });
+test('safe creation diagnostic survives refresh and idempotent retry without another provider call', async () => {
+  let count = 0;
+  const f = fixture({ provider: { createPayment: async () => {
+    count++; throw Object.assign(new Error('private provider message'), { diagnostic: 'provider/rejected/code--8' });
+  } } });
+  const created = await (await f.handle(req(), env)).json();
+  assert.equal(created.diagnostic, 'provider/rejected/code--8');
+  assert.equal(created.attempt.status, 'creation_unknown');
+  const refreshed = await (await f.handle(req(`attempts/${ID}`, null), env)).json();
+  const retried = await (await f.handle(req(), env)).json();
+  for (const result of [created, refreshed, retried]) {
+    assert.equal(result.attempt.creationDiagnostic, 'provider/rejected/code--8');
+    assert.ok(!JSON.stringify(result).includes('private provider message'));
+  }
+  assert.equal(count, 1);
+  assert.equal(f.document().record.status, 'creation_unknown');
+});
+test('unexpected provider diagnostic text is never persisted or returned', async () => {
+  const f = fixture({ provider: { createPayment: async () => { throw Object.assign(new Error('secret'), { diagnostic: 'provider/secret-key' }); } } });
+  const result = await (await f.handle(req(), env)).json();
+  assert.equal(result.attempt.creationDiagnostic, 'provider/unknown');
+  assert.ok(!JSON.stringify(result).includes('secret'));
+  assert.ok(!JSON.stringify(f.document()).includes('secret'));
+});
 test('inspect does not mark an attempt paid, grant a registration or create an invoice', async () => {
   const f = fixture(); await f.handle(req(), env);
   const result = await (await f.handle(req(`attempts/${ID}/inspect`, {}), env)).json();

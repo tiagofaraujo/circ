@@ -1,4 +1,4 @@
-# Pagamentos CIRC 2027 — estado em 06/10/2026
+# Pagamentos CIRC 2027 — estado em 08/10/2026
 
 Eupago é o prestador escolhido; TOConline será usado para faturação. O organizador confirmou acesso à sandbox e indicou ter guardado `EUPAGO_SANDBOX_API_KEY` como Secret no Worker Cloudflare `circ`. A presença da chave só fica comprovada na resposta autenticada de `/api/payments/sandbox/config`; a sua validade depende de uma chamada real de teste.
 
@@ -15,7 +15,7 @@ O token Firebase do administrador é encaminhado exclusivamente para a API REST 
 
 A tentativa é persistida antes da chamada à Eupago, com precondição de inexistência. Atualizações usam precondição `updateTime`. Uma repetição com o mesmo UUID devolve o registo existente; seleção diferente é rejeitada. Pedidos simultâneos com o mesmo UUID não criam duas referências. A página retém o UUID na sessão do navegador e recupera-o ao recarregar. Preparar outro teste gera deliberadamente outro UUID.
 
-O host do adaptador é fixo `sandbox.eupago.pt`; não existe caminho para produção. Não há retries automáticos de criação. Timeout, erro de transporte ou resposta incerta deixam `creation_unknown` (ou `creating` se nem a atualização puder ser gravada): consultar o backoffice e reconciliar antes de qualquer nova tentativa. O botão de novo teste só é mostrado após referência criada. Respostas brutas do prestador, tokens e chaves não são devolvidos nem registados em logs. O telefone MB WAY não é persistido; apenas um fingerprint da seleção evita reutilização do UUID com dados diferentes.
+O host do adaptador é fixo `sandbox.eupago.pt`; não existe caminho para produção. Não há retries automáticos de criação. Timeout, erro de transporte ou resposta incerta deixam `creation_unknown` (ou `creating` se nem a atualização puder ser gravada): consultar o backoffice e reconciliar antes de qualquer nova tentativa. O botão de novo teste é mostrado após referência criada. Em `creation_unknown`, só fica disponível após o administrador confirmar explicitamente no backoffice da sandbox que o pedido não existe nem está pendente ou pago. Preparar outro teste limpa apenas a seleção atual do navegador, conserva o registo anterior no servidor e não faz uma chamada ao prestador; a criação seguinte exige nova ação explícita e um UUID diferente. Para novas tentativas, guarda-se um código de diagnóstico limitado a transporte, timeout, formato da resposta, estado HTTP e código numérico `estado` da Eupago. O diagnóstico não altera a incerteza da criação nem autoriza retries automáticos; tentativas antigas não ganham retroativamente um diagnóstico. Respostas brutas do prestador, tokens e chaves não são devolvidos nem registados em logs. O telefone MB WAY não é persistido; apenas um fingerprint da seleção evita reutilização do UUID com dados diferentes.
 
 ## Como validar com a conta
 
@@ -47,11 +47,11 @@ Não configurar callback 1.0 nesta rota: inclui uma chave na query e não é ace
 
 ## Validação local
 
-- `node --test server/test/*.test.mjs`: inclui 8 testes de orçamento, 8 de transporte/notificação e 8 de API/persistência, além das proteções existentes do servidor.
-- `CI=true npm test -- --watchAll=false --runInBand src/pages/AdminSandboxPaymentsPage.test.js`: criação explícita e recuperação sem nova cobrança.
+- `node --test server/test/sandbox-webhook.test.mjs server/test/sandbox-api.test.mjs server/test/eupago-sandbox.test.mjs`: 41 testes de transporte, diagnóstico seguro, API/persistência, assinatura, idempotência e reconciliação da sandbox.
+- `CI=true npm test -- --watchAll=false --runInBand src/pages/AdminSandboxPaymentsPage.test.js`: 5 testes de criação explícita, recuperação sem nova cobrança, preparação condicionada de outro teste após resultado incerto, diagnóstico seguro e atualização automática.
 - `npm run build`.
 
-Os testes de prestador usam respostas simuladas e não comprovam acesso real à conta. O primeiro pedido sandbox deve ser feito pelo organizador na página autenticada. Nunca colocar segredos em REACT_APP, repositório, capturas, anexos ou mensagens.
+Os testes de prestador usam respostas simuladas e não comprovam acesso real à conta. Os pedidos reais à sandbox são feitos pelo organizador na página autenticada. Nunca colocar segredos em REACT_APP, repositório, capturas, anexos ou mensagens.
 
 ## Documentação oficial
 
@@ -78,7 +78,7 @@ Contrato atualmente implementado:
 - Corpo limitado a 16 KiB; objeto `transactions` da documentação (ou objeto singular `transaction`, exclusivamente um deles); listas e mensagens encriptadas são rejeitadas.
 - `channel.name` corresponde exatamente ao canal configurado. `identifier` tem o formato `circ_test_{uuid_sem_hifens}`. Métodos `PC:PT`/`MW:PT` normalizados para Multibanco/MB WAY, mantendo os rótulos anteriores `Multibanco`/`Mbway`; `reference`, `entity`, `trid`; estado `Paid`; `amount.value=1` (incluindo `"1.00000"`) e `amount.currency=EUR`. Datas com segundos, com UTC explícito ou sem fuso, são validadas também quanto ao calendário.
 - Em 08/10/2026, o suporte da Eupago forneceu o JSON da entrega anteriormente rejeitada com 422: objeto singular `transaction`, método `PC:PT`, montante textual `"1.00000"` e data `2026-10-07T14:58:25` sem fuso. O parser anterior rejeitava o método e a data. A correção aceita explicitamente esses formatos, mantendo as restantes validações. A data sem fuso é conservada tal como recebida em `paidAt`; não se assume UTC nem Europe/Lisbon. `receivedAt` e `verifiedAt` continuam a ser instantes UTC do servidor. O digest inclui a data preservada; alterações nessa data continuam sujeitas à deteção de conflito.
-- Os testes de regressão usam a estrutura do suporte com identificadores fictícios e uma assinatura de teste. Campos `fees`, `local` e `channel.account` não autorizam confirmação e não são usados para contabilização. Esta validação local não comprova uma nova entrega real assinada; é necessário reenvio pela Eupago ou novo teste sandbox após a publicação.
+- Os testes de regressão usam a estrutura do suporte com identificadores fictícios e uma assinatura de teste. Campos `fees`, `local` e `channel.account` não autorizam confirmação e não são usados para contabilização. Esta validação local, por si só, não comprova uma entrega real assinada. Um novo teste Multibanco após a publicação foi observado com sucesso, conforme o registo abaixo.
 - Confere todos os dados com a tentativa já persistida, que deve pertencer ao proprietário do URL e ser `kind=gateway-test`, `environment=sandbox` e 100 cêntimos. Nunca cria uma tentativa a partir do callback.
 - Persiste um recibo autenticado mínimo (digest, transação, data e hora de receção). Consulta novamente a referência na API da sandbox. Só com pista de estado paga/pago/transferida altera o estado interno para `sandbox_paid`, estritamente no registo técnico de testes.
 - O recibo assinado contém o montante/moeda/transação; a consulta de referência é apenas a verificação adicional do estado. Não representa reconciliação contabilística nem prova de liquidação bancária.
@@ -107,6 +107,12 @@ O servidor valida `project_id`, assina um JWT RS256 com scope datastore e troca-
 Na Eupago sandbox, editar o canal correto e configurar webhook 2.0 POST JSON, PAID, `encrypt=false`, assinatura e URL copiado da consola. Se o ecrã só mostrar callback 1.0, não o apontar à nova rota; obter a configuração 2.0 com a Eupago. Os indicadores da consola confirmam presença de variáveis, não validade das credenciais, permissões IAM ou configuração externa.
 
 ### Teste real após a correção de 08/10/2026
+
+Em 08/10/2026, às 21:21 (Europe/Lisbon), as capturas do organizador mostraram uma nova referência Multibanco com notificação recebida e validada, consulta adicional à Eupago concluída e atualização automática para `Pagamento de teste validado por notificação e consulta à Eupago`. Isto comprova o circuito desse teste Multibanco na sandbox. Não comprova MB WAY, produção, reenvio real de duplicados ou entrega com o navegador fechado.
+
+O teste MB WAY seguinte, com o número de erro `987654321`, ficou em `creation_unknown`, sem referência no site e sem pedido visível no backoffice segundo o organizador. A causa concreta não foi conservada pelo código anterior e permanece por determinar; os novos diagnósticos permitem distinguir rejeição, timeout e resposta inválida nas tentativas seguintes.
+
+Para repetir a validação:
 
 1. Manter a identidade de serviço, o nome do canal e a chave de assinatura configurados no Worker; confirmar a publicação da correção.
 2. Manter o webhook 2.0 sandbox com o URL apresentado no site.
