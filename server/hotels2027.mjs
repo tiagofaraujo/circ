@@ -1,4 +1,4 @@
-// Participant conditions supplied by the organisation; D. Luís tourist tax updated on 8 October 2026.
+// Participant conditions supplied by the organisation; D. Luís and NH tourist taxes updated on 8 October 2026.
 // These are received offers, not a declaration of official hotel status.
 // Keep private speaker rates and negotiation notes out of this public dataset.
 const confirmBreakfast = { pt: 'A confirmar com o hotel.', en: 'Confirm with the hotel.' };
@@ -77,7 +77,8 @@ export const hotels2027 = [
     description: { pt: 'Desconto sobre as tarifas do dia. Percentagem a confirmar com o hotel.', en: 'Discount on daily rates. Confirm the percentage with the hotel.' },
     booking: { pt: 'No site NH Hotels, selecione o NH Coimbra Dona Inês e introduza o código NHDINESWED.', en: 'On the NH Hotels website, select NH Coimbra Dona Inês and enter code NHDINESWED.' },
     dates: { pt: '8, 9 e 10 de abril de 2027.', en: '8, 9 and 10 April 2027.' },
-    breakfast: confirmBreakfast, tax: confirmTax,
+    breakfast: confirmBreakfast,
+    tax: { pt: '2,00 € por pessoa e por noite, até ao máximo de 3 noites, para estadias a partir de 1 de outubro de 2026, segundo informação do hotel.', en: '€2.00 per person, per night, for a maximum of 3 nights, for stays from 1 October 2026, as confirmed by the hotel.' },
     conditions: { pt: 'Confirme o desconto aplicado, o preço final e as condições de cancelamento antes de concluir a reserva. Não existe bloqueio de quartos confirmado.', en: 'Confirm the applied discount, final price and cancellation terms before completing your booking. No room block is confirmed.' },
   },
   {

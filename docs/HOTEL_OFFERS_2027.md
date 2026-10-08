@@ -8,7 +8,9 @@ Hotel Oslo Coimbra was added on 7 October 2026 using the email supplied by the o
 
 Hotel D. Luís tourist tax was corrected on 8 October 2026 using the hotel email supplied by the organisation: €2.00 per person, per night, effective from 1 October 2026. This supersedes the €1.00 amount in the original offer and updates only Hotel D. Luís.
 
-Maintain the participant data in `server/hotels2027.mjs`. Do not infer an NH discount percentage, Tivoli eligible dates, breakfast inclusion, tourist tax or cancellation terms where the source does not specify them. Tourist tax amounts are attributed to the Astória offer and the D. Luís correction email; confirm the applicable amount with the hotel when booking. Preserve Vila Galé's exclusion of non-refundable rates and the absence of a room block.
+NH Coimbra Dona Inês tourist tax was updated on 8 October 2026 using the hotel email supplied by the organisation: €2.00 per person, per night, charged for a maximum of 3 nights, for stays from 1 October 2026. The update applies to the NH card only. The screenshot refers to other information below the email that is not visible; it does not establish a discount percentage, breakfast inclusion or other new conditions.
+
+Maintain the participant data in `server/hotels2027.mjs`. Do not infer an NH discount percentage, Tivoli eligible dates, breakfast inclusion, tourist tax or cancellation terms where the source does not specify them. Tourist tax amounts are attributed to the Astória offer and the D. Luís and NH update emails; confirm the applicable amount with the hotel when booking. Preserve Vila Galé's exclusion of non-refundable rates and the absence of a room block.
 
 Bookings and payments are direct with hotels. Codes are visible and copyable, with manual-copy fallback. A displayed code does not mean its acceptance was independently tested in a hotel checkout. Official sites were checked for link destinations and public contact information; no booking was made.
 
