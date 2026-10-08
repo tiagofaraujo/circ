@@ -71,6 +71,6 @@ export default function HotelAccommodation({ en, hotels }) {
         </article>;
       })}
     </div>
-    <p className="hotel-section__updated">{en ? 'Information updated on 7 October 2026. Offers are subject to hotel confirmation and availability.' : 'Informação atualizada a 7 de outubro de 2026. Condições sujeitas a confirmação e disponibilidade de cada hotel.'}</p>
+    <p className="hotel-section__updated">{en ? 'Information updated on 8 October 2026. Offers are subject to hotel confirmation and availability.' : 'Informação atualizada a 8 de outubro de 2026. Condições sujeitas a confirmação e disponibilidade de cada hotel.'}</p>
   </section>;
 }

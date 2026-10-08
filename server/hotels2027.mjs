@@ -1,4 +1,4 @@
-// Participant conditions supplied by the organisation; Oslo added on 7 October 2026.
+// Participant conditions supplied by the organisation; D. Luís tourist tax updated on 8 October 2026.
 // These are received offers, not a declaration of official hotel status.
 // Keep private speaker rates and negotiation notes out of this public dataset.
 const confirmBreakfast = { pt: 'A confirmar com o hotel.', en: 'Confirm with the hotel.' };
@@ -17,7 +17,7 @@ export const hotels2027 = [
     booking: { pt: 'Reserve por email ou telefone e mencione o CIRC 2027.', en: 'Book by email or telephone and mention CIRC 2027.' },
     dates: { pt: '8 a 10 de abril de 2027.', en: '8–10 April 2027.' },
     breakfast: { pt: 'Incluído.', en: 'Included.' },
-    tax: { pt: '1,00 € por pessoa/noite, segundo a proposta recebida. Confirme o valor aplicável na reserva.', en: '€1.00 per person/night in the received offer. Confirm the applicable amount when booking.' },
+    tax: { pt: '2,00 € por pessoa e por noite, em vigor desde 1 de outubro de 2026, segundo informação do hotel.', en: '€2.00 per person, per night, effective from 1 October 2026, as confirmed by the hotel.' },
     conditions: { pt: 'Confirme a disponibilidade, o prazo de reserva e as condições de cancelamento diretamente com o hotel.', en: 'Confirm availability, the booking deadline and cancellation terms directly with the hotel.' },
   },
   {
