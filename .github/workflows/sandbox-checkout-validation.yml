@@ -1,0 +1,33 @@
+name: Sandbox checkout validation
+on:
+  push:
+    branches: [feature/sandbox-registration-checkout-20261009]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sandbox-checkout-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Server payment regression tests
+        run: node --test server/test/sandbox-mbway-entity.test.mjs server/test/sandbox-webhook.test.mjs server/test/eupago-sandbox.test.mjs server/test/sandbox-api.test.mjs
+      - name: Temporary offline validation workspace
+        run: |
+          tar -czf "$RUNNER_TEMP/sandbox-validation-workspace.tar.gz" --exclude='.git' --exclude='.github' --exclude='build' --exclude='*.log' server src scripts public media-published node_modules package.json package-lock.json wrangler.jsonc firebase.json firestore.rules firestore.indexes.json docs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-validation-workspace
+          path: ${{ runner.temp }}/sandbox-validation-workspace.tar.gz
+          retention-days: 1
