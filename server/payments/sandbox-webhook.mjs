@@ -61,16 +61,19 @@ export function parseSignedPayment(bytes, signature, key, channel) {
   const tx = body.transactions ?? body.transaction;
   const method = paymentMethods.get(tx?.method);
   const paidAt = paymentDate(tx?.date);
+  const entity = tx?.entity == null ? null : digits(tx.entity);
   if (!tx || Array.isArray(tx) || body.channel?.name !== channel || tx.status !== 'Paid'
     || !/^circ_test_[a-f0-9]{32}$/.test(tx.identifier || '')
     || !method || !digits(tx.reference) || !digits(tx.trid)
+    || (tx.entity != null && !/^\d{5}$/.test(entity || ''))
+    || (method === 'multibanco' && !entity)
     || tx.amount?.currency !== 'EUR' || cents(tx.amount?.value) !== 100
     || !paidAt) throw new Error('invalid_event');
   const hex = tx.identifier.slice(10);
   const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   if (!UUID.test(id)) throw new Error('invalid_event');
   const event = { id, identifier: tx.identifier, method,
-    reference: digits(tx.reference), entity: tx.entity == null ? null : digits(tx.entity),
+    reference: digits(tx.reference), entity,
     transactionId: digits(tx.trid), amountCents: 100, currency: 'EUR', paidAt };
   return { ...event, digest: createHash('sha256').update(JSON.stringify(event)).digest('hex') };
 }
@@ -101,25 +104,42 @@ export function createSandboxWebhook({ tokenProvider = createServiceTokenProvide
         let saved = await store.read(event.id);
         if (!saved) return json({ error: 'attempt_not_found' }, 404);
         const r = saved.record;
+        // MB WAY creation can omit entity, while the signed notification includes it.
+        // Only this missing-field case may be reconciled; a known mismatch stays fatal.
+        const reconcileEntity = r.method === 'mbway' && r.entity == null && event.entity !== null;
         if (r.kind !== 'gateway-test' || r.environment !== 'sandbox' || r.owner !== uid || r.id !== event.id
-          || r.identifier !== event.identifier || r.reference !== event.reference || (r.entity || null) !== event.entity
+          || r.identifier !== event.identifier || r.reference !== event.reference
+          || (!reconcileEntity && (r.entity || null) !== event.entity)
           || r.method !== event.method || r.amountCents !== event.amountCents || r.currency !== event.currency
           || !['pending', 'sandbox_paid'].includes(r.status)) return json({ error: 'attempt_mismatch' }, 422);
         if (r.notification && r.notification.digest !== event.digest) return json({ error: 'notification_conflict' }, 409);
         if (r.status === 'sandbox_paid' && r.notification?.verifiedAt) return json({ received: true, duplicate: true });
         try {
-          // Persist the authenticated receipt before the external status check.
-          if (!r.notification) saved = await store.replace(event.id, { ...r, notification: {
+          const notification = r.notification || {
             digest: event.digest, transactionId: event.transactionId, paidAt: event.paidAt, receivedAt: now(), verifiedAt: null,
-          } }, saved.version);
-          const hint = await provider.inspectReference(saved.record);
+          };
+          let verifiedHint;
+          if (reconcileEntity) {
+            // The existing authenticated adapter requires the API response to match
+            // reference, full identifier AND entity. Do not trust the callback alone,
+            // hard-code 10045, or persist an unverified entity/receipt on a mismatch.
+            verifiedHint = await provider.inspectReference({ ...r, entity: event.entity });
+            saved = await store.replace(event.id, { ...r, entity: event.entity, notification }, saved.version);
+          } else if (!r.notification) {
+            // Preserve the existing receipt-first path for already matched entities.
+            saved = await store.replace(event.id, { ...r, notification }, saved.version);
+          }
+          const hint = verifiedHint || await provider.inspectReference(saved.record);
           if (!['paga', 'pago', 'transferida'].includes(hint.providerState)) return json({ error: 'reconciliation_pending' }, 503);
           await store.replace(event.id, { ...saved.record, status: 'sandbox_paid', providerState: hint.providerState,
             providerStateCode: hint.providerStateCode ?? null, inspectedAt: now(),
             notification: { ...saved.record.notification, verifiedAt: now() } }, saved.version);
           // No registration, entitlement, production payment or invoice writes.
           return json({ received: true, duplicate: false });
-        } catch (error) { if (error.code !== 'conflict') throw error; }
+        } catch (error) {
+          if (error.code === 'reference-mismatch') return json({ error: 'attempt_mismatch' }, 422);
+          if (error.code !== 'conflict') throw error;
+        }
       }
       return json({ error: 'retry_notification' }, 503);
     } catch { return json({ error: 'notification_unavailable' }, 503); }
