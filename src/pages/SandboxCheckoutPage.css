@@ -1,0 +1,43 @@
+.sandbox-checkout { max-width: 1120px; margin: 0 auto; color: #141846; }
+.sandbox-checkout__header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: center; margin: 2rem 0; }
+.sandbox-checkout__header h1 { font-size: clamp(1.8rem, 3vw, 2.7rem); line-height: 1.1; margin: .5rem 0; }
+.sandbox-checkout__header a { color: #232eb7; white-space: nowrap; }
+.sandbox-checkout__eyebrow { font-weight: 800; letter-spacing: .1em; font-size: .8rem; }
+.sandbox-checkout__notice { background: #efe8df; padding: 1.2rem 1.4rem; border-left: 4px solid #e6503b; border-radius: 8px; margin: 1rem 0; }
+.sandbox-checkout__notice p { margin: .6rem 0 0; line-height: 1.6; }
+.sandbox-checkout__error { background: #fff0ec; border: 1px solid #c34836; padding: 1rem; border-radius: 8px; }
+.sandbox-checkout__actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.5rem; }
+.sandbox-checkout button { background: #232eb7; color: white; border: 1px solid #232eb7; border-radius: 7px; padding: .75rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+.sandbox-checkout button.secondary { background: white; color: #232eb7; }
+.sandbox-checkout button:disabled { opacity: .5; cursor: not-allowed; }
+.sandbox-checkout :is(button,input,select,a):focus-visible { outline: 3px solid #e6503b; outline-offset: 3px; }
+.sandbox-checkout__muted { font-size: .9rem; line-height: 1.55; color: #52586a; }
+.sandbox-checkout__identifier { margin-top: 2rem; overflow-wrap: anywhere; }
+.sandbox-checkout__steps { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin: 1.5rem 0; }
+.sandbox-checkout__steps li { padding: .8rem; border-top: 4px solid #c5c8d4; font-size: .85rem; }
+.sandbox-checkout__steps li.done { border-color: #232eb7; font-weight: 700; }
+.sandbox-checkout__panel { margin: 1.5rem 0; padding: 1.5rem; border: 1px solid #d9dce8; background: white; border-radius: 12px; }
+.sandbox-checkout__panel h2 { font-size: 1.3rem; margin: 0 0 1.2rem; }
+.sandbox-checkout fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.sandbox-checkout label { display: flex; flex-direction: column; gap: .5rem; font-weight: 600; margin: .8rem 0; }
+.sandbox-checkout label.check { flex-direction: row; align-items: flex-start; gap: .75rem; line-height: 1.5; }
+.sandbox-checkout input:not([type=checkbox]), .sandbox-checkout select { width: 100%; font: inherit; padding: .7rem .8rem; border: 1px solid #aeb4c6; border-radius: 6px; color: #141846; background: white; }
+.sandbox-checkout input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; margin-top: .15rem; accent-color: #232eb7; }
+.sandbox-checkout label small { font-size: .85rem; color: #52586a; line-height: 1.5; font-weight: 400; }
+.sandbox-checkout__grid { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.5rem; }
+.sandbox-checkout dl { display: grid; grid-template-columns: minmax(120px, .6fr) 1fr; margin: 1rem 0; gap: .4rem 1rem; }
+.sandbox-checkout dt { font-weight: 600; }
+.sandbox-checkout dd { margin: 0; overflow-wrap: anywhere; }
+.sandbox-checkout__quote { padding-top: 1.5rem; border-top: 1px solid #d9dce8; margin-top: 1.5rem; }
+.sandbox-checkout__quote dl { max-width: 600px; }
+.sandbox-checkout__quote dd { text-align: right; }
+.sandbox-checkout__confirmed { background: #edf5f0; border: 1px solid #bdd8c7; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; }
+.sandbox-checkout__confirmed h2 { margin-top: 0; font-size: 1.4rem; }
+.sandbox-checkout__order { padding: 1.3rem 0; border-bottom: 1px solid #d9dce8; }
+.sandbox-checkout__order:last-child { border-bottom: 0; }
+.sandbox-checkout__order h3 { margin: 0; font-size: 1.1rem; }
+.sandbox-checkout__order.is-confirmed > p { color: #165633; }
+.sandbox-checkout__history { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+.sandbox-checkout__history button { text-align: left; width: 100%; }
+.sandbox-checkout__history small { display: block; margin-top: .5rem; font-size: .75rem; overflow-wrap: anywhere; font-weight: 400; }
+@media (max-width: 700px) { .sandbox-checkout__header { display: block; } .sandbox-checkout__steps { grid-template-columns: 1fr 1fr; } .sandbox-checkout__grid, .sandbox-checkout__history { grid-template-columns: 1fr; } .sandbox-checkout__panel { padding: 1rem; } .sandbox-checkout dl { grid-template-columns: 1fr; gap: .2rem; } .sandbox-checkout dd { margin-bottom: .6rem; } .sandbox-checkout__quote dl { grid-template-columns: 1fr 1fr; } }

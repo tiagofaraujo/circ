@@ -1,7 +1,10 @@
 name: Sandbox checkout validation
 on:
   push:
-    branches: [feature/sandbox-registration-checkout-20261009]
+    branches: [main, feature/sandbox-registration-checkout-20261009]
+    paths: ['server/**', 'src/**', 'scripts/**', 'package*.json', 'wrangler.jsonc', '.github/workflows/sandbox-checkout-validation.yml']
+  pull_request:
+    paths: ['server/**', 'src/**', 'scripts/**', 'package*.json', 'wrangler.jsonc', '.github/workflows/sandbox-checkout-validation.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,12 +24,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Server payment regression tests
-        run: node --test server/test/sandbox-mbway-entity.test.mjs server/test/sandbox-webhook.test.mjs server/test/eupago-sandbox.test.mjs server/test/sandbox-api.test.mjs
-      - name: Temporary offline dependency workspace
-        run: tar -czf "$RUNNER_TEMP/sandbox-validation-workspace.tar.gz" node_modules
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sandbox-validation-workspace
-          path: ${{ runner.temp }}/sandbox-validation-workspace.tar.gz
-          retention-days: 1
+      - name: Server regression tests (mock providers only)
+        run: node --test server/test/*.test.mjs
+      - name: Frontend regression tests
+        run: CI=true npm test -- --watchAll=false --runInBand
+      - name: Production bundle (no deployment or payment credentials)
+        run: CI=true npm run build

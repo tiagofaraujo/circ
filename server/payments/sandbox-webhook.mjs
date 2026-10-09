@@ -49,7 +49,7 @@ function paymentDate(value) {
 }
 // Webhook 2.0: cleartext JSON over HTTPS, base64 HMAC-SHA256 over exact body bytes.
 // Encrypted payloads and webhook 1.0 are deliberately not accepted by this route.
-export function parseSignedPayment(bytes, signature, key, channel) {
+export function parseSignedPayment(bytes, signature, key, channel, { allowOrders = false } = {}) {
   if (typeof key !== 'string' || !key || typeof signature !== 'string'
     || !/^[A-Za-z0-9+/]{43}=$/.test(signature)) throw new Error('invalid_signature');
   const expected = createHmac('sha256', key).update(bytes).digest();
@@ -62,23 +62,26 @@ export function parseSignedPayment(bytes, signature, key, channel) {
   const method = paymentMethods.get(tx?.method);
   const paidAt = paymentDate(tx?.date);
   const entity = tx?.entity == null ? null : digits(tx.entity);
+  const checkoutOrder = allowOrders && /^circ_order_[a-f0-9]{32}_[1-9]\d?$/.test(tx?.identifier || '');
+  const amountCents = cents(tx?.amount?.value);
   if (!tx || Array.isArray(tx) || body.channel?.name !== channel || tx.status !== 'Paid'
-    || !/^circ_test_[a-f0-9]{32}$/.test(tx.identifier || '')
+    || (!checkoutOrder && !/^circ_test_[a-f0-9]{32}$/.test(tx.identifier || ''))
     || !method || !digits(tx.reference) || !digits(tx.trid)
     || (tx.entity != null && !/^\d{5}$/.test(entity || ''))
     || (method === 'multibanco' && !entity)
-    || tx.amount?.currency !== 'EUR' || cents(tx.amount?.value) !== 100
+    || tx.amount?.currency !== 'EUR'
+    || (checkoutOrder ? !Number.isSafeInteger(amountCents) || amountCents < 50 || amountCents > 9999900 : amountCents !== 100)
     || !paidAt) throw new Error('invalid_event');
-  const hex = tx.identifier.slice(10);
+  const hex = checkoutOrder ? tx.identifier.slice(11, 43) : tx.identifier.slice(10);
   const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   if (!UUID.test(id)) throw new Error('invalid_event');
   const event = { id, identifier: tx.identifier, method,
     reference: digits(tx.reference), entity,
-    transactionId: digits(tx.trid), amountCents: 100, currency: 'EUR', paidAt };
+    transactionId: digits(tx.trid), amountCents, currency: 'EUR', paidAt };
   return { ...event, digest: createHash('sha256').update(JSON.stringify(event)).digest('hex') };
 }
 export function createSandboxWebhook({ tokenProvider = createServiceTokenProvider(), storeFactory = createSandboxStore,
-  providerFactory = createEupagoSandbox, now = () => new Date().toISOString() } = {}) {
+  providerFactory = createEupagoSandbox, now = () => new Date().toISOString(), checkoutHandler = null } = {}) {
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(PREFIX)) return null;
@@ -93,8 +96,10 @@ export function createSandboxWebhook({ tokenProvider = createServiceTokenProvide
     let bytes;
     try { bytes = await boundedBody(request); } catch { return json({ error: 'invalid_request' }, 400); }
     let event;
-    try { event = parseSignedPayment(bytes, request.headers.get('X-Signature'), env.EUPAGO_SANDBOX_WEBHOOK_KEY, env.EUPAGO_SANDBOX_CHANNEL); }
+    try { event = parseSignedPayment(bytes, request.headers.get('X-Signature'), env.EUPAGO_SANDBOX_WEBHOOK_KEY, env.EUPAGO_SANDBOX_CHANNEL, { allowOrders: typeof checkoutHandler === 'function' }); }
     catch (error) { return json({ error: error.message === 'invalid_signature' ? 'invalid_signature' : 'invalid_event' }, error.message === 'invalid_signature' ? 401 : 422); }
+    // Both checkout and the original EUR 1 gateway test share this signed URL.
+    if (event.identifier.startsWith('circ_order_')) return checkoutHandler(event, uid, env);
     // Authentication and bounded parsing precede ALL database and provider calls.
     try {
       const token = await tokenProvider(env);

@@ -41,6 +41,7 @@ import AdminSecretariatPage from './pages/AdminSecretariatPage';
 import AdminCompaniesPage from './pages/AdminCompaniesPage';
 import AdminStudentsPage from './pages/AdminStudentsPage';
 import AdminSandboxPaymentsPage from './pages/AdminSandboxPaymentsPage';
+import SandboxCheckoutPage from './pages/SandboxCheckoutPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import ScientificReviewerPage from './pages/ScientificReviewerPage';
 import ScientificReviewManagementPage from './pages/ScientificReviewManagementPage';
@@ -182,6 +183,8 @@ function App() {
               }
             />
 
+            <Route path="/conta/inscricoes-teste" element={<AdminRoute permission="registrations"><SandboxCheckoutPage /></AdminRoute>} />
+            <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes-teste" replace />} />
             <Route path="/admin/pagamentos-teste" element={<AdminRoute permission="registrations"><AdminSandboxPaymentsPage /></AdminRoute>} />
             <Route path="/admin/empresas" element={<AdminRoute permission="registrations"><AdminCompaniesPage /></AdminRoute>} />
             <Route path="/admin/estudantes" element={<AdminRoute permission="secretariat"><AdminStudentsPage /></AdminRoute>} />

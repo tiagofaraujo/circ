@@ -3,6 +3,7 @@ import { handleSocialMetadata } from './social-metadata.mjs';
 import { handleMedia } from './media.mjs';
 import { createSandboxApi } from './payments/sandbox-api.mjs';
 import { createSandboxWebhook } from './payments/sandbox-webhook.mjs';
+import { createCheckoutSandboxApi, createCheckoutSandboxNotification } from './payments/checkout-sandbox.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -39,7 +40,8 @@ function json(body, status = 200, headers = {}) {
 // The injected verifier is only used by local tests. Production always uses Google's keys.
 export function createWorker(verify = verifyFirebaseToken) {
   const sandbox = createSandboxApi({ verify });
-  const sandboxWebhook = createSandboxWebhook();
+  const sandboxWebhook = createSandboxWebhook({ checkoutHandler: createCheckoutSandboxNotification() });
+  const sandboxCheckout = createCheckoutSandboxApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
@@ -49,6 +51,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (mediaResponse) return mediaResponse;
       const socialResponse = await handleSocialMetadata(request, env);
       if (socialResponse) return socialResponse;
+      const checkoutResponse = await sandboxCheckout(request, env);
+      if (checkoutResponse) return checkoutResponse;
       const sandboxResponse = await sandbox(request, env);
       if (sandboxResponse) return sandboxResponse;
       if (!pathname.startsWith('/api/')) return env.ASSETS.fetch(request);

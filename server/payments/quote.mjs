@@ -78,3 +78,19 @@ export function quoteSupplementary(selection, context, registration, now = new D
   if ((items.morningCourse && owned.morningCourse) || (items.afternoonCourse && owned.afternoonCourse)) fail('course-already-owned');
   return makeQuote(profile, '', items, now, 'supplementary');
 }
+
+// Explicit sandbox boundary. Never weaken the production supplementary guard
+// or strip isTest flags to reuse it. Only isolated confirmed checkout snapshots
+// can be quoted here; real eligibility still comes from server reads.
+export function quoteSandboxSupplementary(selection, context, session, now = new Date()) {
+  const items = itemsFrom(selection);
+  if (session?.kind !== 'checkout-test' || session.environment !== 'sandbox'
+    || session.eventId !== EVENT || session.owner !== context.uid
+    || session.registration?.status !== 'confirmed') fail('sandbox-registration-required');
+  const profile = session.registration.selection?.profile;
+  assertEligibility(profile, context);
+  if (selection.congressMode || (selection.profile && selection.profile !== profile)) fail('invalid-addition');
+  const owned = session.registration.entitlements;
+  if (!owned || (items.morningCourse && owned.morningCourse) || (items.afternoonCourse && owned.afternoonCourse)) fail('course-already-owned');
+  return makeQuote(profile, '', items, now, 'supplementary');
+}
