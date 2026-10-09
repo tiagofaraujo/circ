@@ -23,9 +23,8 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Server payment regression tests
         run: node --test server/test/sandbox-mbway-entity.test.mjs server/test/sandbox-webhook.test.mjs server/test/eupago-sandbox.test.mjs server/test/sandbox-api.test.mjs
-      - name: Temporary offline validation workspace
-        run: |
-          tar -czf "$RUNNER_TEMP/sandbox-validation-workspace.tar.gz" --exclude='.git' --exclude='.github' --exclude='build' --exclude='*.log' server src scripts public media-published node_modules package.json package-lock.json wrangler.jsonc firebase.json firestore.rules firestore.indexes.json docs
+      - name: Temporary offline dependency workspace
+        run: tar -czf "$RUNNER_TEMP/sandbox-validation-workspace.tar.gz" node_modules
       - uses: actions/upload-artifact@v4
         with:
           name: sandbox-validation-workspace
