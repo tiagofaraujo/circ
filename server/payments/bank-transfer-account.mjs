@@ -1,16 +1,16 @@
-// Supplied by the organiser on 10/10/2026. Account ownership is NOT verified by
-// a checksum. Do not publish payment instructions until the exact bank holder
-// and a separate production rollout have been approved.
+// IBAN and exact holder supplied by the organiser on 10/10/2026. This records
+// their instructions, not independent bank verification. Supplying the holder
+// does not approve a production rollout or enable real payment instructions.
 export const proposedBankAccount = Object.freeze({
   iban: 'PT50003300004567422451905',
-  beneficiary: null,
-  status: 'awaiting_holder',
+  beneficiary: 'Associação Hemisfério Disciplinado',
+  status: 'awaiting_activation',
   enabled: false,
 });
 
-// The rehearsal never returns a usable real destination, even after the holder
-// is supplied. No browser/query parameter can change this environment boundary.
+// The rehearsal can identify the association, but never returns its real IBAN.
+// No browser/query parameter can change this environment boundary.
 export function sandboxBankAccount() {
-  return { environment: 'sandbox', enabled: false, iban: null, beneficiary: null,
-    setupStatus: proposedBankAccount.status };
+  return { environment: 'sandbox', enabled: false, iban: null,
+    beneficiary: proposedBankAccount.beneficiary, setupStatus: proposedBankAccount.status };
 }

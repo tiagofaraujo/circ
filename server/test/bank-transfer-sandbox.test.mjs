@@ -291,7 +291,9 @@ test('the administrative queue exposes only compact bank-order metadata and no b
   const config = await (await f.call('config')).json();
   assert.deepEqual(config.bankTransferAccount, sandboxBankAccount());
   assert.equal(config.bankTransferAccount.enabled, false); assert.equal(config.bankTransferAccount.iban, null);
-  assert.equal(proposedBankAccount.beneficiary, null); assert.equal(proposedBankAccount.enabled, false);
+  assert.equal(proposedBankAccount.beneficiary, 'Associação Hemisfério Disciplinado'); assert.equal(proposedBankAccount.enabled, false);
+  assert.equal(config.bankTransferAccount.beneficiary, proposedBankAccount.beneficiary);
+  assert.equal(config.bankTransferAccount.setupStatus, 'awaiting_activation');
   assert.ok(!JSON.stringify(config).includes(proposedBankAccount.iban));
 });
 test('report API rejects spoofed fields, missing acknowledgements and unauthorized requests', async () => {
