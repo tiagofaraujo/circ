@@ -1,0 +1,20 @@
+name: Bank transfer sandbox validation
+on:
+  push:
+    branches: [feature/bank-transfer-sandbox-20261010]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: git archive --format=tar.gz HEAD -o "$RUNNER_TEMP/circ-bank-transfer-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bank-transfer-source
+          path: ${{ runner.temp }}/circ-bank-transfer-source.tar.gz
+          retention-days: 1
