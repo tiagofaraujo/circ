@@ -120,3 +120,15 @@ test('English copy remains available inside the existing language system', async
   await waitFor(() => expect(screen.getByRole('button', { name: 'New test registration' })).not.toBeDisabled());
   expect(screen.getByText('Testing only — no real charges')).toBeInTheDocument();
 });
+
+test('bank transfer selection creates only the bank method and never sends a phone', async () => {
+  setupFetch(); mount(); await newTest(); fireEvent.click(screen.getByRole('button', { name: 'Preparar resumo de teste' }));
+  await screen.findByRole('button', { name: /Criar pedido na sandbox/ });
+  fireEvent.change(screen.getByLabelText('Meio de pagamento'), { target: { value: 'bank_transfer' } });
+  expect(screen.queryByLabelText(/Número MB WAY/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que este pedido/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Criar pedido de transferência de teste/ }));
+  await screen.findByText('405001');
+  const body = JSON.parse(fetch.mock.calls.find(([url]) => url.endsWith('/orders'))[1].body);
+  expect(body.method).toBe('bank_transfer'); expect(body.phone).toBeUndefined(); expect(body.amountCents).toBeUndefined();
+});

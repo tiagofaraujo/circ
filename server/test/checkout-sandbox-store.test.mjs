@@ -131,3 +131,49 @@ test('registration-copy derives its canonical ID from the authenticated document
   assert.equal(data.id, 'circ-2027-admin'); assert.equal(data.isTest, true);
   assert.equal(data.payment.status, 'paid');
 });
+
+test('bank proof bytes and session metadata are committed atomically to separate private settings', async () => {
+  const pid = '57892222-b856-41c9-a519-e2cc97bb3b69', oid = 'af91d4b0-d844-4a37-a71e-05f939a04f83';
+  const p = { id: pid, orderId: oid, sessionId: ID, owner: 'admin', environment: 'sandbox', kind: 'bank-proof-test', base64: 'dGVzdA==' };
+  const store = make(async (url, options) => {
+    assert.ok(url.endsWith('/documents:commit')); const body = JSON.parse(options.body);
+    assert.equal(body.writes.length, 2); assert.equal(body.writes[0].update.name, name);
+    assert.deepEqual(body.writes[0].currentDocument, { updateTime: 'v1' });
+    assert.equal(body.writes[1].update.name, `${root}/settings/circ-bank-proof-sandbox-admin-${ID}-${oid}-${pid}`);
+    assert.deepEqual(body.writes[1].currentDocument, { exists: false });
+    assert.ok(!JSON.stringify(body.writes[0]).includes(p.base64));
+    return Response.json({ writeResults: [{ updateTime: 'v2' }, { updateTime: 'v2' }] });
+  });
+  assert.equal((await store.attachBankProof(ID, record, 'v1', p)).version, 'v2');
+});
+test('unique bank-credit claim and confirmation are in the same conditional commit', async () => {
+  const key = 'a'.repeat(64), oid = 'af91d4b0-d844-4a37-a71e-05f939a04f83';
+  const credit = { key, orderId: oid, sessionId: ID, owner: 'admin', environment: 'sandbox', kind: 'bank-credit-test' };
+  const store = make(async (url, options) => {
+    const { writes } = JSON.parse(options.body); assert.equal(writes.length, 2);
+    assert.equal(writes[1].update.name, `${root}/settings/circ-bank-credit-sandbox-admin-${key}`);
+    assert.deepEqual(writes[1].currentDocument, { exists: false });
+    return Response.json({ writeResults: [{ updateTime: 'v2' }, { updateTime: 'v2' }] });
+  });
+  assert.equal((await store.confirmBankTransfer(ID, record, 'v1', credit)).version, 'v2');
+});
+test('bank proof reads enforce owner and order identity even with a known UUID', async () => {
+  const pid = '57892222-b856-41c9-a519-e2cc97bb3b69', oid = 'af91d4b0-d844-4a37-a71e-05f939a04f83';
+  const store = make(async url => Response.json({ name: url.split('/v1/')[1], fields: { payload: { stringValue: JSON.stringify({
+    id: pid, orderId: oid, sessionId: ID, environment: 'sandbox', owner: 'other', kind: 'bank-proof-test',
+  }) } } }));
+  await assert.rejects(store.readBankProof(ID, oid, pid));
+});
+test('bank writes reject different owners, production and paths before network access', async () => {
+  const store = make(() => assert.fail('must not fetch'));
+  const p = { id: ID, orderId: ID, sessionId: ID, owner: 'admin', environment: 'sandbox', kind: 'bank-proof-test', base64: 'dGVzdA==' };
+  for (const fields of [{ owner: 'other' }, { environment: 'production' }, { orderId: '../private' }, { sessionId: 'bad' }]) {
+    await assert.rejects(store.attachBankProof(ID, record, 'v1', { ...p, ...fields }));
+  }
+  await assert.rejects(store.bankCreditExists('../bank'));
+});
+test('bank commit conflicts propagate instead of acknowledging partial success', async () => {
+  const store = make(async () => new Response('private-details', { status: 409 }));
+  const credit = { key: 'a'.repeat(64), orderId: ID, sessionId: ID, owner: 'admin', environment: 'sandbox', kind: 'bank-credit-test' };
+  await assert.rejects(store.confirmBankTransfer(ID, record, 'v1', credit), error => error.code === 'conflict');
+});

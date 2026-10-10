@@ -59,7 +59,45 @@ export function createCheckoutSandboxStore({ projectId, token, uid, fetchImpl = 
     if (document.name !== resource || !document.updateTime) throw new SandboxStoreError('storage_unavailable');
     return { data: decode({ mapValue: { fields: document.fields } }), guard: { name: resource, version: document.updateTime } };
   }
+  const proofName = (sessionId, orderId, proofId) => {
+    if (![sessionId, orderId, proofId].every(id => CHECKOUT_UUID.test(id || ''))) throw new SandboxStoreError('invalid_request');
+    return `${root}/settings/circ-bank-proof-sandbox-${uid}-${sessionId}-${orderId}-${proofId}`;
+  };
+  const creditName = key => {
+    if (!/^[a-f0-9]{64}$/.test(key || '')) throw new SandboxStoreError('invalid_request');
+    return `${root}/settings/circ-bank-credit-sandbox-${uid}-${key}`;
+  };
+  async function commitBankExtra(id, record, version, resource, payload) {
+    assertRecord(record, id);
+    if (!version || payload.owner !== uid || payload.environment !== 'sandbox' || payload.sessionId !== id) throw new SandboxStoreError('invalid_request');
+    const result = await call(`${endpoint}:commit`, 'POST', { writes: [
+      { update: { name: name(id), fields: fields(record) }, currentDocument: { updateTime: version } },
+      { update: { name: resource, fields: fields(payload) }, currentDocument: { exists: false } },
+    ] });
+    if (!result.writeResults?.[0]?.updateTime) throw new SandboxStoreError('storage_unavailable');
+    return { record, version: result.writeResults[0].updateTime };
+  }
   return {
+    async attachBankProof(id, record, version, proof) {
+      if (proof.kind !== 'bank-proof-test' || typeof proof.base64 !== 'string' || proof.base64.length > 682668) throw new SandboxStoreError('invalid_request');
+      return commitBankExtra(id, record, version, proofName(id, proof.orderId, proof.id), proof);
+    },
+    async readBankProof(sessionId, orderId, proofId) {
+      const resource = proofName(sessionId, orderId, proofId);
+      const document = await call(`https://firestore.googleapis.com/v1/${resource}`);
+      if (!document) return null;
+      try {
+        const proof = JSON.parse(document.fields.payload.stringValue);
+        if (document.name !== resource || proof.id !== proofId || proof.orderId !== orderId || proof.sessionId !== sessionId
+          || proof.owner !== uid || proof.environment !== 'sandbox' || proof.kind !== 'bank-proof-test') throw new Error();
+        return proof;
+      } catch { throw new SandboxStoreError('storage_unavailable'); }
+    },
+    async bankCreditExists(key) { return Boolean(await call(`https://firestore.googleapis.com/v1/${creditName(key)}`)); },
+    async confirmBankTransfer(id, record, version, credit) {
+      if (credit.kind !== 'bank-credit-test' || !CHECKOUT_UUID.test(credit.orderId || '')) throw new SandboxStoreError('invalid_request');
+      return commitBankExtra(id, record, version, creditName(credit.key), credit);
+    },
     async read(id) { const d = await call(`https://firestore.googleapis.com/v1/${name(id)}`); return d ? unpack(d, id) : null; },
     async create(id, record) {
       assertRecord(record, id);

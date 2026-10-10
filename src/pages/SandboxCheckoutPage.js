@@ -4,10 +4,12 @@ import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import AdminModuleNav from '../components/AdminModuleNav';
 import './SandboxCheckoutPage.css';
+import SandboxBankTransfer, { transferMessages, transferLabels } from './SandboxBankTransfer';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const emptySelection = () => ({ profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
 const messages = {
+  ...transferMessages,
   'invalid-session': ['A sessão expirou. Volte a iniciar sessão.', 'Your session expired. Sign in again.'],
   'admin-required': ['Este ensaio está reservado à conta administradora da organização.', 'This test is restricted to the organiser administrator account.'],
   'sandbox-not-configured': ['Falta configuração da sandbox no servidor. Não foi criado um pagamento.', 'Server sandbox configuration is missing. No payment was created.'],
@@ -68,6 +70,7 @@ export default function SandboxCheckoutPage() {
   const [pollError, setPollError] = useState(false);
   const [recoveries, setRecoveries] = useState({});
   const alive = useRef(true);
+  const running = useRef(false);
   const creatingSession = useRef(null);
   const orderKey = `${storageKey}-${id}-order`;
   const money = cents => new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
@@ -76,11 +79,12 @@ export default function SandboxCheckoutPage() {
   const waiting = session?.orders.some(o => ['creating', 'creation_unknown', 'pending'].includes(o.status));
   const reviewRequired = session?.orders.some(o => o.status === 'review_required');
 
-  async function api(path, body, signal) {
+  async function api(path, body, signal, download = false) {
     const token = await user.getIdToken();
     const response = await fetch(`/api/checkout/sandbox/${path}`, { method: body ? 'POST' : 'GET', cache: 'no-store', signal,
       headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}) });
+    if (download && response.ok) return response.blob();
     const data = await response.json();
     if (!response.ok) { const issue = new Error(data.error || 'service-unavailable'); issue.session = data.session; throw issue; }
     return data;
@@ -105,6 +109,7 @@ export default function SandboxCheckoutPage() {
       try {
         const settings = await api('config', undefined, controller.signal);
         if (!active) return; setConfig(settings);
+        if (settings.eupagoConfigured === false) setMethod('bank_transfer');
         if (settings.configured) {
           const list = await api('sessions', undefined, controller.signal);
           if (!active) return; setHistory(list.sessions); setTruncated(list.truncated);
@@ -134,9 +139,9 @@ export default function SandboxCheckoutPage() {
   }, [id, waiting, busy, pollError, user]);
 
   async function run(work) {
-    if (busy) return; setBusy(true); setError('');
+    if (busy || running.current) return; running.current = true; setBusy(true); setError('');
     try { await work(); } catch (issue) { displayError(issue); }
-    finally { if (alive.current) setBusy(false); }
+    finally { running.current = false; if (alive.current) setBusy(false); }
   }
   function resetForm() { setSelection(emptySelection()); setQuote(null); setPhone(''); setAcknowledged(false); setPollError(false); }
   function newSession(source) {
@@ -170,7 +175,7 @@ export default function SandboxCheckoutPage() {
     <header className="sandbox-checkout__header"><div><p className="sandbox-checkout__eyebrow">My CIRC · SANDBOX</p><h1>{t('Inscrição e pagamento de teste', 'Test registration and payment')}</h1></div><Link to="/admin/pagamentos-teste">{t('Teste técnico de 1 €', 'EUR 1 connection test')} ↗</Link></header>
     <section className="sandbox-checkout__notice" aria-label={t('Ambiente de testes', 'Test environment')}>
       <strong>{t('Só para testes — sem cobranças reais', 'Testing only — no real charges')}</strong>
-      <p>{t('Este percurso usa a sandbox da Eupago. Não efetue pagamentos no banco nem na aplicação MB WAY real. Não ocupa vagas reais, não resgata vouchers e não emite faturas ou certificados.', 'This flow uses Eupago sandbox. Do not pay through your bank or the real MB WAY app. It does not use real places, redeem vouchers or issue invoices or certificates.')}</p>
+      <p>{t('Este percurso usa a sandbox da Eupago ou transferências bancárias simuladas. Não efetue pagamentos no banco nem na aplicação MB WAY real. Não ocupa vagas reais, não resgata vouchers e não emite faturas ou certificados.', 'This flow uses Eupago sandbox or simulated bank transfers. Do not pay through your bank or the real MB WAY app. It does not use real places, redeem vouchers or issue invoices or certificates.')}</p>
     </section>
     {config && !config.configured && <p role="alert">{messages['sandbox-not-configured'][en ? 1 : 0]}</p>}
     {error && <p className="sandbox-checkout__error" role="alert">{error}</p>}
@@ -186,8 +191,8 @@ export default function SandboxCheckoutPage() {
       <p className="sandbox-checkout__identifier">{t('Identificador da inscrição de teste', 'Test registration ID')}: <code>{session.id}</code></p>
       <ol className="sandbox-checkout__steps" aria-label={t('Progresso do teste', 'Test progress')}>
         <li className={quote || session.orders.length ? 'done' : ''}>1 · {t('Seleção e preço no servidor', 'Selection and server pricing')}</li>
-        <li className={session.orders.some(o => o.reference) ? 'done' : ''}>2 · {t('Pedido na sandbox', 'Sandbox request')}</li>
-        <li className={session.orders.some(o => o.notification?.verifiedAt) ? 'done' : ''}>3 · {t('Notificação validada', 'Validated notification')}</li>
+        <li className={session.orders.some(o => o.reference || o.bankTransfer) ? 'done' : ''}>2 · {t('Pedido de teste registado', 'Test request recorded')}</li>
+        <li className={session.orders.some(o => o.notification?.verifiedAt || o.bankTransfer?.confirmation) ? 'done' : ''}>3 · {t('Pagamento de teste validado', 'Test payment validated')}</li>
         <li className={supplementary ? 'done' : ''}>4 · {t('Inscrição de teste confirmada', 'Test registration confirmed')}</li>
       </ol>
       {confirmed && <section className="sandbox-checkout__confirmed" role="status"><h2>{t('Inscrição de teste confirmada', 'Test registration confirmed')}</h2>
@@ -209,20 +214,21 @@ export default function SandboxCheckoutPage() {
           </div><p className="sandbox-checkout__muted">{t('As tarifas ULS e estudante exigem validação real desta conta no servidor, também neste ensaio. Não são aprovadas por selecionar a categoria.', 'ULS and student rates require this account’s real server-side eligibility, also in this test. Selecting a category does not approve it.')}</p><button type="submit">{t('Preparar resumo de teste', 'Prepare test summary')}</button></fieldset>
         </form>
         {quote && <form className="sandbox-checkout__quote" onSubmit={createPayment}><h3>{t('Resumo calculado pelo servidor', 'Server-calculated summary')}</h3>
-          <dl>{quote.quote.lines.map(line => <React.Fragment key={line.code}><dt>{line.quantity} × {lineNames[line.code]?.[en ? 1 : 0] || line.code}</dt><dd>{money(line.amountCents)}</dd></React.Fragment>)}<dt><strong>{t('Total enviado à sandbox', 'Total sent to sandbox')}</strong></dt><dd><strong>{money(quote.quote.amountCents)}</strong></dd></dl>
+          <dl>{quote.quote.lines.map(line => <React.Fragment key={line.code}><dt>{line.quantity} × {lineNames[line.code]?.[en ? 1 : 0] || line.code}</dt><dd>{money(line.amountCents)}</dd></React.Fragment>)}<dt><strong>{t('Total do pedido de teste', 'Test request total')}</strong></dt><dd><strong>{money(quote.quote.amountCents)}</strong></dd></dl>
           <p>{t('O valor usa o catálogo do CIRC, não o teste técnico fixo de 1 €. Continua a ser um pagamento simulado.', 'The amount uses the CIRC catalogue, not the fixed EUR 1 connection test. It is still a simulated payment.')}</p>
-          <fieldset disabled={busy}><label>{t('Meio de pagamento', 'Payment method')}<select value={method} onChange={e => setMethod(e.target.value)}><option value="mbway">MB WAY</option><option value="multibanco">Multibanco</option></select></label>
+          <fieldset disabled={busy}><label>{t('Meio de pagamento', 'Payment method')}<select value={method} onChange={e => setMethod(e.target.value)}><option value="mbway" disabled={config?.eupagoConfigured === false}>MB WAY</option><option value="multibanco" disabled={config?.eupagoConfigured === false}>Multibanco</option><option value="bank_transfer">{t('Transferência bancária — teste', 'Bank transfer — test')}</option></select></label>
+            {method === 'bank_transfer' && <p>{t('Pedido interno, sem IBAN e sem dinheiro real. A confirmação exige comprovativo e validação manual de teste.', 'Internal request, without IBAN or real money. Confirmation requires proof and manual test validation.')}</p>}
             {method === 'mbway' && <label>{t('Número MB WAY para a sandbox', 'MB WAY number for sandbox')}<input type="tel" inputMode="numeric" autoComplete="off" pattern="9[0-9]{8}" maxLength="9" required value={phone} onChange={e => setPhone(e.target.value)} /><small>{t('Nove algarismos, sem +351. Use o número que já funcionou na sandbox. 987654321 é um cenário de erro, não de sucesso. O número não fica guardado no teste.', 'Nine digits, without +351. Use the number that already worked in sandbox. 987654321 is an error scenario, not a success scenario. The number is not stored in the test.')}</small></label>}
             <label className="check"><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} required />{t('Confirmo que este pedido é exclusivamente de teste e não vou pagá-lo no banco ou na aplicação MB WAY real.', 'I confirm this is a test-only request and will not pay it through my bank or the real MB WAY app.')}</label>
-            <button type="submit" disabled={!acknowledged}>{t('Criar pedido na sandbox', 'Create sandbox request')} · {money(quote.quote.amountCents)}</button>
+            <button type="submit" disabled={!acknowledged}>{method === 'bank_transfer' ? t('Criar pedido de transferência de teste', 'Create test transfer request') : t('Criar pedido na sandbox', 'Create sandbox request')} · {money(quote.quote.amountCents)}</button>
           </fieldset>
         </form>}
       </section>}
-      {waiting && <p className="sandbox-checkout__notice">{t('Localize na sandbox a referência e o identificador abaixo e simule aí o pagamento. Esta página lê automaticamente o resultado guardado pelo webhook a cada 5 segundos. Não é necessário consultar manualmente a Eupago para confirmar.', 'Find the reference and identifier below in sandbox and simulate payment there. This page reads the saved webhook result automatically every 5 seconds. A manual Eupago query is not required to confirm it.')}</p>}
+      {waiting && session.orders.some(o => o.method !== 'bank_transfer' && ['pending', 'creating', 'creation_unknown'].includes(o.status)) && <p className="sandbox-checkout__notice">{t('Localize na sandbox a referência e o identificador abaixo e simule aí o pagamento. Esta página lê automaticamente o resultado guardado pelo webhook a cada 5 segundos. Não é necessário consultar manualmente a Eupago para confirmar.', 'Find the reference and identifier below in sandbox and simulate payment there. This page reads the saved webhook result automatically every 5 seconds. A manual Eupago query is not required to confirm it.')}</p>}
       {session.orders.length > 0 && <section className="sandbox-checkout__panel"><h2>{t('Pedidos e notificações deste teste', 'Requests and notifications for this test')}</h2>
         {[...session.orders].reverse().map(order => <article key={order.id} className={`sandbox-checkout__order is-${order.status}`}>
-          <h3>{order.method === 'mbway' ? 'MB WAY' : 'Multibanco'} · {money(order.amountCents)}</h3><p><strong>{statusNames[order.status]?.[en ? 1 : 0] || order.status}</strong></p>
-          <dl><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference || t('Ainda não confirmada', 'Not yet confirmed')}</dd>{order.entity && <><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd></>}<dt>{t('Identificador na Eupago', 'Eupago identifier')}</dt><dd><code>{order.identifier}</code></dd>
+          <h3>{order.method === 'bank_transfer' ? t('Transferência bancária — teste', 'Bank transfer — test') : order.method === 'mbway' ? 'MB WAY' : 'Multibanco'} · {money(order.amountCents)}</h3><p><strong>{order.bankTransfer ? transferLabels[order.bankTransfer.status]?.[en ? 1 : 0] : statusNames[order.status]?.[en ? 1 : 0] || order.status}</strong></p>
+          {order.method !== 'bank_transfer' && <><dl><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference || t('Ainda não confirmada', 'Not yet confirmed')}</dd>{order.entity && <><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd></>}<dt>{t('Identificador na Eupago', 'Eupago identifier')}</dt><dd><code>{order.identifier}</code></dd>
             <dt>{t('Criado em', 'Created at')}</dt><dd>{date(order.createdAt)}</dd>
             {order.providerState && <><dt>{t('Informação da consulta', 'Query information')}</dt><dd>{order.providerState}{!order.notification?.verifiedAt && t(' — não substitui a notificação validada', ' — does not replace a validated notification')}</dd></>}
             {order.creationDiagnostic && <><dt>{t('Diagnóstico da criação', 'Creation diagnostic')}</dt><dd>{order.creationDiagnostic}</dd></>}
@@ -231,7 +237,8 @@ export default function SandboxCheckoutPage() {
           {order.reference && <button type="button" className="secondary" disabled={busy} onClick={() => run(async () => updateSession((await api(`sessions/${id}/orders/${order.id}/inspect`, {})).session))}>{t('Consultar estado na Eupago', 'Inspect Eupago status')}</button>}
           {!order.reference && ['creating', 'creation_unknown'].includes(order.status) && <form onSubmit={event => { event.preventDefault(); run(async () => updateSession((await api(`sessions/${id}/orders/${order.id}/recover`, { reference: recoveries[order.id] || '' })).session)); }}>
             <label>{t('Referência encontrada na sandbox para este identificador', 'Reference found in sandbox for this identifier')}<input type="text" inputMode="numeric" pattern="[0-9]{1,30}" maxLength="30" required value={recoveries[order.id] || ''} onChange={e => setRecoveries(r => ({ ...r, [order.id]: e.target.value }))} /></label><button type="submit" disabled={busy}>{t('Recuperar referência sem criar outro pedido', 'Recover reference without another request')}</button>
-          </form>}
+          </form>}</>}
+          {order.method === 'bank_transfer' && <SandboxBankTransfer key={`${id}-${order.id}`} sessionId={id} order={order} en={en} api={api} run={run} busy={busy} onUpdate={updateSession} />}
         </article>)}
       </section>}
     </>}

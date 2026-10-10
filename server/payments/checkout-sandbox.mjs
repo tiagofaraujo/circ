@@ -1,4 +1,5 @@
 import { createHash, createHmac } from 'node:crypto';
+import { prepareBankTransfer, actOnBankTransfer, MAX_PROOF_BYTES, BANK_TRANSFER_ERRORS } from './bank-transfer-sandbox.mjs';
 import { createCheckoutSandboxStore, CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
 import { createEupagoSandbox, safeProviderDiagnostic } from './eupago-sandbox.mjs';
 import { createServiceTokenProvider } from './service-token.mjs';
@@ -20,12 +21,12 @@ const reply = (data, status = 200) => Response.json(data, { status, headers: {
 function exact(object, keys) {
   if (!object || typeof object !== 'object' || Array.isArray(object) || Object.keys(object).some(key => !keys.includes(key))) fail('invalid-request');
 }
-async function readBody(request) {
+async function readBody(request, limit = 4096) {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) fail('invalid-request');
   const reader = request.body?.getReader(); if (!reader) fail('invalid-request');
   const chunks = []; let size = 0;
   while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length;
-    if (size > 4096) { await reader.cancel(); fail('invalid-request'); } chunks.push(Buffer.from(chunk.value)); }
+    if (size > limit) { await reader.cancel(); fail('invalid-request'); } chunks.push(Buffer.from(chunk.value)); }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { fail('invalid-request'); }
 }
 function selectionInput(selection, supplementary) {
@@ -49,11 +50,12 @@ export function checkoutPublicRecord(record) {
 }
 function publicError(error) {
   const domain = error.message?.startsWith('checkout/') ? error.message.slice(9) : '';
+  if (BANK_TRANSFER_ERRORS.has(domain)) return reply({ error: domain }, domain === 'transfer-proof-too-large' ? 413 : ['transfer-credit-used', 'transfer-stale-review', 'transfer-invalid-state'].includes(domain) ? 409 : 400);
   const allowed = new Set(['invalid-request', 'invalid-selection', 'invalid-quantity', 'invalid-profile', 'invalid-mode',
     'invalid-amount', 'sign-in-required', 'student-not-approved', 'uls-not-verified', 'course-required',
     'course-already-owned', 'paid-registration-required', 'sandbox-registration-required', 'invalid-addition',
     'quote-changed', 'pending-order', 'order-limit', 'not-found', 'idempotency-conflict', 'recovery-not-allowed',
-    'reference-mismatch', 'review-required', 'source-registration-invalid']);
+    'reference-mismatch', 'review-required', 'source-registration-invalid', 'sandbox-not-configured']);
   if (allowed.has(domain)) return reply({ error: domain }, ['pending-order', 'quote-changed', 'idempotency-conflict', 'review-required', 'recovery-not-allowed'].includes(domain) ? 409 : domain === 'not-found' ? 404 : 400);
   if (['storage_forbidden', 'storage_session_expired', 'storage_unavailable', 'conflict'].includes(error.code)) return reply({ error: error.code }, error.code === 'conflict' ? 409 : 503);
   if (error.code === 'reference-mismatch') return reply({ error: 'reference-mismatch' }, 409);
@@ -88,24 +90,27 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     if (request.method === 'POST' && request.headers.get('Origin') !== url.origin) return reply({ error: 'invalid-origin' }, 403);
     const configured = Boolean(env.EUPAGO_SANDBOX_API_KEY?.trim() && env.EUPAGO_SANDBOX_WEBHOOK_KEY
       && env.EUPAGO_SANDBOX_CHANNEL?.trim() && env.FIREBASE_SANDBOX_SERVICE_ACCOUNT);
-    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured, environment: 'sandbox',
+    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured: true, eupagoConfigured: configured, bankTransferConfigured: true, environment: 'sandbox',
       period: getRegistrationPeriod(new Date(now())), rates: { congress: CONGRESS_RATES, courses: COURSE_RATES, dinner: DINNER_RATE, virtual: VIRTUAL_CONGRESS_RATE },
       maxDinners: MAX_DINNERS, maxOrders: MAX_ORDERS });
-    if (!configured) return reply({ error: 'sandbox-not-configured' }, 503);
     const collection = url.pathname === `${PREFIX}/sessions`;
-    const match = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)(?:\/(quote|orders)(?:\/([^/]+)\/(inspect|recover))?)?$/);
+    const match = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)(?:\/(quote|orders)(?:\/([^/]+)\/(inspect|recover|proof|proof-download|review))?)?$/);
     if (!collection && (!match || !CHECKOUT_UUID.test(match[1]) || (match[3] && !CHECKOUT_UUID.test(match[3]))
       || (match[2] === 'quote' && match[3]))) return reply({ error: 'not-found' }, 404);
     if (!collection && (match[2] ? request.method !== 'POST' : request.method !== 'GET')) return reply({ error: 'method-not-allowed' }, 405);
     const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token, uid: claims.sub });
-    const provider = providerFactory({ apiKey: env.EUPAGO_SANDBOX_API_KEY, environment: 'sandbox' });
+    // The bank-transfer rehearsal needs no gateway credentials or API calls.
+    const gateway = () => {
+      if (!configured) throw new Error('checkout/sandbox-not-configured');
+      return providerFactory({ apiKey: env.EUPAGO_SANDBOX_API_KEY, environment: 'sandbox' });
+    };
     try {
       if (collection && request.method === 'GET') {
         const { records, truncated } = await store.list();
         return reply({ sessions: records.map(r => ({ id: r.id, createdAt: r.createdAt, confirmed: r.registration?.status === 'confirmed',
           orderCount: r.orders.length, latestStatus: r.orders.at(-1)?.status || 'draft' })), truncated });
       }
-      const body = request.method === 'POST' ? await readBody(request) : null;
+      const body = request.method === 'POST' ? await readBody(request, match?.[4] === 'proof' ? Math.ceil(MAX_PROOF_BYTES / 3) * 4 + 4096 : 4096) : null;
       if (collection) {
         exact(body, ['id', 'source']);
         if (!CHECKOUT_UUID.test(body.id || '') || !['new', 'registration-copy'].includes(body.source)) fail('invalid-request');
@@ -146,15 +151,21 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
         const result = await quoteSession(store, claims, saved.record, body.selection, now());
         return reply({ quote: result.quote, stamp: result.stamp });
       }
+      if (match[3] && ['proof', 'proof-download', 'review'].includes(match[4])) {
+        const result = await actOnBankTransfer({ store, saved, orderId: match[3], action: match[4], body,
+          actor: claims.sub, now: now(), applyEntitlements });
+        return result instanceof Response ? result : reply({ session: checkoutPublicRecord(result.record) });
+      }
       if (match[3]) {
         exact(body, match[4] === 'recover' ? ['reference'] : []);
         const order = saved.record.orders.find(o => o.id === match[3]); if (!order) fail('not-found');
+        if (order.method === 'bank_transfer') fail('transfer-invalid-state');
         const recovery = match[4] === 'recover';
         if (recovery && (!['creating', 'creation_unknown'].includes(order.status) || order.reference
           || typeof body.reference !== 'string' || !/^\d{1,30}$/.test(body.reference))) fail('recovery-not-allowed');
         if (!recovery && !order.reference) fail('recovery-not-allowed');
         const reference = recovery ? body.reference : order.reference;
-        const hint = await provider.inspectReference({ ...order, reference });
+        const hint = await gateway().inspectReference({ ...order, reference });
         // A manual query never confirms payment or grants test entitlements.
         const changed = { ...order, reference, providerState: hint.providerState, providerStateCode: hint.providerStateCode,
           inspectedAt: now(), status: recovery ? 'pending' : order.status };
@@ -164,10 +175,11 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
         return reply({ session: checkoutPublicRecord(saved.record) });
       }
       exact(body, ['id', 'selection', 'stamp', 'method', 'phone', 'sandboxAcknowledged']);
-      if (!CHECKOUT_UUID.test(body.id || '') || !['mbway', 'multibanco'].includes(body.method) || body.sandboxAcknowledged !== true
+      if (!CHECKOUT_UUID.test(body.id || '') || !['mbway', 'multibanco', 'bank_transfer'].includes(body.method) || body.sandboxAcknowledged !== true
         || (body.method === 'mbway' && (typeof body.phone !== 'string' || !/^9\d{8}$/.test(body.phone))) || (body.method !== 'mbway' && body.phone !== undefined)) fail('invalid-request');
       // Keyed fingerprint is not reversible by enumerating nine-digit phone numbers.
-      const fingerprint = createHmac('sha256', env.EUPAGO_SANDBOX_API_KEY).update(JSON.stringify({
+      if (body.method !== 'bank_transfer' && !configured) fail('sandbox-not-configured');
+      const fingerprint = (body.method === 'bank_transfer' ? createHash('sha256') : createHmac('sha256', env.EUPAGO_SANDBOX_API_KEY)).update(JSON.stringify({
         selection: body.selection, stamp: body.stamp, method: body.method, phone: body.phone || '', sandboxAcknowledged: true,
       })).digest('hex');
       const existing = saved.record.orders.find(o => o.id === body.id);
@@ -181,10 +193,15 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
       const order = { id: body.id, environment: 'sandbox', identifier: `circ_order_${sessionId.replaceAll('-', '')}_${saved.record.orders.length + 1}`,
         method: body.method, amountCents: result.quote.amountCents, currency: 'EUR', quote: result.quote,
         fingerprint, status: 'creating', createdAt: now(), reference: null, entity: null, notification: null };
+      if (body.method === 'bank_transfer') {
+        const transfer = prepareBankTransfer(order, sessionId, saved.record.orders.length + 1);
+        saved = await store.replace(sessionId, { ...saved.record, orders: [...saved.record.orders, transfer] }, saved.version, result.guards);
+        return reply({ session: checkoutPublicRecord(saved.record) }, 201);
+      }
       // The only creation call occurs after an atomic, version-guarded reservation.
       saved = await store.replace(sessionId, { ...saved.record, orders: [...saved.record.orders, order] }, saved.version, result.guards);
       let created, diagnostic;
-      try { created = await provider.createPayment({ ...order, phone: body.phone }); }
+      try { created = await gateway().createPayment({ ...order, phone: body.phone }); }
       catch (error) { diagnostic = safeProviderDiagnostic(error?.diagnostic) || 'provider/unknown'; }
       // Webhooks can overtake creation responses. Never overwrite their result.
       for (let retry = 0; retry < 4; retry++) {

@@ -41,3 +41,9 @@
 .sandbox-checkout__history button { text-align: left; width: 100%; }
 .sandbox-checkout__history small { display: block; margin-top: .5rem; font-size: .75rem; overflow-wrap: anywhere; font-weight: 400; }
 @media (max-width: 700px) { .sandbox-checkout__header { display: block; } .sandbox-checkout__steps { grid-template-columns: 1fr 1fr; } .sandbox-checkout__grid, .sandbox-checkout__history { grid-template-columns: 1fr; } .sandbox-checkout__panel { padding: 1rem; } .sandbox-checkout dl { grid-template-columns: 1fr; gap: .2rem; } .sandbox-checkout dd { margin-bottom: .6rem; } .sandbox-checkout__quote dl { grid-template-columns: 1fr 1fr; } }
+
+.sandbox-bank-transfer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d9dce8; overflow-wrap: anywhere; }
+.sandbox-bank-transfer h4 { margin: 1.5rem 0 .7rem; font-size: 1.1rem; }
+.sandbox-bank-transfer__review { padding: 1rem; margin: 1rem 0; background: #f3f4fc; border-radius: 8px; }
+.sandbox-bank-transfer textarea { font: inherit; padding: .7rem; border: 1px solid #aeb4c6; border-radius: 6px; }
+.sandbox-bank-transfer details { margin-top: 1rem; }
