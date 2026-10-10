@@ -1,5 +1,7 @@
 # Transferência bancária — ensaio administrativo
 
+> Atualização: o comprovativo passou a opcional e a conferência tem página própria. Ver `BANK_TRANSFER_PRACTICAL_20261010.md`. A descrição abaixo documenta a primeira versão, não o fluxo atual.
+
 ## Implementação de 10/10/2026
 
 Integrada no percurso existente `/conta/inscricoes-teste`, na opção **Transferência bancária — teste**. Usa o mesmo cálculo de preços e elegibilidade no servidor, inscrição inicial, histórico e complementos (cursos/jantares). A conta administradora verificada `circ.chuc@gmail.com` ensaia o papel de candidato e de validador. Não é um circuito público com separação de intervenientes.

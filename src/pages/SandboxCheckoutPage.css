@@ -47,3 +47,19 @@
 .sandbox-bank-transfer__review { padding: 1rem; margin: 1rem 0; background: #f3f4fc; border-radius: 8px; }
 .sandbox-bank-transfer textarea { font: inherit; padding: .7rem; border: 1px solid #aeb4c6; border-radius: 6px; }
 .sandbox-bank-transfer details { margin-top: 1rem; }
+
+/* Transfer instructions: the participant does not see administrative controls. */
+.transfer-details { border: 1px solid #d9dce8; border-radius: 12px; padding: 1.25rem; background: #fafaff; }
+.transfer-details h4 { margin: 0 0 1rem; }
+.transfer-copy-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .75rem; margin: .75rem 0; align-items: end; }
+.transfer-copy-field label { margin: 0; min-width: 0; }
+.transfer-copy-field input { font-variant-numeric: tabular-nums; }
+.transfer-copy-field button { min-height: 46px; }
+.transfer-copy-field__feedback { grid-column: 1 / -1; font-size: .85rem; color: #343b66; }
+.transfer-copy-field__feedback:empty { display: none; }
+.transfer-details__warning { font-size: .9rem; margin: 1rem 0 0; }
+.transfer-optional-proof { margin: 1.25rem 0; padding: 1rem; border: 1px solid #d9dce8; border-radius: 8px; }
+.transfer-optional-proof summary { cursor: pointer; font-weight: 650; }
+.transfer-reported { padding: 1rem; background: #edf5f0; border-radius: 8px; }
+.transfer-no-proof { padding: .6rem .8rem; background: #fff; border-radius: 6px; }
+@media (max-width: 480px) { .transfer-details { padding: .8rem; } .transfer-copy-field { gap: .3rem .4rem; } .transfer-copy-field button { padding: .6rem .65rem; } .transfer-copy-field input { font-size: .85rem; } }

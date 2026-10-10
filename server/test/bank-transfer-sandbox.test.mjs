@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getTransferRevision } from '../../src/data/bankTransferState.js';
+import { proposedBankAccount, sandboxBankAccount } from '../payments/bank-transfer-account.mjs';
 import { createHmac } from 'node:crypto';
 import { createCheckoutSandboxApi, createCheckoutSandboxNotification } from '../payments/checkout-sandbox.mjs';
 import { createSandboxWebhook } from '../payments/sandbox-webhook.mjs';
@@ -15,7 +17,7 @@ const proof = () => ({ id: PID, expectedProofId: null, filename: 'ficticio.pdf',
 const approval = () => ({ id: RID, decision: 'approve', proofId: PID, proofReviewed: true, creditConfirmed: true,
   amount: '160.00', bookingDate: '2026-10-10', creditReference: 'TESTE-MOVIMENTO-001', reason: '', sandboxAcknowledged: true });
 function fixture() {
-  const docs = new Map(), proofs = new Map(), credits = new Set();
+  const docs = new Map(), proofs = new Map(), credits = new Set(), reviewRequests = new Map();
   let claims = { sub: 'admin', email: 'circ.chuc@gmail.com', email_verified: true }, broken = false, writes = 0;
   const conflict = () => Object.assign(new Error(), { code: 'conflict' });
   const save = (id, record, version) => {
@@ -52,7 +54,13 @@ function fixture() {
     order: oid => docs.get(SID)?.record.orders.find(o => o.id === (oid || OID)), record: () => docs.get(SID)?.record,
     writes: () => writes, setClaims: value => { claims = value; }, setBroken: value => { broken = value; },
     upload: (p = proof(), oid = OID) => call(`sessions/${SID}/orders/${oid}/proof`, p),
-    review: (r = approval(), oid = OID) => call(`sessions/${SID}/orders/${oid}/review`, r),
+    review: (r = approval(), oid = OID) => {
+      // Like a browser, retries of an identical decision retain their revision.
+      const key = JSON.stringify({ r, oid });
+      if (!reviewRequests.has(key)) reviewRequests.set(key, { expectedRevision: getTransferRevision(docs.get(SID)?.record.orders.find(o => o.id === oid)?.bankTransfer), ...r });
+      return call(`sessions/${SID}/orders/${oid}/review`, reviewRequests.get(key));
+    },
+    report: (r = { id: PID, expectedRevision: 0, sandboxAcknowledged: true }, oid = OID) => call(`sessions/${SID}/orders/${oid}/report`, r),
     mutate: change => change(docs.get(SID).record),
   };
 }
@@ -61,7 +69,7 @@ test('bank transfer works without Eupago, uses server pricing and has no actiona
   const f = await start(); const config = await (await f.call('config')).json();
   assert.equal(config.configured, true); assert.equal(config.eupagoConfigured, false);
   assert.equal(f.order().amountCents, 16000); assert.equal(f.order().status, 'pending');
-  assert.equal(f.order().bankTransfer.status, 'awaiting_proof'); assert.equal(f.order().entity, null); assert.equal(f.order().reference, null);
+  assert.equal(f.order().bankTransfer.status, 'awaiting_transfer'); assert.equal(f.order().entity, null); assert.equal(f.order().reference, null);
   assert.equal(f.record().registration, null); assert.ok(!JSON.stringify(f.order()).includes('PT50'));
 });
 test('proof upload is private, versioned and never confirms a registration', async () => {
@@ -79,7 +87,7 @@ test('manual validation records an explicit simulated credit, reviewer and entit
   const count = f.writes(); assert.equal((await f.review()).status, 200); assert.equal(f.writes(), count); assert.equal(f.credits.size, 1);
   const reload = await (await f.call(`sessions/${SID}`)).json(); assert.equal(reload.session.orders[0].bankTransfer.status, 'confirmed');
 });
-test('approval needs a proof and two explicit declarations, not a file alone', async () => {
+test('approval needs a report or proof and bank-credit verification; an attached proof must be reviewed', async () => {
   const f = await start(); assert.equal((await f.review({ ...approval(), proofId: null })).status, 400); await f.upload();
   for (const override of [{ proofReviewed: false }, { creditConfirmed: false }, { sandboxAcknowledged: false }]) {
     assert.equal((await f.review({ ...approval(), ...override })).status, 400); assert.equal(f.record().registration, null);
@@ -186,7 +194,7 @@ test('bank transfer has no Eupago inspection, recovery or callback route', async
 });
 test('failed atomic proof and credit commits do not partially confirm registration', async () => {
   const f = await start(); f.setBroken(true); assert.equal((await f.upload()).status, 503);
-  assert.equal(f.proofs.size, 0); assert.equal(f.order().bankTransfer.status, 'awaiting_proof');
+  assert.equal(f.proofs.size, 0); assert.equal(f.order().bankTransfer.status, 'awaiting_transfer');
   f.setBroken(false); await f.upload(); f.setBroken(true); assert.equal((await f.review()).status, 503);
   assert.equal(f.record().registration, null); assert.equal(f.credits.size, 0); f.setBroken(false); assert.equal((await f.review()).status, 200);
 });
@@ -204,4 +212,110 @@ test('file validation enforces type, size, strict base64, filename and explicit 
 });
 test('oversized request bodies are stopped and do not write a proof', async () => {
   const f = await start(); const r = await f.upload({ ...proof(), base64: 'a'.repeat(800000) }); assert.equal(r.status, 400); assert.equal(f.proofs.size, 0);
+});
+
+test('a no-proof report remains pending until an explicit checked credit confirms it', async () => {
+  const f = await start(); const reported = await f.report(); assert.equal(reported.status, 200);
+  assert.equal(f.order().bankTransfer.status, 'under_review'); assert.equal(f.record().registration, null);
+  assert.equal(f.proofs.size, 0); assert.equal(f.credits.size, 0); assert.equal(f.order().notification, null);
+  assert.equal(f.order().bankTransfer.reports[0].actor, 'admin'); assert.equal(f.order().bankTransfer.reports[0].at, time);
+  assert.equal((await f.review({ ...approval(), proofId: null, proofReviewed: false })).status, 200);
+  assert.equal(f.record().registration.status, 'confirmed'); assert.equal(f.order().bankTransfer.confirmation.proofId, null);
+  assert.equal(f.credits.size, 1); assert.equal(f.proofs.size, 0);
+});
+test('report retries never duplicate declarations, approval or entitlements', async () => {
+  const f = await start(); await f.report(); const writes = f.writes(); await f.report(); assert.equal(f.writes(), writes);
+  await f.review({ ...approval(), proofId: null }); const paidWrites = f.writes();
+  assert.equal((await f.report()).status, 200); assert.equal(f.writes(), paidWrites); assert.equal(f.order().bankTransfer.reports.length, 1);
+  assert.equal((await f.report({ id: PID2, expectedRevision: 2, sandboxAcknowledged: true })).status, 409);
+  assert.equal((await f.report({ id: PID, expectedRevision: 0, note: 'changed', sandboxAcknowledged: true })).status, 409);
+});
+test('no-proof approval still rejects missing credit declaration and different amounts', async () => {
+  const f = await start(); await f.report();
+  for (const override of [{ creditConfirmed: false }, { amount: '159.99' }, { amount: '160.01' }]) {
+    assert.equal((await f.review({ ...approval(), proofId: null, ...override })).status, 400);
+    assert.equal(f.record().registration, null); assert.equal(f.credits.size, 0);
+  }
+});
+test('clarification and re-reporting invalidate a stale no-proof approval', async () => {
+  const f = await start(); await f.report();
+  const oldApproval = { ...approval(), proofId: null, expectedRevision: 1 };
+  assert.equal((await f.review({ id: RID2, decision: 'reject', proofId: null, reason: 'Não foi localizado o movimento', sandboxAcknowledged: true })).status, 200);
+  assert.equal(f.order().bankTransfer.status, 'rejected');
+  assert.equal((await f.report({ id: PID2, expectedRevision: 2, note: 'A transferência foi feita por outra pessoa.', sandboxAcknowledged: true })).status, 200);
+  const stale = await f.review(oldApproval); assert.equal(stale.status, 409);
+  assert.equal((await stale.json()).error, 'transfer-stale-review'); assert.equal(f.record().registration, null);
+  assert.equal((await f.review({ ...oldApproval, expectedRevision: 3 })).status, 200);
+  assert.equal(f.order().bankTransfer.reports.length, 2); assert.equal(f.order().bankTransfer.decisions.length, 2);
+});
+test('revision is mandatory for new transfers and any no-proof report', async () => {
+  const f = await start(); await f.report();
+  const res = await f.call(`sessions/${SID}/orders/${OID}/review`, { ...approval(), proofId: null });
+  assert.equal(res.status, 409); assert.equal(f.record().registration, null);
+});
+test('an attachment supplied after reporting must be reviewed, not silently ignored', async () => {
+  const f = await start(); await f.report(); await f.upload();
+  assert.equal((await f.review({ ...approval(), proofId: null, expectedRevision: 1 })).status, 409);
+  assert.equal((await f.review({ ...approval(), proofReviewed: false })).status, 400);
+  assert.equal((await f.review()).status, 200);
+});
+test('legacy proof-only records and their original memos remain usable without migration', async () => {
+  const f = await start(); const oldMemo = `CIRC-TESTE-${SID}-1`;
+  f.mutate(r => { const b = r.orders[0].bankTransfer; delete b.flowVersion; delete b.reports; b.memo = oldMemo; b.status = 'awaiting_proof'; });
+  await f.upload();
+  assert.equal((await f.call(`sessions/${SID}/orders/${OID}/review`, approval())).status, 200);
+  assert.equal(f.order().bankTransfer.memo, oldMemo); assert.equal(f.record().registration.status, 'confirmed');
+});
+test('legacy awaiting-proof records accept a report without changing their existing memo', async () => {
+  const f = await start(); const oldMemo = `CIRC-TESTE-${SID}-1`;
+  f.mutate(r => { const b = r.orders[0].bankTransfer; delete b.flowVersion; delete b.reports; b.memo = oldMemo; b.status = 'awaiting_proof'; });
+  await f.report(); assert.equal(f.order().bankTransfer.memo, oldMemo);
+  assert.equal((await f.call(`sessions/${SID}/orders/${OID}/review`, { ...approval(), proofId: null })).status, 409);
+  assert.equal((await f.review({ ...approval(), proofId: null })).status, 200);
+});
+test('compact memos encode the entire order UUID and remain stable across refresh/report', async () => {
+  const f = await start(); const memo = f.order().bankTransfer.memo;
+  assert.match(memo, /^C27T-[A-Z0-9]{1,25}$/); assert.ok(memo.length <= 30);
+  assert.equal(memo, `C27T-${BigInt('0x' + OID.replaceAll('-', '')).toString(36).toUpperCase()}`);
+  await f.report(); assert.equal(f.order().bankTransfer.memo, memo);
+  await f.review({ ...approval(), proofId: null });
+  await f.create({ dinnerQuantity: 1 }, OID2);
+  assert.notEqual(f.order(OID2).bankTransfer.memo, memo);
+});
+test('the administrative queue exposes only compact bank-order metadata and no bank destination', async () => {
+  const f = await start(); await f.report();
+  const data = await (await f.call('sessions')).json(); const row = data.sessions[0].bankTransfers[0];
+  assert.equal(row.status, 'under_review'); assert.equal(row.amountCents, 16000); assert.equal(row.proofCount, 0);
+  assert.equal(row.id, OID); assert.equal(row.memo, f.order().bankTransfer.memo);
+  assert.equal(data.sessions[0].reports, undefined); assert.equal(row.proofs, undefined);
+  const config = await (await f.call('config')).json();
+  assert.deepEqual(config.bankTransferAccount, sandboxBankAccount());
+  assert.equal(config.bankTransferAccount.enabled, false); assert.equal(config.bankTransferAccount.iban, null);
+  assert.equal(proposedBankAccount.beneficiary, null); assert.equal(proposedBankAccount.enabled, false);
+  assert.ok(!JSON.stringify(config).includes(proposedBankAccount.iban));
+});
+test('report API rejects spoofed fields, missing acknowledgements and unauthorized requests', async () => {
+  const f = await start(); const r = { id: PID, expectedRevision: 0, sandboxAcknowledged: true };
+  for (const extra of [{ amount: '0.00' }, { status: 'confirmed' }, { owner: 'other' }, { environment: 'production' }, { sandboxAcknowledged: false }, { note: 'x'.repeat(501) }]) assert.equal((await f.report({ ...r, ...extra })).status, 400);
+  const path = `sessions/${SID}/orders/${OID}/report`;
+  assert.equal((await f.call(path, r, { Authorization: '' })).status, 401);
+  assert.equal((await f.call(path, r, { Origin: 'https://other.invalid' })).status, 403);
+  f.setClaims({ sub: 'other', email: 'other@example.invalid', email_verified: true });
+  assert.equal((await f.report(r)).status, 403); assert.equal(f.order().bankTransfer.reports.length, 0);
+});
+test('concurrent and failed report writes cannot grant a registration or discard history', async () => {
+  const f = await start(); f.setBroken(true); assert.equal((await f.report()).status, 503);
+  assert.equal(f.order().bankTransfer.reports.length, 0); assert.equal(f.record().registration, null);
+  f.setBroken(false); const responses = await Promise.all([f.report(), f.report()]);
+  assert.ok(responses.every(r => [200, 409].includes(r.status))); assert.equal(f.order().bankTransfer.reports.length, 1);
+  assert.equal(f.record().registration, null);
+});
+test('bank credit uniqueness also applies when neither order has a proof', async () => {
+  const f = await start(); await f.report(); await f.review({ ...approval(), proofId: null });
+  await f.create({ dinnerQuantity: 1 }, OID2);
+  await f.report({ id: PID2, expectedRevision: 0, sandboxAcknowledged: true }, OID2);
+  const decision = { ...approval(), id: RID2, proofId: null, amount: '30.00' };
+  assert.equal((await f.review(decision, OID2)).status, 409);
+  assert.equal((await f.review({ ...decision, creditReference: 'TESTE-SECOND-CREDIT' }, OID2)).status, 200);
+  assert.equal(f.record().registration.entitlements.dinnerQuantity, 2); assert.equal(f.credits.size, 2); assert.equal(f.proofs.size, 0);
 });

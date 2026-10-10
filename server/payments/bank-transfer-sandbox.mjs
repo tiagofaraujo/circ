@@ -1,10 +1,11 @@
 // Administrative rehearsal only: no bank API, IBAN, Eupago or production writes.
 import { createHash } from 'node:crypto';
+import { getTransferRevision } from '../../src/data/bankTransferState.js';
 import { CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
 export const MAX_PROOF_BYTES = 500 * 1024;
 export const BANK_TRANSFER_ERRORS = new Set(['transfer-invalid-proof', 'transfer-proof-too-large', 'transfer-proof-limit',
   'transfer-invalid-state', 'transfer-stale-review', 'transfer-proof-required', 'transfer-reason-required',
-  'transfer-credit-required', 'transfer-amount-mismatch', 'transfer-credit-used', 'transfer-invalid-credit']);
+  'transfer-report-required', 'transfer-report-limit', 'transfer-credit-required', 'transfer-amount-mismatch', 'transfer-credit-used', 'transfer-invalid-credit']);
 const fail = code => { throw new Error(`checkout/${code}`); };
 const digest = value => createHash('sha256').update(value).digest('hex');
 const exact = (body, keys) => {
@@ -12,8 +13,11 @@ const exact = (body, keys) => {
 };
 export function prepareBankTransfer(order, sessionId, sequence) {
   return { ...order, identifier: `circ_transfer_${sessionId.replaceAll('-', '')}_${sequence}`, status: 'pending',
-    bankTransfer: { simulated: true, status: 'awaiting_proof', memo: `CIRC-TESTE-${sessionId}-${sequence}`,
-      proofs: [], decisions: [], createdAt: order.createdAt } };
+    bankTransfer: { simulated: true, flowVersion: 2, status: 'awaiting_transfer',
+      // Full UUID encoded compactly, not truncated: no additional collisions.
+      // All uppercase, <=30 characters. Existing memos are never recomputed.
+      memo: `C27T-${BigInt(`0x${order.id.replaceAll('-', '')}`).toString(36).toUpperCase()}`,
+      proofs: [], reports: [], decisions: [], createdAt: order.createdAt } };
 }
 export function validateTransferProof(body) {
   exact(body, ['id', 'expectedProofId', 'filename', 'mimeType', 'base64', 'sampleAcknowledged']);
@@ -48,6 +52,28 @@ const latest = order => order.bankTransfer.proofs.at(-1)?.id || null;
 const updatedRecord = (record, order) => ({ ...record, orders: record.orders.map(o => o.id === order.id ? order : o) });
 export async function actOnBankTransfer({ store, saved, orderId, action, body, actor, now, applyEntitlements }) {
   const r = saved.record, order = transferOrder(r, orderId, actor), transfer = order.bankTransfer;
+  if (action === 'report') {
+    exact(body, ['id', 'expectedRevision', 'note', 'sandboxAcknowledged']);
+    const note = typeof body.note === 'string' ? body.note.trim() : '';
+    if (!CHECKOUT_UUID.test(body.id || '') || body.sandboxAcknowledged !== true
+      || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0
+      || (body.note !== undefined && typeof body.note !== 'string')
+      || note.length > 500 || /[\u0000-\u001f\u007f]/.test(note)) fail('invalid-request');
+    const requestHash = digest(JSON.stringify({ id: body.id, expectedRevision: body.expectedRevision, note }));
+    const reports = transfer.reports || [];
+    const previous = reports.find(item => item.id === body.id);
+    if (previous) {
+      if (previous.requestHash !== requestHash) fail('idempotency-conflict');
+      return saved;
+    }
+    if (order.status !== 'pending' || !['awaiting_transfer', 'awaiting_proof', 'rejected'].includes(transfer.status)) fail('transfer-invalid-state');
+    if (body.expectedRevision !== getTransferRevision(transfer)) fail('transfer-stale-review');
+    if (reports.length >= 20) fail('transfer-report-limit');
+    // A declaration is not evidence of a bank credit and grants no entitlement.
+    const next = { ...order, bankTransfer: { ...transfer, status: 'under_review',
+      reports: [...reports, { id: body.id, actor, at: now, note, requestHash }], updatedAt: now } };
+    return store.replace(r.id, updatedRecord(r, next), saved.version);
+  }
   if (action === 'proof-download') {
     exact(body, ['proofId']);
     const meta = transfer.proofs.find(p => p.id === body.proofId);
@@ -69,7 +95,7 @@ export async function actOnBankTransfer({ store, saved, orderId, action, body, a
       if (previous.sha256 !== proof.sha256 || previous.filename !== proof.filename) fail('idempotency-conflict');
       return saved;
     }
-    if (order.status !== 'pending' || !['awaiting_proof', 'under_review', 'rejected'].includes(transfer.status)) fail('transfer-invalid-state');
+    if (order.status !== 'pending' || !['awaiting_transfer', 'awaiting_proof', 'under_review', 'rejected'].includes(transfer.status)) fail('transfer-invalid-state');
     if (body.expectedProofId !== latest(order)) fail('transfer-stale-review');
     if (transfer.proofs.length >= 5) fail('transfer-proof-limit');
     const { base64, ...meta } = proof;
@@ -80,7 +106,7 @@ export async function actOnBankTransfer({ store, saved, orderId, action, body, a
       { ...proof, orderId, sessionId: r.id, owner: actor, environment: 'sandbox', kind: 'bank-proof-test' });
   }
   if (action !== 'review') fail('invalid-request');
-  exact(body, ['id', 'decision', 'proofId', 'reason', 'proofReviewed', 'creditConfirmed', 'amount', 'creditReference', 'bookingDate', 'sandboxAcknowledged']);
+  exact(body, ['id', 'decision', 'proofId', 'reason', 'proofReviewed', 'creditConfirmed', 'amount', 'creditReference', 'bookingDate', 'sandboxAcknowledged', 'expectedRevision']);
   if (!CHECKOUT_UUID.test(body.id || '') || !['approve', 'reject', 'cancel'].includes(body.decision)
     || body.sandboxAcknowledged !== true) fail('invalid-request');
   const requestHash = digest(JSON.stringify(body));
@@ -91,18 +117,22 @@ export async function actOnBankTransfer({ store, saved, orderId, action, body, a
   }
   if (order.status !== 'pending' || transfer.decisions.length >= 20) fail('transfer-invalid-state');
   if (body.proofId !== latest(order)) fail('transfer-stale-review');
+  // Older proof-only clients remain compatible with pre-v2 records only.
+  // No-proof reports must always be reviewed against the latest revision.
+  if ((transfer.flowVersion === 2 || transfer.reports?.length || body.expectedRevision !== undefined)
+    && body.expectedRevision !== getTransferRevision(transfer)) fail('transfer-stale-review');
   const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
   if (reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) fail('transfer-reason-required');
   if (body.decision !== 'approve' && reason.length < 5) fail('transfer-reason-required');
-  if (body.decision !== 'cancel' && (transfer.status !== 'under_review' || !latest(order))) fail('transfer-proof-required');
-  const decision = { id: body.id, action: body.decision, proofId: body.proofId, reason, actor, at: now, requestHash };
+  if (body.decision !== 'cancel' && (transfer.status !== 'under_review' || (!latest(order) && !transfer.reports?.length))) fail('transfer-report-required');
+  const decision = { id: body.id, action: body.decision, proofId: body.proofId, reason, actor, at: now, requestHash, reviewRevision: getTransferRevision(transfer) };
   if (body.decision !== 'approve') {
     const next = { ...order, status: body.decision === 'cancel' ? 'closed' : 'pending', bankTransfer: {
       ...transfer, status: body.decision === 'cancel' ? 'cancelled' : 'rejected',
       decisions: [...transfer.decisions, decision], updatedAt: now } };
     return store.replace(r.id, updatedRecord(r, next), saved.version);
   }
-  if (body.proofReviewed !== true || body.creditConfirmed !== true) fail('transfer-credit-required');
+  if ((latest(order) && body.proofReviewed !== true) || body.creditConfirmed !== true) fail('transfer-credit-required');
   if (typeof body.amount !== 'string' || !/^\d{1,5}[.,]\d{2}$/.test(body.amount)) fail('transfer-amount-mismatch');
   const [whole, fraction] = body.amount.split(/[.,]/);
   const cents = Number(whole) * 100 + Number(fraction);

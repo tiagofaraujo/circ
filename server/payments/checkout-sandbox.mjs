@@ -1,3 +1,4 @@
+import { sandboxBankAccount } from './bank-transfer-account.mjs';
 import { createHash, createHmac } from 'node:crypto';
 import { prepareBankTransfer, actOnBankTransfer, MAX_PROOF_BYTES, BANK_TRANSFER_ERRORS } from './bank-transfer-sandbox.mjs';
 import { createCheckoutSandboxStore, CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
@@ -90,11 +91,11 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     if (request.method === 'POST' && request.headers.get('Origin') !== url.origin) return reply({ error: 'invalid-origin' }, 403);
     const configured = Boolean(env.EUPAGO_SANDBOX_API_KEY?.trim() && env.EUPAGO_SANDBOX_WEBHOOK_KEY
       && env.EUPAGO_SANDBOX_CHANNEL?.trim() && env.FIREBASE_SANDBOX_SERVICE_ACCOUNT);
-    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured: true, eupagoConfigured: configured, bankTransferConfigured: true, environment: 'sandbox',
+    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured: true, eupagoConfigured: configured, bankTransferConfigured: true, bankTransferAccount: sandboxBankAccount(), environment: 'sandbox',
       period: getRegistrationPeriod(new Date(now())), rates: { congress: CONGRESS_RATES, courses: COURSE_RATES, dinner: DINNER_RATE, virtual: VIRTUAL_CONGRESS_RATE },
       maxDinners: MAX_DINNERS, maxOrders: MAX_ORDERS });
     const collection = url.pathname === `${PREFIX}/sessions`;
-    const match = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)(?:\/(quote|orders)(?:\/([^/]+)\/(inspect|recover|proof|proof-download|review))?)?$/);
+    const match = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)(?:\/(quote|orders)(?:\/([^/]+)\/(inspect|recover|proof|proof-download|review|report))?)?$/);
     if (!collection && (!match || !CHECKOUT_UUID.test(match[1]) || (match[3] && !CHECKOUT_UUID.test(match[3]))
       || (match[2] === 'quote' && match[3]))) return reply({ error: 'not-found' }, 404);
     if (!collection && (match[2] ? request.method !== 'POST' : request.method !== 'GET')) return reply({ error: 'method-not-allowed' }, 405);
@@ -108,7 +109,11 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
       if (collection && request.method === 'GET') {
         const { records, truncated } = await store.list();
         return reply({ sessions: records.map(r => ({ id: r.id, createdAt: r.createdAt, confirmed: r.registration?.status === 'confirmed',
-          orderCount: r.orders.length, latestStatus: r.orders.at(-1)?.status || 'draft' })), truncated });
+          orderCount: r.orders.length, latestStatus: r.orders.at(-1)?.status || 'draft',
+          bankTransfers: r.orders.filter(o => o.method === 'bank_transfer' && o.bankTransfer?.simulated === true).map(o => ({
+            id: o.id, memo: o.bankTransfer.memo, status: o.bankTransfer.status, amountCents: o.amountCents,
+            createdAt: o.createdAt, proofCount: o.bankTransfer.proofs.length,
+          })) })), truncated });
       }
       const body = request.method === 'POST' ? await readBody(request, match?.[4] === 'proof' ? Math.ceil(MAX_PROOF_BYTES / 3) * 4 + 4096 : 4096) : null;
       if (collection) {
@@ -151,7 +156,7 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
         const result = await quoteSession(store, claims, saved.record, body.selection, now());
         return reply({ quote: result.quote, stamp: result.stamp });
       }
-      if (match[3] && ['proof', 'proof-download', 'review'].includes(match[4])) {
+      if (match[3] && ['proof', 'proof-download', 'review', 'report'].includes(match[4])) {
         const result = await actOnBankTransfer({ store, saved, orderId: match[3], action: match[4], body,
           actor: claims.sub, now: now(), applyEntitlements });
         return result instanceof Response ? result : reply({ session: checkoutPublicRecord(result.record) });

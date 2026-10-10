@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 const modules = [
+  { to: '/admin/transferencias-teste', number: '09', label: 'Transferências — teste', permission: 'canManageRegistrations' },
   { to: '/conta/inscricoes-teste', number: '08', label: 'Inscrição — teste', permission: 'canManageRegistrations' },
   { to: '/admin/pagamentos-teste', number: '07', label: 'Pagamentos — teste', permission: 'canManageRegistrations' },
   { to: '/admin/empresas', number: '05', label: 'Empresas', permission: 'canManageRegistrations' },
