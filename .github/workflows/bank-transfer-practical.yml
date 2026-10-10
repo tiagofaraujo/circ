@@ -1,0 +1,20 @@
+name: Bank transfer practical validation
+on:
+  push:
+    branches: [feature/bank-transfer-practical-20261010]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: git archive --format=tar.gz HEAD -o "$RUNNER_TEMP/circ-transfer-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transfer-practical-source
+          path: ${{ runner.temp }}/circ-transfer-source.tar.gz
+          retention-days: 1
