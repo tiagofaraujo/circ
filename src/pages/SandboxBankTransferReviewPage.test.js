@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { act } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SandboxBankTransferReviewPage from './SandboxBankTransferReviewPage';
@@ -11,7 +11,13 @@ const base = () => ({ id: SID, orders: [{ id: OID, method: 'bank_transfer', amou
   simulated: true, flowVersion: 2, memo: 'C27T-SAMPLE', status: 'under_review', proofs: [], decisions: [], reports: [{ id: SID, at: '2026-10-10T10:00:00Z', note: 'Comunicado sem anexo.' }],
 } }] });
 const response = data => ({ ok: true, json: async () => JSON.parse(JSON.stringify(data)) });
-const mount = query => render(<MemoryRouter initialEntries={[`/admin/transferencias-teste${query || ''}`]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><SandboxBankTransferReviewPage /></MemoryRouter>);
+// Flush initial async data reads and mount effects before a test can interact
+// with the review. Finding an element alone need not settle those effects.
+const mount = async query => {
+  await act(async () => {
+    render(<MemoryRouter initialEntries={[`/admin/transferencias-teste${query || ''}`]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><SandboxBankTransferReviewPage /></MemoryRouter>);
+  });
+};
 function setup() {
   let s = base();
   global.fetch = jest.fn(async (url, options) => {
@@ -28,22 +34,24 @@ function setup() {
 beforeEach(() => { jest.clearAllMocks(); mockUser.getIdToken.mockResolvedValue('test-token'); Object.defineProperty(window, 'crypto', { configurable: true, value: { randomUUID: () => OID } }); });
 afterEach(() => { delete global.fetch; });
 test('queue shows no-proof reports without exposing participant payment controls', async () => {
-  setup(); mount();
+  setup(); await mount();
   const item = await screen.findByRole('button', { name: /C27T-SAMPLE/ });
   expect(item).toHaveTextContent('Sem comprovativo — opcional');
   expect(screen.queryByRole('button', { name: 'Nova inscrição de teste' })).not.toBeInTheDocument();
-  fireEvent.click(item);
+  await act(async () => { fireEvent.click(item); });
   expect(await screen.findByText(/Sem comprovativo — não impede/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Já fiz a transferência — simular' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Copiar IBAN' })).not.toBeInTheDocument();
 });
 test('a direct test/order link opens the right review and updates queue after approval', async () => {
-  setup(); mount(`?teste=${SID}&pedido=${OID}`);
+  setup(); await mount(`?teste=${SID}&pedido=${OID}`);
   const approve = await screen.findByRole('button', { name: 'Validar transferência simulada' });
   expect(approve).toBeDisabled();
   const credit = screen.getByLabelText(/Confirmo, apenas para simulação/);
   await waitFor(() => expect(credit).not.toBeDisabled());
-  fireEvent.click(credit); await waitFor(() => expect(approve).not.toBeDisabled()); fireEvent.click(approve);
+  await act(async () => { fireEvent.click(credit); });
+  await waitFor(() => expect(approve).not.toBeDisabled());
+  await act(async () => { fireEvent.click(approve); });
   await screen.findByText('Validação manual de teste registada');
   expect(screen.queryByRole('button', { name: /C27T-SAMPLE/ })).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'confirmed' } });
@@ -54,14 +62,14 @@ test('a direct test/order link opens the right review and updates queue after ap
 });
 test('permission failures offer a safe error without any review requests', async () => {
   global.fetch = jest.fn(async () => ({ ok: false, json: async () => ({ error: 'admin-required' }) }));
-  mount(); await screen.findByRole('alert');
+  await mount(); await screen.findByRole('alert');
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('button', { name: 'Validar transferência simulada' })).not.toBeInTheDocument();
 });
 test('refresh and reopen remain read-only, with the original request identifier', async () => {
-  setup(); mount(`?teste=${SID}&pedido=${OID}`);
+  setup(); await mount(`?teste=${SID}&pedido=${OID}`);
   await screen.findByRole('button', { name: 'Validar transferência simulada' });
-  fireEvent.click(screen.getByRole('button', { name: 'Atualizar fila' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Atualizar fila' })); });
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
   expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
   expect(screen.getByRole('link', { name: 'Voltar à inscrição de teste' })).toHaveAttribute('href', `/conta/inscricoes-teste?teste=${SID}`);
