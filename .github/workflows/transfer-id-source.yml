@@ -1,0 +1,22 @@
+name: Transfer ID source snapshot
+on:
+  push:
+    branches: [fix/transfer-registration-id-20261011]
+    paths: [.github/workflows/transfer-id-source.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Package tracked application sources only
+        run: git archive --format=tar.gz --output="$RUNNER_TEMP/transfer-id-source.tar.gz" HEAD server src scripts public media-published docs .github package.json package-lock.json wrangler.jsonc firebase.json firestore.rules firestore.indexes.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transfer-id-source
+          path: ${{ runner.temp }}/transfer-id-source.tar.gz
+          retention-days: 1
