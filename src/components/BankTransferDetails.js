@@ -47,7 +47,7 @@ export function CopyTransferField({ label, value, copyValue = value, disabled = 
   </div>;
 }
 
-export default function BankTransferDetails({ amountCents, memo, account, environment = 'sandbox', en = false }) {
+export default function BankTransferDetails({ amountCents, memo, account, environment = 'sandbox', en = false, registrationId }) {
   const t = (pt, english) => en ? english : pt;
   const sandbox = environment !== 'production';
   const iban = normalizePortugueseIban(account?.iban);
@@ -65,7 +65,9 @@ export default function BankTransferDetails({ amountCents, memo, account, enviro
       copyValue={actionable ? iban : ''} disabled={!actionable} en={en} />
     <CopyTransferField label={t('Valor (EUR)', 'Amount (EUR)')} value={amount} en={en} />
     <CopyTransferField label={t('Descrição para o beneficiário', 'Description for the beneficiary')} value={memo} en={en} />
-    <p>{t('Inclua esta descrição para identificarmos o pedido. Não use apenas o nome ou o valor.', 'Include this description to identify the request. Do not rely on the name or amount alone.')}</p>
+    <p>{registrationId ? t('Copie o ID da inscrição para a descrição enviada ao beneficiário. Não é necessário enviar comprovativo.', 'Copy the registration ID into the description sent to the beneficiary. No proof of transfer is required.')
+      : t('Use a descrição já atribuída a este pedido. Não é necessário enviar comprovativo.', 'Use the description already assigned to this request. No proof of transfer is required.')}</p>
+    {registrationId && memo !== registrationId && <p className="sandbox-checkout__muted">{t('Este pedido adicional inclui um sufixo no ID para distinguir esta transferência das anteriores. Copie a descrição completa.', 'This additional request includes an ID suffix to distinguish this transfer from earlier ones. Copy the full description.')}</p>}
     {sandbox && <p className="transfer-details__warning"><strong>{t('Simulação: não transfira dinheiro.', 'Simulation: do not transfer money.')}</strong> {t('Pode testar a cópia do beneficiário, do valor e da descrição. O IBAN real não está disponível neste ensaio.', 'You can test copying the beneficiary, amount and description. The real IBAN is unavailable in this rehearsal.')}</p>}
     {!sandbox && !actionable && <p role="alert">{t('Dados bancários ainda não aprovados. Não efetue a transferência.', 'Bank details are not approved. Do not make a transfer.')}</p>}
   </section>;

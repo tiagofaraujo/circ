@@ -19,9 +19,9 @@ beforeEach(() => {
 });
 test('awaiting proof shows sandbox instructions without real bank details or approval', () => {
   show(); expect(screen.getByText(/O IBAN real não está disponível/)).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Anexar comprovativo (opcional)'));
+  expect(screen.queryByText('Anexar comprovativo (opcional)')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Validar transferência simulada' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Enviar comprovativo de teste' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Enviar comprovativo de teste' })).not.toBeInTheDocument();
   expect(api).not.toHaveBeenCalled();
 });
 test('manual approval needs proof review and the explicit simulated credit check', async () => {
@@ -58,15 +58,16 @@ test('a confirmed transfer is read-only and displays its distinct manual validat
 test('a synthetic PNG can be generated locally without selecting a personal bank document', async () => {
   jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ fillRect: jest.fn(), fillText: jest.fn() });
   jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,iVBORw0KGgo=');
-  show(); fireEvent.click(screen.getByText('Anexar comprovativo (opcional)')); fireEvent.click(screen.getByRole('button', { name: 'Usar comprovativo fictício' }));
+  const request = base(); request.bankTransfer.status = 'rejected';
+  show(request); fireEvent.click(screen.getByText('Anexar documento para esclarecer (opcional)')); fireEvent.click(screen.getByRole('button', { name: 'Usar comprovativo fictício' }));
   await waitFor(() => expect(update).toHaveBeenCalled());
   expect(api.mock.calls[0][1]).toMatchObject({ filename: 'comprovativo-ficticio.png', mimeType: 'image/png', sampleAcknowledged: true, expectedProofId: null });
   jest.restoreAllMocks();
 });
 test('English transfer instructions use the same flow', () => {
   show(base(), true); expect(screen.getByText(/The real IBAN is unavailable/)).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Attach proof (optional)'));
-  expect(screen.getByRole('button', { name: 'Use fictional proof' })).toBeInTheDocument();
+  expect(screen.queryByText('Attach proof (optional)')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Use fictional proof' })).not.toBeInTheDocument();
 });
 
 test('participant reports without a file and never sees administrative approval fields', async () => {
@@ -81,11 +82,12 @@ test('participant reports without a file and never sees administrative approval 
   expect(api.mock.calls[0][1].base64).toBeUndefined();
   expect(screen.getByRole('link', { name: 'Abrir área da organização' })).toHaveAttribute('href', `/admin/transferencias-teste?teste=${ID}&pedido=${ID}`);
 });
-test('reported transfers warn against duplicate payment and leave proofs optional', () => {
+test('reported transfers warn against duplicate payment and require no document step', () => {
   const order = base(); order.bankTransfer.status = 'under_review'; order.bankTransfer.reports = [{ id: ID, at: '2026-10-10T10:00:00Z' }];
   show(order); expect(screen.getByText(/Não repita o pagamento/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Já fiz a transferência — simular' })).not.toBeInTheDocument();
-  expect(screen.getByText('Anexar comprovativo (opcional)')).toBeInTheDocument();
+  expect(screen.queryByText('Anexar comprovativo (opcional)')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Enviar comprovativo de teste' })).not.toBeInTheDocument();
 });
 test('organiser can validate a reported transfer without a proof after checking the credit', async () => {
   const order = base(); order.bankTransfer.status = 'under_review'; order.bankTransfer.reports = [{ id: ID, at: '2026-10-10T10:00:00Z' }];
@@ -112,4 +114,45 @@ test('a new report without a proof clears stale administrative credit confirmati
   const next = { ...order, bankTransfer: { ...order.bankTransfer, reports: [...order.bankTransfer.reports, { id: PID, at: '2026-10-10T11:00:00Z' }] } };
   view.rerender(node(next, false, 'organisation'));
   expect(screen.getByRole('button', { name: 'Validar transferência simulada' })).toBeDisabled();
+});
+
+test('new participant flow uses the registration ID without a routine attachment step', async () => {
+  const copied = jest.fn(async () => {});
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copied } });
+  const order = base(); Object.assign(order.bankTransfer, { flowVersion: 3, status: 'awaiting_transfer', registrationId: ID, memo: ID, reports: [] });
+  show(order);
+  expect(screen.getByLabelText('Descrição para o beneficiário')).toHaveValue(ID);
+  expect(screen.getByText(/Não é necessário enviar comprovativo/)).toBeInTheDocument();
+  expect(screen.queryByText('Anexar comprovativo (opcional)')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Enviar comprovativo de teste' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Copiar Descrição para o beneficiário' }));
+  await waitFor(() => expect(copied).toHaveBeenCalledWith(ID));
+  expect(api).not.toHaveBeenCalled();
+});
+test('organiser can review a new ID-based transfer before any report while still requiring a credit match', async () => {
+  const order = base(); Object.assign(order.bankTransfer, { flowVersion: 3, status: 'awaiting_transfer', registrationId: ID, memo: ID, reports: [] });
+  show(order, false, 'organisation');
+  const approve = screen.getByRole('button', { name: 'Validar transferência simulada' });
+  expect(approve).toBeDisabled();
+  expect(screen.queryByLabelText('Analisei a última versão do comprovativo de teste.')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(/Confirmo, apenas para simulação/));
+  fireEvent.click(approve);
+  await waitFor(() => expect(api).toHaveBeenCalled());
+  expect(api.mock.calls[0][1]).toMatchObject({ decision: 'approve', proofId: null, expectedRevision: 0, creditConfirmed: true, amount: '160.00' });
+});
+test('new English instructions retain the exact registration ID and have no file step', () => {
+  const order = base(); Object.assign(order.bankTransfer, { flowVersion: 3, status: 'awaiting_transfer', registrationId: ID, memo: ID, reports: [] });
+  show(order, true);
+  expect(screen.getByLabelText('Description for the beneficiary')).toHaveValue(ID);
+  expect(screen.getByText(/No proof of transfer is required/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Use fictional proof' })).not.toBeInTheDocument();
+});
+test('additional transfers retain the registration ID and copy the complete distinguishing suffix', async () => {
+  const copied = jest.fn(async () => {});
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copied } });
+  const order = base(); Object.assign(order.bankTransfer, { flowVersion: 3, status: 'awaiting_transfer', registrationId: ID, memo: `${ID}-2`, reports: [] });
+  show(order);
+  expect(screen.getByText(/Este pedido adicional inclui um sufixo/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Copiar Descrição para o beneficiário' }));
+  await waitFor(() => expect(copied).toHaveBeenCalledWith(`${ID}-2`));
 });

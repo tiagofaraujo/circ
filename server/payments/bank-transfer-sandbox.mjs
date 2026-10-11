@@ -1,6 +1,6 @@
 // Administrative rehearsal only: no bank API, IBAN, Eupago or production writes.
 import { createHash } from 'node:crypto';
-import { getTransferRevision } from '../../src/data/bankTransferState.js';
+import { getTransferRevision, canReviewBankTransfer } from '../../src/data/bankTransferState.js';
 import { CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
 export const MAX_PROOF_BYTES = 500 * 1024;
 export const BANK_TRANSFER_ERRORS = new Set(['transfer-invalid-proof', 'transfer-proof-too-large', 'transfer-proof-limit',
@@ -13,10 +13,12 @@ const exact = (body, keys) => {
 };
 export function prepareBankTransfer(order, sessionId, sequence) {
   return { ...order, identifier: `circ_transfer_${sessionId.replaceAll('-', '')}_${sequence}`, status: 'pending',
-    bankTransfer: { simulated: true, flowVersion: 2, status: 'awaiting_transfer',
-      // Full UUID encoded compactly, not truncated: no additional collisions.
-      // All uppercase, <=30 characters. Existing memos are never recomputed.
-      memo: `C27T-${BigInt(`0x${order.id.replaceAll('-', '')}`).toString(36).toUpperCase()}`,
+    bankTransfer: { simulated: true, flowVersion: 3, status: 'awaiting_transfer',
+      // Reuse the actual registration/test ID shown in My CIRC. Later orders
+      // keep that ID plus a sequence so a late credit cannot identify two orders.
+      // Only new orders use this format; saved descriptions are never rewritten.
+      registrationId: sessionId,
+      memo: sequence === 1 ? sessionId : `${sessionId}-${sequence}`,
       proofs: [], reports: [], decisions: [], createdAt: order.createdAt } };
 }
 export function validateTransferProof(body) {
@@ -119,12 +121,12 @@ export async function actOnBankTransfer({ store, saved, orderId, action, body, a
   if (body.proofId !== latest(order)) fail('transfer-stale-review');
   // Older proof-only clients remain compatible with pre-v2 records only.
   // No-proof reports must always be reviewed against the latest revision.
-  if ((transfer.flowVersion === 2 || transfer.reports?.length || body.expectedRevision !== undefined)
+  if ((transfer.flowVersion >= 2 || transfer.reports?.length || body.expectedRevision !== undefined)
     && body.expectedRevision !== getTransferRevision(transfer)) fail('transfer-stale-review');
   const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
   if (reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) fail('transfer-reason-required');
   if (body.decision !== 'approve' && reason.length < 5) fail('transfer-reason-required');
-  if (body.decision !== 'cancel' && (transfer.status !== 'under_review' || (!latest(order) && !transfer.reports?.length))) fail('transfer-report-required');
+  if (body.decision !== 'cancel' && !canReviewBankTransfer(transfer)) fail('transfer-report-required');
   const decision = { id: body.id, action: body.decision, proofId: body.proofId, reason, actor, at: now, requestHash, reviewRevision: getTransferRevision(transfer) };
   if (body.decision !== 'approve') {
     const next = { ...order, status: body.decision === 'cancel' ? 'closed' : 'pending', bankTransfer: {

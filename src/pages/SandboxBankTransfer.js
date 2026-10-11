@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BankTransferDetails from '../components/BankTransferDetails';
-import { getTransferRevision } from '../data/bankTransferState';
+import { getTransferRevision, canReviewBankTransfer } from '../data/bankTransferState';
 
 export const transferMessages = {
   'transfer-invalid-proof': ['Use um PDF, JPG ou PNG válido, com um nome simples.', 'Use a valid PDF, JPG or PNG with a simple filename.'],
@@ -31,6 +31,7 @@ export default function SandboxBankTransfer({ sessionId, order, en, api, run, bu
   const transfer = order.bankTransfer;
   const revision = getTransferRevision(transfer);
   const organiser = view === 'organisation';
+  const reviewable = canReviewBankTransfer(transfer);
   const lastDecision = transfer.decisions.at(-1);
   const [note, setNote] = useState('');
   const reportId = useRef(null);
@@ -107,15 +108,16 @@ export default function SandboxBankTransfer({ sessionId, order, en, api, run, bu
   }
   return <section className="sandbox-bank-transfer" aria-label={t('Transferência bancária de teste', 'Test bank transfer')}>
     {!organiser && <>
-      <BankTransferDetails amountCents={order.amountCents} memo={transfer.memo} account={account} environment="sandbox" en={en} />
+      <BankTransferDetails amountCents={order.amountCents} memo={transfer.memo} registrationId={transfer.registrationId} account={account} environment="sandbox" en={en} />
       <p className="sandbox-checkout__muted">{t('Este método não usa a Eupago nem consulta o banco. A confirmação é feita pela organização.', 'This method does not use Eupago or access the bank. The organiser confirms the payment.')}</p>
-      {order.status === 'pending' && transfer.status === 'under_review' && <p className="transfer-reported" role="status"><strong>{t('Transferência comunicada — aguarda confirmação.', 'Transfer reported — awaiting confirmation.')}</strong> {t('Não repita o pagamento. O comprovativo é opcional.', 'Do not repeat the payment. Proof is optional.')}</p>}
+      {order.status === 'pending' && transfer.status === 'under_review' && <p className="transfer-reported" role="status"><strong>{t('Transferência comunicada — aguarda confirmação.', 'Transfer reported — awaiting confirmation.')}</strong> {t('Não repita o pagamento. Não é necessário enviar comprovativo.', 'Do not repeat the payment. No proof of transfer is required.')}</p>}
       {order.status === 'pending' && transfer.status === 'rejected' && <div className="sandbox-checkout__notice"><strong>{t('A organização pediu um esclarecimento', 'The organiser requested more information')}</strong><p>{lastDecision?.reason}</p><label>{t('Resposta (opcional)', 'Reply (optional)')}<input value={note} maxLength={500} onChange={e => setNote(e.target.value)} /></label></div>}
+      {order.status === 'pending' && transfer.flowVersion === 3 && transfer.status === 'awaiting_transfer' && <p className="sandbox-checkout__muted">{t('Não precisa de anexar nem enviar documentos por email. O botão abaixo serve apenas para avisar a organização; a conferência pode ser feita pelo ID e pelo valor, mesmo sem este aviso.', 'No attachments or documents by email are needed. The button below only notifies the organiser; the credit can be checked by ID and amount even without this notice.')}</p>}
       {order.status === 'pending' && transfer.status !== 'under_review' && <button type="button" disabled={busy} onClick={report}>
         {transfer.status === 'rejected' ? t('Pedir nova conferência — teste', 'Request another review — test') : t('Já fiz a transferência — simular', 'I have made the transfer — simulate')}
       </button>}
-      {order.status === 'pending' && <details className="transfer-optional-proof"><summary>{t('Anexar comprovativo (opcional)', 'Attach proof (optional)')}</summary>
-        <p>{t('Só precisa de comunicar a transferência. Pode juntar um comprovativo para facilitar a identificação; não é uma confirmação de recebimento.', 'Reporting the transfer is enough to request a review. You may attach proof to help identify it; proof does not confirm receipt.')}</p>
+      {order.status === 'pending' && transfer.status === 'rejected' && <details className="transfer-optional-proof"><summary>{t('Anexar documento para esclarecer (opcional)', 'Attach a document for clarification (optional)')}</summary>
+        <p>{t('Só utilize esta opção se a organização precisar de esclarecer o pagamento. O comprovativo não é exigido no processo normal e não substitui a conferência do crédito.', 'Use this option only if the organiser needs to clarify the payment. Proof is not required in the normal flow and does not replace checking the bank credit.')}</p>
         <form onSubmit={uploadFile}><fieldset disabled={busy}>
           <button type="button" className="secondary" onClick={fictionalProof} disabled={transfer.proofs.length >= 5}>{t('Usar comprovativo fictício', 'Use fictional proof')}</button>
           <label>{t('Ou enviar ficheiro de teste (PDF, JPG ou PNG; até 500 KB)', 'Or upload a test file (PDF, JPG or PNG; up to 500 KB)')}<input type="file" accept="application/pdf,image/jpeg,image/png" onChange={changeFile} /></label>
@@ -131,11 +133,11 @@ export default function SandboxBankTransfer({ sessionId, order, en, api, run, bu
       {transfer.proofs.map((proof, i) => <p key={proof.id}>v{i + 1} · {proof.filename} · {new Date(proof.uploadedAt).toLocaleString(en ? 'en-GB' : 'pt-PT')} <button type="button" className="secondary" disabled={busy} onClick={() => download(proof)}>{t('Descarregar', 'Download')} v{i + 1}</button></p>)}
     </details>}
     {organiser && order.status === 'pending' && <section className="sandbox-bank-transfer__review"><h4>{t('Conferência pela organização — simulação', 'Organiser review — simulation')}</h4>
-      <p>{t('Confirme o crédito, o valor e a identificação do pedido. Um comprovativo é facultativo; a conferência da entrada na conta não é.', 'Check the credit, amount and request identity. Proof is optional; checking receipt of funds is not.')}</p>
+      <p>{t('Localize o ID/descrição e o valor no movimento bancário. Não peça comprovativo se o crédito estiver identificado. Confirmar um ID, por si só, não comprova o recebimento.', 'Match the ID/description and amount in the bank entry. Do not request proof when the credit is identified. An ID alone does not prove receipt.')}</p>
       {transfer.reports?.length > 0 && <p>{t('Última comunicação do participante', 'Latest participant report')}: {new Date(transfer.reports.at(-1).at).toLocaleString(en ? 'en-GB' : 'pt-PT')} {transfer.reports.at(-1).note && <strong> — {transfer.reports.at(-1).note}</strong>}</p>}
-      {transfer.status !== 'under_review' && <p>{t('O pedido ainda não está pronto para conferência. Aguarda comunicação ou esclarecimento do participante.', 'The request is not ready for review. Awaiting a participant report or clarification.')}</p>}
+      {!reviewable && <p>{t('O pedido ainda não está pronto para conferência. Aguarda comunicação ou esclarecimento do participante.', 'The request is not ready for review. Awaiting a participant report or clarification.')}</p>}
       <fieldset disabled={busy}>
-        {transfer.status === 'under_review' && <>
+        {reviewable && <>
           {latestId ? <label className="check"><input type="checkbox" checked={proofReviewed} onChange={e => setReviewed(e.target.checked)} />{t('Analisei a última versão do comprovativo de teste.', 'I reviewed the latest test proof.')}</label> : <p className="transfer-no-proof">{t('Sem comprovativo — não impede a validação de um crédito identificado.', 'No proof attached — this does not prevent validation of an identified credit.')}</p>}
           <label className="check"><input type="checkbox" checked={creditConfirmed} onChange={e => setCreditConfirmed(e.target.checked)} />{t('Confirmo, apenas para simulação, a conferência do crédito bancário e a correspondência com este pedido.', 'For this simulation only, I confirm the bank credit check and its match to this request.')}</label>
           <div className="sandbox-checkout__grid"><label>{t('Valor conferido (EUR)', 'Checked amount (EUR)')}<input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} /></label>
@@ -144,7 +146,7 @@ export default function SandboxBankTransfer({ sessionId, order, en, api, run, bu
         </>}
         <label>{t('Nota / motivo do esclarecimento ou cancelamento', 'Note / clarification or cancellation reason')}<textarea rows="2" maxLength="500" value={reason} onChange={e => setReason(e.target.value)} /></label>
         <div className="sandbox-checkout__actions">
-          {transfer.status === 'under_review' && <><button type="button" disabled={(Boolean(latestId) && !proofReviewed) || !creditConfirmed} onClick={() => review('approve')}>{t('Validar transferência simulada', 'Validate simulated transfer')}</button>
+          {reviewable && <><button type="button" disabled={(Boolean(latestId) && !proofReviewed) || !creditConfirmed} onClick={() => review('approve')}>{t('Validar transferência simulada', 'Validate simulated transfer')}</button>
           <button type="button" className="secondary" disabled={reason.trim().length < 5} onClick={() => review('reject')}>{t('Pedir esclarecimento', 'Request clarification')}</button></>}
           <button type="button" className="secondary" disabled={reason.trim().length < 5} onClick={() => review('cancel')}>{t('Cancelar pedido de teste', 'Cancel test request')}</button>
         </div>
