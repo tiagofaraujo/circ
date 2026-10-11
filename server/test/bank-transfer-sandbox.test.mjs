@@ -87,8 +87,8 @@ test('manual validation records an explicit simulated credit, reviewer and entit
   const count = f.writes(); assert.equal((await f.review()).status, 200); assert.equal(f.writes(), count); assert.equal(f.credits.size, 1);
   const reload = await (await f.call(`sessions/${SID}`)).json(); assert.equal(reload.session.orders[0].bankTransfer.status, 'confirmed');
 });
-test('approval needs a report or proof and bank-credit verification; an attached proof must be reviewed', async () => {
-  const f = await start(); assert.equal((await f.review({ ...approval(), proofId: null })).status, 400); await f.upload();
+test('legacy approval needs a report or proof and bank-credit verification; an attached proof must be reviewed', async () => {
+  const f = await start(); f.mutate(r => { r.orders[0].bankTransfer.flowVersion = 2; }); assert.equal((await f.review({ ...approval(), proofId: null })).status, 400); await f.upload();
   for (const override of [{ proofReviewed: false }, { creditConfirmed: false }, { sandboxAcknowledged: false }]) {
     assert.equal((await f.review({ ...approval(), ...override })).status, 400); assert.equal(f.record().registration, null);
   }
@@ -273,14 +273,16 @@ test('legacy awaiting-proof records accept a report without changing their exist
   assert.equal((await f.call(`sessions/${SID}/orders/${OID}/review`, { ...approval(), proofId: null })).status, 409);
   assert.equal((await f.review({ ...approval(), proofId: null })).status, 200);
 });
-test('compact memos encode the entire order UUID and remain stable across refresh/report', async () => {
+test('new memos reuse the displayed registration ID and distinguish later orders without rewriting history', async () => {
   const f = await start(); const memo = f.order().bankTransfer.memo;
-  assert.match(memo, /^C27T-[A-Z0-9]{1,25}$/); assert.ok(memo.length <= 30);
-  assert.equal(memo, `C27T-${BigInt('0x' + OID.replaceAll('-', '')).toString(36).toUpperCase()}`);
+  assert.equal(memo, SID);
+  assert.equal(f.order().bankTransfer.registrationId, SID);
+  assert.equal(f.order().bankTransfer.flowVersion, 3);
   await f.report(); assert.equal(f.order().bankTransfer.memo, memo);
   await f.review({ ...approval(), proofId: null });
   await f.create({ dinnerQuantity: 1 }, OID2);
-  assert.notEqual(f.order(OID2).bankTransfer.memo, memo);
+  assert.equal(f.order(OID2).bankTransfer.memo, `${SID}-2`);
+  assert.equal(f.order().bankTransfer.memo, SID);
 });
 test('the administrative queue exposes only compact bank-order metadata and no bank destination', async () => {
   const f = await start(); await f.report();
@@ -320,4 +322,52 @@ test('bank credit uniqueness also applies when neither order has a proof', async
   assert.equal((await f.review(decision, OID2)).status, 409);
   assert.equal((await f.review({ ...decision, creditReference: 'TESTE-SECOND-CREDIT' }, OID2)).status, 200);
   assert.equal(f.record().registration.entitlements.dinnerQuantity, 2); assert.equal(f.credits.size, 2); assert.equal(f.proofs.size, 0);
+});
+test('registration-ID transfers can be confirmed from a checked credit without any participant report or proof', async () => {
+  const f = await start();
+  assert.equal(f.order().bankTransfer.memo, SID);
+  const body = { ...approval(), proofId: null, proofReviewed: false, expectedRevision: 0 };
+  assert.equal(f.order().bankTransfer.reports.length, 0);
+  assert.equal(f.order().bankTransfer.proofs.length, 0);
+  assert.equal((await f.review(body)).status, 200);
+  assert.equal(f.record().registration.status, 'confirmed');
+  assert.equal(f.order().bankTransfer.confirmation.proofId, null);
+  assert.equal(f.order().bankTransfer.confirmation.amountCents, 16000);
+  assert.equal(f.credits.size, 1);
+  const writes = f.writes();
+  assert.equal((await f.review(body)).status, 200); assert.equal(f.writes(), writes);
+});
+test('registration ID alone cannot confirm funds: credit, amount and current revision stay mandatory', async () => {
+  const f = await start();
+  const body = { ...approval(), proofId: null, proofReviewed: false, expectedRevision: 0 };
+  for (const change of [{ creditConfirmed: false }, { amount: '159.99' }, { creditReference: '' }, { bookingDate: '2026-10-11' }]) {
+    assert.equal((await f.review({ ...body, ...change })).status, 400);
+    assert.equal(f.record().registration, null); assert.equal(f.credits.size, 0);
+  }
+  assert.equal((await f.call(`sessions/${SID}/orders/${OID}/review`, { ...body, expectedRevision: undefined })).status, 409);
+  assert.equal((await f.review({ ...body, expectedRevision: 1 })).status, 409);
+  await f.report();
+  assert.equal((await f.review(body)).status, 409);
+  assert.equal((await f.review({ ...body, expectedRevision: 1 })).status, 200);
+});
+test('a supplementary registration-ID credit without reports applies only its own items', async () => {
+  const f = await start();
+  await f.review({ ...approval(), proofId: null, expectedRevision: 0 });
+  await f.create({ dinnerQuantity: 1 }, OID2);
+  const supplement = { ...approval(), id: RID2, proofId: null, expectedRevision: 0, amount: '30.00' };
+  assert.equal(f.order(OID2).bankTransfer.memo, `${SID}-2`);
+  assert.equal((await f.review(supplement, OID2)).status, 409);
+  assert.equal((await f.review({ ...supplement, creditReference: 'TESTE-ADDITIONAL-002' }, OID2)).status, 200);
+  assert.equal(f.record().registration.entitlements.dinnerQuantity, 2);
+  assert.equal(f.record().registration.entitlements.morningCourse, true);
+  assert.equal(f.proofs.size, 0);
+});
+test('asking for clarification before any report does not grant rights or require a document in the reply', async () => {
+  const f = await start();
+  const question = { id: RID, decision: 'reject', proofId: null, expectedRevision: 0, reason: 'Não foi possível identificar o crédito', sandboxAcknowledged: true };
+  assert.equal((await f.review(question)).status, 200);
+  assert.equal(f.order().bankTransfer.status, 'rejected'); assert.equal(f.record().registration, null);
+  assert.equal((await f.report({ id: PID, expectedRevision: 1, note: 'O ordenante foi a empresa.', sandboxAcknowledged: true })).status, 200);
+  assert.equal((await f.review({ ...approval(), id: RID2, proofId: null, expectedRevision: 2 })).status, 200);
+  assert.equal(f.proofs.size, 0);
 });

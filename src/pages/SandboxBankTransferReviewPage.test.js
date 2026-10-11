@@ -74,3 +74,20 @@ test('refresh and reopen remain read-only, with the original request identifier'
   expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
   expect(screen.getByRole('link', { name: 'Voltar à inscrição de teste' })).toHaveAttribute('href', `/conta/inscricoes-teste?teste=${SID}`);
 });
+
+test('the default queue includes unreported transfers and filters by full registration ID or saved memo', async () => {
+  const otherId = '48965868-bcc1-4465-bcc6-625c6060a152';
+  global.fetch = jest.fn(async () => response({ sessions: [
+    { id: SID, bankTransfers: [{ id: OID, memo: SID, status: 'awaiting_transfer', amountCents: 16000, createdAt: '2026-10-10T10:00:00Z', proofCount: 0 }] },
+    { id: otherId, bankTransfers: [{ id: OID, memo: 'C27T-LEGACY', status: 'under_review', amountCents: 9500, createdAt: '2026-10-10T10:01:00Z', proofCount: 0 }] },
+  ], truncated: false }));
+  await mount();
+  expect(screen.getByRole('button', { name: new RegExp(SID) })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /C27T-LEGACY/ })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Pesquisar ID da inscrição ou descrição'), { target: { value: SID.toUpperCase() } });
+  expect(screen.queryByRole('button', { name: /C27T-LEGACY/ })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Pesquisar ID da inscrição ou descrição'), { target: { value: 'c27t-legacy' } });
+  expect(screen.queryByRole('button', { name: new RegExp(SID) })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /C27T-LEGACY/ })).toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});

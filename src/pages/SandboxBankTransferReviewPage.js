@@ -23,7 +23,8 @@ export default function SandboxBankTransferReviewPage() {
   const [cases, setCases] = useState([]);
   const [session, setSession] = useState(null);
   const [orderId, setOrderId] = useState(initial.current.orderId);
-  const [filter, setFilter] = useState('under_review');
+  const [filter, setFilter] = useState('to_review');
+  const [search, setSearch] = useState('');
   const [truncated, setTruncated] = useState(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -86,7 +87,11 @@ export default function SandboxBankTransferReviewPage() {
     });
   }
   const selected = session?.orders.find(o => o.id === orderId && o.method === 'bank_transfer');
-  const visible = cases.filter(item => filter === 'all' || item.status === filter).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const needle = search.trim().toLowerCase();
+  const visible = cases.filter(item => (filter === 'all' || item.status === filter
+    || (filter === 'to_review' && ['awaiting_transfer', 'awaiting_proof', 'under_review'].includes(item.status)))
+    && (!needle || item.sessionId.toLowerCase().includes(needle) || (item.memo || '').toLowerCase().includes(needle)))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   return <main className="sandbox-checkout admin-page">
     <AdminModuleNav />
     <header className="sandbox-checkout__header"><div><p className="sandbox-checkout__eyebrow">CIRC · SANDBOX</p><h1>{t('Conferir transferências — teste', 'Review transfers — test')}</h1></div><Link to={`/conta/inscricoes-teste${session ? `?teste=${session.id}` : ''}`}>{t('Voltar à inscrição de teste', 'Back to test registration')}</Link></header>
@@ -95,8 +100,9 @@ export default function SandboxBankTransferReviewPage() {
     {busy && <p role="status">{t('A carregar…', 'Loading…')}</p>}
     <section className="sandbox-checkout__panel"><h2>{t('Transferências para conferência', 'Transfers to review')}</h2>
       <div className="sandbox-checkout__actions"><label>{t('Mostrar', 'Show')}<select value={filter} onChange={e => setFilter(e.target.value)}>
-        <option value="under_review">{t('Aguarda confirmação', 'Awaiting confirmation')}</option><option value="rejected">{t('Necessita de esclarecimento', 'Clarification needed')}</option><option value="confirmed">{t('Confirmadas', 'Confirmed')}</option><option value="all">{t('Todas', 'All')}</option>
+        <option value="to_review">{t('Por conferir (com ou sem aviso)', 'To review (with or without notice)')}</option><option value="under_review">{t('Aguarda confirmação', 'Awaiting confirmation')}</option><option value="rejected">{t('Necessita de esclarecimento', 'Clarification needed')}</option><option value="confirmed">{t('Confirmadas', 'Confirmed')}</option><option value="all">{t('Todas', 'All')}</option>
       </select></label><button type="button" className="secondary" disabled={busy} onClick={refresh}>{t('Atualizar fila', 'Refresh queue')}</button></div>
+      <label>{t('Pesquisar ID da inscrição ou descrição', 'Search registration ID or description')}<input type="search" value={search} onChange={event => setSearch(event.target.value)} autoComplete="off" /></label>
       {visible.length ? <ul className="sandbox-checkout__history">{visible.map(item => <li key={`${item.sessionId}-${item.id}`}><button type="button" className="secondary" disabled={busy} onClick={() => load(item)}>
         <strong>{money(item.amountCents)} · {transferLabels[item.status]?.[en ? 1 : 0] || item.status}</strong><small>{item.memo}</small><small>{item.proofCount ? t('Com comprovativo', 'Proof attached') : t('Sem comprovativo — opcional', 'No proof — optional')}</small>
       </button></li>)}</ul> : !busy && <p>{t('Não há transferências neste estado entre os testes carregados.', 'No transfers in this state among the loaded tests.')}</p>}
