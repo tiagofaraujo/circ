@@ -14,14 +14,14 @@ export function StripeSandboxSetup({ config, busy, refresh, en }) {
   const t = (pt, english) => en ? english : pt;
   const state = yes => yes ? t('Presente', 'Present') : t('Em falta', 'Missing');
   return <details className="sandbox-checkout__panel" open={!config.ready}>
-    <summary><strong>{t('Stripe — configuração dos cartões de teste', 'Stripe — test card configuration')}</strong></summary>
+    <summary><strong>{t('Stripe — configuração dos pagamentos de teste', 'Stripe — test payment configuration')}</strong></summary>
     <p>{t('Estes indicadores confirmam a configuração local, não a validade da chave na Stripe nem a entrega do webhook.', 'These indicators check local configuration, not Stripe key validity or webhook delivery.')}</p>
     <dl><dt>STRIPE_SANDBOX_SECRET_KEY</dt><dd>{state(config.apiKeyPresent)}{config.apiKeyPresent && !config.testKeyValid && t(' — formato de teste inválido', ' — invalid test key format')}</dd>
       <dt>STRIPE_SANDBOX_WEBHOOK_SECRET</dt><dd>{state(config.webhookKeyPresent)}</dd>
       <dt>{t('Gravação no servidor', 'Server storage identity')}</dt><dd>{state(config.serviceAccountPresent)}</dd></dl>
     <CopyTransferField label={t('URL do webhook Stripe de teste', 'Stripe test webhook URL')}
       value="https://circ-coimbra.org/api/payments/stripe/sandbox/notifications" en={en} />
-    <p>{t('Na mesma sandbox Stripe, configure eventos da sua conta: checkout.session.completed e checkout.session.expired, em formato snapshot. Guarde o segredo whsec_ na Cloudflare como STRIPE_SANDBOX_WEBHOOK_SECRET. Não partilhe chaves no chat.', 'In the same Stripe sandbox, configure events from your account: checkout.session.completed and checkout.session.expired, in snapshot format. Save the whsec_ secret in Cloudflare as STRIPE_SANDBOX_WEBHOOK_SECRET. Do not share keys in chat.')}</p>
+    <p>{t('Na mesma sandbox Stripe, configure eventos da sua conta: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed e checkout.session.expired, em formato snapshot. Guarde o segredo whsec_ na Cloudflare como STRIPE_SANDBOX_WEBHOOK_SECRET. Não partilhe chaves no chat.', 'In the same Stripe sandbox, configure events from your account: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed and checkout.session.expired, in snapshot format. Save the whsec_ secret in Cloudflare as STRIPE_SANDBOX_WEBHOOK_SECRET. Do not share keys in chat.')}</p>
     <button type="button" className="secondary" disabled={busy} onClick={refresh}>{t('Atualizar configuração Stripe', 'Refresh Stripe configuration')}</button>
   </details>;
 }
@@ -39,8 +39,8 @@ export default function SandboxStripePayment({ order, sessionId, en, api, run, b
   const date = value => value ? new Date(value).toLocaleString(en ? 'en-GB' : 'pt-PT') : '—';
   const url = order.status === 'pending' && order.stripe?.status === 'open' ? checkoutLink(order.stripe) : null;
   const path = `sessions/${sessionId}/orders/${order.id}`;
-  return <section aria-label={t('Cartão Stripe de teste', 'Stripe test card')}>
-    <p><strong>{t('Use apenas cartões fictícios da Stripe. Não introduza um cartão pessoal.', 'Use Stripe test cards only. Do not enter a personal card.')}</strong></p>
+  return <section aria-label={t('Pagamento Stripe de teste', 'Stripe test payment')}>
+    <p><strong>{t('Use apenas dados e métodos de teste da Stripe. Não introduza um cartão pessoal nem efetue pagamentos reais.', 'Use Stripe test data and methods only. Do not enter a personal card or make a real payment.')}</strong></p>
     <dl><dt>{t('Sessão Stripe', 'Stripe session')}</dt><dd>{order.reference || t('Criação por confirmar', 'Creation unconfirmed')}</dd>
       <dt>{t('Identificador do pedido', 'Order identifier')}</dt><dd>{order.identifier}</dd>
       {order.creationDiagnostic && <><dt>{t('Diagnóstico', 'Diagnostic')}</dt><dd>{order.creationDiagnostic}</dd></>}
