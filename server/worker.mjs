@@ -1,3 +1,4 @@
+import { createStripeSandboxWebhook } from './payments/stripe-webhook.mjs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { handleSocialMetadata } from './social-metadata.mjs';
 import { handleMedia } from './media.mjs';
@@ -39,12 +40,15 @@ function json(body, status = 200, headers = {}) {
 
 // The injected verifier is only used by local tests. Production always uses Google's keys.
 export function createWorker(verify = verifyFirebaseToken) {
+  const stripeWebhook = createStripeSandboxWebhook();
   const sandbox = createSandboxApi({ verify });
   const sandboxWebhook = createSandboxWebhook({ checkoutHandler: createCheckoutSandboxNotification() });
   const sandboxCheckout = createCheckoutSandboxApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
+      const stripeResponse = await stripeWebhook(request, env);
+      if (stripeResponse) return stripeResponse;
       const notificationResponse = await sandboxWebhook(request, env);
       if (notificationResponse) return notificationResponse;
       const mediaResponse = await handleMedia(request, env);

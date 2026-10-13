@@ -1,3 +1,4 @@
+import { createStripeSandbox, stripeConfiguration, STRIPE_SESSION_ID } from './stripe-sandbox.mjs';
 import { sandboxBankAccount } from './bank-transfer-account.mjs';
 import { createHash, createHmac } from 'node:crypto';
 import { prepareBankTransfer, actOnBankTransfer, MAX_PROOF_BYTES, BANK_TRANSFER_ERRORS } from './bank-transfer-sandbox.mjs';
@@ -50,6 +51,7 @@ export function checkoutPublicRecord(record) {
     }) };
 }
 function publicError(error) {
+  if (error.code?.startsWith('stripe/')) return reply({ error: error.code }, error.code === 'stripe/mismatch' ? 409 : 503);
   const domain = error.message?.startsWith('checkout/') ? error.message.slice(9) : '';
   if (BANK_TRANSFER_ERRORS.has(domain)) return reply({ error: domain }, domain === 'transfer-proof-too-large' ? 413 : ['transfer-credit-used', 'transfer-stale-review', 'transfer-invalid-state'].includes(domain) ? 409 : 400);
   const allowed = new Set(['invalid-request', 'invalid-selection', 'invalid-quantity', 'invalid-profile', 'invalid-mode',
@@ -77,7 +79,7 @@ export async function quoteSession(store, claims, record, rawSelection, now) {
 }
 
 export function createCheckoutSandboxApi({ verify, storeFactory = createCheckoutSandboxStore,
-  providerFactory = createEupagoSandbox, now = () => new Date().toISOString() }) {
+  providerFactory = createEupagoSandbox, stripeFactory = createStripeSandbox, now = () => new Date().toISOString() }) {
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(`${PREFIX}/`)) return null;
@@ -91,7 +93,7 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     if (request.method === 'POST' && request.headers.get('Origin') !== url.origin) return reply({ error: 'invalid-origin' }, 403);
     const configured = Boolean(env.EUPAGO_SANDBOX_API_KEY?.trim() && env.EUPAGO_SANDBOX_WEBHOOK_KEY
       && env.EUPAGO_SANDBOX_CHANNEL?.trim() && env.FIREBASE_SANDBOX_SERVICE_ACCOUNT);
-    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured: true, eupagoConfigured: configured, bankTransferConfigured: true, bankTransferAccount: sandboxBankAccount(), environment: 'sandbox',
+    if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured: true, eupagoConfigured: configured, bankTransferConfigured: true, bankTransferAccount: sandboxBankAccount(), stripe: stripeConfiguration(env), environment: 'sandbox',
       period: getRegistrationPeriod(new Date(now())), rates: { congress: CONGRESS_RATES, courses: COURSE_RATES, dinner: DINNER_RATE, virtual: VIRTUAL_CONGRESS_RATE },
       maxDinners: MAX_DINNERS, maxOrders: MAX_ORDERS });
     const collection = url.pathname === `${PREFIX}/sessions`;
@@ -165,6 +167,21 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
         exact(body, match[4] === 'recover' ? ['reference'] : []);
         const order = saved.record.orders.find(o => o.id === match[3]); if (!order) fail('not-found');
         if (order.method === 'bank_transfer') fail('transfer-invalid-state');
+        if (order.method === 'stripe_card') {
+          const recovery = match[4] === 'recover';
+          if (recovery && (!['creating', 'creation_unknown'].includes(order.status) || order.reference
+            || !STRIPE_SESSION_ID.test(body.reference || ''))) fail('recovery-not-allowed');
+          if (!recovery && !order.reference) fail('recovery-not-allowed');
+          const stripe = await stripeFactory({ apiKey: env.STRIPE_SANDBOX_SECRET_KEY }).inspectReference(
+            { ...order, reference: recovery ? body.reference : order.reference }, { uid: claims.sub, sessionId });
+          // A manual Stripe lookup is diagnostic only, never payment confirmation.
+          const terminal = ['confirmed', 'review_required'].includes(order.status);
+          const changed = { ...order, reference: stripe.id, stripe, inspectedAt: now(),
+            providerState: stripe.paymentStatus === 'paid' ? 'paid' : stripe.status,
+            status: terminal ? order.status : stripe.status === 'expired' && stripe.paymentStatus === 'unpaid' ? 'closed' : 'pending' };
+          saved = await store.replace(sessionId, { ...saved.record, orders: saved.record.orders.map(o => o.id === order.id ? changed : o) }, saved.version);
+          return reply({ session: checkoutPublicRecord(saved.record) });
+        }
         const recovery = match[4] === 'recover';
         if (recovery && (!['creating', 'creation_unknown'].includes(order.status) || order.reference
           || typeof body.reference !== 'string' || !/^\d{1,30}$/.test(body.reference))) fail('recovery-not-allowed');
@@ -180,11 +197,12 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
         return reply({ session: checkoutPublicRecord(saved.record) });
       }
       exact(body, ['id', 'selection', 'stamp', 'method', 'phone', 'sandboxAcknowledged']);
-      if (!CHECKOUT_UUID.test(body.id || '') || !['mbway', 'multibanco', 'bank_transfer'].includes(body.method) || body.sandboxAcknowledged !== true
+      if (!CHECKOUT_UUID.test(body.id || '') || !['mbway', 'multibanco', 'bank_transfer', 'stripe_card'].includes(body.method) || body.sandboxAcknowledged !== true
         || (body.method === 'mbway' && (typeof body.phone !== 'string' || !/^9\d{8}$/.test(body.phone))) || (body.method !== 'mbway' && body.phone !== undefined)) fail('invalid-request');
       // Keyed fingerprint is not reversible by enumerating nine-digit phone numbers.
-      if (body.method !== 'bank_transfer' && !configured) fail('sandbox-not-configured');
-      const fingerprint = (body.method === 'bank_transfer' ? createHash('sha256') : createHmac('sha256', env.EUPAGO_SANDBOX_API_KEY)).update(JSON.stringify({
+      if (['mbway', 'multibanco'].includes(body.method) && !configured) fail('sandbox-not-configured');
+      if (body.method === 'stripe_card' && !stripeConfiguration(env).ready) throw new Error('checkout/sandbox-not-configured');
+      const fingerprint = (['bank_transfer', 'stripe_card'].includes(body.method) ? createHash('sha256') : createHmac('sha256', env.EUPAGO_SANDBOX_API_KEY)).update(JSON.stringify({
         selection: body.selection, stamp: body.stamp, method: body.method, phone: body.phone || '', sandboxAcknowledged: true,
       })).digest('hex');
       const existing = saved.record.orders.find(o => o.id === body.id);
@@ -203,22 +221,29 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
         saved = await store.replace(sessionId, { ...saved.record, orders: [...saved.record.orders, transfer] }, saved.version, result.guards);
         return reply({ session: checkoutPublicRecord(saved.record) }, 201);
       }
+      if (body.method === 'stripe_card') order.identifier = `circ_stripe_${sessionId.replaceAll('-', '')}_${saved.record.orders.length + 1}`;
       // The only creation call occurs after an atomic, version-guarded reservation.
       saved = await store.replace(sessionId, { ...saved.record, orders: [...saved.record.orders, order] }, saved.version, result.guards);
-      let created, diagnostic;
-      try { created = await gateway().createPayment({ ...order, phone: body.phone }); }
-      catch (error) { diagnostic = safeProviderDiagnostic(error?.diagnostic) || 'provider/unknown'; }
+      let created, diagnostic, definiteFailure = false;
+      try { created = body.method === 'stripe_card'
+        ? await stripeFactory({ apiKey: env.STRIPE_SANDBOX_SECRET_KEY }).createPayment(order, { uid: claims.sub, sessionId })
+        : await gateway().createPayment({ ...order, phone: body.phone }); }
+      catch (error) {
+        diagnostic = body.method === 'stripe_card' ? (error.code?.startsWith('stripe/') ? error.code : 'stripe/unavailable')
+          : safeProviderDiagnostic(error?.diagnostic) || 'provider/unknown';
+        definiteFailure = body.method === 'stripe_card' && error.definite === true;
+      }
       // Webhooks can overtake creation responses. Never overwrite their result.
       for (let retry = 0; retry < 4; retry++) {
         saved = await store.read(sessionId); if (!saved) fail('not-found');
         const current = saved.record.orders.find(o => o.id === order.id); if (!current) fail('not-found');
         if (created && current.reference && created.reference !== current.reference) fail('reference-mismatch');
         if (!['creating', 'creation_unknown'].includes(current.status)) return reply({ session: checkoutPublicRecord(saved.record) });
-        const next = created ? { ...current, reference: created.reference, entity: created.entity, status: 'pending' }
-          : { ...current, status: 'creation_unknown', creationDiagnostic: diagnostic };
+        const next = created ? { ...current, reference: created.reference, entity: created.entity, status: 'pending', ...(created.stripe ? { stripe: created.stripe } : {}) }
+          : { ...current, status: definiteFailure ? 'closed' : 'creation_unknown', creationDiagnostic: diagnostic };
         try {
           saved = await store.replace(sessionId, { ...saved.record, orders: saved.record.orders.map(o => o.id === order.id ? next : o) }, saved.version);
-          return reply({ session: checkoutPublicRecord(saved.record), ...(diagnostic ? { error: 'creation-unknown' } : {}) }, diagnostic ? 502 : 201);
+          return reply({ session: checkoutPublicRecord(saved.record), ...(diagnostic ? { error: definiteFailure ? diagnostic : 'creation-unknown' } : {}) }, diagnostic ? 502 : 201);
         } catch (error) { if (error.code !== 'conflict') throw error; }
       }
       return reply({ error: 'storage_unavailable' }, 503);
@@ -226,7 +251,7 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
   };
 }
 
-function applyEntitlements(record, order, now) {
+export function applyEntitlements(record, order, now) {
   const selection = order.quote.selection;
   if (order.quote.kind === 'primary') {
     if (record.registration) return null;
