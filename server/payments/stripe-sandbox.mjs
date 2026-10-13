@@ -45,7 +45,7 @@ export function matchStripeSession(session, order, context) {
     || session.amount_total !== order.amountCents || order.quote?.amountCents !== order.amountCents
     || !['open', 'complete', 'expired'].includes(session.status)
     || !['paid', 'unpaid', 'no_payment_required'].includes(session.payment_status)
-    || !Array.isArray(session.payment_method_types) || session.payment_method_types.length !== 1 || session.payment_method_types[0] !== 'card'
+    || !Array.isArray(session.payment_method_types) || !session.payment_method_types.includes('card')
     || Object.entries(meta).some(([key, value]) => session.metadata?.[key] !== value)) fail('stripe/mismatch');
   const intent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || null;
   if (session.payment_status === 'paid' && !/^pi_[A-Za-z0-9]+$/.test(intent || '')) fail('stripe/mismatch');
@@ -102,7 +102,7 @@ export function createStripeSandbox({ apiKey, fetchImpl = fetch }) {
       const landing = `https://circ-coimbra.org/conta/inscricoes-teste?teste=${context.sessionId}`;
       const body = new URLSearchParams({ mode: 'payment', client_reference_id: order.identifier,
         success_url: `${landing}&stripe=return`, cancel_url: `${landing}&stripe=cancel`, locale: 'auto',
-        'payment_method_types[0]': 'card', 'automatic_tax[enabled]': 'false', 'adaptive_pricing[enabled]': 'false',
+        'automatic_tax[enabled]': 'false', 'adaptive_pricing[enabled]': 'false',
         'invoice_creation[enabled]': 'false', customer_creation: 'if_required' });
       Object.entries(meta).forEach(([k, v]) => body.set(`metadata[${k}]`, v));
       lines.forEach((l, i) => {
