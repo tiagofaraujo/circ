@@ -28,6 +28,11 @@
 .sandbox-checkout dl { display: grid; grid-template-columns: minmax(120px, .6fr) 1fr; margin: 1rem 0; gap: .4rem 1rem; }
 .sandbox-checkout dt { font-weight: 600; }
 .sandbox-checkout dd { margin: 0; overflow-wrap: anywhere; }
+.sandbox-checkout__payment-help { margin: .8rem 0 1rem; padding: .9rem 1rem; border: 1px solid #d9dce8; border-radius: 8px; background: #fafaff; font-size: .9rem; line-height: 1.45; }
+.sandbox-checkout__payment-help > strong { display: block; margin-bottom: .45rem; }
+.sandbox-checkout__payment-help p { margin: .25rem 0; }
+.sandbox-checkout__payment-help small { display: block; margin-top: .55rem; color: #52586a; }
+
 .sandbox-checkout__quote { padding-top: 1.5rem; border-top: 1px solid #d9dce8; margin-top: 1.5rem; }
 .sandbox-checkout__quote dl { max-width: 600px; }
 .sandbox-checkout__quote dd { text-align: right; }
