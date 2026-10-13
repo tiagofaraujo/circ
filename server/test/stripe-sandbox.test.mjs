@@ -129,7 +129,8 @@ test('missing webhook or live API keys block creation before any reservation or 
       body: JSON.stringify({ id: OID, selection, stamp: q.stamp, method: 'stripe_card', sandboxAcknowledged: true }) }), { ...env, [field]: '' });
     assert.equal(r.status, 400); assert.equal(f.requests.length, 0); assert.equal(f.record().orders.length, 0);
   }
-  for (const key of ['sk_live_no', 'rk_live_no', 'pk_test_public', '', 'rk_test_foo\n']) {
+  assert.equal(stripeConfiguration({ ...env, STRIPE_SANDBOX_SECRET_KEY: 'rk_test_current_format-with_extra.parts' }).ready, true);
+  for (const key of ['sk_live_no', 'rk_live_no', 'pk_test_public', '', 'rk_test_foo\n', 'rk_test_has space']) {
     assert.throws(() => createStripeSandbox({ apiKey: key })); assert.equal(stripeConfiguration({ ...env, STRIPE_SANDBOX_SECRET_KEY: key }).ready, false);
   }
 });
