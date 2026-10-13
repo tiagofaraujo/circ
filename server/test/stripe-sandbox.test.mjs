@@ -81,7 +81,7 @@ async function complete(f, id = f.record().orders.at(-1).reference) { f.pay(id);
 test('hosted session uses server totals, card-only, fixed EUR, no recurring products or invoices', async () => {
   const f = await start(); const { url, options } = f.requests[0], b = new URLSearchParams(options.body);
   assert.equal(url, 'https://api.stripe.com/v1/checkout/sessions'); assert.equal(b.get('line_items[0][price_data][unit_amount]'), '9500');
-  assert.equal(b.get('payment_method_types[0]'), 'card'); assert.equal(b.get('mode'), 'payment');
+  assert.equal(b.get('payment_method_types[0]'), null); assert.equal(b.get('mode'), 'payment');
   assert.equal(b.get('invoice_creation[enabled]'), 'false'); assert.equal(b.get('adaptive_pricing[enabled]'), 'false');
   assert.equal(b.get('automatic_tax[enabled]'), 'false'); assert.equal(b.get('customer_creation'), 'if_required');
   assert.ok(b.get('success_url').startsWith('https://circ-coimbra.org/conta/inscricoes-teste?teste='));
