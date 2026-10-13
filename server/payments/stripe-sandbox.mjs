@@ -1,7 +1,7 @@
 // Hosted Checkout only. No card data, live keys, Connect, invoices or bank calls.
 import { createHash } from 'node:crypto';
 import { CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
-export const STRIPE_API_VERSION = '2025-09-30.clover';
+export const STRIPE_API_VERSION = '2026-09-30.endive';
 export const STRIPE_WEBHOOK_PATH = '/api/payments/stripe/sandbox/notifications';
 export const STRIPE_SESSION_ID = /^cs_test_[A-Za-z0-9]{8,240}$/;
 export const STRIPE_FLOW = 'circ-checkout-sandbox';
