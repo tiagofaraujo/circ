@@ -5,6 +5,7 @@ export const STRIPE_API_VERSION = '2026-09-30.endive';
 export const STRIPE_WEBHOOK_PATH = '/api/payments/stripe/sandbox/notifications';
 export const STRIPE_SESSION_ID = /^cs_test_[A-Za-z0-9]{8,240}$/;
 export const STRIPE_FLOW = 'circ-checkout-sandbox';
+export const STRIPE_ALLOWED_PAYMENT_METHODS = Object.freeze(['card', 'apple_pay', 'google_pay', 'link', 'paypal', 'revolut_pay', 'klarna']);
 const testKey = value => typeof value === 'string' && /^(rk|sk)_test_[!-~]{8,512}$/.test(value) && !/\s/.test(value);
 const UID = /^[A-Za-z0-9_-]{1,128}$/;
 export class StripeSandboxError extends Error {
@@ -45,7 +46,8 @@ export function matchStripeSession(session, order, context) {
     || session.amount_total !== order.amountCents || order.quote?.amountCents !== order.amountCents
     || !['open', 'complete', 'expired'].includes(session.status)
     || !['paid', 'unpaid', 'no_payment_required'].includes(session.payment_status)
-    || !Array.isArray(session.payment_method_types) || !session.payment_method_types.includes('card')
+    || !Array.isArray(session.payment_method_types) || session.payment_method_types.length < 1
+    || session.payment_method_types.some(method => !STRIPE_ALLOWED_PAYMENT_METHODS.includes(method))
     || Object.entries(meta).some(([key, value]) => session.metadata?.[key] !== value)) fail('stripe/mismatch');
   const intent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || null;
   if (session.payment_status === 'paid' && !/^pi_[A-Za-z0-9]+$/.test(intent || '')) fail('stripe/mismatch');
