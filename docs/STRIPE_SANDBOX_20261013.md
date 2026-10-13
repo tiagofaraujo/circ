@@ -4,7 +4,7 @@
 
 Método `stripe_card` no percurso administrativo `/conta/inscricoes-teste`, para a conta verificada `circ.chuc@gmail.com`. Reutiliza os preços, elegibilidade, armazenamento isolado e complementos existentes. Mantém MB WAY/Multibanco na Eupago e a conferência da transferência bancária. Não abre checkout público nem modifica inscrições reais, vagas, vouchers, faturação, Firebase rules ou credenciais.
 
-Usa Checkout alojado em `checkout.stripe.com`, `mode=payment`, `payment_method_types=[card]`, EUR e preços enviados pelo servidor. Não recolhe números de cartão ou CVC no CIRC. A chave publicável não é necessária neste redirecionamento. Impostos automáticos, Adaptive Pricing e criação de faturas estão desligados neste ensaio; isso não determina o enquadramento fiscal da associação. A API Stripe é fixada em `2026-09-30.endive`.
+Usa Checkout alojado em `checkout.stripe.com`, `mode=payment`, EUR e preços enviados pelo servidor. Na versão `2026-09-30.endive`, os métodos de pagamento são geridos pelas definições da Stripe no Dashboard; o CIRC não envia `payment_method_types`. Não recolhe números de cartão ou CVC no CIRC. A chave publicável não é necessária neste redirecionamento. Impostos automáticos, Adaptive Pricing e criação de faturas estão desligados neste ensaio; isso não determina o enquadramento fiscal da associação. A API Stripe é fixada em `2026-09-30.endive`.
 
 ## Configuração que falta concluir na conta da organização
 
@@ -16,7 +16,7 @@ O organizador informou que guardou `STRIPE_SANDBOX_SECRET_KEY` no Worker Cloudfl
 4. Guardar o segredo de assinatura do destino (`whsec_…`) na Cloudflare, tipo Secret, nome **STRIPE_SANDBOX_WEBHOOK_SECRET**. Publicar a configuração. Não reutilizar a chave da API, da CLI ou da Eupago.
 5. Na inscrição de teste, usar **Atualizar configuração Stripe**. A opção de cartão só é disponibilizada quando há chave de teste, segredo de assinatura e identidade de serviço Firebase. Estes indicadores verificam presença/formato, não a validade externa das credenciais ou a entrega do webhook.
 
-Permissão inicial da chave restrita: Checkout Sessions → Write (inclui leitura). A integração não chama APIs de Customers, PaymentIntents, Webhook Endpoints, refunds ou payouts. Se a Stripe devolver 403 ou recusar um parâmetro, consultar os registos da API para identificar a permissão/dependência concreta; não conceder acesso total por tentativa.
+Permissão inicial da chave restrita: Checkout Sessions → Write (inclui leitura). Na sandbox, manter cartões ativos nas definições de métodos de pagamento da Stripe; outros métodos dinâmicos devem ser desativados se não forem desejados no Checkout. A integração não chama APIs de Customers, PaymentIntents, Webhook Endpoints, refunds ou payouts. Se a Stripe devolver 403 ou recusar um parâmetro, consultar os registos da API para identificar a permissão/dependência concreta; não conceder acesso total por tentativa.
 
 ## Pagamento e confirmação
 
