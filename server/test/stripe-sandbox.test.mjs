@@ -190,7 +190,8 @@ test('signed event and retrieved session must match the same payment', async () 
 });
 test('paid signed snapshot is insufficient if API is unpaid, failed or unavailable', async () => {
   const f = await start(); const id = f.record().orders[0].reference; f.pay(id); const e = f.event(id);
-  f.sessions.get(id).payment_status = 'unpaid'; assert.equal((await f.send(e)).status, 503);
+  f.sessions.get(id).payment_status = 'unpaid'; const pending = await f.send(e); assert.equal(pending.status, 200);
+  assert.deepEqual(await pending.json(), { received: true, pending: true }); assert.equal(f.record().registration, null);
   f.setUnavailable(true); assert.equal((await f.send(e)).status, 503); assert.equal(f.record().registration, null);
   f.setUnavailable(false); f.pay(id); assert.equal((await f.send(e)).status, 200);
 });
