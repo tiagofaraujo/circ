@@ -28,7 +28,7 @@ function fixture() {
     requests.push({ url, options });
     assert.ok(url.startsWith('https://api.stripe.com/v1/checkout/sessions'));
     assert.equal(options.headers.Authorization, `Bearer ${env.STRIPE_SANDBOX_SECRET_KEY}`);
-    assert.equal(options.headers['Stripe-Version'], '2025-09-30.clover'); assert.equal(options.redirect, 'manual');
+    assert.equal(options.headers['Stripe-Version'], '2026-09-30.endive'); assert.equal(options.redirect, 'manual');
     if (options.method === 'POST') {
       if (postStatus !== 200) return new Response('private key echo must not escape', { status: postStatus });
       const body = new URLSearchParams(options.body), metadata = {};
