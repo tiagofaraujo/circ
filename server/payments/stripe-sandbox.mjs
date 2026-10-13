@@ -5,7 +5,7 @@ export const STRIPE_API_VERSION = '2026-09-30.endive';
 export const STRIPE_WEBHOOK_PATH = '/api/payments/stripe/sandbox/notifications';
 export const STRIPE_SESSION_ID = /^cs_test_[A-Za-z0-9]{8,240}$/;
 export const STRIPE_FLOW = 'circ-checkout-sandbox';
-const testKey = value => typeof value === 'string' && /^(rk|sk)_test_[A-Za-z0-9]+$/.test(value) && !/\s/.test(value);
+const testKey = value => typeof value === 'string' && /^(rk|sk)_test_[!-~]{8,512}$/.test(value) && !/\s/.test(value);
 const UID = /^[A-Za-z0-9_-]{1,128}$/;
 export class StripeSandboxError extends Error {
   constructor(code, definite = false) { super(code); this.code = code; this.definite = definite; }
