@@ -42,7 +42,8 @@ export function createStripeSandboxWebhook({ storeFactory = createCheckoutSandbo
     catch { return json({ error: 'invalid_signature_or_body' }, 400); }
     if (event?.object !== 'event' || event.livemode !== false || event.account || !/^evt_[A-Za-z0-9]+$/.test(event.id || '')
       || !Number.isSafeInteger(event.created)) return json({ error: 'invalid_event' }, 422);
-    if (!['checkout.session.completed', 'checkout.session.expired'].includes(event.type)) return json({ received: true, ignored: true });
+    const supportedEvents = ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed', 'checkout.session.expired'];
+    if (!supportedEvents.includes(event.type)) return json({ received: true, ignored: true });
     const snapshot = event.data?.object, meta = snapshot?.metadata;
     // Dashboard sample events and other integrations must never create records.
     if (meta?.integration !== STRIPE_FLOW) return json({ received: true, ignored: true });
@@ -78,6 +79,20 @@ export function createStripeSandboxWebhook({ storeFactory = createCheckoutSandbo
             } : o) }, saved.version);
             return json({ received: true, expired: true });
           } catch (error) { if (error.code === 'conflict') continue; throw error; }
+        }
+        if (event.type === 'checkout.session.async_payment_failed') {
+          if (current.status !== 'complete' || current.paymentStatus !== 'unpaid') return json({ error: 'reconciliation_pending' }, 503);
+          try {
+            await store.replace(r.id, { ...r, orders: r.orders.map(o => o.id === order.id ? {
+              ...o, reference: current.id, stripe: current, status: 'closed', providerState: 'failed', inspectedAt: now(),
+            } : o) }, saved.version);
+            return json({ received: true, failed: true });
+          } catch (error) { if (error.code === 'conflict') continue; throw error; }
+        }
+        if (event.type === 'checkout.session.completed' && (signed.paymentStatus !== 'paid' || current.paymentStatus !== 'paid')) {
+          // Delayed methods complete Checkout before funds are final. The later
+          // async success/failure event decides the order; do not force retries.
+          return json({ received: true, pending: true });
         }
         if (signed.status !== 'complete' || signed.paymentStatus !== 'paid'
           || current.status !== 'complete' || current.paymentStatus !== 'paid'
