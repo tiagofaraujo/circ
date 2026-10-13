@@ -4,13 +4,13 @@
 
 Método `stripe_card` no percurso administrativo `/conta/inscricoes-teste`, para a conta verificada `circ.chuc@gmail.com`. Reutiliza os preços, elegibilidade, armazenamento isolado e complementos existentes. Mantém MB WAY/Multibanco na Eupago e a conferência da transferência bancária. Não abre checkout público nem modifica inscrições reais, vagas, vouchers, faturação, Firebase rules ou credenciais.
 
-Usa Checkout alojado em `checkout.stripe.com`, `mode=payment`, `payment_method_types=[card]`, EUR e preços enviados pelo servidor. Não recolhe números de cartão ou CVC no CIRC. A chave publicável não é necessária neste redirecionamento. Impostos automáticos, Adaptive Pricing e criação de faturas estão desligados neste ensaio; isso não determina o enquadramento fiscal da associação. A API Stripe é fixada em `2025-09-30.clover`.
+Usa Checkout alojado em `checkout.stripe.com`, `mode=payment`, `payment_method_types=[card]`, EUR e preços enviados pelo servidor. Não recolhe números de cartão ou CVC no CIRC. A chave publicável não é necessária neste redirecionamento. Impostos automáticos, Adaptive Pricing e criação de faturas estão desligados neste ensaio; isso não determina o enquadramento fiscal da associação. A API Stripe é fixada em `2026-09-30.endive`.
 
 ## Configuração que falta concluir na conta da organização
 
 O organizador informou que guardou `STRIPE_SANDBOX_SECRET_KEY` no Worker Cloudflare `circ`. Não foram lidas as credenciais nem verificada a chave contra a API real durante este desenvolvimento.
 
-1. Na **mesma sandbox Stripe da chave**, abrir Workbench → Webhooks → Adicionar destino. Escolher eventos da própria conta e formato **Snapshot**, não Thin/Connect. Quando permitido, usar a versão `2025-09-30.clover`.
+1. Na **mesma sandbox Stripe da chave**, abrir Workbench → Webhooks → Adicionar destino. Escolher eventos da própria conta e formato **Snapshot**, não Thin/Connect. Quando permitido, usar a versão `2026-09-30.endive`.
 2. Selecionar apenas `checkout.session.completed` e `checkout.session.expired`.
 3. Endpoint HTTPS: `https://circ-coimbra.org/api/payments/stripe/sandbox/notifications`.
 4. Guardar o segredo de assinatura do destino (`whsec_…`) na Cloudflare, tipo Secret, nome **STRIPE_SANDBOX_WEBHOOK_SECRET**. Publicar a configuração. Não reutilizar a chave da API, da CLI ou da Eupago.
