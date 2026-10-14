@@ -29,13 +29,14 @@ const days = [
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
-      ['14:00', 'RM Fetal · a confirmar', 'Fetal MRI · to be confirmed', 'Dr. Rui Pedro Faria Pais e TSDT Paula Marques', 'Dr. Rui Pedro Faria Pais and TSDT Paula Marques'],
+      ['14:00', 'RM Fetal', 'Fetal MRI', 'Dr. Rui Pedro Faria Pais e TSDT Paula Marques', 'Dr. Rui Pedro Faria Pais and TSDT Paula Marques'],
       ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão e TSDT Diana Carvalho', 'Dra. Amélia Estêvão and TSDT Diana Carvalho'],
-      ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes e TSDT Bruno Esteves', 'Dra. Célia Antunes and TSDT Bruno Esteves'],
-    ], {pt: 'Sofia Brandão (a confirmar) e Kirsten Burke (biografia pendente)', en: 'Sofia Brandão (to be confirmed) and Kirsten Burke (biography pending)'}],
+      ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Dra. Célia Antunes e TSDT Bruno Esteves', 'Dra. Célia Antunes and TSDT Bruno Esteves'],
+    ], {pt: 'Sofia Brandão (a confirmar)', en: 'Sofia Brandão (to be confirmed)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
       ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD'],
       ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS'],
+      ['', 'Kirsten Burke', 'Kirsten Burke', 'Biografia pendente', 'Biography pending'],
     ], {pt: 'Mário Monteiro e Ana Isabel Machado', en: 'Mário Monteiro and Ana Isabel Machado'}],
   ] },
   { day: '10', pt: 'Congresso · Dia 2', en: 'Congress · Day 2', rows: [
@@ -75,7 +76,9 @@ function ProgrammeRow({ row, en, nested = false }) {
   const titleIsSpeaker = speaker && pt.includes(match[0]);
   const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada)/.test(pt);
   const title = en ? english : pt;
-  const heading = nested ? <h4>{title}</h4> : <h3>{title}</h3>;
+  const heading = pt === 'Quo Vadis Radiologia'
+    ? (nested ? <h4><em>{title}</em></h4> : <h3><em>{title}</em></h3>)
+    : (nested ? <h4>{title}</h4> : <h3>{title}</h3>);
   return <li className={`schedule-row${nested ? ' schedule-row--nested' : ''}${practical ? ' schedule-row--practical' : ''}`}>
     {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
