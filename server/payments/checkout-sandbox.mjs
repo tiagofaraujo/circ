@@ -79,8 +79,7 @@ export async function quoteSession(store, claims, record, rawSelection, now) {
 }
 
 export function createCheckoutSandboxApi({ verify, storeFactory = createCheckoutSandboxStore,
-  providerFactory = createEupagoSandbox, stripeFactory = createStripeSandbox,
-  serviceTokenProvider = createServiceTokenProvider(), now = () => new Date().toISOString() }) {
+  providerFactory = createEupagoSandbox, stripeFactory = createStripeSandbox, now = () => new Date().toISOString() }) {
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(`${PREFIX}/`)) return null;
@@ -104,17 +103,19 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
       if (deleteMatch && !CHECKOUT_UUID.test(deleteMatch[1] || '')) return reply({ error: 'not-found' }, 404);
       try {
         const body = await readBody(request);
-        const serviceToken = await serviceTokenProvider(env);
-        const serviceStore = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token: serviceToken, uid: claims.sub });
+        // Use the authenticated Firebase admin session here so Firestore security
+        // rules apply exactly as they do to the rest of the admin sandbox UI.
+        // The server service identity is intentionally not required to have delete IAM.
+        const adminStore = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token, uid: claims.sub });
         if (purgeCollection) {
           exact(body, ['confirmation']);
           if (body.confirmation !== 'APAGAR TESTES') fail('invalid-request');
-          const result = await serviceStore.purgeAll();
+          const result = await adminStore.purgeAll();
           return reply({ deleted: result.deleted });
         }
         exact(body, ['confirmation']);
         if (body.confirmation !== deleteMatch[1]) fail('invalid-request');
-        const result = await serviceStore.deleteSession(deleteMatch[1]);
+        const result = await adminStore.deleteSession(deleteMatch[1]);
         return reply(result);
       } catch (error) { return publicError(error); }
     }
