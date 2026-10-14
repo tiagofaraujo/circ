@@ -19,7 +19,7 @@ const days = [
     ['08:10', 'Check-in', 'Check-in'],
     ['08:50', 'Abertura da sala da Igreja', 'Church hall opens'],
     ['09:00', 'Boas-vindas', 'Welcome'],
-    ['09:15', 'Imagem Médica e o Futuro', 'Medical Imaging and the Future'],
+    ['09:10', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.'],
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
       ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'TSDT Rita Vaz'],
       ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'TSDT a designar', 'Speaker to be announced'],
