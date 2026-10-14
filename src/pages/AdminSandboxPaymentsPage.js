@@ -90,14 +90,12 @@ export default function AdminSandboxPaymentsPage() {
           if (!result.ok) { const issue = new Error(diagnosticMessage(data)); issue.safeMessage = true; throw issue; }
           if (active) setAttempt(data.attempt);
         }
+        if (active) await refreshCheckoutSessions();
       } catch (e) { if (active) setError(e.safeMessage ? e.message : errors[e.message] || 'Não foi possível carregar o teste. Tente novamente.'); }
       finally { if (active) setBusy(false); }
     }
     load(); return () => { active = false; };
   }, [user, storageKey]);
-  useEffect(() => { refreshCheckoutSessions(); /* admin-only sandbox list */ 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
   const webhookConfigured = Boolean(webhook?.signingKeyPresent && webhook?.channelPresent && webhook?.serviceAccountPresent);
   useEffect(() => {
     if (!webhookConfigured || !attempt?.reference || attempt.status === 'sandbox_paid' || busy) return undefined;
