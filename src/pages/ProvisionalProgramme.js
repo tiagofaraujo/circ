@@ -22,7 +22,7 @@ const days = [
     ['09:15', 'Imagem Médica e o Futuro', 'Medical Imaging and the Future'],
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
       ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'TSDT Rita Vaz'],
-      ['10:20', 'Radiografias em 3D em situação de trauma', '3D radiographs in trauma', 'TSDT a designar', 'Speaker to be announced'],
+      ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'TSDT a designar', 'Speaker to be announced'],
       ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália)', 'Michael Fuller (Australia)'],
     ], {pt: 'Raquel Reis e Joana Santos (a confirmar)', en: 'Raquel Reis and Joana Santos (to be confirmed)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
