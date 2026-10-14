@@ -95,6 +95,8 @@ export default function AdminSandboxPaymentsPage() {
       finally { if (active) setBusy(false); }
     }
     load(); return () => { active = false; };
+    // Loading the management list here is intentional; the helper uses the current authenticated user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, storageKey]);
   const webhookConfigured = Boolean(webhook?.signingKeyPresent && webhook?.channelPresent && webhook?.serviceAccountPresent);
   useEffect(() => {
