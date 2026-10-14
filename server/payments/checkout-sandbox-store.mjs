@@ -77,6 +77,40 @@ export function createCheckoutSandboxStore({ projectId, token, uid, fetchImpl = 
     if (!result.writeResults?.[0]?.updateTime) throw new SandboxStoreError('storage_unavailable');
     return { record, version: result.writeResults[0].updateTime };
   }
+  async function queryDocumentsByPrefix(rawPrefix, limit = 250) {
+    const start = `${root}/settings/${rawPrefix}`;
+    const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
+      from: [{ collectionId: 'settings' }],
+      where: { compositeFilter: { op: 'AND', filters: [
+        { fieldFilter: { field: { fieldPath: '__name__' }, op: 'GREATER_THAN_OR_EQUAL', value: { referenceValue: start } } },
+        { fieldFilter: { field: { fieldPath: '__name__' }, op: 'LESS_THAN', value: { referenceValue: `${start}~` } } },
+      ] } }, orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }], limit,
+    } });
+    if (!Array.isArray(rows)) throw new SandboxStoreError('storage_unavailable');
+    return rows.filter(row => row.document).map(row => row.document);
+  }
+  async function deleteResources(resources) {
+    const unique = [...new Set(resources)];
+    for (let i = 0; i < unique.length; i += 250) {
+      const batch = unique.slice(i, i + 250);
+      if (!batch.length) continue;
+      if (batch.some(resource => typeof resource !== 'string' || !resource.startsWith(`${root}/settings/`))) throw new SandboxStoreError('storage_unavailable');
+      await call(`${endpoint}:commit`, 'POST', { writes: batch.map(resource => ({ delete: resource })) });
+    }
+    return unique.length;
+  }
+  async function relatedCreditResources(sessionId) {
+    const docs = await queryDocumentsByPrefix(`circ-bank-credit-sandbox-${uid}-`, 500);
+    const result = [];
+    for (const document of docs) {
+      try {
+        const payload = JSON.parse(document.fields?.payload?.stringValue || '{}');
+        if (payload.owner === uid && payload.environment === 'sandbox' && payload.sessionId === sessionId) result.push(document.name);
+      } catch { throw new SandboxStoreError('storage_unavailable'); }
+    }
+    return result;
+  }
+
   return {
     async attachBankProof(id, record, version, proof) {
       if (proof.kind !== 'bank-proof-test' || typeof proof.base64 !== 'string' || proof.base64.length > 682668) throw new SandboxStoreError('invalid_request');
@@ -97,6 +131,28 @@ export function createCheckoutSandboxStore({ projectId, token, uid, fetchImpl = 
     async confirmBankTransfer(id, record, version, credit) {
       if (credit.kind !== 'bank-credit-test' || !CHECKOUT_UUID.test(credit.orderId || '')) throw new SandboxStoreError('invalid_request');
       return commitBankExtra(id, record, version, creditName(credit.key), credit);
+    },
+    async deleteSession(id) {
+      const current = await call(`https://firestore.googleapis.com/v1/${name(id)}`);
+      if (!current) return { deleted: false, resources: 0 };
+      unpack(current, id);
+      const proofDocs = await queryDocumentsByPrefix(`circ-bank-proof-sandbox-${uid}-${id}-`, 500);
+      const creditResources = await relatedCreditResources(id);
+      const resources = [name(id), ...proofDocs.map(doc => doc.name), ...creditResources];
+      return { deleted: true, resources: await deleteResources(resources) };
+    },
+    async purgeAll() {
+      let deleted = 0;
+      const prefixes = [`circ-checkout-sandbox-${uid}-`, `circ-bank-proof-sandbox-${uid}-`, `circ-bank-credit-sandbox-${uid}-`];
+      for (const rawPrefix of prefixes) {
+        for (let pass = 0; pass < 20; pass++) {
+          const docs = await queryDocumentsByPrefix(rawPrefix, 250);
+          if (!docs.length) break;
+          deleted += await deleteResources(docs.map(doc => doc.name));
+          if (docs.length < 250) break;
+        }
+      }
+      return { deleted };
     },
     async read(id) { const d = await call(`https://firestore.googleapis.com/v1/${name(id)}`); return d ? unpack(d, id) : null; },
     async create(id, record) {
