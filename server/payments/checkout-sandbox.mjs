@@ -79,7 +79,8 @@ export async function quoteSession(store, claims, record, rawSelection, now) {
 }
 
 export function createCheckoutSandboxApi({ verify, storeFactory = createCheckoutSandboxStore,
-  providerFactory = createEupagoSandbox, stripeFactory = createStripeSandbox, now = () => new Date().toISOString() }) {
+  providerFactory = createEupagoSandbox, stripeFactory = createStripeSandbox,
+  serviceTokenProvider = createServiceTokenProvider(), now = () => new Date().toISOString() }) {
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(`${PREFIX}/`)) return null;
@@ -96,6 +97,27 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     if (url.pathname === `${PREFIX}/config` && request.method === 'GET') return reply({ configured: true, eupagoConfigured: configured, bankTransferConfigured: true, bankTransferAccount: sandboxBankAccount(), stripe: stripeConfiguration(env), environment: 'sandbox',
       period: getRegistrationPeriod(new Date(now())), rates: { congress: CONGRESS_RATES, courses: COURSE_RATES, dinner: DINNER_RATE, virtual: VIRTUAL_CONGRESS_RATE },
       maxDinners: MAX_DINNERS, maxOrders: MAX_ORDERS });
+    const purgeCollection = url.pathname === `${PREFIX}/sessions/purge`;
+    const deleteMatch = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)\/delete$/);
+    if (purgeCollection || deleteMatch) {
+      if (request.method !== 'POST') return reply({ error: 'method-not-allowed' }, 405);
+      if (deleteMatch && !CHECKOUT_UUID.test(deleteMatch[1] || '')) return reply({ error: 'not-found' }, 404);
+      try {
+        const body = await readBody(request);
+        const serviceToken = await serviceTokenProvider(env);
+        const serviceStore = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token: serviceToken, uid: claims.sub });
+        if (purgeCollection) {
+          exact(body, ['confirmation']);
+          if (body.confirmation !== 'APAGAR TESTES') fail('invalid-request');
+          const result = await serviceStore.purgeAll();
+          return reply({ deleted: result.deleted });
+        }
+        exact(body, ['confirmation']);
+        if (body.confirmation !== deleteMatch[1]) fail('invalid-request');
+        const result = await serviceStore.deleteSession(deleteMatch[1]);
+        return reply(result);
+      } catch (error) { return publicError(error); }
+    }
     const collection = url.pathname === `${PREFIX}/sessions`;
     const match = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)(?:\/(quote|orders)(?:\/([^/]+)\/(inspect|recover|proof|proof-download|review|report))?)?$/);
     if (!collection && (!match || !CHECKOUT_UUID.test(match[1]) || (match[3] && !CHECKOUT_UUID.test(match[3]))
@@ -110,12 +132,21 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     try {
       if (collection && request.method === 'GET') {
         const { records, truncated } = await store.list();
-        return reply({ sessions: records.map(r => ({ id: r.id, createdAt: r.createdAt, confirmed: r.registration?.status === 'confirmed',
-          orderCount: r.orders.length, latestStatus: r.orders.at(-1)?.status || 'draft',
-          bankTransfers: r.orders.filter(o => o.method === 'bank_transfer' && o.bankTransfer?.simulated === true).map(o => ({
-            id: o.id, memo: o.bankTransfer.memo, status: o.bankTransfer.status, amountCents: o.amountCents,
-            createdAt: o.createdAt, proofCount: o.bankTransfer.proofs.length,
-          })) })), truncated });
+        return reply({ sessions: records.map(r => {
+          const latest = r.orders.at(-1);
+          return { id: r.id, createdAt: r.createdAt, confirmed: r.registration?.status === 'confirmed',
+            orderCount: r.orders.length, totalAmountCents: r.orders.reduce((sum, order) => sum + (Number.isSafeInteger(order.amountCents) ? order.amountCents : 0), 0),
+            latestStatus: latest?.status || 'draft', latestMethod: latest?.method || null,
+            latestAmountCents: Number.isSafeInteger(latest?.amountCents) ? latest.amountCents : null,
+            latestReference: typeof latest?.reference === 'string' ? latest.reference : null,
+            latestEntity: typeof latest?.entity === 'string' ? latest.entity : null,
+            latestProviderState: typeof latest?.providerState === 'string' ? latest.providerState : null,
+            latestTransactionId: typeof latest?.notification?.transactionId === 'string' ? latest.notification.transactionId : null,
+            bankTransfers: r.orders.filter(o => o.method === 'bank_transfer' && o.bankTransfer?.simulated === true).map(o => ({
+              id: o.id, memo: o.bankTransfer.memo, status: o.bankTransfer.status, amountCents: o.amountCents,
+              createdAt: o.createdAt, proofCount: o.bankTransfer.proofs.length,
+            })) };
+        }), truncated });
       }
       const body = request.method === 'POST' ? await readBody(request, match?.[4] === 'proof' ? Math.ceil(MAX_PROOF_BYTES / 3) * 4 + 4096 : 4096) : null;
       if (collection) {
