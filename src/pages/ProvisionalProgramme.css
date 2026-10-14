@@ -47,7 +47,9 @@
 @media print { .schedule-day[hidden] { display: block; } .schedule-nav { position: static; } }
 
 .schedule-title--quo-vadis {
-  font-style: oblique 14deg;
   font-weight: 800;
   letter-spacing: .015em;
+}
+.schedule-title--quo-vadis-italic {
+  font-style: oblique 14deg;
 }
