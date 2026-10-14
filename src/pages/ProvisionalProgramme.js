@@ -77,7 +77,9 @@ function ProgrammeRow({ row, en, nested = false }) {
   const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada)/.test(pt);
   const title = en ? english : pt;
   const heading = pt === 'Quo Vadis Radiologia'
-    ? (nested ? <h4 className="schedule-title--quo-vadis">{title}</h4> : <h3 className="schedule-title--quo-vadis">{title}</h3>)
+    ? (nested
+      ? <h4 className="schedule-title--quo-vadis"><span className="schedule-title--quo-vadis-italic">Quo Vadis</span> Radiologia</h4>
+      : <h3 className="schedule-title--quo-vadis"><span className="schedule-title--quo-vadis-italic">Quo Vadis</span> Radiologia</h3>)
     : (nested ? <h4>{title}</h4> : <h3>{title}</h3>);
   return <li className={`schedule-row${nested ? ' schedule-row--nested' : ''}${practical ? ' schedule-row--practical' : ''}`}>
     {time && <span className="schedule-time">{time}</span>}
