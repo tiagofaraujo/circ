@@ -32,7 +32,7 @@ const days = [
       ['14:00', 'RM Fetal · a confirmar', 'Fetal MRI · to be confirmed', 'Dr. Rui Pedro Faria Pais e TSDT Paula Marques', 'Dr. Rui Pedro Faria Pais and TSDT Paula Marques'],
       ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão e TSDT Diana Carvalho', 'Dra. Amélia Estêvão and TSDT Diana Carvalho'],
       ['14:40', 'RM Pélvica · a confirmar', 'Pelvic MRI · to be confirmed', 'Dra. Célia Antunes e TSDT Bruno Esteves', 'Dra. Célia Antunes and TSDT Bruno Esteves'],
-    ], {pt: 'Sofia Brandão (a confirmar)', en: 'Sofia Brandão (to be confirmed)'}],
+    ], {pt: 'Sofia Brandão (a confirmar) e Kirsten Burke (biografia pendente)', en: 'Sofia Brandão (to be confirmed) and Kirsten Burke (biography pending)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
       ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD'],
       ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS'],
