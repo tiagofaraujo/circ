@@ -4,6 +4,9 @@ import AdminSandboxPaymentsPage from './AdminSandboxPaymentsPage';
 const mockUser = { uid: 'admin-test', getIdToken: jest.fn(async () => 'test-token') };
 jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock('../components/AdminModuleNav', () => () => <nav>Admin</nav>);
+jest.mock('react-router-dom', () => ({
+  Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a>,
+}));
 const ID = '8cf7f394-f73f-444b-bc83-9d6031176942';
 const attempt = { id: ID, method: 'multibanco', status: 'pending', reference: '123456789', entity: '12345', identifier: 'circ_test_123' };
 const response = value => ({ ok: true, json: async () => value });
