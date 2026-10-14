@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import AdminModuleNav from '../components/AdminModuleNav';
 import '../admin.css';
@@ -40,6 +41,29 @@ export default function AdminSandboxPaymentsPage() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [checkedBackoffice, setCheckedBackoffice] = useState(false);
+  const [checkoutSessions, setCheckoutSessions] = useState([]);
+  const [checkoutTruncated, setCheckoutTruncated] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(true);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [purgeText, setPurgeText] = useState('');
+  async function checkoutApi(path, body) {
+    const token = await user.getIdToken();
+    const response = await fetch(`/api/checkout/sandbox/${path}`, { method: body ? 'POST' : 'GET',
+      headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}), cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'service-unavailable');
+    return data;
+  }
+  async function refreshCheckoutSessions() {
+    setCheckoutBusy(true); setCheckoutError('');
+    try {
+      const data = await checkoutApi('sessions');
+      setCheckoutSessions(data.sessions || []); setCheckoutTruncated(Boolean(data.truncated));
+    } catch {
+      setCheckoutError('Não foi possível carregar as inscrições de teste.');
+    } finally { setCheckoutBusy(false); }
+  }
   async function api(path, body) {
     const token = await user.getIdToken();
     const response = await fetch(`/api/payments/sandbox/${path}`, { method: body ? 'POST' : 'GET',
@@ -71,6 +95,9 @@ export default function AdminSandboxPaymentsPage() {
     }
     load(); return () => { active = false; };
   }, [user, storageKey]);
+  useEffect(() => { refreshCheckoutSessions(); /* admin-only sandbox list */ 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
   const webhookConfigured = Boolean(webhook?.signingKeyPresent && webhook?.channelPresent && webhook?.serviceAccountPresent);
   useEffect(() => {
     if (!webhookConfigured || !attempt?.reference || attempt.status === 'sandbox_paid' || busy) return undefined;
@@ -99,6 +126,29 @@ export default function AdminSandboxPaymentsPage() {
       const data = await api('attempts', { id: next, method, ...(method === 'mbway' ? { phone } : {}) });
       setAttempt(data.attempt); setPhone('');
     });
+  }
+  const money = cents => Number.isSafeInteger(cents) ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100) : '—';
+  const methodLabel = method => ({ mbway: 'MB WAY', multibanco: 'Multibanco', stripe_card: 'Stripe', bank_transfer: 'Transferência bancária' }[method] || '—');
+  const statusLabel = status => ({ draft: 'Rascunho', creating: 'A criar', creation_unknown: 'Criação por confirmar', pending: 'Pendente',
+    confirmed: 'Confirmado', review_required: 'Revisão necessária', closed: 'Encerrado' }[status] || status || '—');
+  async function deleteCheckoutSession(sessionId) {
+    if (!window.confirm('Apagar definitivamente esta inscrição de teste? Esta ação não afeta inscrições reais.')) return;
+    setCheckoutBusy(true); setCheckoutError('');
+    try {
+      await checkoutApi(`sessions/${sessionId}/delete`, { confirmation: sessionId });
+      try { if (localStorage.getItem(`circ-checkout-sandbox-${user.uid}`) === sessionId) localStorage.removeItem(`circ-checkout-sandbox-${user.uid}`); } catch {}
+      await refreshCheckoutSessions();
+    } catch { setCheckoutError('Não foi possível apagar esta inscrição de teste.'); setCheckoutBusy(false); }
+  }
+  async function purgeCheckoutSessions() {
+    if (purgeText !== 'APAGAR TESTES') return;
+    setCheckoutBusy(true); setCheckoutError('');
+    try {
+      const result = await checkoutApi('sessions/purge', { confirmation: purgeText });
+      try { localStorage.removeItem(`circ-checkout-sandbox-${user.uid}`); } catch {}
+      setPurgeText(''); await refreshCheckoutSessions();
+      window.alert(`Limpeza concluída: ${result.deleted || 0} registos de sandbox eliminados.`);
+    } catch { setCheckoutError('Não foi possível concluir a limpeza das inscrições de teste.'); setCheckoutBusy(false); }
   }
   return <main className="admin-page"><AdminModuleNav />
     <header><h1>Testes de pagamento</h1><p>Sandbox Eupago · acesso reservado à organização</p></header>
@@ -129,6 +179,41 @@ export default function AdminSandboxPaymentsPage() {
       {attempt?.status === 'creation_unknown' && <label><input type="checkbox" checked={checkedBackoffice} onChange={e => setCheckedBackoffice(e.target.checked)} disabled={busy} /> Confirmei no backoffice da sandbox que este pedido não existe nem está pendente ou pago. O registo atual será conservado.</label>}
       {['pending', 'sandbox_paid', 'creation_unknown'].includes(attempt?.status) && <button disabled={busy || (attempt.status === 'creation_unknown' && !checkedBackoffice)} onClick={() => { saveId(storageKey, ''); setId(''); setAttempt(null); setError(''); setPhone(''); setCheckedBackoffice(false); }}>Preparar outro teste</button>}
       <p>A confirmação automática das inscrições ainda não está ativa. A consulta do estado serve apenas para verificar a ligação à Eupago.</p>
+    </section>
+    <section className="company-voucher">
+      <h2>Gestão das inscrições de teste</h2>
+      <p>Registos exclusivos da sandbox. Esta área não lista nem altera inscrições reais, vouchers, vagas ou faturação.</p>
+      <div className="admin-actions">
+        <button type="button" disabled={checkoutBusy} onClick={refreshCheckoutSessions}>Atualizar lista</button>
+        <Link className="admin-button-link" to="/conta/inscricoes-teste">Nova inscrição de teste</Link>
+      </div>
+      {checkoutError && <p role="alert">{checkoutError}</p>}
+      {checkoutBusy && <p role="status">A atualizar inscrições de teste…</p>}
+      {!checkoutBusy && checkoutSessions.length === 0 && <p>Não existem inscrições de teste nesta conta.</p>}
+      {!checkoutBusy && checkoutSessions.length > 0 && <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead><tr><th>Data</th><th>ID</th><th>Método</th><th>Valor</th><th>Estado</th><th>Referência / transação</th><th>Ações</th></tr></thead>
+          <tbody>{checkoutSessions.map(item => <tr key={item.id}>
+            <td>{new Date(item.createdAt).toLocaleString('pt-PT')}</td>
+            <td><code>{item.id}</code><br /><small>{item.orderCount} pedido(s)</small></td>
+            <td>{methodLabel(item.latestMethod)}</td>
+            <td>{money(item.totalAmountCents)}</td>
+            <td>{statusLabel(item.latestStatus)}{item.confirmed ? <><br /><small>Inscrição confirmada</small></> : null}</td>
+            <td>{item.latestEntity ? <>{item.latestEntity} · </> : null}{item.latestReference || item.latestTransactionId || '—'}{item.latestProviderState ? <><br /><small>{item.latestProviderState}</small></> : null}</td>
+            <td><Link to={`/conta/inscricoes-teste?teste=${item.id}`}>Abrir</Link>{' · '}
+              <button type="button" className="secondary" disabled={checkoutBusy} onClick={() => deleteCheckoutSession(item.id)}>Apagar</button></td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+      {checkoutTruncated && <p><strong>Atenção:</strong> são mostradas apenas as 100 inscrições de teste mais recentes.</p>}
+      <details style={{ marginTop: '1.5rem' }}>
+        <summary><strong>Limpar todas as inscrições de teste</strong></summary>
+        <p>Apaga apenas dados da sandbox associados a esta conta, incluindo inscrições de teste e anexos/validações simuladas de transferência. Não toca em inscrições reais.</p>
+        <label>Para confirmar, escreva <code>APAGAR TESTES</code>
+          <input value={purgeText} onChange={e => setPurgeText(e.target.value)} autoComplete="off" />
+        </label>
+        <button type="button" disabled={checkoutBusy || purgeText !== 'APAGAR TESTES'} onClick={purgeCheckoutSessions}>Apagar todas as inscrições de teste</button>
+      </details>
     </section>
     {webhook && <section className="company-voucher"><h2>Notificações automáticas — sandbox</h2>
       <p>{attempt?.notification?.verifiedAt ? 'Receção e validação da notificação comprovadas neste teste.' : webhookConfigured ? 'Configuração presente. Falta comprovar a receção de uma notificação real da sandbox.' : 'A receção automática aguarda a configuração do servidor e do canal da Eupago.'}</p>
