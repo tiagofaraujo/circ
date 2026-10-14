@@ -52,7 +52,7 @@ const days = [
     ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, {pt: 'Samuel Oliveira e Vitor Silva', en: 'Samuel Oliveira and Vitor Silva'}],
     ['17:00', 'Coffee break', 'Coffee break'],
     ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', null, null, [
-      ['17:30–17:50', 'Identidade e Futuro da Profissão: a Perspetiva da ATARP — O Que Falta Construir?', 'Identity and the Future of the Profession: the ATARP Perspective — What Still Needs to Be Built?', 'Joana Madureira'],
+      ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', 'Joana Madureira'],
       ['17:50–18:10', 'Comunicação e Ética na Radiologia', 'Communication and Ethics in Radiology'],
     ]],
   ] },
