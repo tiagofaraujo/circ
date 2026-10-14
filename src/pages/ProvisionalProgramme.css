@@ -45,3 +45,9 @@
 .schedule-nav button:focus-visible, .schedule-speaker:focus-visible, .provisional-programme summary:focus-visible { outline: 3px solid #e6503b; outline-offset: 3px; }
 @media(max-width:760px) { .schedule-hero { padding-top: 32px; } .schedule-nav { top: 74px; gap: 4px; padding: 5px; border-radius: 14px; } .schedule-nav button { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 10px; min-height: 80px; } .schedule-nav button strong { font-size: 1.5rem; } .schedule-nav button > span { font-size: .7rem; } .schedule-row { grid-template-columns: 1fr; gap: 12px; padding: 20px; } .schedule-row--nested { padding: 18px 0; gap: 8px; } .schedule-row--practical { padding: 10px 20px; gap: 5px; } .schedule-content h3 { font-size: 1.05rem; } .schedule-time { font-size: .8rem; } .schedule-day-heading > span { font-size: .7rem; } .schedule-footer { flex-direction: column; } .schedule-footer .button { justify-content: center; } }
 @media print { .schedule-day[hidden] { display: block; } .schedule-nav { position: static; } }
+
+.schedule-title--quo-vadis {
+  font-style: oblique 14deg;
+  font-weight: 800;
+  letter-spacing: .015em;
+}
