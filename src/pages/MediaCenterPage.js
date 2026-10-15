@@ -10,12 +10,12 @@ const copy = {
     subtitle: 'Informação e materiais para imprensa',
     intro: 'Materiais oficiais para apoio à cobertura editorial do Congresso Internacional de Radiologia de Coimbra. A nota de imprensa está fechada para distribuição, acompanhada do Fact Sheet, fotografias autorizadas e contactos da organização.',
     release: 'Distribuição à imprensa autorizada a partir de 16 de outubro de 2026.',
-    documents: 'Materiais para imprensa', preview: 'Pré-visualização privada · Divulgação ainda não autorizada',
+    documents: 'Materiais para imprensa', graphics: 'Recursos gráficos e identidade visual', graphicsLead: 'Materiais oficiais para utilização editorial e divulgação do CIRC 2027. Utilize os ficheiros sem alterar proporções, cores ou composição gráfica.', preview: 'Pré-visualização privada · Divulgação ainda não autorizada',
     pdf: 'Descarregar PDF', word: 'Versão Word', language: 'Português', version: 'Versão final',
     overview: 'O CIRC 2027 em síntese', programme: 'Consultar o programa provisório', speakers: 'Consultar oradores confirmados', website: 'Abrir o site oficial',
     contact: 'Contacto de imprensa', committee: 'Comissão Organizadora do CIRC 2027',
     requests: 'Pedidos de entrevista, informação adicional e materiais para cobertura editorial.',
-    email: 'Enviar email', phone: 'Telefonar', jump: 'Ir para os documentos',
+    email: 'Enviar email', phone: 'Telefonar', jump: 'Ir para os documentos', poster: 'Cartaz oficial', social: 'Imagem para redes sociais', logoAsset: 'Logótipo CIRC', downloadImage: 'Descarregar imagem', downloadLogo: 'Descarregar logótipo', usage: 'Utilização editorial', credit: 'Crédito recomendado: CIRC 2027 · Associação Hemisfério Disciplinado.',
     facts: [
       ['Nome', 'Congresso Internacional de Radiologia de Coimbra — CIRC 2027.'],
       ['Edição', '3.ª edição.'], ['Datas', '8 a 10 de abril de 2027.'],
@@ -30,12 +30,12 @@ const copy = {
     subtitle: 'Information and resources for the press',
     intro: 'Official materials for editorial coverage of the Coimbra International Radiology Congress. The press release is final for distribution, together with the Fact Sheet, authorised press photographs and organiser contacts.',
     release: 'Authorised for press distribution from 16 October 2026.',
-    documents: 'Press materials', preview: 'Private preview · Not yet authorised for release',
+    documents: 'Press materials', graphics: 'Graphic resources and visual identity', graphicsLead: 'Official assets for editorial use and CIRC 2027 promotion. Please use the files without altering proportions, colours or artwork composition.', preview: 'Private preview · Not yet authorised for release',
     pdf: 'Download PDF', word: 'Word version', language: 'Portuguese', version: 'Final version',
     overview: 'CIRC 2027 at a glance', programme: 'View provisional programme', speakers: 'View confirmed speakers', website: 'Open official website',
     contact: 'Press contact', committee: 'CIRC 2027 Organising Committee',
     requests: 'Interview requests, further information and materials for editorial coverage.',
-    email: 'Send email', phone: 'Call', jump: 'Skip to documents',
+    email: 'Send email', phone: 'Call', jump: 'Skip to documents', poster: 'Official poster', social: 'Social media artwork', logoAsset: 'CIRC logo', downloadImage: 'Download image', downloadLogo: 'Download logo', usage: 'Editorial use', credit: 'Suggested credit: CIRC 2027 · Associação Hemisfério Disciplinado.',
     facts: [
       ['Name', 'Coimbra International Radiology Congress — CIRC 2027.'],
       ['Edition', '3rd edition.'], ['Dates', '8–10 April 2027.'],
@@ -123,6 +123,49 @@ export default function MediaCenterPage() {
             </div>
           </article>)}
         </div>
+      </section>
+      <section className="media-graphics" aria-labelledby="graphics-heading">
+        <div className="media-graphics__intro">
+          <div>
+            <p className="media-kicker">MEDIA KIT</p>
+            <h2 className="media-section-title" id="graphics-heading">{t.graphics}</h2>
+          </div>
+          <p>{t.graphicsLead}</p>
+        </div>
+        <div className="media-graphics-grid">
+          <article className="media-asset media-asset--poster">
+            <a className="media-asset__preview" href="/cartaz.jpeg" target="_blank" rel="noreferrer">
+              <img src="/cartaz.jpeg" alt={t.poster} loading="lazy" decoding="async" />
+            </a>
+            <div className="media-asset__body">
+              <p className="media-document-type">CIRC 2027 · JPG</p>
+              <h3>{t.poster}</h3>
+              <p>{en ? 'Main artwork for press coverage, institutional communication and event promotion.' : 'Peça principal para cobertura de imprensa, comunicação institucional e divulgação do evento.'}</p>
+              <a className="media-button" href="/cartaz.jpeg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
+            </div>
+          </article>
+          <article className="media-asset">
+            <a className="media-asset__preview media-asset__preview--social" href="/identity2027/circ2027-social-20260928.jpg" target="_blank" rel="noreferrer">
+              <img src="/identity2027/circ2027-social-20260928.jpg" alt={t.social} loading="lazy" decoding="async" />
+            </a>
+            <div className="media-asset__body">
+              <p className="media-document-type">{en ? 'Digital communication · JPG' : 'Comunicação digital · JPG'}</p>
+              <h3>{t.social}</h3>
+              <p>{en ? 'Artwork for digital publication and social channels. Additional platform-specific formats are being consolidated in this media kit.' : 'Peça para publicação digital e redes sociais. Os formatos específicos por plataforma estão a ser consolidados neste media kit.'}</p>
+              <a className="media-button" href="/identity2027/circ2027-social-20260928.jpg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
+            </div>
+          </article>
+          <article className="media-asset media-asset--logo">
+            <div className="media-asset__preview media-asset__preview--logo"><img src="/logo.png" alt={t.logoAsset} loading="lazy" decoding="async" /></div>
+            <div className="media-asset__body">
+              <p className="media-document-type">{en ? 'Official identity · PNG' : 'Identidade oficial · PNG'}</p>
+              <h3>{t.logoAsset}</h3>
+              <p>{en ? 'Official CIRC signature for editorial identification of the congress.' : 'Assinatura oficial do CIRC para identificação editorial do congresso.'}</p>
+              <a className="media-button" href="/logo.png" download><span>{t.downloadLogo}</span><span aria-hidden="true">↓</span></a>
+            </div>
+          </article>
+        </div>
+        <div className="media-usage-note"><strong>{t.usage}</strong><span>{t.credit}</span></div>
       </section>
       <div className="media-detail-grid">
         <section aria-labelledby="overview-heading">
