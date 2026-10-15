@@ -15,7 +15,7 @@ const copy = {
     overview: 'O CIRC 2027 em síntese', programme: 'Consultar o programa provisório', speakers: 'Consultar oradores confirmados', website: 'Abrir o site oficial',
     contact: 'Contacto de imprensa', committee: 'Comissão Organizadora do CIRC 2027',
     requests: 'Pedidos de entrevista, informação adicional e materiais para cobertura editorial.',
-    email: 'Enviar email', phone: 'Telefonar', jump: 'Ir para os documentos', poster: 'Cartaz oficial', social: 'Imagem para redes sociais', logoAsset: 'Logótipo CIRC', downloadImage: 'Descarregar imagem', downloadLogo: 'Descarregar logótipo', usage: 'Utilização editorial', credit: 'Crédito recomendado: CIRC 2027 · Associação Hemisfério Disciplinado.',
+    email: 'Enviar email', phone: 'Telefonar', jump: 'Ir para os documentos', poster: 'Cartaz oficial', social: 'Imagem para redes sociais', logoAsset: 'Logótipo CIRC', downloadImage: 'Descarregar imagem', downloadLogo: 'Descarregar logótipo vetorial', socialDownload: 'Descarregar original', usage: 'Utilização editorial', credit: 'Crédito recomendado: CIRC 2027 · Associação Hemisfério Disciplinado.',
     facts: [
       ['Nome', 'Congresso Internacional de Radiologia de Coimbra — CIRC 2027.'],
       ['Edição', '3.ª edição.'], ['Datas', '8 a 10 de abril de 2027.'],
@@ -35,7 +35,7 @@ const copy = {
     overview: 'CIRC 2027 at a glance', programme: 'View provisional programme', speakers: 'View confirmed speakers', website: 'Open official website',
     contact: 'Press contact', committee: 'CIRC 2027 Organising Committee',
     requests: 'Interview requests, further information and materials for editorial coverage.',
-    email: 'Send email', phone: 'Call', jump: 'Skip to documents', poster: 'Official poster', social: 'Social media artwork', logoAsset: 'CIRC logo', downloadImage: 'Download image', downloadLogo: 'Download logo', usage: 'Editorial use', credit: 'Suggested credit: CIRC 2027 · Associação Hemisfério Disciplinado.',
+    email: 'Send email', phone: 'Call', jump: 'Skip to documents', poster: 'Official poster', social: 'Social media artwork', logoAsset: 'CIRC logo', downloadImage: 'Download image', downloadLogo: 'Download vector logo', socialDownload: 'Download original', usage: 'Editorial use', credit: 'Suggested credit: CIRC 2027 · Associação Hemisfério Disciplinado.',
     facts: [
       ['Name', 'Coimbra International Radiology Congress — CIRC 2027.'],
       ['Edition', '3rd edition.'], ['Dates', '8–10 April 2027.'],
@@ -155,37 +155,36 @@ export default function MediaCenterPage() {
               <p className="media-document-type">{en ? 'Official identity · Vector PDF · 3 pages' : 'Identidade oficial · PDF vetorial · 3 páginas'}</p>
               <h3>{t.logoAsset}</h3>
               <p>{en ? 'Official vector identity file with vertical, horizontal and wordmark compositions in black, red and blue.' : 'Ficheiro vetorial oficial com composições vertical, horizontal e lettering nas variantes preta, vermelha e azul.'}</p>
-              <p className="media-asset__filename"><strong>CIRC_LOGO_VETORIAL.pdf</strong></p>
-              <a className="media-button" href="/media-assets/CIRC_LOGO_VETORIAL.pdf" download><span>{t.downloadLogo}</span><span aria-hidden="true">↓</span></a>
+              <p className="media-asset__filename"><strong>CIRC2027_LOGO_VETORIAL.pdf</strong></p>
+              <a className="media-button" href="/media-assets/CIRC2027_LOGO_VETORIAL.pdf?download=1" download="CIRC2027_LOGO_VETORIAL.pdf"><span>{t.downloadLogo}</span><span aria-hidden="true">↓</span></a>
             </div>
           </article>
 
           <article className="media-asset media-asset--social">
-            <div className="media-social-previews" aria-label={en ? 'Social media artwork previews' : 'Pré-visualizações das peças para redes sociais'}>
-              {[
-                ['Digitial_1920x1080-TORRE.jpg', '1920 × 1080'],
-                ['Digitial_1350x1080-TORRE.jpg', '1350 × 1080'],
-                ['Digitial_1080x1350-TORRE.jpg', '1080 × 1350'],
-                ['Digitial_1080x1920-TORRE.jpg', '1080 × 1920'],
-              ].map(([filename, format]) => (
-                <a href={`/media-assets/${filename}`} target="_blank" rel="noreferrer" key={filename}>
-                  <img src={`/media-assets/${filename}`} alt={`${t.social} — ${format}`} loading="lazy" decoding="async" />
-                  <span>{format}</span>
-                </a>
-              ))}
-            </div>
-            <div className="media-asset__body">
-              <p className="media-document-type">{en ? 'Official campaign · 4 JPG formats' : 'Campanha oficial · 4 formatos JPG'}</p>
+            <div className="media-asset__body media-asset__body--social">
+              <p className="media-document-type">{en ? 'Official campaign · 4 original JPG files' : 'Campanha oficial · 4 ficheiros JPG originais'}</p>
               <h3>{t.social}</h3>
-              <p>{en ? 'Prepared artwork for websites, social feeds, posts and vertical stories. The previous circ2027-social-20260928.jpg artwork is not included.' : 'Peças preparadas para websites, feeds, publicações e stories verticais. A peça anterior circ2027-social-20260928.jpg não está incluída.'}</p>
-              <div className="media-social-downloads">
-                {[
-                  ['Digitial_1920x1080-TORRE.jpg', '1920 × 1080 · 16:9'],
-                  ['Digitial_1350x1080-TORRE.jpg', '1350 × 1080'],
-                  ['Digitial_1080x1350-TORRE.jpg', '1080 × 1350 · 4:5'],
-                  ['Digitial_1080x1920-TORRE.jpg', '1080 × 1920 · 9:16'],
-                ].map(([filename, format]) => <a href={`/media-assets/${filename}`} download key={filename}>{format} <span aria-hidden="true">↓</span></a>)}
-              </div>
+              <p>{en ? 'Choose the format that best matches the publication channel. Each button downloads the original supplied artwork.' : 'Escolha o formato mais adequado ao canal de publicação. Cada botão descarrega o ficheiro original fornecido.'}</p>
+            </div>
+            <div className="media-social-assets">
+              {[
+                {file:'Digitial_1920x1080-TORRE.jpg', size:'1920 × 1080', ratio:'16:9', channels: en ? 'LinkedIn · Facebook · X · Website' : 'LinkedIn · Facebook · X · Website'},
+                {file:'Digitial_1350x1080-TORRE.jpg', size:'1350 × 1080', ratio:'5:4', channels: 'Facebook · LinkedIn'},
+                {file:'Digitial_1080x1350-TORRE.jpg', size:'1080 × 1350', ratio:'4:5', channels: en ? 'Instagram feed' : 'Instagram Feed'},
+                {file:'Digitial_1080x1920-TORRE.jpg', size:'1080 × 1920', ratio:'9:16', channels: 'Stories · Reels · TikTok'},
+              ].map(asset => (
+                <article className="media-social-asset" key={asset.file}>
+                  <a className="media-social-asset__preview" href={`/media-assets/${asset.file}`} target="_blank" rel="noreferrer">
+                    <img src={`/media-assets/${asset.file}`} alt={`${t.social} — ${asset.size}`} loading="lazy" decoding="async" />
+                  </a>
+                  <div className="media-social-asset__body">
+                    <div><strong>{asset.size}</strong><span>{asset.ratio}</span></div>
+                    <p>{asset.channels}</p>
+                    <small>{asset.file}</small>
+                    <a href={`/media-assets/${asset.file}?download=1`} download={asset.file}>{t.socialDownload} <span aria-hidden="true">↓</span></a>
+                  </div>
+                </article>
+              ))}
             </div>
           </article>
         </div>
