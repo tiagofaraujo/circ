@@ -7,7 +7,7 @@ import MriCourseDescription, { mriCourseTitle } from '../components/MriCourseDes
 import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
 
 // Temporarily hide moderator credits while retaining programme data.
-const SHOW_MODERATORS = false;
+const SHOW_MODERATORS = true;
 
 // Times and pending confirmations transcribed from the supplied provisional programme.
 const days = [
