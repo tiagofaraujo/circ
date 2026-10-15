@@ -7,10 +7,14 @@ import manifest from '../data/mediaCenter.json';
 jest.mock('../data/mediaAccess',()=>({mediaPreview:true,mediaVisible:true,useMediaAccess:()=>true}));
 function Toggle(){const {setLanguage}=useLanguage();return <button onClick={()=>setLanguage('en')}>English</button>;}
 beforeEach(()=>localStorage.clear());
-test('preview offers exactly five real file links, date and contact',()=>{
+test('preview offers all published press and graphic downloads, date and contact',()=>{
  const {container}=render(<MemoryRouter initialEntries={['/media']}><LanguageProvider><MediaCenterPage /></LanguageProvider></MemoryRouter>);
- expect(container.querySelectorAll('a[download]')).toHaveLength(5);
+ expect(container.querySelectorAll('a[download]')).toHaveLength(11);
  for(const doc of manifest.documents)for(const f of Object.values(doc.files))expect(container.querySelector(`a[href="/media-files/${f.name}"]`)).not.toBeNull();
+ expect(container.querySelector('a[download][href="/media-assets/Cartaz_RGB-3000.jpg"]')).not.toBeNull();
+ expect(container.querySelector('a[download][href="/media-assets/CIRC_LOGO_VETORIAL.pdf"]')).not.toBeNull();
+ for(const name of ['Digitial_1920x1080-TORRE.jpg','Digitial_1350x1080-TORRE.jpg','Digitial_1080x1350-TORRE.jpg','Digitial_1080x1920-TORRE.jpg']) expect(container.querySelector(`a[download][href="/media-assets/${name}"]`)).not.toBeNull();
+ expect(container.querySelector('img[src="/identity2027/circ2027-social-20260928.jpg"]')).toBeNull();
  expect(screen.getByText('29/09/2026')).toBeInTheDocument();
  expect(screen.getByText(/Distribuição à imprensa autorizada a partir de 16 de outubro de 2026/)).toBeInTheDocument();
  expect(container.querySelector('a[href="tel:+351914004261"]')).not.toBeNull();
