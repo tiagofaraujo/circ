@@ -151,7 +151,8 @@ export default function MediaCenterPage() {
             <div className="media-asset__body">
               <p className="media-document-type">{en ? 'Digital communication · JPG' : 'Comunicação digital · JPG'}</p>
               <h3>{t.social}</h3>
-              <p>{en ? 'Artwork for digital publication and social channels. Additional platform-specific formats are being consolidated in this media kit.' : 'Peça para publicação digital e redes sociais. Os formatos específicos por plataforma estão a ser consolidados neste media kit.'}</p>
+              <p>{en ? 'Official campaign artwork for digital publication and social channels.' : 'Peça oficial da campanha para publicação digital e redes sociais.'}</p>
+              <div className="media-format-list" aria-label={en ? 'Prepared formats' : 'Formatos preparados'}><span>1920 × 1080 · 16:9</span><span>1350 × 1080 · horizontal</span><span>1080 × 1350 · 4:5</span><span>1080 × 1920 · 9:16</span></div>
               <a className="media-button" href="/identity2027/circ2027-social-20260928.jpg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
             </div>
           </article>
