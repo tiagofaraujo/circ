@@ -33,6 +33,7 @@ Não foi criado um endereço remoto de revisão. Para isso, configurar proteçã
 4. Gerar a pré-visualização e verificar os documentos. A data editorial não autoriza a divulgação.
 5. Só depois da autorização expressa, copiar os ficheiros aprovados para `media-published/` e definir `published: true` ao nível da página e `status: "published"` nos documentos autorizados.
 6. Executar `npm run build`. Este processo valida hashes, assinaturas e tamanhos; ficheiros divergentes impedem a compilação. Os ficheiros publicados são copiados para `build/media-files/`.
+   Os recursos gráficos aprovados ficam em `media-assets/` na raiz e o mesmo build valida os seis ficheiros autorizados (JPG/PDF) e copia-os para `build/media-assets/`.
 7. Publicar o build e o Worker pelos procedimentos Cloudflare já existentes. Garantir que `/media`, `/media/`, `/press`, `/press/` e `/media-files/*` passam pelo Worker (`run_worker_first`). Não substituir o Worker por alojamento SPA puramente estático.
 8. Verificar `/media`, `/press` (301), quatro downloads e ficheiros sem login. Confirmar MIME, conteúdo e tamanho; não basta HTTP 200. O Worker recusa HTML ou conteúdo divergente mesmo se o alojamento fizer fallback para a SPA.
 
