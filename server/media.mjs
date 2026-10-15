@@ -7,10 +7,30 @@ export async function handleMedia(request, env, { preview = false, config = mani
   if (accessResponse) return accessResponse;
   const url = new URL(request.url);
   const path = url.pathname;
-  if (!['/media', '/media/', '/press', '/press/'].includes(path) && !path.startsWith('/media-files/')) return null;
+  if (!['/media', '/media/', '/press', '/press/'].includes(path) && !path.startsWith('/media-files/') && !path.startsWith('/media-assets/')) return null;
   if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', {status: 405, headers: {Allow: 'GET, HEAD'}});
   if (path === '/press' || path === '/press/') return new Response(null, {status: 301, headers: {Location: '/media' + url.search, 'Cache-Control': 'no-store'}});
   if (!config.published && !preview) return unavailable();
+  if (path === '/media-assets/Cartaz_RGB-3000.jpg') {
+    if (!preview && config.publicAccess !== true && !await authorize(request)) return new Response('Acesso reservado à imprensa.', {status:401,headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow','Vary':'Cookie'}});
+    const sourceUrl = new URL('/cartaz.jpeg', request.url);
+    const res = await env.ASSETS.fetch(new Request(sourceUrl, {method:'GET'}));
+    if (!res.ok) return unavailable();
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const jpeg = bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    if (!jpeg) return unavailable();
+    const download = url.searchParams.get('download') === '1';
+    return new Response(request.method === 'HEAD' ? null : bytes, {headers: {
+      'Content-Type': 'image/jpeg',
+      'Content-Length': String(bytes.length),
+      'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="Cartaz_RGB-3000.jpg"`,
+      'Cache-Control': config.publicAccess === true && !preview ? 'public, max-age=300, must-revalidate' : 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Robots-Tag': 'noindex, nofollow',
+      ...(config.publicAccess === true && !preview ? {} : {'Vary':'Cookie'}),
+    }});
+  }
+  if (path.startsWith('/media-assets/')) return unavailable();
   if (path.startsWith('/media-files/')) {
     if (!preview && config.publicAccess !== true && !await authorize(request)) return new Response('Acesso reservado à imprensa.', {status:401,headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow','Vary':'Cookie'}});
     const file = config.documents.filter(d => d.status === 'published' || preview).flatMap(d => Object.entries(d.files)).find(([,f]) => path === '/media-files/' + f.name);
