@@ -88,3 +88,7 @@
 
 .media-format-list { display:flex; flex-wrap:wrap; gap:7px; margin:0 0 22px; }
 .media-format-list span { padding:6px 9px; border:1px solid #d8d5e3; border-radius:999px; color:#514d66; background:#faf9fc; font-size:.78rem; line-height:1.2; }
+
+.media-asset__preview--posterfile { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-end; gap:8px; padding:28px; background:linear-gradient(135deg,#f7301d 0%,#3d2d96 42%,#232eb7 100%); color:white; }
+.media-asset__preview--posterfile span { font-size:.78rem; font-weight:800; letter-spacing:.12em; }
+.media-asset__preview--posterfile strong { font-size:clamp(1.2rem,2.3vw,1.65rem); line-height:1.05; overflow-wrap:anywhere; }
