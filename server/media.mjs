@@ -12,7 +12,7 @@ export async function handleMedia(request, env, { preview = false, config = mani
   if (path === '/press' || path === '/press/') return new Response(null, {status: 301, headers: {Location: '/media' + url.search, 'Cache-Control': 'no-store'}});
   if (!config.published && !preview) return unavailable();
   if (path.startsWith('/media-files/')) {
-    if (!preview && !await authorize(request)) return new Response('Acesso reservado à imprensa.', {status:401,headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow','Vary':'Cookie'}});
+    if (!preview && config.publicAccess !== true && !await authorize(request)) return new Response('Acesso reservado à imprensa.', {status:401,headers:{'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow','Vary':'Cookie'}});
     const file = config.documents.filter(d => d.status === 'published' || preview).flatMap(d => Object.entries(d.files)).find(([,f]) => path === '/media-files/' + f.name);
     if (!file) return unavailable();
     const [ext, meta] = file;
@@ -26,8 +26,8 @@ export async function handleMedia(request, env, { preview = false, config = mani
     return new Response(request.method === 'HEAD' ? null : bytes, {headers: {
       'Content-Type': types[ext], 'Content-Length': String(bytes.length),
       'Content-Disposition': `attachment; filename="${meta.name}"`,
-      'Cache-Control': 'private, no-store',
-      'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', 'Vary':'Cookie',
+      'Cache-Control': config.publicAccess === true && !preview ? 'public, max-age=300, must-revalidate' : 'private, no-store',
+      'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', ...(config.publicAccess === true && !preview ? {} : {'Vary':'Cookie'}),
     }});
   }
   if (path === '/media/') return new Response(null, {status:301, headers:{Location:'/media' + url.search}});
@@ -39,5 +39,6 @@ export async function handleMedia(request, env, { preview = false, config = mani
     .replace(/(<meta\s+(?:name|property)="(?:description|og:description|twitter:description)"\s+content=")[^"]*/g, '$1' + description)
     .replace(/(<meta\s+(?:name|property)="(?:og:title|twitter:title)"\s+content=")[^"]*/g, '$1Media Center | CIRC 2027')
     .replace(/(<meta\s+property="og:url"\s+content=")[^"]*/, '$1https://circ-coimbra.org/media');
-  return new Response(request.method === 'HEAD' ? null : html, {status:response.status, headers:{'Content-Type':'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Robots-Tag':'noindex, nofollow', 'Vary':'Cookie'}});
+  const isPublic = config.publicAccess === true && !preview;
+  return new Response(request.method === 'HEAD' ? null : html, {status:response.status, headers:{'Content-Type':'text/html; charset=utf-8', 'Cache-Control': isPublic ? 'public, max-age=300, must-revalidate' : 'private, no-store', 'X-Robots-Tag': isPublic ? 'index, follow' : 'noindex, nofollow', ...(isPublic ? {} : {'Vary':'Cookie'})}});
 }
