@@ -135,15 +135,15 @@ export default function MediaCenterPage() {
 
         <div className="media-graphics-grid">
           <article className="media-asset media-asset--poster">
-            <a className="media-asset__preview media-asset__preview--poster" href="/media-assets/Cartaz_RGB-3000.jpg" target="_blank" rel="noreferrer">
-              <img src="/media-assets/Cartaz_RGB-3000.jpg" alt={t.poster} loading="lazy" decoding="async" />
+            <a className="media-asset__preview media-asset__preview--poster" href="/media-assets/Cartaz_2027_RGB-3000.jpg" target="_blank" rel="noreferrer">
+              <img src="/media-assets/Cartaz_2027_RGB-3000.jpg" alt={t.poster} loading="lazy" decoding="async" />
             </a>
             <div className="media-asset__body">
               <p className="media-document-type">CIRC 2027 · JPG · {en ? 'Final artwork' : 'Arte final'}</p>
               <h3>{t.poster}</h3>
               <p>{en ? 'Official CIRC 2027 poster for press, institutional communication and event promotion.' : 'Cartaz oficial do CIRC 2027 para imprensa, comunicação institucional e divulgação do evento.'}</p>
-              <p className="media-asset__filename"><strong>Cartaz_RGB-3000.jpg</strong></p>
-              <a className="media-button" href="/media-assets/Cartaz_RGB-3000.jpg?download=1" download="Cartaz_RGB-3000.jpg"><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
+              <p className="media-asset__filename"><strong>Cartaz_2027_RGB-3000.jpg</strong></p>
+              <a className="media-button" href="/media-assets/Cartaz_2027_RGB-3000.jpg?download=1" download="Cartaz_2027_RGB-3000.jpg"><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
             </div>
           </article>
 
