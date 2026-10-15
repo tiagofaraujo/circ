@@ -63,6 +63,6 @@ Limitação: a revisão visual da página em browser (desktop/mobile, foco e ove
 
 ## Press access
 
-Para a distribuição à imprensa de 16/10/2026 o Media Center está configurado como **público**, sem palavra-passe, para reduzir fricção no acesso de jornalistas e redações. `/media` e os ficheiros listados no manifesto podem ser consultados/descarregados diretamente. A página pode ser indexada; os downloads mantêm validação de tamanho, assinatura e SHA-256 e são entregues como anexos.
+Para a distribuição à imprensa de 16/10/2026 o Media Center mantém **acesso reservado aos jornalistas**, através do mecanismo partilhado já existente. A página pública do site encaminha para `/media`; os materiais só são apresentados depois da autenticação. Os downloads continuam a validar tamanho, assinatura e SHA-256 e são entregues como anexos, com respostas privadas/no-store e noindex.
 
-A infraestrutura de `/media-access` e autenticação partilhada permanece no código para uma futura fase privada/preview, mas não é usada enquanto `publicAccess: true` no manifesto. O repositório-fonte e os materiais publicados são públicos, pelo que esta configuração é coerente com a realidade de publicação.
+O código nunca contém a palavra-passe em claro: o Worker valida apenas o verificador criptográfico existente. O acesso deve ser enviado diretamente às redações/jornalistas juntamente com o link do Media Center. A proteção do site não torna privados os ficheiros já versionados num repositório público; evita apenas exposição casual através do website.
