@@ -143,7 +143,7 @@ export default function MediaCenterPage() {
               <h3>{t.poster}</h3>
               <p>{en ? 'Official CIRC 2027 poster for press, institutional communication and event promotion.' : 'Cartaz oficial do CIRC 2027 para imprensa, comunicação institucional e divulgação do evento.'}</p>
               <p className="media-asset__filename"><strong>Cartaz_RGB-3000.jpg</strong></p>
-              <a className="media-button" href="/media-assets/Cartaz_RGB-3000.jpg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
+              <a className="media-button" href="/media-assets/Cartaz_RGB-3000.jpg?download=1" download="Cartaz_RGB-3000.jpg"><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
             </div>
           </article>
 
