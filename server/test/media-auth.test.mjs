@@ -41,8 +41,9 @@ test('public Media Center bypasses shared-password authentication only for publi
   let reads=0;
   const bytes=await import('node:fs').then(fs=>fs.readFileSync(new URL('../../media-published/'+file.name,import.meta.url)));
   const env={ASSETS:{fetch:async()=>{reads++;return new Response(bytes);}}};
-  const r=await handleMedia(new Request(origin+'/media-files/'+file.name),env,{config:manifest});
+  const publicManifest={...manifest,publicAccess:true};
+  const r=await handleMedia(new Request(origin+'/media-files/'+file.name),env,{config:publicManifest});
   assert.equal(r.status,200);assert.equal(reads,1);assert.match(r.headers.get('cache-control'),/public/);
-  const unknown=await handleMedia(new Request(origin+'/media-files/not-published.pdf'),env,{config:manifest});
+  const unknown=await handleMedia(new Request(origin+'/media-files/not-published.pdf'),env,{config:publicManifest});
   assert.equal(unknown.status,404);assert.equal(reads,1);
 });
