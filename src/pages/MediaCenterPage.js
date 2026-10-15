@@ -132,29 +132,64 @@ export default function MediaCenterPage() {
           </div>
           <p>{t.graphicsLead}</p>
         </div>
+
         <div className="media-graphics-grid">
           <article className="media-asset media-asset--poster">
-            <div className="media-asset__preview media-asset__preview--posterfile" aria-label={t.poster}>
-              <span>CIRC 2027</span>
-              <strong>Cartaz_RGB-3000.jpg</strong>
-            </div>
+            <a className="media-asset__preview media-asset__preview--poster" href="/media-assets/Cartaz_RGB-3000.jpg" target="_blank" rel="noreferrer">
+              <img src="/media-assets/Cartaz_RGB-3000.jpg" alt={t.poster} loading="lazy" decoding="async" />
+            </a>
             <div className="media-asset__body">
               <p className="media-document-type">CIRC 2027 · JPG · {en ? 'Final artwork' : 'Arte final'}</p>
               <h3>{t.poster}</h3>
-              <p>{en ? 'The official poster asset is Cartaz_RGB-3000.jpg. No previous social artwork is presented here.' : 'O ficheiro oficial do cartaz é Cartaz_RGB-3000.jpg. Nesta área não é apresentada nenhuma peça social anterior.'}</p>
+              <p>{en ? 'Official CIRC 2027 poster for press, institutional communication and event promotion.' : 'Cartaz oficial do CIRC 2027 para imprensa, comunicação institucional e divulgação do evento.'}</p>
+              <p className="media-asset__filename"><strong>Cartaz_RGB-3000.jpg</strong></p>
+              <a className="media-button" href="/media-assets/Cartaz_RGB-3000.jpg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
             </div>
           </article>
+
           <article className="media-asset media-asset--logo">
-            <div className="media-asset__preview media-asset__preview--logo"><img src="/logo.png" alt={t.logoAsset} loading="lazy" decoding="async" /></div>
+            <div className="media-asset__preview media-asset__preview--logo">
+              <img src="/logo.png" alt={t.logoAsset} loading="lazy" decoding="async" />
+            </div>
             <div className="media-asset__body">
               <p className="media-document-type">{en ? 'Official identity · Vector PDF · 3 pages' : 'Identidade oficial · PDF vetorial · 3 páginas'}</p>
               <h3>{t.logoAsset}</h3>
               <p>{en ? 'Official vector identity file with vertical, horizontal and wordmark compositions in black, red and blue.' : 'Ficheiro vetorial oficial com composições vertical, horizontal e lettering nas variantes preta, vermelha e azul.'}</p>
               <p className="media-asset__filename"><strong>CIRC_LOGO_VETORIAL.pdf</strong></p>
-              <a className="media-word" href="/logo.png" download>{en ? 'PNG preview' : 'Pré-visualização PNG'} <span>· PNG</span></a>
+              <a className="media-button" href="/media-assets/CIRC_LOGO_VETORIAL.pdf" download><span>{t.downloadLogo}</span><span aria-hidden="true">↓</span></a>
+            </div>
+          </article>
+
+          <article className="media-asset media-asset--social">
+            <div className="media-social-previews" aria-label={en ? 'Social media artwork previews' : 'Pré-visualizações das peças para redes sociais'}>
+              {[
+                ['Digitial_1920x1080-TORRE.jpg', '1920 × 1080'],
+                ['Digitial_1350x1080-TORRE.jpg', '1350 × 1080'],
+                ['Digitial_1080x1350-TORRE.jpg', '1080 × 1350'],
+                ['Digitial_1080x1920-TORRE.jpg', '1080 × 1920'],
+              ].map(([filename, format]) => (
+                <a href={`/media-assets/${filename}`} target="_blank" rel="noreferrer" key={filename}>
+                  <img src={`/media-assets/${filename}`} alt={`${t.social} — ${format}`} loading="lazy" decoding="async" />
+                  <span>{format}</span>
+                </a>
+              ))}
+            </div>
+            <div className="media-asset__body">
+              <p className="media-document-type">{en ? 'Official campaign · 4 JPG formats' : 'Campanha oficial · 4 formatos JPG'}</p>
+              <h3>{t.social}</h3>
+              <p>{en ? 'Prepared artwork for websites, social feeds, posts and vertical stories. The previous circ2027-social-20260928.jpg artwork is not included.' : 'Peças preparadas para websites, feeds, publicações e stories verticais. A peça anterior circ2027-social-20260928.jpg não está incluída.'}</p>
+              <div className="media-social-downloads">
+                {[
+                  ['Digitial_1920x1080-TORRE.jpg', '1920 × 1080 · 16:9'],
+                  ['Digitial_1350x1080-TORRE.jpg', '1350 × 1080'],
+                  ['Digitial_1080x1350-TORRE.jpg', '1080 × 1350 · 4:5'],
+                  ['Digitial_1080x1920-TORRE.jpg', '1080 × 1920 · 9:16'],
+                ].map(([filename, format]) => <a href={`/media-assets/${filename}`} download key={filename}>{format} <span aria-hidden="true">↓</span></a>)}
+              </div>
             </div>
           </article>
         </div>
+
         <div className="media-usage-note"><strong>{t.usage}</strong><span>{t.credit}</span></div>
       </section>
       <div className="media-detail-grid">
