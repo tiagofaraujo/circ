@@ -1,7 +1,7 @@
 # Media Center — operação editorial
 
-Publicação autorizada pelo organizador em 28/09/2026 para testes no site público.
-A página e os quatro documentos estão marcados como publicados. A data editorial da nota mantém-se em 29/09/2026.
+Atualização editorial para distribuição à imprensa em 16/10/2026.
+A nota de imprensa final foi fechada sem declaração do Presidente do Conselho de Administração da ULS Coimbra, que não foi recebida em tempo útil. O Media Center passa a apontar apenas para a versão final sem campos reservados ou texto «a validar». Fact Sheet e fotografias mantêm-se como materiais oficiais de apoio.
 
 ## Ficheiros e estrutura
 
@@ -15,8 +15,7 @@ A página e os quatro documentos estão marcados como publicados. A data editori
 - `media-published/`: apenas ficheiros cuja divulgação foi autorizada; versionados para reprodução do build Cloudflare.
 - `server/test/media.test.mjs`: verificações de isolamento, downloads e redirecionamento.
 
-Os PDF foram convertidos dos Word fornecidos em 27/09/2026, sem alterações ao conteúdo.
-A nota tem data editorial 29/09/2026. A Fact Sheet não tem data editorial indicada: mostra a versão Final, sem inventar uma data.
+Os downloads oficiais usam os nomes estáveis `Nota_Imprensa_CIRC2027_FINAL.*` e `Fact_Sheet_CIRC2027_FINAL.*`. A nota final existente tem data editorial interna de 29/09/2026 e é distribuída à imprensa a partir de 16/10/2026; não contém a secção reservada à declaração do Presidente do CA. A Fact Sheet mantém versão Final sem data editorial inventada.
 
 ## Rever localmente
 
@@ -57,7 +56,9 @@ Os textos da interface são traduzidos; os documentos continuam identificados co
 
 Os testes de ficheiros usam os quatro documentos autorizados em `media-published/`, incluindo no CI.
 
-Resultado desta implementação: compilação normal e de preview concluídas; 117 testes React e 13 testes Node aprovados. GET local dos quatro downloads confirmou HTTP 200, tamanho e SHA-256; o build de rascunho não continha a pasta media-files; após autorização, o build público inclui apenas os quatro documentos aprovados. Os dois PDFs foram revistos visualmente, uma página cada.
+Para o lançamento de imprensa de 16/10/2026 devem ser validados no build final: página `/media`, Nota de Imprensa FINAL PDF/DOCX, Fact Sheet FINAL PDF/DOCX, ZIP de fotografias, programa, oradores e contacto de imprensa. A página apresenta explicitamente a data autorizada de distribuição e links rápidos para programa, oradores e site oficial.
+
+Resultado histórico desta implementação: compilação normal e de preview concluídas; 117 testes React e 13 testes Node aprovados. GET local dos quatro downloads confirmou HTTP 200, tamanho e SHA-256; o build de rascunho não continha a pasta media-files; após autorização, o build público inclui apenas os quatro documentos aprovados. Os dois PDFs foram revistos visualmente, uma página cada.
 Limitação: a revisão visual da página em browser (desktop/mobile, foco e overflow) não foi concluída porque o browser do ambiente não iniciou. Não há URL remoto de pré-visualização nem publicação efetuada.
 
 ## Press access
