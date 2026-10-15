@@ -52,7 +52,7 @@ export function fileSize(bytes, language) {
   return new Intl.NumberFormat(language === 'en' ? 'en-GB' : 'pt-PT', { maximumFractionDigits: 0 }).format(bytes / 1024) + ' KB';
 }
 
-function MediaMetadata({ description, language }) {
+function MediaMetadata({ description, language, publicAccess = false }) {
   useEffect(() => {
     const changes = [];
     const set = (selector, attr, value, tag, key, keyValue) => {
@@ -64,14 +64,14 @@ function MediaMetadata({ description, language }) {
       changes.push(() => { if (!existed) el.remove(); else if (previous === null) el.removeAttribute(attr); else el.setAttribute(attr, previous); });
     };
     set('link[rel="canonical"]', 'href', 'https://circ-coimbra.org/media', 'link', 'rel', 'canonical');
-    for (const [name, value] of Object.entries({ description, 'twitter:title': 'Media Center | CIRC 2027', 'twitter:description': description, robots: 'noindex, nofollow' })) {
+    for (const [name, value] of Object.entries({ description, 'twitter:title': 'Media Center | CIRC 2027', 'twitter:description': description, robots: publicAccess ? 'index, follow' : 'noindex, nofollow' })) {
       set(`meta[name="${name}"]`, 'content', value, 'meta', 'name', name);
     }
     for (const [name, value] of Object.entries({'og:title': 'Media Center | CIRC 2027', 'og:description': description, 'og:url': 'https://circ-coimbra.org/media', 'og:locale': language === 'en' ? 'en_GB' : 'pt_PT'})) {
       set(`meta[property="${name}"]`, 'content', value, 'meta', 'property', name);
     }
     return () => changes.reverse().forEach(restore => restore());
-  }, [description, language]);
+  }, [description, language, publicAccess]);
   return null;
 }
 
@@ -81,7 +81,7 @@ export default function MediaCenterPage() {
   const allowed = useMediaAccess();
   const en = language === 'en';
   if (!allowed) return <main className="media-center media-access">
-    <MediaMetadata description={en ? 'Press access' : 'Acesso reservado à imprensa'} language={language} />
+    <MediaMetadata description={en ? 'Press access' : 'Acesso reservado à imprensa'} language={language} publicAccess={false} />
     <header className="media-intro"><p className="media-kicker">CIRC 2027 · COIMBRA</p><h1>Media Center<span aria-hidden="true">.</span></h1>
     <h2>{en ? 'Press access' : 'Acesso reservado à imprensa'}</h2>
     <p>{en ? 'Enter the password provided by the organisers to access press materials.' : 'Introduza a palavra-passe enviada pela organização para aceder aos materiais de imprensa.'}</p></header>
@@ -96,8 +96,8 @@ export default function MediaCenterPage() {
   const docs = media.documents.filter(doc => doc.status === 'published' || mediaPreview).sort((a, b) => a.order - b.order);
   return (
     <main className="media-center" id="media-main">
-      <MediaMetadata description={t.subtitle + ' — CIRC 2027. ' + t.requests} language={language} />
-      {!mediaPreview && <form method="post" action="/media-access" className="media-logout"><input type="hidden" name="action" value="logout" /><button type="submit">{en ? 'Sign out of Media' : 'Sair da área Media'}</button></form>}
+      <MediaMetadata description={t.subtitle + ' — CIRC 2027. ' + t.requests} language={language} publicAccess={media.publicAccess === true && !mediaPreview} />
+      {!mediaPreview && media.publicAccess !== true && <form method="post" action="/media-access" className="media-logout"><input type="hidden" name="action" value="logout" /><button type="submit">{en ? 'Sign out of Media' : 'Sair da área Media'}</button></form>}
       <a className="media-skip" href="#press-documents">{t.jump}</a>
       {mediaPreview && <p className="media-preview-notice">{t.preview}</p>}
       <header className="media-intro">
