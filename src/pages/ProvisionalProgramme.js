@@ -23,15 +23,15 @@ const days = [
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
       ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'TSDT Rita Vaz'],
       ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'TSDT a designar', 'Speaker to be announced'],
-      ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Austrália)', 'Michael Fuller (Australia)'],
+      ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Flinders Medical Centre)', 'Michael Fuller (Flinders Medical Centre)'],
     ], {pt: 'Joana Santos (ESTeSC - UPC) e Raquel Reis (ULS Santo António)', en: 'Joana Santos (ESTeSC - UPC) and Raquel Reis (ULS Santo António)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
-      ['14:00', 'RM Fetal', 'Fetal MRI', 'Dr. Rui Pedro Faria Pais e TSDT Paula Marques', 'Dr. Rui Pedro Faria Pais and TSDT Paula Marques'],
+      ['14:00', 'RM Fetal', 'Fetal MRI', 'Rui Pedro Faria Pais e Paula Marques (ULS Coimbra)', 'Rui Pedro Faria Pais and Paula Marques (ULS Coimbra)'],
       ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão e TSDT Diana Carvalho', 'Dra. Amélia Estêvão and TSDT Diana Carvalho'],
-      ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Dra. Célia Antunes e TSDT Bruno Esteves', 'Dra. Célia Antunes and TSDT Bruno Esteves'],
+      ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Célia Antunes e Bruno Esteves (ULS Coimbra)', 'Célia Antunes and Bruno Esteves (ULS Coimbra)'],
     ], {pt: 'Sofia Brandão (CESPU)', en: 'Sofia Brandão (CESPU)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
       ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD'],
@@ -53,7 +53,7 @@ const days = [
     ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, {pt: 'Samuel Oliveira (CEO, Everything MRI) e Vitor Silva (ULS São João)', en: 'Samuel Oliveira (CEO, Everything MRI) and Vitor Silva (ULS São João)'}],
     ['17:00', 'Coffee break', 'Coffee break'],
     ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', null, null, [
-      ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', 'Joana Madureira'],
+      ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', 'Joana Madureira (ATARP)'],
       ['17:50–18:10', 'Comunicação e Ética na Radiologia', 'Communication and Ethics in Radiology'],
     ]],
   ] },
