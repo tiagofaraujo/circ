@@ -85,5 +85,6 @@
     }
   ],
   "resources": [],
-  "releaseDate": "2026-10-16"
+  "releaseDate": "2026-10-16",
+  "publicAccess": true
 }
