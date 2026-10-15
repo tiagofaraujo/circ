@@ -68,6 +68,20 @@ const technicalCommission2025 = [
   'Tiago Araújo', 'Tiago Patrão',
 ];
 
+const gallery2025 = [
+  '403A0001_web.jpg',
+  '403A0014_web.jpg',
+  '403A0021_web.jpg',
+  '403A00221_web.jpg',
+  '403A0037_web.jpg',
+  '403A0055_web.jpg',
+  '403A0162_web.jpg',
+  '403A0202_web.jpg',
+  '403A0952_web.jpg',
+  '403A0968_web.jpg',
+  'IMG_0070_web.jpg',
+];
+
 export function OrganizationPage() {
   const { language } = useLanguage();
   const en = language === 'en';
@@ -299,6 +313,41 @@ export function EnhancedArchive2025Page() {
         <div className="archive-metric"><strong>4</strong><span>{tx(en, 'partnership categories used in the former website', 'categorias de parceria usadas no site anterior')}</span></div>
         <div className="archive-metric"><strong>3—5</strong><span>{tx(en, 'April 2025 · global programme', 'abril 2025 · programa global')}</span></div>
       </div>
+
+      <section className="recovered-section archive-gallery-section" id="galeria" aria-labelledby="archive-gallery-title">
+        <SectionHeader
+          eyebrow={tx(en, 'Photo gallery', 'Galeria de fotografias')}
+          title={tx(en, 'CIRC 2025 in images.', 'O CIRC 2025 em imagens.')}
+          text={tx(
+            en,
+            'A curated selection from the photographic archive of the second edition, capturing the scientific programme, encounters and atmosphere at Convento São Francisco.',
+            'Uma seleção do arquivo fotográfico da segunda edição, com momentos do programa científico, encontros e ambiente vivido no Convento São Francisco.'
+          )}
+        />
+        <div className="archive-photo-grid">
+          {gallery2025.map((filename, index) => (
+            <a
+              className="archive-photo"
+              href={`/gallery/2025/${filename}`}
+              target="_blank"
+              rel="noreferrer"
+              key={filename}
+              aria-label={tx(en, `Open CIRC 2025 photograph ${index + 1}`, `Abrir fotografia ${index + 1} do CIRC 2025`)}
+            >
+              <img
+                src={`/gallery/2025/${filename}`}
+                alt={tx(en, `CIRC 2025 — photograph ${index + 1}`, `CIRC 2025 — fotografia ${index + 1}`)}
+                loading={index < 2 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+              <span>{String(index + 1).padStart(2, '0')}</span>
+            </a>
+          ))}
+        </div>
+        <p className="archive-gallery-note">
+          {tx(en, 'Select any photograph to open the 1600 px version.', 'Selecione qualquer fotografia para abrir a versão de 1600 px.')}
+        </p>
+      </section>
 
       <section className="recovered-section">
         <SectionHeader eyebrow={tx(en, 'People who built the edition', 'Pessoas que construíram a edição')} title={tx(en, 'Historical commissions · CIRC 2025', 'Comissões históricas · CIRC 2025')} text={tx(en, 'These names are preserved as a historical record and do not represent the composition of CIRC 2027.', 'Estes nomes são preservados como registo histórico e não representam a composição do CIRC 2027.')} />
