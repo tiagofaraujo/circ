@@ -12,6 +12,7 @@ test('preview offers exactly five real file links, date and contact',()=>{
  expect(container.querySelectorAll('a[download]')).toHaveLength(5);
  for(const doc of manifest.documents)for(const f of Object.values(doc.files))expect(container.querySelector(`a[href="/media-files/${f.name}"]`)).not.toBeNull();
  expect(screen.getByText('29/09/2026')).toBeInTheDocument();
+ expect(screen.getByText(/Distribuição à imprensa autorizada a partir de 16 de outubro de 2026/)).toBeInTheDocument();
  expect(container.querySelector('a[href="tel:+351914004261"]')).not.toBeNull();
  expect(container.querySelector('a[href="mailto:circ.chuc@gmail.com"]')).not.toBeNull();
 });
@@ -19,8 +20,8 @@ test('switching interface to English keeps Portuguese document language',()=>{
  render(<MemoryRouter initialEntries={['/media']}><LanguageProvider><Toggle/><MediaCenterPage/></LanguageProvider></MemoryRouter>);
  fireEvent.click(screen.getByText('English'));
  expect(screen.getByText('Information and resources for the press')).toBeInTheDocument();
- expect(screen.getByText(/Portuguese · 1.1/)).toBeInTheDocument();
- expect(screen.getByText(/Portuguese · 1.2/)).toBeInTheDocument();
+ expect(screen.getAllByText(/Portuguese · Final/)).toHaveLength(2);
+ expect(screen.getByText(/Authorised for press distribution from 16 October 2026/)).toBeInTheDocument();
  expect(document.title).toBe('Media Center | CIRC 2027');
  expect(document.head.querySelector('link[rel="canonical"]').href).toBe('https://circ-coimbra.org/media');
 });
