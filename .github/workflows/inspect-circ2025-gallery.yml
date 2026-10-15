@@ -1,0 +1,14 @@
+name: Inspect CIRC 2025 gallery ZIP
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-circ2025-gallery.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: List archive
+        run: unzip -l media-published/CIRC_Fotografias_JPG_1600px.zip
