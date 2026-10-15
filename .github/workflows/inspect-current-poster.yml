@@ -1,0 +1,15 @@
+name: Inspect current poster
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-current-poster.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          identify public/cartaz.jpeg
+          identify -verbose public/cartaz.jpeg | grep -i 'signature' | head -1
