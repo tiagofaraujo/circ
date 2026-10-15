@@ -63,8 +63,6 @@ Limitação: a revisão visual da página em browser (desktop/mobile, foco e ove
 
 ## Press access
 
-The public menu/footer show Media to all visitors; the page requires `/media-access` to confirm access before showing the press materials. Journalists use `/media` and submit the shared password over HTTPS. The Worker verifies a salted PBKDF2 credential; no password or bearer token is embedded in the JavaScript bundle or committed source. All four `/media-files/*` URLs check the HttpOnly, Secure, SameSite=Strict session cookie before accessing assets. Responses use private/no-store and noindex. The cookie is a password-equivalent credential, valid until the shared credential is rotated; browser session closure/logout removes the browser's copy. This is a shared press code, not individual identity management.
+Para a distribuição à imprensa de 16/10/2026 o Media Center está configurado como **público**, sem palavra-passe, para reduzir fricção no acesso de jornalistas e redações. `/media` e os ficheiros listados no manifesto podem ser consultados/descarregados diretamente. A página pode ser indexada; os downloads mantêm validação de tamanho, assinatura e SHA-256 e são entregues como anexos.
 
-The source repository and previously published press documents are public. Site access control does not revoke those public copies or Git history. Make the repository private if the documents need confidentiality outside the website.
-
-To test the configured password without committing it, supply `MEDIA_TEST_PASSWORD` locally when running `node --test server/test/*.test.mjs`. Rotate by generating a fresh random salt, deriving a 32-byte PBKDF2-SHA256 token with 100000 iterations, and storing only its SHA256 hex verifier in `server/media-auth.mjs`.
+A infraestrutura de `/media-access` e autenticação partilhada permanece no código para uma futura fase privada/preview, mas não é usada enquanto `publicAccess: true` no manifesto. O repositório-fonte e os materiais publicados são públicos, pelo que esta configuração é coerente com a realidade de publicação.
