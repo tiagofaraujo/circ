@@ -16,6 +16,7 @@
       "/press",
       "/press/",
       "/media-files/*",
+      "/media-assets/*",
       "/media-access",
       "/programa",
       "/programa/"
