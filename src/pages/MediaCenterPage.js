@@ -8,10 +8,11 @@ import '../mediaCenter.css';
 const copy = {
   pt: {
     subtitle: 'Informação e materiais para imprensa',
-    intro: 'Informação oficial, documentos e recursos de apoio à cobertura do Congresso Internacional de Radiologia de Coimbra. Para pedidos de entrevista, esclarecimentos ou materiais adicionais, contacte a organização.',
+    intro: 'Materiais oficiais para apoio à cobertura editorial do Congresso Internacional de Radiologia de Coimbra. A nota de imprensa está fechada para distribuição, acompanhada do Fact Sheet, fotografias autorizadas e contactos da organização.',
+    release: 'Distribuição à imprensa autorizada a partir de 16 de outubro de 2026.',
     documents: 'Materiais para imprensa', preview: 'Pré-visualização privada · Divulgação ainda não autorizada',
     pdf: 'Descarregar PDF', word: 'Versão Word', language: 'Português', version: 'Versão final',
-    overview: 'O CIRC 2027 em síntese', programme: 'Consultar o programa provisório',
+    overview: 'O CIRC 2027 em síntese', programme: 'Consultar o programa provisório', speakers: 'Consultar oradores confirmados', website: 'Abrir o site oficial',
     contact: 'Contacto de imprensa', committee: 'Comissão Organizadora do CIRC 2027',
     requests: 'Pedidos de entrevista, informação adicional e materiais para cobertura editorial.',
     email: 'Enviar email', phone: 'Telefonar', jump: 'Ir para os documentos',
@@ -27,10 +28,11 @@ const copy = {
   },
   en: {
     subtitle: 'Information and resources for the press',
-    intro: 'Official information, documents and resources for coverage of the Coimbra International Radiology Congress. For interview requests, enquiries or additional materials, please contact the organisers.',
+    intro: 'Official materials for editorial coverage of the Coimbra International Radiology Congress. The press release is final for distribution, together with the Fact Sheet, authorised press photographs and organiser contacts.',
+    release: 'Authorised for press distribution from 16 October 2026.',
     documents: 'Press materials', preview: 'Private preview · Not yet authorised for release',
     pdf: 'Download PDF', word: 'Word version', language: 'Portuguese', version: 'Final version',
-    overview: 'CIRC 2027 at a glance', programme: 'View provisional programme',
+    overview: 'CIRC 2027 at a glance', programme: 'View provisional programme', speakers: 'View confirmed speakers', website: 'Open official website',
     contact: 'Press contact', committee: 'CIRC 2027 Organising Committee',
     requests: 'Interview requests, further information and materials for editorial coverage.',
     email: 'Send email', phone: 'Call', jump: 'Skip to documents',
@@ -103,6 +105,7 @@ export default function MediaCenterPage() {
         <h1>Media Center<span aria-hidden="true">.</span></h1>
         <h2>{t.subtitle}</h2>
         <p>{t.intro}</p>
+        <p className="media-release-note"><strong>{t.release}</strong></p>
       </header>
       <section id="press-documents" aria-labelledby="documents-heading" tabIndex={-1}>
         <h2 className="media-section-title" id="documents-heading">{t.documents}</h2>
@@ -125,7 +128,11 @@ export default function MediaCenterPage() {
         <section aria-labelledby="overview-heading">
           <h2 className="media-section-title" id="overview-heading">{t.overview}</h2>
           <dl className="media-facts">{t.facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-          <Link className="media-programme" to="/programa">{t.programme} <span aria-hidden="true">↗</span></Link>
+          <div className="media-editorial-links">
+            <Link className="media-programme" to="/programa">{t.programme} <span aria-hidden="true">↗</span></Link>
+            <Link className="media-programme" to="/oradores">{t.speakers} <span aria-hidden="true">↗</span></Link>
+            <a className="media-programme" href="https://circ-coimbra.org/">{t.website} <span aria-hidden="true">↗</span></a>
+          </div>
         </section>
         <section className="media-contact" aria-labelledby="contact-heading">
           <p className="media-kicker">{t.contact}</p>
