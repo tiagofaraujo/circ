@@ -147,10 +147,11 @@ export default function MediaCenterPage() {
           <article className="media-asset media-asset--logo">
             <div className="media-asset__preview media-asset__preview--logo"><img src="/logo.png" alt={t.logoAsset} loading="lazy" decoding="async" /></div>
             <div className="media-asset__body">
-              <p className="media-document-type">{en ? 'Official identity · PNG' : 'Identidade oficial · PNG'}</p>
+              <p className="media-document-type">{en ? 'Official identity · Vector PDF · 3 pages' : 'Identidade oficial · PDF vetorial · 3 páginas'}</p>
               <h3>{t.logoAsset}</h3>
-              <p>{en ? 'Official CIRC signature for editorial identification of the congress.' : 'Assinatura oficial do CIRC para identificação editorial do congresso.'}</p>
-              <a className="media-button" href="/logo.png" download><span>{t.downloadLogo}</span><span aria-hidden="true">↓</span></a>
+              <p>{en ? 'Official vector identity file with vertical, horizontal and wordmark compositions in black, red and blue.' : 'Ficheiro vetorial oficial com composições vertical, horizontal e lettering nas variantes preta, vermelha e azul.'}</p>
+              <p className="media-asset__filename"><strong>CIRC_LOGO_VETORIAL.pdf</strong></p>
+              <a className="media-word" href="/logo.png" download>{en ? 'PNG preview' : 'Pré-visualização PNG'} <span>· PNG</span></a>
             </div>
           </article>
         </div>
