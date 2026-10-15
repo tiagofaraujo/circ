@@ -134,14 +134,14 @@ export default function MediaCenterPage() {
         </div>
         <div className="media-graphics-grid">
           <article className="media-asset media-asset--poster">
-            <a className="media-asset__preview" href="/Cartaz_RGB-3000.jpg" target="_blank" rel="noreferrer">
-              <img src="/Cartaz_RGB-3000.jpg" alt={t.poster} loading="lazy" decoding="async" />
-            </a>
+            <div className="media-asset__preview media-asset__preview--posterfile" aria-label={t.poster}>
+              <span>CIRC 2027</span>
+              <strong>Cartaz_RGB-3000.jpg</strong>
+            </div>
             <div className="media-asset__body">
-              <p className="media-document-type">CIRC 2027 · JPG</p>
+              <p className="media-document-type">CIRC 2027 · JPG · {en ? 'Final artwork' : 'Arte final'}</p>
               <h3>{t.poster}</h3>
-              <p>{en ? 'Main artwork for press coverage, institutional communication and event promotion.' : 'Peça principal para cobertura de imprensa, comunicação institucional e divulgação do evento.'}</p>
-              <a className="media-button" href="/cartaz.jpeg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
+              <p>{en ? 'The official poster asset is Cartaz_RGB-3000.jpg. No previous social artwork is presented here.' : 'O ficheiro oficial do cartaz é Cartaz_RGB-3000.jpg. Nesta área não é apresentada nenhuma peça social anterior.'}</p>
             </div>
           </article>
           <article className="media-asset media-asset--logo">
