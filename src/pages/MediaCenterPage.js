@@ -134,26 +134,14 @@ export default function MediaCenterPage() {
         </div>
         <div className="media-graphics-grid">
           <article className="media-asset media-asset--poster">
-            <a className="media-asset__preview" href="/cartaz.jpeg" target="_blank" rel="noreferrer">
-              <img src="/cartaz.jpeg" alt={t.poster} loading="lazy" decoding="async" />
+            <a className="media-asset__preview" href="/Cartaz_RGB-3000.jpg" target="_blank" rel="noreferrer">
+              <img src="/Cartaz_RGB-3000.jpg" alt={t.poster} loading="lazy" decoding="async" />
             </a>
             <div className="media-asset__body">
               <p className="media-document-type">CIRC 2027 · JPG</p>
               <h3>{t.poster}</h3>
               <p>{en ? 'Main artwork for press coverage, institutional communication and event promotion.' : 'Peça principal para cobertura de imprensa, comunicação institucional e divulgação do evento.'}</p>
               <a className="media-button" href="/cartaz.jpeg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
-            </div>
-          </article>
-          <article className="media-asset">
-            <a className="media-asset__preview media-asset__preview--social" href="/identity2027/circ2027-social-20260928.jpg" target="_blank" rel="noreferrer">
-              <img src="/identity2027/circ2027-social-20260928.jpg" alt={t.social} loading="lazy" decoding="async" />
-            </a>
-            <div className="media-asset__body">
-              <p className="media-document-type">{en ? 'Digital communication · JPG' : 'Comunicação digital · JPG'}</p>
-              <h3>{t.social}</h3>
-              <p>{en ? 'Official campaign artwork for digital publication and social channels.' : 'Peça oficial da campanha para publicação digital e redes sociais.'}</p>
-              <div className="media-format-list" aria-label={en ? 'Prepared formats' : 'Formatos preparados'}><span>1920 × 1080 · 16:9</span><span>1350 × 1080 · horizontal</span><span>1080 × 1350 · 4:5</span><span>1080 × 1920 · 9:16</span></div>
-              <a className="media-button" href="/identity2027/circ2027-social-20260928.jpg" download><span>{t.downloadImage}</span><span aria-hidden="true">↓</span></a>
             </div>
           </article>
           <article className="media-asset media-asset--logo">
