@@ -85,3 +85,6 @@
   .media-asset--logo { grid-column: auto; }
   .media-asset__preview { height: 240px; }
 }
+
+.media-format-list { display:flex; flex-wrap:wrap; gap:7px; margin:0 0 22px; }
+.media-format-list span { padding:6px 9px; border:1px solid #d8d5e3; border-radius:999px; color:#514d66; background:#faf9fc; font-size:.78rem; line-height:1.2; }
