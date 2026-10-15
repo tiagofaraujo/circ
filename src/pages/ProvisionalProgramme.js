@@ -21,8 +21,8 @@ const days = [
     ['09:00', 'Boas-vindas', 'Welcome'],
     ['09:10', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.'],
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
-      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'TSDT Rita Vaz'],
-      ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'TSDT a designar', 'Speaker to be announced'],
+      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Rita Vaz'],
+      ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'A designar', 'Speaker to be announced'],
       ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Flinders Medical Centre)', 'Michael Fuller (Flinders Medical Centre)'],
     ], {pt: 'Joana Santos (ESTeSC - UPC) e Raquel Reis (ULS Santo António)', en: 'Joana Santos (ESTeSC - UPC) and Raquel Reis (ULS Santo António)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
@@ -30,7 +30,7 @@ const days = [
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
       ['14:00', 'RM Fetal', 'Fetal MRI', 'Rui Pedro Faria Pais e Paula Marques (ULS Coimbra)', 'Rui Pedro Faria Pais and Paula Marques (ULS Coimbra)'],
-      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Dra. Amélia Estêvão e TSDT Diana Carvalho', 'Dra. Amélia Estêvão and TSDT Diana Carvalho'],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Amélia Estêvão e Diana Carvalho', 'Amélia Estêvão and Diana Carvalho'],
       ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Célia Antunes e Bruno Esteves (ULS Coimbra)', 'Célia Antunes and Bruno Esteves (ULS Coimbra)'],
     ], {pt: 'Sofia Brandão (CESPU)', en: 'Sofia Brandão (CESPU)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
