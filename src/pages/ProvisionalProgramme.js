@@ -21,7 +21,7 @@ const days = [
     ['09:00', 'Boas-vindas', 'Welcome'],
     ['09:10', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.'],
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
-      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Rita Vaz'],
+      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Rita Vaz (ULS Coimbra)'],
       ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'A designar', 'Speaker to be announced'],
       ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Flinders Medical Centre)', 'Michael Fuller (Flinders Medical Centre)'],
     ], {pt: 'Joana Santos (ESTeSC - UPC) e Raquel Reis (ULS Santo António)', en: 'Joana Santos (ESTeSC - UPC) and Raquel Reis (ULS Santo António)'}],
@@ -34,8 +34,8 @@ const days = [
       ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Célia Antunes e Bruno Esteves (ULS Coimbra)', 'Célia Antunes and Bruno Esteves (ULS Coimbra)'],
     ], {pt: 'Sofia Brandão (CESPU)', en: 'Sofia Brandão (CESPU)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
-      ['', 'Fides R. Schwartz, MD', 'Fides R. Schwartz, MD'],
-      ['', 'Giuseppe V. Toia, MD, MS', 'Giuseppe V. Toia, MD, MS'],
+      ['', 'Fides R. Schwartz', 'Fides R. Schwartz'],
+      ['', 'Giuseppe V. Toia', 'Giuseppe V. Toia'],
       ['', 'Kirsten Burke', 'Kirsten Burke', 'Biografia pendente', 'Biography pending'],
     ], {pt: 'Mário Monteiro (ESTeSC - UPC) e Ana Isabel Machado (ULS Coimbra)', en: 'Mário Monteiro (ESTeSC - UPC) and Ana Isabel Machado (ULS Coimbra)'}],
   ] },
