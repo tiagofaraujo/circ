@@ -8,25 +8,25 @@
         "en": "Press release"
       },
       "description": {
-        "pt": "Apresentação do CIRC 2027, principais temas e participação internacional.",
-        "en": "Introducing CIRC 2027, its main themes and international participation."
+        "pt": "Nota oficial de lançamento do CIRC 2027: enquadramento do congresso, dimensão internacional, temas científicos e calendário.",
+        "en": "Official CIRC 2027 launch press release: congress overview, international dimension, scientific themes and timeline."
       },
       "category": "press",
       "language": "pt-PT",
-      "version": "1.2",
+      "version": "Final",
       "date": "2026-09-29",
       "status": "published",
       "order": 1,
       "files": {
         "pdf": {
-          "name": "Nota_Imprensa_CIRC2027_v1_2_CA.pdf",
-          "bytes": 73128,
-          "sha256": "9c1ee317eedccf7e51928bce75b3b56d8ebd615d82f11f40f963b5b45c8cdeb0"
+          "name": "Nota_Imprensa_CIRC2027_FINAL.pdf",
+          "bytes": 128099,
+          "sha256": "02fd05f0f810854aca544a2b6854217ddb7e5f0af0690dca0504480a1b6884ef"
         },
         "docx": {
-          "name": "Nota_Imprensa_CIRC2027_v1_2_CA.docx",
-          "bytes": 157766,
-          "sha256": "2ada743da800c22086a845fb5a23a7c74831ecfe742668d6900bea9da353a65a"
+          "name": "Nota_Imprensa_CIRC2027_FINAL.docx",
+          "bytes": 373986,
+          "sha256": "b0e81008238552c5f0e821ced20d2140aa25672e80c8db92af7686b434221fcb"
         }
       }
     },
@@ -42,20 +42,20 @@
       },
       "category": "press",
       "language": "pt-PT",
-      "version": "1.1",
+      "version": "Final",
       "date": null,
       "status": "published",
       "order": 2,
       "files": {
         "pdf": {
-          "name": "Fact_Sheet_CIRC2027_v1_1.pdf",
-          "bytes": 76889,
-          "sha256": "787cdff520501ffe2d87d6a5469f1d8faaacc1758f2cdbff880d5bcf6f88a47c"
+          "name": "Fact_Sheet_CIRC2027_FINAL.pdf",
+          "bytes": 130024,
+          "sha256": "4cee99247c5a2b87df2c23bbe821a857c46e9cbf931f3fa66aab2c34d1a6c1f2"
         },
         "docx": {
-          "name": "Fact_Sheet_CIRC2027_v1_1.docx",
-          "bytes": 157492,
-          "sha256": "a080b34e450ef1d5cfc9a3ebcebe77365431f35092efd9557359c1deeb1686d9"
+          "name": "Fact_Sheet_CIRC2027_FINAL.docx",
+          "bytes": 155219,
+          "sha256": "eb0d97c1b7172f29b695795e0c370cff1316650f45061604103118d4bb683361"
         }
       }
     },
@@ -84,5 +84,6 @@
       }
     }
   ],
-  "resources": []
+  "resources": [],
+  "releaseDate": "2026-10-16"
 }
