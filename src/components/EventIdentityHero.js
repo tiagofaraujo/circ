@@ -4,6 +4,8 @@ import { useAuth } from '../auth/AuthContext';
 import HeroPhotoBackdrop from './HeroPhotoBackdrop';
 import '../towerHero.css';
 
+const towerSource = '/identity2027/tower-radiograph-source.jpg';
+
 export default function EventIdentityHero({ en }) {
   const { user } = useAuth();
   return <>
@@ -11,10 +13,10 @@ export default function EventIdentityHero({ en }) {
       <HeroPhotoBackdrop en={en} />
       <div className="event-hero__art event-hero__art--tower" aria-hidden="true">
         <div className="event-hero__tower-half">
-          <img src="/media-assets/Digitial_1920x1080-TORRE.jpg" alt="" width="1920" height="1080" fetchPriority="high" />
+          <img src={towerSource} alt="" width="1920" height="1080" fetchPriority="high" />
         </div>
         <div className="event-hero__tower-half event-hero__tower-half--mirror">
-          <img src="/media-assets/Digitial_1920x1080-TORRE.jpg" alt="" width="1920" height="1080" fetchPriority="low" />
+          <img src={towerSource} alt="" width="1920" height="1080" fetchPriority="low" />
         </div>
       </div>
       <div className="event-hero__inner">
