@@ -2,13 +2,21 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import HeroPhotoBackdrop from './HeroPhotoBackdrop';
+import '../towerHero.css';
 
 export default function EventIdentityHero({ en }) {
   const { user } = useAuth();
   return <>
     <section className="event-hero" aria-labelledby="event-title">
       <HeroPhotoBackdrop en={en} />
-      <div className="event-hero__art" aria-hidden="true"><img src="/identity2027/bell-radiograph-hq.jpg" alt="" width="1451" height="1536" fetchPriority="high" /></div>
+      <div className="event-hero__art event-hero__art--tower" aria-hidden="true">
+        <div className="event-hero__tower-half">
+          <img src="/media-assets/Digitial_1920x1080-TORRE.jpg" alt="" width="1920" height="1080" fetchPriority="high" />
+        </div>
+        <div className="event-hero__tower-half event-hero__tower-half--mirror">
+          <img src="/media-assets/Digitial_1920x1080-TORRE.jpg" alt="" width="1920" height="1080" fetchPriority="low" />
+        </div>
+      </div>
       <div className="event-hero__inner">
         <div className="event-hero__copy">
           <p className="event-hero__edition">CIRC 2027 <span>03 / {en ? 'Third edition' : 'Terceira edição'}</span></p>
