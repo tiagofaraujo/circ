@@ -47,6 +47,11 @@ for (const doc of selected) for (const file of Object.values(doc.files)) {
 if (!preview) {
   fs.mkdirSync(path.join(output,'media-assets'), {recursive:true});
   for (const asset of graphicAssets) fs.copyFileSync(path.join('media-assets', asset.name), path.join(output,'media-assets',asset.name));
+  fs.mkdirSync(path.join(output,'identity2027'), {recursive:true});
+  fs.copyFileSync(
+    path.join('media-assets','Digitial_1920x1080-TORRE.jpg'),
+    path.join(output,'identity2027','tower-radiograph-source.jpg')
+  );
 }
 console.log(preview
   ? 'PRIVATE LOCAL PREVIEW ONLY — .media-preview must not be deployed.'
