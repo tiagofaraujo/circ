@@ -2,8 +2,8 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ToconlineReceiptTestPage from './ToconlineReceiptTestPage';
 
-const user = { uid: 'admin', getIdToken: jest.fn(async () => 'token') };
-jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user }) }));
+const mockUser = { uid: 'admin', getIdToken: jest.fn(async () => 'token') };
+jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
 jest.mock('../components/AdminModuleNav', () => () => <nav>Admin</nav>);
 
