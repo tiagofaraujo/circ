@@ -32,6 +32,7 @@ function json(data, ok = true, status = ok ? 200 : 400) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  Object.defineProperty(global.crypto, 'randomUUID', { configurable: true, value: jest.fn(() => '58a12222-b856-41c9-a519-e2cc97bb3b69') });
   let state = { id: SID, registrationConfirmed: true, orders: [baseOrder] };
   global.fetch = jest.fn((url, options = {}) => {
     if (url === '/api/fiscal/sandbox/config') return json({ provider: 'toconline', liveWritesEnabled: false, scopeRequired: 'commercial' });
@@ -59,7 +60,7 @@ test('loads confirmed test payments and clearly states that TOConline writes are
   render(<ToconlineReceiptTestPage />);
   expect(await screen.findByRole('heading', { name: 'Recibos e faturação — teste' })).toBeInTheDocument();
   expect(await screen.findByText(/escritas reais bloqueadas neste módulo/)).toBeInTheDocument();
-  expect(await screen.findByText('Multibanco · 160,00 €')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: /Multibanco.*160,00/ })).toBeInTheDocument();
   expect(screen.getByText(/não emite documentos fiscais/i)).toBeInTheDocument();
 });
 
@@ -68,7 +69,7 @@ test('prepares a server rehearsal before allowing simulated issue', async () => 
   const prepare = await screen.findByRole('button', { name: 'Preparar pré-visualização TOConline' });
   fireEvent.click(prepare);
   expect(await screen.findByText(/Pré-visualização TOConline preparada/)).toBeInTheDocument();
-  expect(await screen.findByText(/Configuração que falta antes de ligar a API real/)).toBeInTheDocument();
+  expect(await screen.findByText(/Confirmar e configurar a série de documentos/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Simular emissão sem efeito fiscal' })).toBeInTheDocument();
   const call = fetch.mock.calls.find(([url]) => url.endsWith('/prepare'));
   expect(JSON.parse(call[1].body)).toEqual({ mode: 'invoice_plus_receipt', date: expect.any(String), sandboxAcknowledged: true });
