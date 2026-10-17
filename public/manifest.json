@@ -6,6 +6,12 @@
   "lang": "pt-PT",
   "icons": [
     {
+      "src": "/circ-app-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
       "src": "/my-circ-icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
@@ -23,8 +29,20 @@
   "theme_color": "#232eb7",
   "background_color": "#f6f7fb",
   "shortcuts": [
-    { "name": "As minhas inscrições", "short_name": "Inscrições", "url": "/conta/inscricoes" },
-    { "name": "Os meus trabalhos", "short_name": "Trabalhos", "url": "/conta/submissoes" },
-    { "name": "Programa CIRC 2027", "short_name": "Programa", "url": "/conta/programa" }
+    {
+      "name": "As minhas inscrições",
+      "short_name": "Inscrições",
+      "url": "/conta/inscricoes"
+    },
+    {
+      "name": "Os meus trabalhos",
+      "short_name": "Trabalhos",
+      "url": "/conta/submissoes"
+    },
+    {
+      "name": "Programa CIRC 2027",
+      "short_name": "Programa",
+      "url": "/conta/programa"
+    }
   ]
 }
