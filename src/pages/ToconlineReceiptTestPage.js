@@ -26,11 +26,23 @@ const warningText = {
 };
 const errors = {
   'paid-test-required': 'É necessário selecionar um pedido de teste já confirmado.',
+  'toconline-not-connected': 'A ligação ao TOConline não está ativa. Faça primeiro a autorização OAuth.',
+  'toconline-reauthorize-required': 'A sessão do TOConline expirou. Autorize novamente a ligação.',
+  'toconline-not-configured': 'A ligação TOConline ainda não tem as credenciais de servidor necessárias.',
   'source-mismatch': 'Os valores guardados no pedido deixaram de ser consistentes. Não foi preparado qualquer documento.',
   'already-issued': 'Este pedido já tem uma emissão simulada. Reponha o ensaio antes de alterar o modo.',
   'stale-source': 'O pedido de origem mudou depois da preparação. Prepare novamente o ensaio.',
   'not-prepared': 'Prepare primeiro o documento antes de simular a emissão.',
   conflict: 'O registo foi alterado por outra operação. Atualize e tente novamente.',
+};
+
+const tocMissingNames = {
+  clientId: 'TOCONLINE_OAUTH_CLIENT_ID',
+  clientSecret: 'TOCONLINE_OAUTH_CLIENT_SECRET',
+  oauthUrl: 'TOCONLINE_OAUTH_URL',
+  apiUrl: 'TOCONLINE_API_URL',
+  sessionKey: 'TOCONLINE_SESSION_KEY',
+  redirectUrl: 'TOCONLINE_REDIRECT_URL',
 };
 
 export default function ToconlineReceiptTestPage() {
@@ -39,6 +51,8 @@ export default function ToconlineReceiptTestPage() {
   const en = language === 'en';
   const t = (pt, english) => en ? english : pt;
   const [config, setConfig] = useState(null);
+  const [tocConfig, setTocConfig] = useState(null);
+  const [tocResources, setTocResources] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState('');
   const [session, setSession] = useState(null);
@@ -76,18 +90,24 @@ export default function ToconlineReceiptTestPage() {
     setBusy(true);
     (async () => {
       try {
-        const [cfg, list] = await Promise.all([
+        const [cfg, toc, list] = await Promise.all([
           call('/api/fiscal/sandbox/config'),
+          call('/api/fiscal/toconline/config'),
           call('/api/checkout/sandbox/sessions'),
         ]);
         if (!active) return;
         setConfig(cfg);
+        setTocConfig(toc);
         const confirmed = (list.sessions || []).filter(item => item.confirmed);
         setSessions(confirmed);
         if (confirmed[0]?.id) {
           setSessionId(confirmed[0].id);
           const data = await call('/api/fiscal/sandbox/sessions/', confirmed[0].id);
           if (active) setSession(data.session);
+        }
+        if (toc.connected) {
+          const live = await call('/api/fiscal/toconline/resources');
+          if (active) setTocResources(live);
         }
       } catch (issue) {
         if (active) setError(errors[issue.message] || t('Não foi possível carregar os ensaios de faturação.', 'Could not load billing rehearsals.'));
@@ -140,6 +160,31 @@ export default function ToconlineReceiptTestPage() {
     });
   }
 
+  function connectToconline() {
+    run(async () => {
+      const data = await call('/api/fiscal/toconline/authorize', '', {});
+      if (!data.authorizationUrl) throw new Error('service-unavailable');
+      window.location.assign(data.authorizationUrl);
+    });
+  }
+
+  function loadToconlineResources() {
+    run(async () => {
+      const data = await call('/api/fiscal/toconline/resources');
+      setTocResources(data);
+      setMessage(t('Configuração lida do TOConline apenas por GET. Nenhum documento foi criado ou alterado.', 'TOConline configuration read using GET only. No document was created or changed.'));
+    });
+  }
+
+  function disconnectToconline() {
+    run(async () => {
+      await call('/api/fiscal/toconline/disconnect', '', {});
+      setTocResources(null);
+      setTocConfig(current => ({ ...current, connected: false, accessExpiresAt: null, sessionExpiresAt: null }));
+      setMessage(t('Ligação TOConline terminada neste navegador.', 'TOConline connection ended in this browser.'));
+    });
+  }
+
   const money = cents => new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 
   return <main className="sandbox-checkout admin-page">
@@ -153,6 +198,56 @@ export default function ToconlineReceiptTestPage() {
     </section>
 
     {config && <p className="sandbox-checkout__muted"><strong>TOConline:</strong> {config.liveWritesEnabled ? t('escritas ativas', 'writes enabled') : t('escritas reais bloqueadas neste módulo', 'real writes blocked in this module')} · OAuth scope futuro: <code>{config.scopeRequired}</code></p>}
+
+    <section className="sandbox-checkout__panel">
+      <h2>{t('Ligação TOConline — apenas leitura', 'TOConline connection — read only')}</h2>
+      <p>{t('O TOConline disponibiliza apenas o scope OAuth «commercial». Neste módulo o servidor CIRC restringe a utilização a uma lista fechada de pedidos GET: séries FR, serviços, taxas, motivos de isenção, contas bancárias, unidades e moeda. Não existe qualquer rota de escrita para o TOConline.', 'TOConline only provides the “commercial” OAuth scope. In this module the CIRC server restricts usage to a fixed list of GET requests: FR series, services, taxes, exemption reasons, bank accounts, units and currency. No TOConline write route is exposed.')}</p>
+      {tocConfig && !tocConfig.configured && <>
+        <p><strong>{t('Falta configurar as credenciais no Worker da Cloudflare.', 'Cloudflare Worker credentials still need to be configured.')}</strong></p>
+        <p>{t('No TOConline: Empresa → Configurações → Dados API. O endereço de retorno a registar é:', 'In TOConline: Company → Settings → API Data. Register this callback URL:')}</p>
+        <p><code>{tocConfig.redirectUrl}</code></p>
+        <p>{t('Valores ainda em falta no servidor:', 'Server values still missing:')}</p>
+        <ul>{tocConfig.missing.map(item => <li key={item}><code>{tocMissingNames[item] || item}</code>{item === 'sessionKey' && <> — {t('segredo aleatório próprio do CIRC, não fornecido pelo TOConline', 'CIRC-generated random secret, not supplied by TOConline')}</>}</li>)}</ul>
+        <p className="sandbox-checkout__muted">{t('Não coloque Client Secret, tokens ou códigos de autorização neste chat, no GitHub ou em campos públicos do site.', 'Do not put the Client Secret, tokens or authorization codes in this chat, GitHub or public site fields.')}</p>
+      </>}
+      {tocConfig?.configured && !tocConfig.connected && <div className="sandbox-checkout__actions">
+        <button type="button" disabled={busy} onClick={connectToconline}>{t('Autorizar TOConline em modo só de leitura', 'Authorize TOConline in read-only mode')}</button>
+      </div>}
+      {tocConfig?.configured && tocConfig.connected && <>
+        <p><strong>{t('Ligação OAuth ativa neste navegador.', 'OAuth connection active in this browser.')}</strong></p>
+        <div className="sandbox-checkout__actions">
+          <button type="button" disabled={busy} onClick={loadToconlineResources}>{t('Atualizar dados de configuração', 'Refresh configuration data')}</button>
+          <button type="button" className="secondary" disabled={busy} onClick={disconnectToconline}>{t('Desligar TOConline', 'Disconnect TOConline')}</button>
+        </div>
+      </>}
+      {tocResources && <div>
+        <h3>{t('Leitura atual do TOConline', 'Current TOConline read')}</h3>
+        <p>{t('Obtida em', 'Fetched at')}: {new Date(tocResources.fetchedAt).toLocaleString(en ? 'en-GB' : 'pt-PT')}</p>
+        <div className="sandbox-checkout__grid">
+          {[
+            ['series', 'Séries FR', 'FR series'],
+            ['services', 'Serviços', 'Services'],
+            ['taxes', 'Taxas PT', 'PT taxes'],
+            ['exemptions', 'Motivos de isenção', 'Exemption reasons'],
+            ['bankAccounts', 'Contas bancárias', 'Bank accounts'],
+            ['units', 'Unidades', 'Units'],
+            ['currencies', 'Moedas', 'Currencies'],
+          ].map(([key, pt, english]) => {
+            const resource = tocResources.resources?.[key];
+            return <div key={key} className="sandbox-checkout__confirmed">
+              <strong>{t(pt, english)}</strong>
+              <p>{resource?.ok ? `${resource.count} ${t('registos', 'records')}` : t('Não foi possível ler este recurso', 'Could not read this resource')}</p>
+              {!resource?.ok && <small>{resource?.error || '—'}{resource?.status ? ` · HTTP ${resource.status}` : ''}</small>}
+            </div>;
+          })}
+        </div>
+        {tocResources.resources?.series?.ok && <details><summary>{t('Séries de Fatura-recibo encontradas', 'Invoice-receipt series found')}</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(tocResources.resources.series.items, null, 2)}</pre></details>}
+        {tocResources.resources?.services?.ok && <details><summary>{t('Serviços configurados', 'Configured services')}</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(tocResources.resources.services.items, null, 2)}</pre></details>}
+        {tocResources.resources?.taxes?.ok && <details><summary>{t('Taxas de IVA PT', 'PT VAT rates')}</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(tocResources.resources.taxes.items, null, 2)}</pre></details>}
+        {tocResources.resources?.exemptions?.ok && <details><summary>{t('Motivos de isenção', 'Exemption reasons')}</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(tocResources.resources.exemptions.items, null, 2)}</pre></details>}
+        {tocResources.resources?.bankAccounts?.ok && <details><summary>{t('Contas bancárias', 'Bank accounts')}</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(tocResources.resources.bankAccounts.items, null, 2)}</pre></details>}
+      </div>}
+    </section>
     {busy && <p role="status">{t('A processar…', 'Processing…')}</p>}
     {message && <p role="status">{message}</p>}
     {error && <p className="sandbox-checkout__error" role="alert">{error}</p>}
