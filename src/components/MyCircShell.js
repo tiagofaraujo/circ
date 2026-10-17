@@ -63,6 +63,7 @@ export default function MyCircShell({ children }) {
   const managementLinks = [
     access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management', true],
     access?.canManageRegistrations && ['/admin/transferencias-teste', 'money-bill-transfer', 'Transferências — teste', 'Bank transfers — test', false],
+    access?.canManageRegistrations && ['/admin/recibos-teste', 'file-invoice-dollar', 'Recibos — teste', 'Receipts — test', false],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management', false],
     access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor', false],
     access?.canReviewSubmissions && ['/conta/revisoes', 'pen-to-square', 'As minhas avaliações', 'My evaluations', false],
