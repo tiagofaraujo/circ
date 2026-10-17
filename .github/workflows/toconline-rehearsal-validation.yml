@@ -1,0 +1,38 @@
+name: TOConline receipt rehearsal validation
+on:
+  push:
+    branches: [main, feature/toconline-receipt-rehearsal-20261017]
+    paths:
+      - 'server/payments/toconline-rehearsal.mjs'
+      - 'server/test/toconline-rehearsal.test.mjs'
+      - 'server/worker.mjs'
+      - 'src/pages/ToconlineReceiptTestPage.js'
+      - 'src/pages/ToconlineReceiptTestPage.test.js'
+      - 'src/App.js'
+      - 'src/components/AdminModuleNav.js'
+      - '.github/workflows/toconline-rehearsal-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: toconline-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Receipt rehearsal server tests
+        run: node --test server/test/toconline-rehearsal.test.mjs
+      - name: Receipt rehearsal UI tests
+        run: CI=true npm test -- --watchAll=false --runInBand src/pages/ToconlineReceiptTestPage.test.js
+      - name: Production bundle
+        run: CI=true npm run build
