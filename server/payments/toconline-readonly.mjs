@@ -17,6 +17,12 @@ const json = (body, status = 200, extraHeaders = {}) => Response.json(body, { st
   ...extraHeaders,
 } });
 
+function redirect(location, cookies = []) {
+  const headers = new Headers({ Location: location, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+  for (const value of cookies) headers.append('Set-Cookie', value);
+  return new Response(null, { status: 302, headers });
+}
+
 const fail = (code, status = 503) => {
   const error = new Error(code);
   error.code = code;
@@ -378,23 +384,12 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now() }) {
           refreshExpiresAt: current + SESSION_TTL_SECONDS * 1000,
           tokenType: data.token_type || 'Bearer',
         };
-        return new Response(null, {
-          status: 302,
-          headers: {
-            Location: '/admin/recibos-teste?toconline=connected',
-            'Cache-Control': 'no-store',
-            'Set-Cookie': `${cookie(TOKEN_COOKIE, encryptSession(session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS })}, ${clearCookie(STATE_COOKIE, 'Lax')}`,
-          },
-        });
+        return redirect('/admin/recibos-teste?toconline=connected', [
+          cookie(TOKEN_COOKIE, encryptSession(session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }),
+          clearCookie(STATE_COOKIE, 'Lax'),
+        ]);
       } catch {
-        return new Response(null, {
-          status: 302,
-          headers: {
-            Location: '/admin/recibos-teste?toconline=error',
-            'Cache-Control': 'no-store',
-            'Set-Cookie': clearCookie(STATE_COOKIE, 'Lax'),
-          },
-        });
+        return redirect('/admin/recibos-teste?toconline=error', [clearCookie(STATE_COOKIE, 'Lax')]);
       }
     }
 
