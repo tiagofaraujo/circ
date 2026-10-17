@@ -42,7 +42,6 @@ export default function ToconlineReceiptTestPage() {
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState('');
   const [session, setSession] = useState(null);
-  const [modeByOrder, setModeByOrder] = useState({});
   const [dateByOrder, setDateByOrder] = useState({});
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState('');
@@ -113,7 +112,7 @@ export default function ToconlineReceiptTestPage() {
 
   function prepare(order) {
     run(async () => {
-      const mode = modeByOrder[order.id] || 'invoice_plus_receipt';
+      const mode = 'invoice_receipt';
       const date = dateByOrder[order.id] || today;
       const data = await call(`/api/fiscal/sandbox/sessions/${session.id}/orders/${order.id}/prepare`, '', {
         mode, date, sandboxAcknowledged: true,
@@ -150,7 +149,7 @@ export default function ToconlineReceiptTestPage() {
 
     <section className="sandbox-checkout__notice">
       <strong>{t('Simulação interna — não emite documentos fiscais', 'Internal simulation — no fiscal documents are issued')}</strong>
-      <p>{t('Este ensaio prepara os dados que futuramente serão enviados ao TOConline e testa a sequência Fatura + Recibo ou Fatura-recibo. Não usa credenciais TOConline, não faz POST para a API, não comunica à AT e não envia emails.', 'This rehearsal prepares the data that may later be sent to TOConline and tests Invoice + Receipt or Invoice-receipt sequencing. It uses no TOConline credentials, sends no API POST, does not communicate with the tax authority and sends no emails.')}</p>
+      <p>{t('Este ensaio prepara os dados que futuramente serão enviados ao TOConline usando Fatura-recibo como modelo padrão do CIRC para pagamentos já confirmados. Não usa credenciais TOConline, não faz POST para a API, não comunica à AT e não envia emails.', 'This rehearsal prepares the data that may later be sent to TOConline using Invoice-receipt as the CIRC default for already confirmed payments. It uses no TOConline credentials, sends no API POST, does not communicate with the tax authority and sends no emails.')}</p>
     </section>
 
     {config && <p className="sandbox-checkout__muted"><strong>TOConline:</strong> {config.liveWritesEnabled ? t('escritas ativas', 'writes enabled') : t('escritas reais bloqueadas neste módulo', 'real writes blocked in this module')} · OAuth scope futuro: <code>{config.scopeRequired}</code></p>}
@@ -175,12 +174,7 @@ export default function ToconlineReceiptTestPage() {
         <p><strong>{t('Transação/referência do pagamento', 'Payment transaction/reference')}:</strong> {order.transaction || '—'}</p>
 
         <div className="sandbox-checkout__grid">
-          <label>{t('Modelo a ensaiar', 'Rehearsal model')}<select disabled={busy || r?.status === 'simulated-issued'}
-            value={modeByOrder[order.id] || r?.mode || 'invoice_plus_receipt'}
-            onChange={e => setModeByOrder(value => ({ ...value, [order.id]: e.target.value }))}>
-            <option value="invoice_plus_receipt">{t('Fatura + Recibo', 'Invoice + Receipt')}</option>
-            <option value="invoice_receipt">{t('Fatura-recibo', 'Invoice-receipt')}</option>
-          </select></label>
+          <label>{t('Modelo do documento', 'Document model')}<input value={t('Fatura-recibo', 'Invoice-receipt')} readOnly /></label>
           <label>{t('Data do documento de teste', 'Test document date')}<input type="date" disabled={busy || r?.status === 'simulated-issued'}
             value={dateByOrder[order.id] || r?.date || today}
             onChange={e => setDateByOrder(value => ({ ...value, [order.id]: e.target.value }))} /></label>
