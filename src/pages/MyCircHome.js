@@ -59,6 +59,7 @@ export default function MyCircHome() {
     access?.canManageRegistrations && ['/conta/inscricoes-teste', 'ticket', 'Inscrição e pagamento — teste', 'Registration and payment — test'],
     access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management'],
     access?.canManageRegistrations && ['/admin/transferencias-teste', 'money-bill-transfer', 'Transferências — teste', 'Bank transfers — test'],
+    access?.canManageRegistrations && ['/admin/recibos-teste', 'file-invoice-dollar', 'Recibos — teste', 'Receipts — test'],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management'],
     access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor'],
     access?.canReviewSubmissions && ['/conta/revisoes', 'pen-to-square', 'As minhas avaliações', 'My evaluations'],
