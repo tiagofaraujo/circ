@@ -30,7 +30,7 @@ const days = [
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
       ['14:00', 'RM Fetal', 'Fetal MRI', 'Rui Pedro Faria Pais e Paula Marques (ULS Coimbra)', 'Rui Pedro Faria Pais and Paula Marques (ULS Coimbra)'],
-      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Amélia Estêvão e Diana Carvalho', 'Amélia Estêvão and Diana Carvalho'],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Amélia Estêvão e Diana Carvalho (ULS Coimbra)', 'Amélia Estêvão and Diana Carvalho (ULS Coimbra)'],
       ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Célia Antunes e Bruno Esteves (ULS Coimbra)', 'Célia Antunes and Bruno Esteves (ULS Coimbra)'],
     ], {pt: 'Sofia Brandão (CESPU)', en: 'Sofia Brandão (CESPU)'}],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
