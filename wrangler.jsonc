@@ -28,6 +28,7 @@
   "main": "server/worker.mjs",
   "vars": {
     "FIREBASE_PROJECT_ID": "circ-coimbra",
-    "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda"
+    "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda",
+    "TOCONLINE_REDIRECT_URL": "https://circ-coimbra.org/api/fiscal/toconline/callback"
   }
 }
