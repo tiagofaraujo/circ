@@ -32,7 +32,7 @@ function json(data, ok = true, status = ok ? 200 : 400) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  Object.defineProperty(global.crypto, 'randomUUID', { configurable: true, value: jest.fn(() => '58a12222-b856-41c9-a519-e2cc97bb3b69') });
+  Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: jest.fn(() => '58a12222-b856-41c9-a519-e2cc97bb3b69') } });
   let state = { id: SID, registrationConfirmed: true, orders: [baseOrder] };
   global.fetch = jest.fn((url, options = {}) => {
     if (url === '/api/fiscal/sandbox/config') return json({ provider: 'toconline', liveWritesEnabled: false, scopeRequired: 'commercial' });
