@@ -43,6 +43,7 @@ import AdminStudentsPage from './pages/AdminStudentsPage';
 import AdminSandboxPaymentsPage from './pages/AdminSandboxPaymentsPage';
 import SandboxCheckoutPage from './pages/SandboxCheckoutPage';
 import SandboxBankTransferReviewPage from './pages/SandboxBankTransferReviewPage';
+import ToconlineReceiptTestPage from './pages/ToconlineReceiptTestPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import ScientificReviewerPage from './pages/ScientificReviewerPage';
 import ScientificReviewManagementPage from './pages/ScientificReviewManagementPage';
@@ -185,6 +186,7 @@ function App() {
             />
 
             <Route path="/admin/transferencias-teste" element={<AdminRoute permission="registrations"><SandboxBankTransferReviewPage /></AdminRoute>} />
+            <Route path="/admin/recibos-teste" element={<AdminRoute permission="registrations"><ToconlineReceiptTestPage /></AdminRoute>} />
             <Route path="/conta/inscricoes-teste" element={<AdminRoute permission="registrations"><SandboxCheckoutPage /></AdminRoute>} />
             <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes-teste" replace />} />
             <Route path="/admin/pagamentos-teste" element={<AdminRoute permission="registrations"><AdminSandboxPaymentsPage /></AdminRoute>} />
