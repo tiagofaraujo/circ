@@ -6,6 +6,7 @@ import { createSandboxApi } from './payments/sandbox-api.mjs';
 import { createSandboxWebhook } from './payments/sandbox-webhook.mjs';
 import { createCheckoutSandboxApi, createCheckoutSandboxNotification } from './payments/checkout-sandbox.mjs';
 import { createToconlineRehearsalApi } from './payments/toconline-rehearsal.mjs';
+import { createToconlineReadonlyApi } from './payments/toconline-readonly.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -46,6 +47,7 @@ export function createWorker(verify = verifyFirebaseToken) {
   const sandboxWebhook = createSandboxWebhook({ checkoutHandler: createCheckoutSandboxNotification() });
   const sandboxCheckout = createCheckoutSandboxApi({ verify });
   const fiscalRehearsal = createToconlineRehearsalApi({ verify });
+  const toconlineReadonly = createToconlineReadonlyApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
@@ -57,6 +59,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (mediaResponse) return mediaResponse;
       const socialResponse = await handleSocialMetadata(request, env);
       if (socialResponse) return socialResponse;
+      const toconlineResponse = await toconlineReadonly(request, env);
+      if (toconlineResponse) return toconlineResponse;
       const fiscalResponse = await fiscalRehearsal(request, env);
       if (fiscalResponse) return fiscalResponse;
       const checkoutResponse = await sandboxCheckout(request, env);
