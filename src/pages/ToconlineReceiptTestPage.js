@@ -115,20 +115,20 @@ export default function ToconlineReceiptTestPage() {
     run(async () => {
       const mode = modeByOrder[order.id] || 'invoice_plus_receipt';
       const date = dateByOrder[order.id] || today;
-      await call(`/api/fiscal/sandbox/sessions/${session.id}/orders/${order.id}/prepare`, '', {
+      const data = await call(`/api/fiscal/sandbox/sessions/${session.id}/orders/${order.id}/prepare`, '', {
         mode, date, sandboxAcknowledged: true,
       });
-      await refresh(session.id);
+      setSession(current => ({ ...current, orders: current.orders.map(item => item.id === order.id ? { ...item, rehearsal: data.rehearsal } : item) }));
       setMessage(t('Pré-visualização TOConline preparada. Não foi efetuada qualquer chamada ao TOConline.', 'TOConline preview prepared. No TOConline call was made.'));
     });
   }
 
   function issue(order) {
     run(async () => {
-      await call(`/api/fiscal/sandbox/sessions/${session.id}/orders/${order.id}/issue`, '', {
+      const data = await call(`/api/fiscal/sandbox/sessions/${session.id}/orders/${order.id}/issue`, '', {
         id: crypto.randomUUID(), sandboxAcknowledged: true,
       });
-      await refresh(session.id);
+      setSession(current => ({ ...current, orders: current.orders.map(item => item.id === order.id ? { ...item, rehearsal: data.rehearsal } : item) }));
       setMessage(t('Emissão simulada concluída sem efeito fiscal e sem comunicação externa.', 'Simulated issue completed with no fiscal effect and no external communication.'));
     });
   }
@@ -136,7 +136,7 @@ export default function ToconlineReceiptTestPage() {
   function reset(order) {
     run(async () => {
       await call(`/api/fiscal/sandbox/sessions/${session.id}/orders/${order.id}/reset`, '', { sandboxAcknowledged: true });
-      await refresh(session.id);
+      setSession(current => ({ ...current, orders: current.orders.map(item => item.id === order.id ? { ...item, rehearsal: null } : item) }));
       setMessage(t('Ensaio reposto. A inscrição e o pagamento de teste não foram alterados.', 'Rehearsal reset. The test registration and payment were not changed.'));
     });
   }
