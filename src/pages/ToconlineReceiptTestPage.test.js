@@ -36,6 +36,7 @@ beforeEach(() => {
   let state = { id: SID, registrationConfirmed: true, orders: [baseOrder] };
   global.fetch = jest.fn((url, options = {}) => {
     if (url === '/api/fiscal/sandbox/config') return json({ provider: 'toconline', liveWritesEnabled: false, scopeRequired: 'commercial' });
+    if (url === '/api/fiscal/toconline/config') return json({ provider: 'toconline', configured: false, connected: false, missing: ['clientId', 'clientSecret', 'oauthUrl', 'apiUrl', 'sessionKey'], redirectUrl: 'https://circ-coimbra.org/api/fiscal/toconline/callback', mode: 'read-only', commercialWritesEnabled: false });
     if (url === '/api/checkout/sandbox/sessions') return json({ sessions: [{ id: SID, createdAt: '2026-10-17T09:00:00Z', confirmed: true }] });
     if (url === `/api/fiscal/sandbox/sessions/${SID}`) return json({ session: state });
     if (url.endsWith('/prepare')) {
@@ -62,6 +63,8 @@ test('loads confirmed test payments and clearly states that TOConline writes are
   expect(await screen.findByText(/escritas reais bloqueadas neste módulo/)).toBeInTheDocument();
   expect(await screen.findByRole('heading', { name: /Multibanco.*160,00/ })).toBeInTheDocument();
   expect(screen.getByText(/não emite documentos fiscais/i)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Ligação TOConline — apenas leitura' })).toBeInTheDocument();
+  expect(screen.getByText('TOCONLINE_OAUTH_CLIENT_ID')).toBeInTheDocument();
 });
 
 test('prepares a server rehearsal before allowing simulated issue', async () => {
