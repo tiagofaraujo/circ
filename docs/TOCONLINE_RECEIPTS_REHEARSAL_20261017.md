@@ -14,9 +14,8 @@ Só fica acessível à conta administradora com permissão de inscrições. Lê 
 
 - lê uma inscrição de teste confirmada e os seus pedidos pagos;
 - prepara uma pré-visualização dos dados para a API do TOConline;
-- permite comparar dois modelos:
-  - **Fatura + Recibo** (`FT` seguido de `RC`);
-  - **Fatura-recibo** (`FR`), cujo recibo associado é criado automaticamente pela API v1 quando a FR é finalizada;
+- usa **Fatura-recibo (`FR`) como modelo padrão do CIRC para pagamentos já confirmados**, cujo recibo associado é criado automaticamente pela API v1 quando a FR é finalizada;
+- mantém o suporte técnico de `FT + RC` no backend apenas para cenários excecionais/reconciliação, não como escolha normal na interface;
 - mapeia, sem inventar códigos:
   - Multibanco → `MB`;
   - Transferência bancária → `TR`;
@@ -73,7 +72,7 @@ Antes da integração real, estes serviços têm de existir no TOConline ou ser 
 5. Regime de IVA de cada linha, incluindo eventual motivo de isenção.
 6. Conta bancária/caixa, quando aplicável.
 7. Dados de faturação reais do participante.
-8. Decisão contabilística sobre **FT + RC vs FR**.
+8. Confirmação pela contabilidade de que **FR** é o modelo adequado para os pagamentos individuais já confirmados e definição dos cenários excecionais em que seja necessário `FT + RC`.
 9. Código de meio de pagamento a usar para MB WAY.
 10. Confirmação do tratamento das compras de empresas/vouchers e dos complementos.
 
