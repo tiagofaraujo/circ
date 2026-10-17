@@ -1,11 +1,14 @@
-name: TOConline receipt rehearsal validation
+name: TOConline fiscal validation
 on:
   push:
-    branches: [main, feature/toconline-receipt-rehearsal-20261017]
+    branches: [main, feature/toconline-receipt-rehearsal-20261017, feature/toconline-readonly-oauth-20261017]
     paths:
       - 'server/payments/toconline-rehearsal.mjs'
+      - 'server/payments/toconline-readonly.mjs'
       - 'server/test/toconline-rehearsal.test.mjs'
+      - 'server/test/toconline-readonly.test.mjs'
       - 'server/worker.mjs'
+      - 'wrangler.jsonc'
       - 'src/pages/ToconlineReceiptTestPage.js'
       - 'src/pages/ToconlineReceiptTestPage.test.js'
       - 'src/App.js'
@@ -30,8 +33,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Receipt rehearsal server tests
-        run: node --test server/test/toconline-rehearsal.test.mjs
+      - name: TOConline server tests
+        run: node --test server/test/toconline-rehearsal.test.mjs server/test/toconline-readonly.test.mjs
       - name: Receipt rehearsal UI tests
         run: CI=true npm test -- --watchAll=false --runInBand src/pages/ToconlineReceiptTestPage.test.js
       - name: Production bundle
