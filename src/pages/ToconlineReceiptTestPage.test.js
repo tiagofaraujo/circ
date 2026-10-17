@@ -15,14 +15,14 @@ const baseOrder = {
 };
 const prepared = {
   kind: 'toconline-rehearsal', environment: 'sandbox', provider: 'toconline', liveWritesEnabled: false,
-  sessionId: SID, orderId: OID, mode: 'invoice_plus_receipt', date: '2026-10-17', amountCents: 16000,
+  sessionId: SID, orderId: OID, mode: 'invoice_receipt', date: '2026-10-17', amountCents: 16000,
   payment: { code: 'MB', label: 'Referência Multibanco', blocker: null }, status: 'prepared',
   blockers: ['document-series-required', 'vat-or-exemption-configuration-required'],
-  warnings: [], salesDocument: { document_type: 'FT', external_reference: 'CIRC-TESTE-AAA', lines: [] },
-  receipt: { date: '2026-10-17', payment_mechanism: 'MB', lines: [{ received_value: 160 }] },
+  warnings: [], salesDocument: { document_type: 'FR', external_reference: 'CIRC-TESTE-AAA', lines: [] },
+  receipt: null,
 };
 const issued = { ...prepared, status: 'simulated-issued', simulated: {
-  salesDocumentId: 'TEST-DOC-1', salesDocumentNo: 'FT TESTE/1',
+  salesDocumentId: 'TEST-DOC-1', salesDocumentNo: 'FR TESTE/1',
   receiptId: 'TEST-RC-1', receiptNo: 'RC TESTE/1', fiscalEffect: false, providerCallMade: false,
 } };
 
@@ -72,14 +72,14 @@ test('prepares a server rehearsal before allowing simulated issue', async () => 
   expect(await screen.findByText(/Confirmar e configurar a série de documentos/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Simular emissão sem efeito fiscal' })).toBeInTheDocument();
   const call = fetch.mock.calls.find(([url]) => url.endsWith('/prepare'));
-  expect(JSON.parse(call[1].body)).toEqual({ mode: 'invoice_plus_receipt', date: expect.any(String), sandboxAcknowledged: true });
+  expect(JSON.parse(call[1].body)).toEqual({ mode: 'invoice_receipt', date: expect.any(String), sandboxAcknowledged: true });
 });
 
 test('simulated issue stays inside CIRC APIs and exposes test document numbers only', async () => {
   render(<ToconlineReceiptTestPage />);
   fireEvent.click(await screen.findByRole('button', { name: 'Preparar pré-visualização TOConline' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Simular emissão sem efeito fiscal' }));
-  expect(await screen.findByText('FT TESTE/1')).toBeInTheDocument();
+  expect(await screen.findByText('FR TESTE/1')).toBeInTheDocument();
   expect(screen.getByText('RC TESTE/1')).toBeInTheDocument();
   expect(screen.getByText(/Efeito fiscal: nenhum/)).toBeInTheDocument();
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.endsWith('/issue'))).toBe(true));
