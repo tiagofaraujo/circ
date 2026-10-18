@@ -55,7 +55,24 @@ export function createStripeSandboxWebhook({ storeFactory = createCheckoutSandbo
       const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token, uid: context.uid });
       const provider = providerFactory({ apiKey: env.STRIPE_SANDBOX_SECRET_KEY });
       for (let retry = 0; retry < 4; retry++) {
-        const saved = await store.read(context.sessionId); if (!saved) return json({ error: 'attempt_not_found' }, 404);
+        const saved = await store.read(context.sessionId);
+        if (!saved) {
+          // A signed Stripe expiry for an unpaid checkout with no PaymentIntent cannot
+          // grant entitlements. Acknowledge only this orphaned sandbox expiry, so Stripe
+          // does not retry indefinitely after a test record has been removed.
+          if (event.type === 'checkout.session.expired' && snapshot?.object === 'checkout.session'
+            && snapshot.id && /^cs_test_[A-Za-z0-9]{8,240}$/.test(snapshot.id)
+            && snapshot.livemode === false && snapshot.status === 'expired'
+            && snapshot.payment_status === 'unpaid' && !snapshot.payment_intent
+            && snapshot.mode === 'payment' && snapshot.currency === 'eur'
+            && snapshot.metadata?.integration === STRIPE_FLOW
+            && snapshot.metadata?.session_id === context.sessionId
+            && snapshot.metadata?.owner === context.uid
+            && snapshot.metadata?.order_id === meta.order_id) {
+            return json({ received: true, ignored: true, reason: 'orphaned_unpaid_expiry' });
+          }
+          return json({ error: 'attempt_not_found' }, 404);
+        }
         const r = saved.record, order = r.orders.find(o => o.id === meta.order_id);
         if (r.id !== context.sessionId || r.owner !== context.uid || r.kind !== 'checkout-test'
           || r.environment !== 'sandbox' || r.eventId !== 'circ-2027' || !order
