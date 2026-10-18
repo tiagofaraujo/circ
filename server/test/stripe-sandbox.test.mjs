@@ -71,6 +71,7 @@ function fixture() {
   return { call, api, webhook, quote, create, event, send, pay, requests, sessions,
     newSession: () => call('sessions', { id: SID, source: 'new' }),
     record: () => structuredClone(doc.record), writes: () => writes, tokens: () => tokens,
+    clearRecord: () => { doc = null; },
     mutate: fn => { fn(doc.record); doc.version = String(Number(doc.version) + 1); },
     setPostStatus: v => { postStatus = v; }, setTimeout: v => { timeout = v; }, setUnavailable: v => { unavailable = v; },
     setStorageFailure: v => { storageFailure = v; }, setOnCreate: fn => { onCreate = fn; }, setClaims: v => { claims = v; },
@@ -242,4 +243,21 @@ test('readonly refresh and config return no secrets and perform no Stripe paymen
   const data = await (await f.call(`sessions/${SID}`)).json(); await f.call('config');
   assert.equal(data.session.orders[0].status, 'confirmed'); assert.equal(f.requests.length, count);
   assert.ok(!JSON.stringify(data).includes('rk_test_')); assert.ok(!JSON.stringify(data).includes('whsec_'));
+});
+
+test('orphaned unpaid expired sandbox session is acknowledged without writes, but a paid event is not', async () => {
+  const f = await start();
+  const id = f.record().orders[0].reference;
+  Object.assign(f.sessions.get(id), { status: 'expired', payment_status: 'unpaid', payment_intent: null, url: null });
+  const expired = f.event(id, 'checkout.session.expired');
+  f.clearRecord();
+  const response = await f.send(expired);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { received: true, ignored: true, reason: 'orphaned_unpaid_expiry' });
+  const completed = structuredClone(expired);
+  completed.type = 'checkout.session.completed';
+  assert.equal((await f.send(completed)).status, 404);
+  const suspicious = structuredClone(expired);
+  suspicious.data.object.payment_intent = 'pi_synthetic';
+  assert.equal((await f.send(suspicious)).status, 404);
 });
