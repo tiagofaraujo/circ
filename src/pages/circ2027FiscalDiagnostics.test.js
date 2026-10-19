@@ -10,7 +10,7 @@ test('validates the five configured services and 225 EUR exact total without ena
   expect(result.fiscalReleaseAllowed).toBe(false);
 });
 test('detects missing VAT-inclusive flag, series mismatch and amount mismatch',()=>{
-  const modified=structuredClone(resources);
+  const modified=JSON.parse(JSON.stringify(resources));
   modified.resources.services.items[3].priceIncludesVat=false;
   modified.resources.series.items[0].id='999';
   const result=inspectCIRC27Rehearsal({...rehearsal,amountCents:22499},modified);
