@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import EventIdentityHero from '../components/EventIdentityHero';
 import InvitedSpeakers from '../components/InvitedSpeakers';
+import Edition2025Film from '../components/Edition2025Film';
 import SocialConnect from '../components/js/SocialConnect';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -154,23 +155,9 @@ function Home() {
         </div>
       </section>
 
+      <Edition2025Film />
+
       <SocialConnect />
-
-      <section className="section archive-teaser">
-        <div className="archive-teaser__poster">
-          <img src="/cartaz_v2.jpg" alt={copy.posterAlt} />
-        </div>
-
-        <div className="archive-teaser__content">
-          <p className="eyebrow">{copy.archive}</p>
-          <h2>{copy.archiveTitle}</h2>
-          <p>{copy.archiveText1}</p>
-          <p>{copy.archiveText2}</p>
-          <Link className="button button--outline" to="/2025">
-            {copy.explore2025}
-          </Link>
-        </div>
-      </section>
 
       <section className="section venue-section">
         <div className="venue-section__header">

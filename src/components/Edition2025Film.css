@@ -1,0 +1,131 @@
+/* Editorial film feature. Scoped styles; existing CIRC identity tokens are retained. */
+.section.edition-film {
+  padding-top: 72px;
+  padding-bottom: 72px;
+  border-top: 1px solid var(--line, #dedbe5);
+  scroll-margin-top: 110px;
+}
+.edition-film__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .75fr);
+  gap: 48px;
+  align-items: end;
+  margin-bottom: 36px;
+}
+.edition-film__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 20px;
+  color: var(--blue-deep, #141846);
+  font-size: .73rem;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.edition-film__eyebrow::before { content: ''; width: 30px; height: 2px; background: var(--coral, #e6503b); }
+.edition-film h2 {
+  margin: 0;
+  color: var(--blue-deep, #141846);
+  font-family: var(--font-sans, sans-serif);
+  font-size: clamp(2.8rem, 5vw, 4.8rem);
+  font-weight: 500;
+  letter-spacing: -.05em;
+  line-height: 1.02;
+}
+.edition-film h2 span { display: block; color: var(--blue, #232eb7); }
+.edition-film__introduction { max-width: 450px; }
+.edition-film__introduction > p { margin: 0 0 14px; color: var(--ink-soft, #55516f); font-size: 1rem; line-height: 1.8; }
+.edition-film .edition-film__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  min-height: 44px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  color: var(--blue-deep, #141846);
+  font: inherit;
+  font-size: .86rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+}
+.edition-film .edition-film__link:hover { color: var(--blue, #232eb7); }
+.edition-film .edition-film__link:focus-visible { outline: 3px solid var(--blue, #232eb7); outline-offset: 5px; }
+.edition-film__figure { margin: 0; }
+.edition-film__screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 200px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #10142d;
+  box-shadow: 0 20px 48px rgba(20, 24, 70, .12);
+}
+.edition-film__screen > iframe { display: block; width: 100%; height: 100%; min-height: 200px; border: 0; }
+.edition-film__screen > iframe:focus-visible { outline: 3px solid var(--identity-peach, #fba299); outline-offset: -4px; }
+.edition-film__cover {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  background: #10142d;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.edition-film__cover > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 52%; transition: transform 450ms ease; }
+.edition-film__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 20, 51, .44), rgba(15, 20, 51, .2) 40%, rgba(15, 20, 51, .8)); }
+.edition-film__edition { position: absolute; top: 28px; left: 32px; display: flex; align-items: center; gap: 16px; font-size: .7rem; font-weight: 550; letter-spacing: .12em; text-transform: uppercase; }
+.edition-film__edition > span { opacity: .6; }
+.edition-film__play { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-size: .8rem; font-weight: 600; letter-spacing: .02em; }
+.edition-film__play-icon { display: grid; place-items: center; width: 80px; height: 80px; border: 1px solid rgba(255, 255, 255, .75); border-radius: 50%; background: rgba(20, 24, 70, .6); color: #fff; transition: background 200ms ease, transform 200ms ease; }
+.edition-film__play-icon svg { margin-left: 3px; }
+.edition-film__signature { position: absolute; left: 32px; right: 32px; bottom: 28px; display: flex; flex-direction: column; gap: 5px; }
+.edition-film__signature strong { font-size: clamp(1.2rem, 2.3vw, 2rem); font-weight: 550; letter-spacing: -.025em; line-height: 1.1; }
+.edition-film__signature > span { color: #eeeaf5; font-size: .8rem; }
+.edition-film__cover:focus-visible { outline: 3px solid var(--identity-peach, #fba299); outline-offset: -5px; }
+.edition-film__footer { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 16px 32px; margin-top: 24px; }
+.edition-film__note { flex: 1 1 300px; max-width: 620px; }
+.edition-film__caption { color: var(--blue-deep, #141846); font-size: .83rem; font-weight: 600; }
+.edition-film__note > p { margin: 8px 0 0; color: var(--ink-soft, #55516f); font-size: .75rem; line-height: 1.7; }
+.edition-film__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+@media (hover: hover) and (pointer: fine) {
+  .edition-film__cover:hover > img { transform: scale(1.025); }
+  .edition-film__cover:hover .edition-film__play-icon { background: var(--blue, #232eb7); transform: scale(1.06); }
+}
+@media (max-width: 760px) {
+  .section.edition-film { padding-top: 48px; padding-bottom: 48px; scroll-margin-top: 90px; }
+  .edition-film__header { grid-template-columns: 1fr; gap: 22px; margin-bottom: 26px; }
+  .edition-film h2 { font-size: clamp(2.6rem, 9vw, 3.7rem); }
+  .edition-film__introduction { max-width: 540px; }
+  .edition-film__introduction > p { font-size: .95rem; line-height: 1.75; }
+  .edition-film__screen { border-radius: 14px; }
+  .edition-film__edition { top: 18px; left: 20px; font-size: .6rem; gap: 12px; }
+  .edition-film__signature { left: 20px; right: 20px; bottom: 18px; }
+  .edition-film__signature > span { font-size: .7rem; }
+  .edition-film__play { gap: 8px; font-size: .75rem; }
+  .edition-film__play-icon { width: 60px; height: 60px; }
+  .edition-film__footer { margin-top: 20px; gap: 12px; }
+}
+@media (max-width: 420px) {
+  .edition-film__signature { flex-direction: row; align-items: baseline; gap: 9px; }
+  .edition-film__signature strong { font-size: .9rem; }
+  .edition-film__signature > span { font-size: .65rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edition-film__cover > img, .edition-film__play-icon { transition: none; transform: none !important; }
+}

@@ -1,0 +1,43 @@
+name: CIRC 2025 video validation
+on:
+  push:
+    branches: [main, feature/circ2025-video-20261019]
+    paths: ['src/components/Edition2025Film*', 'src/pages/Home.js', 'scripts/check-edition2025-video.cjs', '.github/workflows/edition2025-video.yml']
+  pull_request:
+    paths: ['src/components/Edition2025Film*', 'src/pages/Home.js', 'scripts/check-edition2025-video.cjs', '.github/workflows/edition2025-video.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: edition2025-video-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Frontend regression tests
+        run: CI=true npm test -- --watchAll=false --runInBand
+      - name: Production build without deployment credentials
+        run: CI=true npm run build
+      - name: Install isolated browser test tooling
+        run: |
+          npm install --prefix /tmp/circ-video-browser --ignore-scripts --no-audit --no-fund playwright@1.56.1
+          node /tmp/circ-video-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Desktop, mobile, keyboard and network-isolation checks
+        run: node scripts/check-edition2025-video.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: circ2025-video-visual-checks
+          path: artifacts/edition2025-video/
+          if-no-files-found: ignore
+          retention-days: 7
