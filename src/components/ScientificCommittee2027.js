@@ -19,7 +19,7 @@ export default function ScientificCommittee2027() {
         <p className="eyebrow">CIRC 2027</p>
         <h2 id="scientific-committee2027-title">{title}</h2>
       </header>
-      <ul className="scientific-committee2027__names" role="list" aria-label={`${title} CIRC 2027`}>
+      <ul className="scientific-committee2027__names" aria-label={`${title} CIRC 2027`}>
         {names.map(name => <li key={name}>{name}</li>)}
       </ul>
     </section>
