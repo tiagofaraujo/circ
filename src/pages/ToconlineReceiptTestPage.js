@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import AdminModuleNav from '../components/AdminModuleNav';
+import { inspectCIRC27Rehearsal } from './circ2027FiscalDiagnostics';
 import './SandboxCheckoutPage.css';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{12}$/i;
@@ -286,6 +287,16 @@ export default function ToconlineReceiptTestPage() {
           <p><strong>{r.status === 'simulated-issued' ? t('Emissão simulada concluída', 'Simulated issue completed') : t('Preparado para simulação', 'Prepared for simulation')}</strong></p>
           <p>{t('Meio de pagamento TOConline identificado', 'Mapped TOConline payment method')}: <strong>{r.payment.code || t('por definir', 'not yet defined')}</strong> — {r.payment.label}</p>
 
+          {(() => {
+            const check = inspectCIRC27Rehearsal(r, tocResources);
+            return <div className="sandbox-checkout__confirmed">
+              <h3>{t('Diagnóstico fiscal CIRC2027 — só leitura', 'CIRC2027 fiscal diagnostics — read only')}</h3>
+              <p>{t('Série FR 244 / CIRC2027', 'FR series 244 / CIRC2027')}: <strong>{check.seriesFound ? 'Confirmada na API' : 'Não confirmada nesta leitura'}</strong></p>
+              <ul>{check.serviceChecks.map(item => <li key={item.code}>{item.code} (ID {item.id || '—'}): {item.ok ? 'Ativo · IVA incluído · NOR' : 'Por confirmar / divergente'}</li>)}</ul>
+              <p>{t('Total das linhas', 'Line total')}: {(check.calculatedCents / 100).toFixed(2)} € · {t('Pagamento registado', 'Recorded payment')}: {(check.expectedCents / 100).toFixed(2)} € — <strong>{check.exactTotal ? 'Coincide' : 'DIVERGÊNCIA'}</strong></p>
+              <p><strong>{t('Emissão fiscal real bloqueada', 'Real fiscal issuance blocked')}.</strong> {t('A existência da série não confirma comunicação à AT/ATCUD. A taxa, os adiantamentos e os dados do cliente aguardam validação.', 'Series presence does not confirm tax authority registration/ATCUD. Tax treatment, advances and customer details are pending validation.')}</p>
+            </div>;
+          })()}
           {r.blockers?.length > 0 && <details open><summary><strong>{t('Configuração que falta antes de ligar a API real', 'Configuration required before enabling the real API')}</strong></summary>
             <ul>{r.blockers.map(item => <li key={item}>{blockerText[item] || item}</li>)}</ul>
           </details>}
