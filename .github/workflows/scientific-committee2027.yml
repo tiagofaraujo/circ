@@ -1,0 +1,43 @@
+name: CIRC 2027 scientific committee validation
+on:
+  push:
+    branches: [main, feature/scientific-committee-20261019]
+    paths: ['src/data/scientificCommittee2027.json', 'src/components/ScientificCommittee2027*', 'src/pages/OrganizationPage2027.js', 'scripts/check-scientific-committee2027.cjs', '.github/workflows/scientific-committee2027.yml']
+  pull_request:
+    paths: ['src/data/scientificCommittee2027.json', 'src/components/ScientificCommittee2027*', 'src/pages/OrganizationPage2027.js', 'scripts/check-scientific-committee2027.cjs', '.github/workflows/scientific-committee2027.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scientific-committee2027-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Frontend regression tests
+        run: CI=true npm test -- --watchAll=false --runInBand
+      - name: Production build without deployment credentials
+        run: CI=true npm run build
+      - name: Isolated browser tooling
+        run: |
+          npm install --prefix /tmp/circ-committee-browser --ignore-scripts --no-audit --no-fund playwright@1.56.1
+          node /tmp/circ-committee-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Names, privacy, language, anchors and responsive checks
+        run: node scripts/check-scientific-committee2027.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scientific-committee2027-visual-checks
+          path: artifacts/scientific-committee2027/
+          if-no-files-found: ignore
+          retention-days: 7

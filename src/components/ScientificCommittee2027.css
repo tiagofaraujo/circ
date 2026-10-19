@@ -1,0 +1,75 @@
+/* Names-only committee list; retain the existing CIRC typography and palette. */
+.organization-committee-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin: 30px 0 0;
+  padding: 0;
+}
+.organization-committee-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--blue-deep);
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.organization-committee-nav a:hover { color: var(--blue); border-color: currentColor; }
+.organization-committee-nav a:focus-visible { outline: 3px solid var(--blue); outline-offset: 5px; }
+#comissao-organizadora,
+.scientific-committee2027 { scroll-margin-top: 110px; }
+.scientific-committee2027 .scientific-committee2027__header { margin-bottom: 30px; }
+.scientific-committee2027__header .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.scientific-committee2027__header .eyebrow::before {
+  content: '';
+  width: 30px;
+  height: 2px;
+  background: var(--coral);
+}
+.scientific-committee2027__header h2 { color: var(--blue-deep); }
+.scientific-committee2027__names {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 32px;
+  list-style: none;
+  margin: 0;
+  padding: 10px 30px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .65);
+}
+.scientific-committee2027__names li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 76px;
+  margin: 0;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--blue-deep);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+@media (max-width: 1000px) {
+  .scientific-committee2027__names { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+}
+@media (max-width: 600px) {
+  .organization-committee-nav { gap: 8px 24px; margin-top: 22px; }
+  .organization-committee-nav a { font-size: .84rem; gap: 16px; }
+  #comissao-organizadora,
+  .scientific-committee2027 { scroll-margin-top: 88px; }
+  .scientific-committee2027 .scientific-committee2027__header { margin-bottom: 24px; }
+  .scientific-committee2027__header h2 { font-size: clamp(2rem, 8vw, 2.9rem); line-height: 1.1; }
+  .scientific-committee2027__names { grid-template-columns: minmax(0, 1fr); padding: 4px 22px 18px; border-radius: 14px; }
+  .scientific-committee2027__names li { min-height: 62px; padding: 16px 0; font-size: 1rem; }
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import ScientificCommittee2027 from '../components/ScientificCommittee2027';
 import '../recoveredContent.css';
 
 const tx = (en, english, portuguese) => (en ? english : portuguese);
@@ -71,6 +72,11 @@ export default function OrganizationPage2027() {
         )}
       />
 
+      <nav className="organization-committee-nav" aria-label={tx(en, 'CIRC 2027 committees', 'Comissões do CIRC 2027')}>
+        <a href="#comissao-organizadora">{tx(en, 'Organising Committee', 'Comissão Organizadora')} <span aria-hidden="true">↓</span></a>
+        <a href="#comissao-cientifica">{tx(en, 'Scientific Committee', 'Comissão Científica')} <span aria-hidden="true">↓</span></a>
+      </nav>
+
       <section className="recovered-section">
         <SectionHeader
           eyebrow={tx(en, 'About us', 'Sobre nós')}
@@ -120,7 +126,7 @@ export default function OrganizationPage2027() {
         </div>
       </section>
 
-      <section className="recovered-section">
+      <section className="recovered-section" id="comissao-organizadora">
         <SectionHeader
           eyebrow="CIRC 2027"
           title={tx(en, 'Organising Committee', 'Comissão Organizadora')}
@@ -155,6 +161,8 @@ export default function OrganizationPage2027() {
           )}
         </div>
       </section>
+
+      <ScientificCommittee2027 />
 
       <div className="organization-signature">
         <div>
