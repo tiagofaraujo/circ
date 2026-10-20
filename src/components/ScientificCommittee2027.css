@@ -36,9 +36,12 @@
 }
 .scientific-committee2027__header h2 { color: var(--blue-deep); }
 .scientific-committee2027__names {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 32px;
+  /* Read alphabetically down each column, then continue in the next column.
+     Keep the source/DOM order intact for assistive technology and mobile. */
+  display: block;
+  column-count: 3;
+  column-gap: 32px;
+  column-fill: balance;
   list-style: none;
   margin: 0;
   padding: 10px 30px 22px;
@@ -49,6 +52,8 @@
 .scientific-committee2027__names li {
   display: flex;
   align-items: center;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
   min-width: 0;
   min-height: 76px;
   margin: 0;
@@ -61,7 +66,7 @@
   overflow-wrap: break-word;
 }
 @media (max-width: 1000px) {
-  .scientific-committee2027__names { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+  .scientific-committee2027__names { column-count: 2; column-gap: 28px; }
 }
 @media (max-width: 600px) {
   .organization-committee-nav { gap: 8px 24px; margin-top: 22px; }
@@ -70,6 +75,6 @@
   .scientific-committee2027 { scroll-margin-top: 88px; }
   .scientific-committee2027 .scientific-committee2027__header { margin-bottom: 24px; }
   .scientific-committee2027__header h2 { font-size: clamp(2rem, 8vw, 2.9rem); line-height: 1.1; }
-  .scientific-committee2027__names { grid-template-columns: minmax(0, 1fr); padding: 4px 22px 18px; border-radius: 14px; }
+  .scientific-committee2027__names { column-count: 1; padding: 4px 22px 18px; border-radius: 14px; }
   .scientific-committee2027__names li { min-height: 62px; padding: 16px 0; font-size: 1rem; }
 }

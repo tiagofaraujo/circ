@@ -18,6 +18,7 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 (async () => {
+  assert.deepEqual(expectedNames, [...expectedNames].sort(new Intl.Collator('pt-PT', { sensitivity: 'base' }).compare), 'Source names remain alphabetic');
   await new Promise(resolve => server.listen(4180, '127.0.0.1', resolve));
   const browser = await chromium.launch({ headless: true });
   try {
@@ -48,7 +49,20 @@ const server = http.createServer((req, res) => {
       assert.equal(await section.locator('a, img, button, input, iframe').count(), 0);
       assert.doesNotMatch(await section.innerHTML(), /@|mailto:|\.xlsx|contacto/i);
       assert.equal(await page.locator('#comissao-organizadora li').count(), 9);
-      assert.equal(await section.locator('ul').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), columns);
+      assert.equal(await section.locator('ul').evaluate(el => Number(getComputedStyle(el).columnCount)), columns);
+      // Verify actual visual reading order, not just the DOM or a CSS property.
+      const positions = await section.locator('li').evaluateAll(items => items.map(el => {
+        const box = el.getBoundingClientRect();
+        return { text: el.textContent, left: Math.round(box.left), top: Math.round(box.top), fragments: el.getClientRects().length };
+      }));
+      assert.equal(new Set(positions.map(item => item.left)).size, columns, 'Expected number of visible columns');
+      assert.ok(positions.every(item => item.fragments === 1), 'Names must never split between columns');
+      const columnOrder = [...positions].sort((a, b) => a.left - b.left || a.top - b.top).map(item => item.text);
+      assert.deepEqual(columnOrder, expectedNames, 'Read alphabetically top to bottom, then left to right');
+      if (columns > 1) {
+        assert.equal(positions[0].left, positions[1].left, 'First two names share a column, not a row');
+        assert.ok(positions[1].top > positions[0].top, 'Next alphabetic name is below the first');
+      }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'No horizontal overflow');
       assert.equal(await section.locator('li').evaluateAll(items => items.every(el => el.scrollWidth <= el.clientWidth + 1)), true, 'Names are not clipped');
       await section.scrollIntoViewIfNeeded();
@@ -60,7 +74,7 @@ const server = http.createServer((req, res) => {
       await page.waitForTimeout(100);
       assert.equal(new URL(page.url()).hash, '#comissao-cientifica');
       assert.deepEqual(pageErrors, [], 'No runtime page errors');
-      console.log(`${name}: 17 names, no contacts, original organisers, ${columns} columns and anchor OK`);
+      console.log(`${name}: 17 names, no contacts, original organisers, ${columns} alphabetic vertical columns and anchor OK`);
       await context.close();
     }
   } finally {

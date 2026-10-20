@@ -1,7 +1,7 @@
 name: CIRC 2027 scientific committee validation
 on:
   push:
-    branches: [main, feature/scientific-committee-20261019]
+    branches: [main, 'feature/scientific-committee-*']
     paths: ['src/data/scientificCommittee2027.json', 'src/components/ScientificCommittee2027*', 'src/pages/OrganizationPage2027.js', 'scripts/check-scientific-committee2027.cjs', '.github/workflows/scientific-committee2027.yml']
   pull_request:
     paths: ['src/data/scientificCommittee2027.json', 'src/components/ScientificCommittee2027*', 'src/pages/OrganizationPage2027.js', 'scripts/check-scientific-committee2027.cjs', '.github/workflows/scientific-committee2027.yml']
