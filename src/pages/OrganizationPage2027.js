@@ -7,9 +7,9 @@ import '../recoveredContent.css';
 const tx = (en, english, portuguese) => (en ? english : portuguese);
 
 const organisingCommittee2027 = [
-  'Ana Carolina Gomes',
   'Ana Carvalho',
   'Carla Lourenço',
+  'Carolina Gomes',
   'Daniel Matos',
   'Francisca Rodrigues',
   'Paulo Matos',
