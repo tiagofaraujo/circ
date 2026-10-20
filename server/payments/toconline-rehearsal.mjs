@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createCheckoutSandboxStore, CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
+import { FISCAL_POLICY_VERSION, prepareRehearsalTaxes } from './toconline-rehearsal-tax.mjs';
 
 const PREFIX = '/api/fiscal/sandbox';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -75,7 +76,8 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
     const meta = LINE_META[line.code];
     if (!meta || !Number.isSafeInteger(line.quantity) || line.quantity <= 0
       || !Number.isSafeInteger(line.amountCents) || line.amountCents <= 0
-      || line.amountCents % line.quantity !== 0) fail('source-mismatch');
+      || line.amountCents % line.quantity !== 0
+      || (line.unitAmountCents !== undefined && line.unitAmountCents !== line.amountCents / line.quantity)) fail('source-mismatch');
     return {
       item_type: 'Service',
       item_code: meta[0],
@@ -102,6 +104,7 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
     ...(mechanism.code ? { payment_mechanism: mechanism.code } : {}),
     lines,
   };
+  const fiscal = prepareRehearsalTaxes(salesDocument, order.quote.lines);
   const receipt = mode === 'invoice_plus_receipt' ? {
     date,
     ...(mechanism.code ? { payment_mechanism: mechanism.code } : {}),
@@ -116,6 +119,8 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
     'services-must-exist',
     'vat-or-exemption-configuration-required',
     'production-customer-data-required',
+    'toconline-calculation-not-tested',
+    ...fiscal.reviews,
     ...(mode === 'invoice_plus_receipt' ? ['receipt-series-required'] : []),
     ...(mechanism.blocker ? [mechanism.blocker] : []),
   ];
@@ -128,6 +133,8 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
     environment: 'sandbox',
     provider: 'toconline',
     liveWritesEnabled: false,
+    fiscalPolicyVersion: fiscal.fiscalPolicyVersion,
+    taxPreview: fiscal.taxPreview,
     sessionId: record.id,
     orderId,
     sourceDigest: digest(source),
@@ -136,7 +143,7 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
     date,
     amountCents: order.amountCents,
     payment: mechanism,
-    salesDocument,
+    salesDocument: fiscal.salesDocument,
     receipt,
     blockers,
     warnings,
@@ -165,8 +172,8 @@ function currentSourceDigest(record, orderId) {
 function safeError(error) {
   const code = error.message?.startsWith('fiscal/') ? error.message.slice(7) : '';
   const allowed = new Set(['invalid-request', 'invalid-date', 'invalid-mode', 'paid-test-required',
-    'source-mismatch', 'not-found', 'not-prepared', 'already-issued', 'stale-source']);
-  if (allowed.has(code)) return json({ error: code }, ['already-issued', 'stale-source'].includes(code) ? 409 : code === 'not-found' ? 404 : 400);
+    'source-mismatch', 'not-found', 'not-prepared', 'already-issued', 'stale-source', 'stale-tax-policy']);
+  if (allowed.has(code)) return json({ error: code }, ['already-issued', 'stale-source', 'stale-tax-policy'].includes(code) ? 409 : code === 'not-found' ? 404 : 400);
   if (['storage_forbidden', 'storage_session_expired', 'storage_unavailable', 'conflict'].includes(error.code)) {
     return json({ error: error.code }, error.code === 'conflict' ? 409 : 503);
   }
@@ -198,6 +205,7 @@ export function createToconlineRehearsalApi({ verify, storeFactory = createCheck
         provider: 'toconline',
         environment: 'rehearsal',
         liveWritesEnabled: false,
+        fiscalPolicyVersion: FISCAL_POLICY_VERSION,
         scopeRequired: 'commercial',
         salesDocumentsEndpoint: '/api/v1/commercial_sales_documents',
         receiptsEndpoint: '/api/v1/commercial_sales_receipts',
@@ -248,6 +256,7 @@ export function createToconlineRehearsalApi({ verify, storeFactory = createCheck
           if (!existing) fail('not-prepared');
           if (existing.status === 'simulated-issued') return json({ rehearsal: publicRehearsal(existing), duplicate: true });
           if (existing.status !== 'prepared') fail('not-prepared');
+          if (existing.fiscalPolicyVersion !== FISCAL_POLICY_VERSION) fail('stale-tax-policy');
           if (existing.sourceDigest !== currentSourceDigest(saved.record, orderId)) fail('stale-source');
           const short = body.id.replaceAll('-', '').slice(0, 10).toUpperCase();
           const next = { ...existing, status: 'simulated-issued', issuedAt: now(), issueRequestId: body.id,

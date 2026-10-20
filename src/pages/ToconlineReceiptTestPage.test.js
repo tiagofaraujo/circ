@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ToconlineReceiptTestPage from './ToconlineReceiptTestPage';
+import policy from '../data/circ2027FiscalPolicy.json';
 
 const mockUser = { uid: 'admin', getIdToken: jest.fn(async () => 'token') };
 jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
@@ -15,6 +16,7 @@ const baseOrder = {
 };
 const prepared = {
   kind: 'toconline-rehearsal', environment: 'sandbox', provider: 'toconline', liveWritesEnabled: false,
+  fiscalPolicyVersion: policy.version,
   sessionId: SID, orderId: OID, mode: 'invoice_receipt', date: '2026-10-17', amountCents: 16000,
   payment: { code: 'MB', label: 'Referência Multibanco', blocker: null }, status: 'prepared',
   blockers: ['document-series-required', 'vat-or-exemption-configuration-required'],
@@ -87,4 +89,19 @@ test('simulated issue stays inside CIRC APIs and exposes test document numbers o
   expect(screen.getByText(/Efeito fiscal: nenhum/)).toBeInTheDocument();
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.endsWith('/issue'))).toBe(true));
   expect(fetch.mock.calls.every(([url]) => String(url).startsWith('/api/'))).toBe(true);
+});
+
+test('old prepared drafts must be refreshed and keep the date displayed in the form', async () => {
+  const original = global.fetch;
+  global.fetch = jest.fn((url, options) => url === `/api/fiscal/sandbox/sessions/${SID}`
+    ? json({ session: { id: SID, orders: [{ ...baseOrder, rehearsal: { ...prepared, fiscalPolicyVersion: undefined } }] } })
+    : original(url, options));
+  render(<ToconlineReceiptTestPage />);
+  expect(await screen.findByText('Ensaio anterior à configuração M07.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Simular emissão sem efeito fiscal' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar pré-visualização' }));
+  await screen.findByText(/Pré-visualização TOConline preparada/);
+  const call = fetch.mock.calls.find(([url]) => url.endsWith('/prepare'));
+  expect(JSON.parse(call[1].body).date).toBe('2026-10-17');
+  expect(screen.getByRole('button', { name: 'Simular emissão sem efeito fiscal' })).toBeEnabled();
 });
