@@ -9,7 +9,7 @@ test('shows exempt 95 EUR calculation and a real-issuance block without claiming
   render(<CircFiscalRehearsalDiagnostics rehearsal={base} />);
   expect(screen.getByText(/Isento · M07/)).toBeInTheDocument();
   expect(screen.getByText(/Base total:/)).toHaveTextContent(/95,00.*IVA:.*0,00.*Total:.*95,00/);
-  expect(screen.getByText('Emissão fiscal real bloqueada')).toBeInTheDocument();
+  expect(screen.getByText('Emissão fiscal real bloqueada.')).toBeInTheDocument();
   expect(screen.getByText(/Não valida a aceitação/)).toBeInTheDocument();
 });
 test('preserves legacy rehearsals and explains how to refresh them', () => {
