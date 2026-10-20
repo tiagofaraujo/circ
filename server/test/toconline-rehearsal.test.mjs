@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildToconlineRehearsal, createToconlineRehearsalApi, mapReceiptPaymentMechanism } from '../payments/toconline-rehearsal.mjs';
+import { FISCAL_POLICY_VERSION } from '../payments/toconline-rehearsal-tax.mjs';
 
 const SID = 'ce7fcfd4-baf7-4d4e-9893-d4dd2a0c4e49';
 const OID = 'af91d4b0-d844-4a37-a71e-05f939a04f83';
@@ -55,7 +56,7 @@ test('payment mechanism mapping uses documented receipt codes and flags MB WAY f
   assert.equal(mapReceiptPaymentMechanism('mbway').blocker, 'mbway-payment-mechanism-required');
 });
 
-test('invoice plus receipt preview preserves server totals and creates no tax assumptions', () => {
+test('invoice plus receipt preview preserves totals, uses M07 and does not reuse the FR series for an FT', () => {
   const r = buildToconlineRehearsal(record(), OID, 'invoice_plus_receipt', '2026-10-17');
   assert.equal(r.liveWritesEnabled, false);
   assert.equal(r.salesDocument.document_type, 'FT');
@@ -66,13 +67,18 @@ test('invoice plus receipt preview preserves server totals and creates no tax as
   assert.equal(r.salesDocument.customer_tax_registration_number, '000000000');
   assert.ok(r.blockers.includes('vat-or-exemption-configuration-required'));
   assert.ok(r.blockers.includes('document-series-required'));
-  assert.ok(!JSON.stringify(r).includes('tax_percentage'));
-  assert.ok(!JSON.stringify(r).includes('tax_exemption_reason_id'));
+  assert.equal(r.salesDocument.document_series_id, undefined);
+  assert.equal(r.salesDocument.tax_exemption_reason_id, 9);
+  assert.equal(r.salesDocument.lines[0].tax_code, 'ISE');
+  assert.equal(r.salesDocument.lines[1].tax_percentage, 23);
+  assert.equal(r.salesDocument.lines[2].tax_code, undefined);
+  assert.equal(r.taxPreview.complete, false);
 });
 
 test('invoice-receipt preview reflects TOConline automatic receipt behaviour', () => {
   const r = buildToconlineRehearsal(record('bank_transfer'), OID, 'invoice_receipt', '2026-10-17');
   assert.equal(r.salesDocument.document_type, 'FR');
+  assert.equal(r.salesDocument.document_series_id, 244);
   assert.equal(r.salesDocument.payment_mechanism, 'TR');
   assert.equal(r.receipt, null);
   assert.ok(r.warnings.includes('fr-auto-creates-associated-receipt'));
@@ -93,6 +99,10 @@ test('unpaid, malformed and inconsistent source orders fail closed', () => {
   assert.throws(() => buildToconlineRehearsal(mismatch, OID, 'invoice_plus_receipt', '2026-10-17'), /source-mismatch|paid-test-required/);
   assert.throws(() => buildToconlineRehearsal(record(), OID, 'wrong', '2026-10-17'), /invalid-mode/);
   assert.throws(() => buildToconlineRehearsal(record(), OID, 'invoice_plus_receipt', '2026-02-30'), /invalid-date/);
+  const badUnit = record(); badUnit.orders[0].quote.lines[0].unitAmountCents = 5500;
+  assert.throws(() => buildToconlineRehearsal(badUnit, OID, 'invoice_receipt', '2026-10-20'), /source-mismatch/);
+  const live = record(); live.environment = 'production';
+  assert.throws(() => buildToconlineRehearsal(live, OID, 'invoice_receipt', '2026-10-20'), /paid-test-required/);
 });
 
 function fixture() {
@@ -144,6 +154,7 @@ test('config explicitly reports that live TOConline writes are disabled', async 
   assert.equal(data.provider, 'toconline');
   assert.equal(data.liveWritesEnabled, false);
   assert.equal(data.scopeRequired, 'commercial');
+  assert.equal(data.fiscalPolicyVersion, FISCAL_POLICY_VERSION);
 });
 
 test('confirmed checkout orders are exposed without private fingerprints or credentials', async () => {
@@ -224,4 +235,108 @@ test('authentication, verified administrator and same-origin writes are mandator
   });
   assert.equal(response.status, 400);
   assert.equal(f.writes(), 0);
+});
+
+function withLines(inputLines) {
+  const r = record('bank_transfer');
+  const lines = inputLines.map(([code, unitAmountCents, quantity = 1]) => ({ code, unitAmountCents, quantity, amountCents: unitAmountCents * quantity }));
+  const amount = lines.reduce((sum, line) => sum + line.amountCents, 0);
+  Object.assign(r.orders[0], { amountCents: amount, quote: { ...r.orders[0].quote, amountCents: amount, lines } });
+  return r;
+}
+
+test('all onsite price tiers and virtual registration preserve gross amounts with ISE/M07', () => {
+  for (const [code, amount, id] of [
+    ['congress-onsite', 5500, 55], ['congress-onsite', 9500, 55], ['congress-onsite', 6000, 55],
+    ['congress-onsite', 9000, 55], ['congress-onsite', 15000, 55], ['congress-virtual', 6000, 56],
+  ]) {
+    const r = buildToconlineRehearsal(withLines([[code, amount]]), OID, 'invoice_receipt', '2026-10-20');
+    assert.equal(r.salesDocument.document_series_id, 244);
+    assert.equal(r.salesDocument.tax_exemption_reason_id, 9);
+    const line = r.salesDocument.lines[0];
+    assert.equal(line.item_id, id);
+    assert.equal(line.unit_price, amount / 100);
+    assert.equal(line.tax_code, 'ISE');
+    assert.equal(line.tax_percentage, 0);
+    assert.equal(line.tax_country_region, 'PT');
+    assert.equal(line.tax_exemption_reason_id, undefined);
+    assert.equal(r.taxPreview.complete, true);
+    assert.equal(r.taxPreview.netCents, amount);
+    assert.equal(r.taxPreview.vatCents, 0);
+    assert.equal(r.taxPreview.grossCents, amount);
+    assert.equal(r.taxPreview.providerValidated, false);
+    assert.equal(r.liveWritesEnabled, false);
+  }
+});
+
+test('mixed exempt registration and taxable course retain each line treatment and exact totals', () => {
+  const r = buildToconlineRehearsal(withLines([['congress-onsite', 9500], ['course-morning', 3500]]), OID, 'invoice_receipt', '2026-10-20');
+  assert.deepEqual(r.salesDocument.lines.map(line => line.tax_code), ['ISE', 'NOR']);
+  assert.equal(r.taxPreview.netCents, 12346);
+  assert.equal(r.taxPreview.vatCents, 654);
+  assert.equal(r.taxPreview.grossCents, 13000);
+  assert.ok(r.blockers.includes('course-tax-clarification-pending'));
+  const courses = buildToconlineRehearsal(withLines([['course-morning', 2000], ['course-afternoon', 3500]]), OID, 'invoice_receipt', '2026-10-20');
+  assert.equal(courses.salesDocument.tax_exemption_reason_id, undefined);
+  assert.equal(courses.taxPreview.netCents + courses.taxPreview.vatCents, 5500);
+});
+
+test('225 EUR four-line example leaves separately sold dinners unresolved without invented tax totals', () => {
+  const r = buildToconlineRehearsal(withLines([['congress-onsite', 9500], ['course-morning', 3500], ['course-afternoon', 3500], ['dinner', 3000, 2]]), OID, 'invoice_receipt', '2026-10-20');
+  assert.equal(r.amountCents, 22500);
+  assert.equal(r.salesDocument.lines.length, 4);
+  assert.equal(r.salesDocument.lines[3].quantity, 2);
+  assert.equal(r.salesDocument.lines[3].unit_price, 30);
+  assert.equal(r.salesDocument.lines[3].tax_code, undefined);
+  assert.equal(r.taxPreview.complete, false);
+  assert.equal(r.taxPreview.netCents, null);
+  assert.equal(r.taxPreview.vatCents, null);
+  assert.equal(r.taxPreview.grossCents, 22500);
+  assert.ok(r.blockers.includes('dinner-tax-treatment-required'));
+});
+
+test('stale prepared tax policy is rejected until explicitly refreshed', async () => {
+  const f = fixture();
+  const body = { mode: 'invoice_receipt', date: '2026-10-20', sandboxAcknowledged: true };
+  await f.call(`sessions/${SID}/orders/${OID}/prepare`, body);
+  f.mutateSource(r => { delete r.fiscalRehearsals[0].fiscalPolicyVersion; });
+  const rejected = await f.call(`sessions/${SID}/orders/${OID}/issue`, { id: RID, sandboxAcknowledged: true });
+  assert.equal(rejected.status, 409);
+  assert.equal((await rejected.json()).error, 'stale-tax-policy');
+  assert.equal(f.writes(), 1);
+  await f.call(`sessions/${SID}/orders/${OID}/prepare`, body);
+  const issued = await f.call(`sessions/${SID}/orders/${OID}/issue`, { id: RID, sandboxAcknowledged: true });
+  assert.equal(issued.status, 200);
+});
+
+test('old simulated documents remain historical and duplicate retries do not reissue or rewrite them', async () => {
+  const f = fixture();
+  await f.call(`sessions/${SID}/orders/${OID}/prepare`, { mode: 'invoice_receipt', date: '2026-10-20', sandboxAcknowledged: true });
+  await f.call(`sessions/${SID}/orders/${OID}/issue`, { id: RID, sandboxAcknowledged: true });
+  f.mutateSource(r => { delete r.fiscalRehearsals[0].fiscalPolicyVersion; });
+  const duplicate = await f.call(`sessions/${SID}/orders/${OID}/issue`, { id: RID, sandboxAcknowledged: true });
+  assert.equal((await duplicate.json()).duplicate, true);
+  assert.equal(f.writes(), 2);
+  assert.equal(f.record().fiscalRehearsals[0].fiscalPolicyVersion, undefined);
+});
+
+test('concurrent retries create one simulated document and no network requests', async t => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { calls++; throw new Error('Network must not be used'); });
+  const f = fixture();
+  await f.call(`sessions/${SID}/orders/${OID}/prepare`, { mode: 'invoice_receipt', date: '2026-10-20', sandboxAcknowledged: true });
+  const results = await Promise.all([RID, '58a12222-b856-41c9-a519-e2cc97bb3b69'].map(id => f.call(`sessions/${SID}/orders/${OID}/issue`, { id, sandboxAcknowledged: true })));
+  const data = await Promise.all(results.map(response => response.json()));
+  assert.equal(new Set(data.map(d => d.rehearsal.simulated.salesDocumentNo)).size, 1);
+  assert.equal(f.writes(), 2);
+  assert.equal(calls, 0);
+});
+
+test('browser cannot override tax policy, price, real-write flags or provider payload', async () => {
+  for (const extra of [{ liveWritesEnabled: true }, { tax_exemption_reason_id: 18 }, { amountCents: 1 }, { salesDocument: {} }]) {
+    const f = fixture();
+    const response = await f.call(`sessions/${SID}/orders/${OID}/prepare`, { mode: 'invoice_receipt', date: '2026-10-20', sandboxAcknowledged: true, ...extra });
+    assert.equal(response.status, 400);
+    assert.equal(f.writes(), 0);
+  }
 });
