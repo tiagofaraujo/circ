@@ -38,6 +38,11 @@ const days = [
       ['', 'Giuseppe V. Toia', 'Giuseppe V. Toia'],
       ['', 'Kirsten Burke', 'Kirsten Burke', 'Biografia pendente', 'Biography pending'],
     ], {pt: 'Mário Monteiro (ESTeSC - UPC) e Ana Isabel Machado (ULS Coimbra)', en: 'Mário Monteiro (ESTeSC - UPC) and Ana Isabel Machado (ULS Coimbra)'}],
+    ['16:15–17:00', 'Comunicações', 'Presentations'],
+    ['17:00–17:45', 'Coffee break', 'Coffee break'],
+    ['17:45–18:30', 'Comunicações', 'Presentations'],
+    ['18:30–19:00', 'Momento cultural e de animação', 'Cultural programme and entertainment'],
+    ['20:00', 'Jantar de convívio', 'Congress dinner'],
   ] },
   { day: '10', pt: 'Congresso · Dia 2', en: 'Congress · Day 2', rows: [
     ['09:15–10:00', 'Brunch', 'Brunch'],
@@ -74,7 +79,7 @@ function ProgrammeRow({ row, en, nested = false }) {
   const match = speakerMatches.find(([name]) => `${pt} ${detail || ''}`.includes(name));
   const speaker = match && speakers2027.find(person => person.id === match[1]);
   const titleIsSpeaker = speaker && pt.includes(match[0]);
-  const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada)/.test(pt);
+  const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada|Momento cultural|Jantar de convívio)/.test(pt);
   const title = en ? english : pt;
   const heading = pt === 'Quo Vadis Radiologia'
     ? (nested
