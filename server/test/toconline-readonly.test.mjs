@@ -49,6 +49,7 @@ function fixture() {
       if (path === 'taxes') return Response.json({ data: [{ id: '30', type: 'taxes', attributes: { tax_country_region: 'PT', tax_code: 'NOR', description: 'Normal', tax_percentage: '23' } }] });
       if (path === 'tax_exemption_reasons') return Response.json({ data: [{ id: '40', type: 'tax_exemption_reasons', attributes: { code: 'M07', description: 'Isento' } }] });
       if (path === 'bank_accounts') return Response.json({ data: [{ id: '50', type: 'bank_accounts', attributes: { name: 'Conta CIRC', iban: 'PT50000000000000000000000', swift: 'TESTPTPL', account_type: 'DO', is_connected: false } }] });
+      if (path === 'company_bank_accounts') return Response.json({ data: [{ id: '77', type: 'company_bank_accounts', attributes: { iban: new URL(href).searchParams.get('filter[iban]'), is_connected: false } }] });
       if (path === 'units_of_measure') return Response.json({ data: [{ id: '2', type: 'units_of_measure', attributes: { unit_of_measure: 'un', is_default: true } }] });
       if (path === 'currencies') return Response.json({ data: [{ id: '1', type: 'currencies', attributes: { iso_code: 'EUR', name: 'Euro', symbol: '€' } }] });
       return Response.json({ data: [] });
@@ -147,8 +148,12 @@ test('read-only resource discovery performs only whitelisted commercial GETs', a
   assert.equal(data.resources.series.items[0].documentType, 'FR');
   assert.equal(data.resources.services.items[0].code, 'CIRC');
   assert.equal(data.resources.bankAccounts.items[0].name, 'Conta CIRC');
+  assert.equal(data.resources.billingBankAccount.source, 'company_bank_accounts');
+  assert.equal(data.resources.billingBankAccount.status, 'matched');
+  assert.equal(data.resources.billingBankAccount.account.id, '77');
+  assert.equal(data.resources.billingBankAccount.assignedToRehearsal, false);
   const commercial = f.calls.slice(before);
-  assert.equal(commercial.length, 7);
+  assert.equal(commercial.length, 8);
   assert.ok(commercial.every(call => call.method === 'GET'));
   assert.ok(commercial.every(call => call.href.startsWith('https://api.example.test/api/')));
 });
@@ -183,4 +188,21 @@ test('disconnect only clears the browser OAuth session', async t => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get('set-cookie') || '', /__Host-circ_toc_session=;/);
   assert.equal(f.calls.length, 0);
+});
+
+test('billing account discovery uses no caller-supplied bank ID, IBAN or URL and remains administrator-only', async t => {
+  const f = fixture(); t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  const cookie = `__Host-circ_toc_session=${token}`;
+  const response = await f.call('resources?iban=ATTACKER&bank_account_id=2&url=https://evil.invalid', { cookie });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.resources.billingBankAccount.account.id, '77');
+  const request = f.calls.find(call => call.href.includes('company_bank_accounts'));
+  assert.ok(request); assert.ok(!request.href.includes('ATTACKER')); assert.ok(!request.href.includes('evil.invalid'));
+  assert.equal((await f.call('resources', { method: 'POST', cookie })).status, 405);
+  f.setIdentity({ ...claims, email: 'participant@example.test' });
+  const before = f.calls.length;
+  assert.equal((await f.call('resources', { cookie })).status, 403);
+  assert.equal(f.calls.length, before);
 });

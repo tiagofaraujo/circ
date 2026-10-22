@@ -1,6 +1,7 @@
 import React from 'react';
 import { inspectCIRC27Rehearsal } from '../pages/circ2027FiscalDiagnostics';
 import CircRehearsalPaymentCheck from './CircRehearsalPaymentCheck';
+import CircBillingBankAccountCheck from './CircBillingBankAccountCheck';
 
 export default function CircFiscalRehearsalDiagnostics({ rehearsal, resources, en = false }) {
   const check = inspectCIRC27Rehearsal(rehearsal, resources);
@@ -22,6 +23,7 @@ export default function CircFiscalRehearsalDiagnostics({ rehearsal, resources, e
     </li>)}</ul>
     <p>{t('Total das linhas', 'Line total')}: {money(check.calculatedCents)} · {t('Pagamento registado', 'Recorded payment')}: {money(check.expectedCents)} — <strong>{check.exactTotal ? t('Coincide', 'Matches') : t('DIVERGÊNCIA', 'MISMATCH')}</strong></p>
     <CircRehearsalPaymentCheck check={check.policyCurrent ? rehearsal.pricingCheck : null} en={en} />
+    <CircBillingBankAccountCheck resource={resources?.resources?.billingBankAccount} en={en} />
     {check.policyCurrent && tax && <>
       <h4>{t('Discriminação fiscal — cálculo local de teste', 'Tax breakdown — local test calculation')}</h4>
       <ul>{tax.lines.map((line, index) => <li key={`${line.itemCode}-${index}`}>
