@@ -1,4 +1,5 @@
 import React from 'react';
+import './FiscalPriceNote.css';
 
 // Public wording follows the organiser-approved domestic configuration.
 // Do not imply that cross-border virtual attendance has already been validated.

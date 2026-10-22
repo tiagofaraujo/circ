@@ -1,0 +1,11 @@
+.fiscal-price-note {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line, rgba(23, 27, 84, 0.12));
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.fiscal-price-note p + p {
+  margin-top: 0.65rem;
+}
