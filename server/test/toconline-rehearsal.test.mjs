@@ -71,8 +71,8 @@ test('invoice plus receipt preview preserves totals, uses M07 and does not reuse
   assert.equal(r.salesDocument.tax_exemption_reason_id, 9);
   assert.equal(r.salesDocument.lines[0].tax_code, 'ISE');
   assert.equal(r.salesDocument.lines[1].tax_percentage, 23);
-  assert.equal(r.salesDocument.lines[2].tax_code, undefined);
-  assert.equal(r.taxPreview.complete, false);
+  assert.equal(r.salesDocument.lines[2].tax_code, 'ISE');
+  assert.equal(r.taxPreview.complete, true);
 });
 
 test('invoice-receipt preview reflects TOConline automatic receipt behaviour', () => {
@@ -275,24 +275,33 @@ test('mixed exempt registration and taxable course retain each line treatment an
   assert.equal(r.taxPreview.netCents, 12346);
   assert.equal(r.taxPreview.vatCents, 654);
   assert.equal(r.taxPreview.grossCents, 13000);
-  assert.ok(r.blockers.includes('course-tax-clarification-pending'));
+  assert.equal(r.blockers.includes('course-tax-clarification-pending'), false);
   const courses = buildToconlineRehearsal(withLines([['course-morning', 2000], ['course-afternoon', 3500]]), OID, 'invoice_receipt', '2026-10-20');
   assert.equal(courses.salesDocument.tax_exemption_reason_id, undefined);
   assert.equal(courses.taxPreview.netCents + courses.taxPreview.vatCents, 5500);
 });
 
-test('225 EUR four-line example leaves separately sold dinners unresolved without invented tax totals', () => {
-  const r = buildToconlineRehearsal(withLines([['congress-onsite', 9500], ['course-morning', 3500], ['course-afternoon', 3500], ['dinner', 3000, 2]]), OID, 'invoice_receipt', '2026-10-20');
+test('225 EUR four-line example includes exempt standalone dinners and only course VAT', () => {
+  const r = buildToconlineRehearsal(withLines([['congress-onsite', 9500], ['course-morning', 3500], ['course-afternoon', 3500], ['dinner', 3000, 2]]), OID, 'invoice_receipt', '2026-10-22');
   assert.equal(r.amountCents, 22500);
   assert.equal(r.salesDocument.lines.length, 4);
   assert.equal(r.salesDocument.lines[3].quantity, 2);
   assert.equal(r.salesDocument.lines[3].unit_price, 30);
-  assert.equal(r.salesDocument.lines[3].tax_code, undefined);
-  assert.equal(r.taxPreview.complete, false);
-  assert.equal(r.taxPreview.netCents, null);
-  assert.equal(r.taxPreview.vatCents, null);
+  assert.equal(r.salesDocument.lines[3].item_id, 59);
+  assert.equal(r.salesDocument.lines[3].item_code, 'CIRC27-JANTAR');
+  assert.equal(r.salesDocument.lines[3].tax_code, 'ISE');
+  assert.equal(r.salesDocument.lines[3].tax_percentage, 0);
+  assert.equal(r.salesDocument.tax_exemption_reason_id, 9);
+  assert.equal(r.salesDocument.vat_included_prices, true);
+  assert.equal(r.taxPreview.complete, true);
+  assert.equal(r.taxPreview.exemptCents, 15500);
+  assert.equal(r.taxPreview.taxableNetCents, 5692);
+  assert.equal(r.taxPreview.netCents, 21192);
+  assert.equal(r.taxPreview.vatCents, 1308);
   assert.equal(r.taxPreview.grossCents, 22500);
-  assert.ok(r.blockers.includes('dinner-tax-treatment-required'));
+  assert.equal(r.blockers.includes('dinner-tax-treatment-required'), false);
+  assert.equal(r.liveWritesEnabled, false);
+  assert.equal(r.taxPreview.providerValidated, false);
 });
 
 test('stale prepared tax policy is rejected until explicitly refreshed', async () => {
@@ -339,4 +348,44 @@ test('browser cannot override tax policy, price, real-write flags or provider pa
     assert.equal(response.status, 400);
     assert.equal(f.writes(), 0);
   }
+});
+
+test('standalone and supplementary dinner orders preserve quantities without requiring a congress bundle', () => {
+  for (const quantity of [1, 2, 5]) {
+    const source = withLines([['dinner', 3000, quantity]]);
+    source.orders[0].quote.kind = 'addon';
+    const before = structuredClone(source);
+    const r = buildToconlineRehearsal(source, OID, 'invoice_receipt', '2026-10-22');
+    assert.deepEqual(source, before);
+    assert.equal(r.salesDocument.lines.length, 1);
+    assert.equal(r.salesDocument.lines[0].item_id, 59);
+    assert.equal(r.salesDocument.lines[0].tax_code, 'ISE');
+    assert.equal(r.salesDocument.lines[0].quantity, quantity);
+    assert.equal(r.salesDocument.tax_exemption_reason_id, 9);
+    assert.equal(r.taxPreview.exemptCents, 3000 * quantity);
+    assert.equal(r.taxPreview.taxableNetCents, 0);
+    assert.equal(r.taxPreview.vatCents, 0);
+    assert.equal(r.taxPreview.grossCents, 3000 * quantity);
+    assert.equal(r.liveWritesEnabled, false);
+  }
+});
+
+test('two 35 EUR courses have 13.08 EUR VAT without an exemption header', () => {
+  const r = buildToconlineRehearsal(withLines([['course-morning', 3500], ['course-afternoon', 3500]]), OID, 'invoice_receipt', '2026-10-22');
+  assert.equal(r.salesDocument.tax_exemption_reason_id, undefined);
+  assert.equal(r.taxPreview.exemptCents, 0);
+  assert.equal(r.taxPreview.taxableNetCents, 5692);
+  assert.equal(r.taxPreview.vatCents, 1308);
+  assert.equal(r.taxPreview.grossCents, 7000);
+});
+
+test('the preceding M07 revision cannot be reissued as if it contained the new dinner policy', async () => {
+  const f = fixture();
+  const body = { mode: 'invoice_receipt', date: '2026-10-22', sandboxAcknowledged: true };
+  await f.call(`sessions/${SID}/orders/${OID}/prepare`, body);
+  f.mutateSource(r => { r.fiscalRehearsals[0].fiscalPolicyVersion = 'circ2027-m07-20261020'; });
+  const rejected = await f.call(`sessions/${SID}/orders/${OID}/issue`, { id: RID, sandboxAcknowledged: true });
+  assert.equal(rejected.status, 409);
+  assert.equal((await rejected.json()).error, 'stale-tax-policy');
+  assert.equal(f.writes(), 1);
 });

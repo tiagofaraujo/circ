@@ -1,12 +1,12 @@
 {
-  "version": "circ2027-m07-20261020",
+  "version": "circ2027-m07-dinner-20261022",
   "series": { "id": 244, "prefix": "CIRC2027", "documentType": "FR" },
   "exemption": { "id": 9, "code": "M07" },
   "services": {
     "CIRC27-CONG-P": { "id": 55, "taxCode": "ISE", "percentage": 0, "exemptionReasonId": 9, "review": null },
     "CIRC27-CONG-O": { "id": 56, "taxCode": "ISE", "percentage": 0, "exemptionReasonId": 9, "review": null },
-    "CIRC27-CURSO-M": { "id": 57, "taxCode": "NOR", "percentage": 23, "exemptionReasonId": null, "review": "course-tax-clarification-pending" },
-    "CIRC27-CURSO-T": { "id": 58, "taxCode": "NOR", "percentage": 23, "exemptionReasonId": null, "review": "course-tax-clarification-pending" },
-    "CIRC27-JANTAR": { "id": 59, "taxCode": null, "percentage": null, "exemptionReasonId": null, "review": "dinner-tax-treatment-required" }
+    "CIRC27-CURSO-M": { "id": 57, "taxCode": "NOR", "percentage": 23, "exemptionReasonId": null, "review": null },
+    "CIRC27-CURSO-T": { "id": 58, "taxCode": "NOR", "percentage": 23, "exemptionReasonId": null, "review": null },
+    "CIRC27-JANTAR": { "id": 59, "taxCode": "ISE", "percentage": 0, "exemptionReasonId": 9, "review": null }
   }
 }

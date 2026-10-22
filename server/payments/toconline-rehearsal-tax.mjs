@@ -1,9 +1,9 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 
-// Simulation only. This module has no provider client, credentials or network access.
-// The registrations follow the accountant's instruction supplied by the organiser.
-// Course rates remain the stated 23% reference, with clarification pending.
-// Do not infer the tax treatment of a separately sold dinner/accompanying guest.
+// Internal simulation only: no provider client, credentials or network access.
+// Registrations and courses follow the accountant's instruction supplied by the organiser.
+// Dinner exemption follows the organiser's subsequent explicit instruction, including guests.
+// This domestic PT policy is not independent tax advice or approval for international sales.
 export const FISCAL_POLICY_VERSION = policy.version;
 
 export function prepareRehearsalTaxes(salesDocument, sourceLines) {
@@ -16,7 +16,7 @@ export function prepareRehearsalTaxes(salesDocument, sourceLines) {
     if (!rule || !Number.isSafeInteger(grossCents) || grossCents <= 0) throw new Error('fiscal/source-mismatch');
     if (rule.review) reviews.add(rule.review);
     const pending = rule.taxCode === null;
-    // Integer half-up rounding per line. The TOConline calculation remains untested.
+    // Integer half-up rounding per line. TOConline acceptance/calculation remains untested.
     const denominator = pending ? null : BigInt(100 + rule.percentage);
     const netCents = pending ? null : Number((BigInt(grossCents) * 100n + denominator / 2n) / denominator);
     breakdown.push({
@@ -38,6 +38,8 @@ export function prepareRehearsalTaxes(salesDocument, sourceLines) {
   });
   const complete = breakdown.every(line => !line.pending);
   const hasExempt = breakdown.some(line => line.taxCode === 'ISE');
+  const sum = (predicate, field) => complete
+    ? breakdown.filter(predicate).reduce((total, line) => total + line[field], 0) : null;
   return {
     fiscalPolicyVersion: policy.version,
     salesDocument: {
@@ -50,9 +52,11 @@ export function prepareRehearsalTaxes(salesDocument, sourceLines) {
       calculation: 'local-per-line-half-up',
       providerValidated: false,
       complete,
-      grossCents: breakdown.reduce((sum, line) => sum + line.grossCents, 0),
-      netCents: complete ? breakdown.reduce((sum, line) => sum + line.netCents, 0) : null,
-      vatCents: complete ? breakdown.reduce((sum, line) => sum + line.vatCents, 0) : null,
+      grossCents: breakdown.reduce((total, line) => total + line.grossCents, 0),
+      netCents: sum(() => true, 'netCents'),
+      vatCents: sum(() => true, 'vatCents'),
+      exemptCents: sum(line => line.taxCode === 'ISE', 'netCents'),
+      taxableNetCents: sum(line => line.taxCode !== 'ISE', 'netCents'),
       lines: breakdown,
     },
     reviews: [...reviews],

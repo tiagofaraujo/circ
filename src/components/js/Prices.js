@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import '../css/Prices.css';
 import { useLanguage } from '../../context/LanguageContext';
 import { COURSE_RATES, CONGRESS_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, formatEuro } from '../../data/registration2027';
+import FiscalPriceNote from '../FiscalPriceNote';
 
 function PriceValue({ amount, note }) {
     return (
@@ -120,6 +121,7 @@ function Prices() {
                             ? 'two independent courses take place on 8 April, one in the morning and one in the afternoon. The fee is per course. IMR students may register after their enrolment document is approved.'
                             : 'existem dois cursos independentes no dia 8 de abril, um de manhã e outro à tarde. O valor indicado é por curso. Os estudantes de IMR podem inscrever-se após aprovação do comprovativo de matrícula.'}
                     </p>
+                    <FiscalPriceNote en={en} />
                 </div>
                 <div className="price-simulator-link">
                     <div><strong>{en ? 'Prefer a guided calculation?' : 'Prefere um cálculo guiado?'}</strong><span>{en ? 'Build a combination and see the estimated total immediately.' : 'Escolha as opções de participação e consulte o total estimado.'}</span></div>
