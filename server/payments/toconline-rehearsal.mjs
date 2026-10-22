@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createCheckoutSandboxStore, CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
 import { FISCAL_POLICY_VERSION, prepareRehearsalTaxes } from './toconline-rehearsal-tax.mjs';
+import { PRICING_POLICY_VERSION, inspectRehearsalPricing, pricingPaymentSnapshot } from './toconline-rehearsal-pricing.mjs';
 
 const PREFIX = '/api/fiscal/sandbox';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -62,6 +63,7 @@ function sourceSnapshot(record, order) {
     currency: order.currency,
     quote: order.quote,
     paymentTransactionId: order.notification?.transactionId || order.bankTransfer?.confirmation?.creditReference || order.reference || null,
+    pricingPaymentEvidence: pricingPaymentSnapshot(order),
   };
 }
 
@@ -71,6 +73,7 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
   const order = assertPaidOrder(record, orderId);
   const mechanism = mapReceiptPaymentMechanism(order.method);
   const source = sourceSnapshot(record, order);
+  const pricingCheck = inspectRehearsalPricing(order);
   const externalReference = `CIRC-TESTE-${record.id.slice(0, 8).toUpperCase()}-${order.id.slice(0, 8).toUpperCase()}`;
   const lines = order.quote.lines.map(line => {
     const meta = LINE_META[line.code];
@@ -134,6 +137,8 @@ export function buildToconlineRehearsal(record, orderId, mode, date) {
     provider: 'toconline',
     liveWritesEnabled: false,
     fiscalPolicyVersion: fiscal.fiscalPolicyVersion,
+    pricingPolicyVersion: PRICING_POLICY_VERSION,
+    pricingCheck,
     taxPreview: fiscal.taxPreview,
     sessionId: record.id,
     orderId,
@@ -172,8 +177,8 @@ function currentSourceDigest(record, orderId) {
 function safeError(error) {
   const code = error.message?.startsWith('fiscal/') ? error.message.slice(7) : '';
   const allowed = new Set(['invalid-request', 'invalid-date', 'invalid-mode', 'paid-test-required',
-    'source-mismatch', 'not-found', 'not-prepared', 'already-issued', 'stale-source', 'stale-tax-policy']);
-  if (allowed.has(code)) return json({ error: code }, ['already-issued', 'stale-source', 'stale-tax-policy'].includes(code) ? 409 : code === 'not-found' ? 404 : 400);
+    'source-mismatch', 'not-found', 'not-prepared', 'already-issued', 'stale-source', 'stale-tax-policy', 'payment-tariff-review-required']);
+  if (allowed.has(code)) return json({ error: code }, ['already-issued', 'stale-source', 'stale-tax-policy', 'payment-tariff-review-required'].includes(code) ? 409 : code === 'not-found' ? 404 : 400);
   if (['storage_forbidden', 'storage_session_expired', 'storage_unavailable', 'conflict'].includes(error.code)) {
     return json({ error: error.code }, error.code === 'conflict' ? 409 : 503);
   }
@@ -206,6 +211,7 @@ export function createToconlineRehearsalApi({ verify, storeFactory = createCheck
         environment: 'rehearsal',
         liveWritesEnabled: false,
         fiscalPolicyVersion: FISCAL_POLICY_VERSION,
+        pricingPolicyVersion: PRICING_POLICY_VERSION,
         scopeRequired: 'commercial',
         salesDocumentsEndpoint: '/api/v1/commercial_sales_documents',
         receiptsEndpoint: '/api/v1/commercial_sales_receipts',
@@ -256,8 +262,11 @@ export function createToconlineRehearsalApi({ verify, storeFactory = createCheck
           if (!existing) fail('not-prepared');
           if (existing.status === 'simulated-issued') return json({ rehearsal: publicRehearsal(existing), duplicate: true });
           if (existing.status !== 'prepared') fail('not-prepared');
-          if (existing.fiscalPolicyVersion !== FISCAL_POLICY_VERSION) fail('stale-tax-policy');
+          if (existing.fiscalPolicyVersion !== FISCAL_POLICY_VERSION || existing.pricingPolicyVersion !== PRICING_POLICY_VERSION) fail('stale-tax-policy');
           if (existing.sourceDigest !== currentSourceDigest(saved.record, orderId)) fail('stale-source');
+          // Recompute from the saved payment, never trust a browser or stored diagnostic flag.
+          const pricingCheck = inspectRehearsalPricing(assertPaidOrder(saved.record, orderId));
+          if (pricingCheck.simulationBlocked) fail('payment-tariff-review-required');
           const short = body.id.replaceAll('-', '').slice(0, 10).toUpperCase();
           const next = { ...existing, status: 'simulated-issued', issuedAt: now(), issueRequestId: body.id,
             simulated: {
