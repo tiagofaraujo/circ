@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { readBillingBankAccount } from './toconline-billing-bank-readonly.mjs';
 
 const PREFIX = '/api/fiscal/toconline';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -348,6 +349,7 @@ async function readResources(session, cfg) {
       results[name] = { ok: false, count: 0, items: [], error: error.code || 'toconline-api-resource-error', status: error.status || 502 };
     }
   }
+  results.billingBankAccount = await readBillingBankAccount(resource => providerGet(cfg.apiUrl, session.accessToken, resource));
   return results;
 }
 
@@ -452,7 +454,7 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now() }) {
           resources = await readResources(current.session, current.cfg);
         }
         const headers = current.refreshed
-          ? { 'Set-Cookie': cookie(TOKEN_COOKIE, encryptSession(current.session, current.cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }) }
+          ? { 'Set-Cookie': cookie(TOKEN_COOKIE, encryptSession(current.session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }) }
           : {};
         return json({
           provider: 'toconline',
