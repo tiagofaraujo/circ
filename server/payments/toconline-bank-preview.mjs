@@ -1,10 +1,10 @@
 import { createToconlineReadonlyApi } from './toconline-readonly.mjs';
+import { CHECKOUT_UUID as UUID } from './checkout-sandbox-store.mjs';
 
 // A non-persistent proposal only. No store writes, sales API calls or hard-coded bank IDs.
 // The existing OAuth reader confirms the complete server-configured IBAN.
 const PREFIX = '/api/fiscal/sandbox/bank-preview/';
 const ADMIN = 'circ.chuc@gmail.com';
-const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{12}$/i;
 const accountId = value => typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value)
   && Number.isSafeInteger(Number(value));
 const reply = (body, status = 200, extra = {}) => Response.json(body, { status, headers: {
