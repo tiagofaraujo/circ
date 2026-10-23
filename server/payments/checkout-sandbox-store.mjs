@@ -225,6 +225,9 @@ export function createCheckoutSandboxStore({ projectId, token, uid, fetchImpl = 
       }
       return { context, guards };
     },
+    async billingProfile() {
+      return readSource('users', uid);
+    },
     async sourceRegistration() {
       const id = `circ-2027-${uid}`;
       const source = await readSource('registrations', id);
