@@ -7,6 +7,8 @@ import { createSandboxWebhook } from './payments/sandbox-webhook.mjs';
 import { createCheckoutSandboxApi, createCheckoutSandboxNotification } from './payments/checkout-sandbox.mjs';
 import { createToconlineRehearsalApi } from './payments/toconline-rehearsal.mjs';
 import { createToconlineReadonlyApi } from './payments/toconline-readonly.mjs';
+import { createCheckoutLiveApi } from './payments/checkout-live.mjs';
+import { createLivePaymentWebhook } from './payments/live-webhook.mjs';
 import { createToconlineDraftAcceptanceApi } from './payments/toconline-draft-acceptance.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
@@ -49,10 +51,14 @@ export function createWorker(verify = verifyFirebaseToken) {
   const sandboxCheckout = createCheckoutSandboxApi({ verify });
   const fiscalRehearsal = createToconlineRehearsalApi({ verify });
   const toconlineReadonly = createToconlineReadonlyApi({ verify });
+  const liveCheckout = createCheckoutLiveApi({ verify });
+  const livePaymentWebhook = createLivePaymentWebhook();
   const toconlineDraftAcceptance = createToconlineDraftAcceptanceApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
+      const livePaymentResponse = await livePaymentWebhook(request, env);
+      if (livePaymentResponse) return livePaymentResponse;
       const stripeResponse = await stripeWebhook(request, env);
       if (stripeResponse) return stripeResponse;
       const notificationResponse = await sandboxWebhook(request, env);
@@ -67,6 +73,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (toconlineResponse) return toconlineResponse;
       const fiscalResponse = await fiscalRehearsal(request, env);
       if (fiscalResponse) return fiscalResponse;
+      const liveCheckoutResponse = await liveCheckout(request, env);
+      if (liveCheckoutResponse) return liveCheckoutResponse;
       const checkoutResponse = await sandboxCheckout(request, env);
       if (checkoutResponse) return checkoutResponse;
       const sandboxResponse = await sandbox(request, env);

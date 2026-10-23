@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readBillingBankAccount } from './toconline-billing-bank-readonly.mjs';
+import { createToconlineServerSessionStore } from './toconline-server-session-store.mjs';
 
 const PREFIX = '/api/fiscal/toconline';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -380,7 +381,7 @@ function safeError(error) {
   return json({ error: code }, status);
 }
 
-export function createToconlineReadonlyApi({ verify, now = () => Date.now() }) {
+export function createToconlineReadonlyApi({ verify, now = () => Date.now(), serverSessionStore = createToconlineServerSessionStore() }) {
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(PREFIX)) return null;
@@ -405,6 +406,7 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now() }) {
           refreshExpiresAt: current + SESSION_TTL_SECONDS * 1000,
           tokenType: data.token_type || 'Bearer',
         };
+        if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) await serverSessionStore.save(env, { ...session, refreshExpiresAt: Number.MAX_SAFE_INTEGER });
         return redirect('/admin/recibos-teste?toconline=connected', [
           cookie(TOKEN_COOKIE, encryptSession(session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }),
           clearCookie(STATE_COOKIE, 'Lax'),
@@ -424,6 +426,10 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now() }) {
 
       if (url.pathname === `${PREFIX}/config`) {
         if (request.method !== 'GET') return json({ error: 'method-not-allowed' }, 405);
+        let backgroundSession = null;
+        if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) {
+          try { backgroundSession = await serverSessionStore.load(env); } catch { backgroundSession = null; }
+        }
         return json({
           provider: 'toconline',
           configured: cfg.configured,
@@ -435,6 +441,11 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now() }) {
           redirectUrl: cfg.redirectUrl || 'https://circ-coimbra.org/api/fiscal/toconline/callback',
           mode: 'read-only',
           commercialWritesEnabled: false,
+          backgroundAutomation: {
+            serviceIdentityConfigured: Boolean(env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT),
+            sessionStored: Boolean(backgroundSession?.session?.refreshExpiresAt > now()),
+            sessionExpiresAt: backgroundSession?.session?.refreshExpiresAt || null,
+          },
         });
       }
 
