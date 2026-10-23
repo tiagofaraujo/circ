@@ -16,6 +16,7 @@ export default function CircFiscalRehearsalDiagnostics({ rehearsal, resources, e
   const bankConfirmed = rehearsal?.source?.method !== 'bank_transfer' || (billingBank?.source === 'company_bank_accounts'
     && billingBank?.ok === true && billingBank?.status === 'matched' && billingBank?.account?.id);
   const tariffConfirmed = rehearsal?.pricingCheck?.status === 'matches';
+  const buyerDataConfirmed = false;
   return <div className="sandbox-checkout__confirmed">
     <h3>{t('Diagnóstico fiscal CIRC2027 — só leitura', 'CIRC2027 fiscal diagnostics — read only')}</h3>
     {!check.policyCurrent && <p role="alert"><strong>{t('Ensaio anterior à configuração M07.', 'Rehearsal predates the M07 configuration.')}</strong> {t('A revisão atual inclui o jantar isento.', 'The current revision includes exempt dinner tickets.')} {rehearsal.status === 'simulated-issued'
@@ -51,6 +52,7 @@ export default function CircFiscalRehearsalDiagnostics({ rehearsal, resources, e
       <li>{t('Serviços e enquadramento fiscal usados neste pedido', 'Services and tax treatment used in this order')}: <strong>{servicesConfirmed ? t('confirmados', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
       <li>{t('Tarifa pela data efetiva do pagamento', 'Tariff by effective payment date')}: <strong>{tariffConfirmed ? t('confirmada', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
       <li>{t('Conta de recebimento da transferência', 'Transfer receipt account')}: <strong>{bankConfirmed ? t('confirmada', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
+      <li>{t('Dados fiscais reais do adquirente', 'Real buyer billing data')}: <strong>{buyerDataConfirmed ? t('confirmados', 'confirmed') : t('por confirmar na pré-visualização com perfil', 'pending profile preview')}</strong></li>
     </ul>
     <p><strong>{t('Emissão fiscal real bloqueada', 'Real fiscal issuance blocked')}.</strong> {t('Para este pedido, a leitura atual já confirma os serviços, o enquadramento fiscal e a conta bancária quando assinalados acima. Continuam por concluir a utilização dos dados reais de faturação do adquirente e um teste controlado de aceitação pela API de emissão do TOConline. A comunicação da série/ATCUD foi confirmada administrativamente, mas o respetivo código não é exposto por esta leitura OAuth.', 'For this order, the current read already confirms the services, tax treatment and bank account when marked above. Real buyer billing data and a controlled acceptance test against the TOConline issuance API still remain. Series/ATCUD communication was administratively confirmed, but its code is not exposed by this OAuth read.')}</p>
   </div>;

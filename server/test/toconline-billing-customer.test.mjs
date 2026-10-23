@@ -42,3 +42,18 @@ test('invalid or incomplete fiscal data fail closed without producing a customer
   assert.ok(result.issues.includes('billing-city-required'));
   assert.ok(result.issues.includes('billing-country-unmapped'));
 });
+
+
+test('seller NIF cannot be used as the buyer in a sales document preview', () => {
+  const result = billingCustomerFromProfile({
+    billingName: 'Associação Hemisfério Disciplinado - AHD',
+    taxNumber: '517072262',
+    billingAddress: 'Rua Romeiras, nº 38, Loja A',
+    billingPostalCode: '3030-471',
+    billingCity: 'Coimbra',
+    billingCountry: 'Portugal',
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.customer, null);
+  assert.ok(result.issues.includes('billing-tax-number-is-seller'));
+});

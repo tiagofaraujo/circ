@@ -42,6 +42,7 @@ function BankPreviewRequest({ rehearsal, en }) {
           'billing-name-required': t('nome/entidade de faturação', 'billing name/entity'),
           'billing-country-unmapped': t('país de faturação', 'billing country'),
           'billing-tax-number-invalid': t('NIF', 'tax number'),
+          'billing-tax-number-is-seller': t('NIF do adquirente igual ao NIF da AHD', 'buyer tax number matches the AHD seller tax number'),
           'billing-address-required': t('morada', 'address'),
           'billing-postcode-invalid': t('código postal', 'postal code'),
           'billing-city-required': t('localidade', 'city'),

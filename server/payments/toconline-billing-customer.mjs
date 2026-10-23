@@ -1,5 +1,6 @@
 // Read-only conversion of a participant profile into the TOConline customer fields used by an FR preview.
 const clean = value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+const SELLER_TAX_NUMBER = '517072262';
 const countryCode = value => {
   const v = clean(value).toLowerCase();
   return ['pt', 'portugal', 'portugal - continente', 'portugal continente'].includes(v) ? 'PT' : null;
@@ -22,6 +23,7 @@ export function billingCustomerFromProfile(profile) {
   if (!name || name.length > 180) issues.push('billing-name-required');
   if (country !== 'PT') issues.push('billing-country-unmapped');
   if (!validPortugueseTaxNumber(nif)) issues.push('billing-tax-number-invalid');
+  else if (nif === SELLER_TAX_NUMBER) issues.push('billing-tax-number-is-seller');
   if (!address || address.length > 250) issues.push('billing-address-required');
   if (!/^\d{4}-\d{3}$/.test(postalCode)) issues.push('billing-postcode-invalid');
   if (!city || city.length > 100) issues.push('billing-city-required');
