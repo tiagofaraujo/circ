@@ -253,6 +253,13 @@ export default function ToconlineReceiptTestPage() {
       </div>}
       {tocConfig?.configured && tocConfig.connected && <>
         <p><strong>{t('Ligação OAuth ativa neste navegador.', 'OAuth connection active in this browser.')}</strong></p>
+        <p><strong>{t('Automação de faturação no servidor', 'Server billing automation')}:</strong> {
+          tocConfig.backgroundAutomation?.serviceIdentityConfigured
+            ? (tocConfig.backgroundAutomation?.sessionStored
+              ? t('sessão segura disponível', 'secure session available')
+              : t('identidade configurada, falta renovar a autorização TOConline para guardar a sessão', 'identity configured; re-authorize TOConline to store the session'))
+            : t('falta a identidade Firebase de pagamentos', 'Firebase payments identity is not configured')
+        }</p>
         <div className="sandbox-checkout__actions">
           <button type="button" disabled={busy} onClick={loadToconlineResources}>{t('Atualizar dados de configuração', 'Refresh configuration data')}</button>
           <button type="button" className="secondary" disabled={busy} onClick={disconnectToconline}>{t('Desligar TOConline', 'Disconnect TOConline')}</button>
