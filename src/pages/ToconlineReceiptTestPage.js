@@ -3,10 +3,13 @@ import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import AdminModuleNav from '../components/AdminModuleNav';
 import CircFiscalRehearsalDiagnostics from '../components/CircFiscalRehearsalDiagnostics';
-import { CIRC27_FISCAL_POLICY_VERSION } from './circ2027FiscalDiagnostics';
+import { CIRC27_FISCAL_POLICY_VERSION, inspectCIRC27Rehearsal } from './circ2027FiscalDiagnostics';
 import './SandboxCheckoutPage.css';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{12}$/i;
+// Comunicação da série CIRC2027 à AT confirmada administrativamente em 23/10/2026.
+// A leitura OAuth atual confirma a série, mas não expõe o código AT/ATCUD.
+const CIRC2027_SERIES_AT_COMMUNICATION_CONFIRMED = true;
 const methodLabel = {
   multibanco: 'Multibanco',
   mbway: 'MB WAY',
@@ -269,6 +272,18 @@ export default function ToconlineReceiptTestPage() {
 
     {session?.orders?.map(order => {
       const r = order.rehearsal;
+      const check = r ? inspectCIRC27Rehearsal(r, tocResources) : null;
+      const servicesConfirmed = Boolean(check?.serviceChecks?.length) && check.serviceChecks.every(item => item.ok);
+      const seriesConfirmed = Boolean(check?.seriesFound && check?.seriesInPayload && CIRC2027_SERIES_AT_COMMUNICATION_CONFIRMED);
+      const billingBank = tocResources?.resources?.billingBankAccount;
+      const bankConfirmed = order.method !== 'bank_transfer' || (billingBank?.source === 'company_bank_accounts'
+        && billingBank?.ok === true && billingBank?.status === 'matched' && billingBank?.account?.id);
+      const visibleBlockers = (r?.blockers || []).filter(item => {
+        if (item === 'document-series-required') return !seriesConfirmed;
+        if (item === 'services-must-exist' || item === 'vat-or-exemption-configuration-required') return !servicesConfirmed;
+        return true;
+      });
+      const visibleWarnings = (r?.warnings || []).filter(item => item !== 'bank-account-mapping-may-be-required' || !bankConfirmed);
       return <section className="sandbox-checkout__panel" key={order.id}>
         <h2>{methodLabel[order.method] || order.method} · {money(order.amountCents)}</h2>
         <p><strong>{t('Pedido', 'Order')}:</strong> <code>{order.id}</code></p>
@@ -293,10 +308,10 @@ export default function ToconlineReceiptTestPage() {
           <p>{t('Meio de pagamento TOConline identificado', 'Mapped TOConline payment method')}: <strong>{r.payment.code || t('por definir', 'not yet defined')}</strong> — {r.payment.label}</p>
 
           <CircFiscalRehearsalDiagnostics rehearsal={r} resources={tocResources} en={en} />
-          {r.blockers?.length > 0 && <details open><summary><strong>{t('Configuração que falta antes de ligar a API real', 'Configuration required before enabling the real API')}</strong></summary>
-            <ul>{r.blockers.map(item => <li key={item}>{blockerText[item] || item}</li>)}</ul>
+          {visibleBlockers.length > 0 && <details open><summary><strong>{t('Configuração que falta antes de ligar a API real', 'Configuration required before enabling the real API')}</strong></summary>
+            <ul>{visibleBlockers.map(item => <li key={item}>{blockerText[item] || item}</li>)}</ul>
           </details>}
-          {r.warnings?.length > 0 && <details><summary>{t('Notas técnicas', 'Technical notes')}</summary><ul>{r.warnings.map(item => <li key={item}>{warningText[item] || item}</li>)}</ul></details>}
+          {visibleWarnings.length > 0 && <details><summary>{t('Notas técnicas', 'Technical notes')}</summary><ul>{visibleWarnings.map(item => <li key={item}>{warningText[item] || item}</li>)}</ul></details>}
 
           <details><summary>{t('Pré-visualizar payload do documento de venda', 'Preview sales-document payload')}</summary>
             <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(r.salesDocument, null, 2)}</pre>
