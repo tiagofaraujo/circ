@@ -1,5 +1,3 @@
-import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
-
 export const LIVE_ORDER_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const isUid = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const EVENT = 'circ-2027';
@@ -34,10 +32,10 @@ const fields = object => Object.fromEntries(Object.entries(object).map(([k,v]) =
 export function createCheckoutLiveStore({
   projectId,
   uid,
-  tokenProvider = createPaymentsServiceTokenProvider(),
+  token,
   fetchImpl = fetch,
 } = {}) {
-  if (!/^[a-z0-9-]+$/.test(projectId || '') || !isUid(uid)) throw new LiveStoreError('storage_unavailable');
+  if (!/^[a-z0-9-]+$/.test(projectId || '') || !isUid(uid) || typeof token !== 'string' || !token) throw new LiveStoreError('storage_unavailable');
   const database = `projects/${projectId}/databases/(default)`;
   const root = `${database}/documents`;
   const endpoint = `https://firestore.googleapis.com/v1/${root}`;
@@ -51,17 +49,13 @@ export function createCheckoutLiveStore({
     if (!LIVE_ORDER_UUID.test(id || '')) throw new LiveStoreError('invalid_request');
     return `${root}/documents/${id}`;
   };
-  async function auth() {
-    try { return await tokenProvider({ FIREBASE_PROJECT_ID: projectId }); }
-    catch (error) { throw new LiveStoreError(error.message || 'storage_unavailable'); }
-  }
   async function call(url, method = 'GET', body) {
-    const token = await auth();
+    const accessToken = token;
     let response;
     try {
       response = await fetchImpl(url, {
         method, redirect: 'manual', cache: 'no-store',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         ...(body ? { body: JSON.stringify(body) } : {}),
         signal: AbortSignal.timeout(10000),
       });
@@ -109,11 +103,11 @@ export function createCheckoutLiveStore({
         throw new LiveStoreError('storage_invalid');
       }
       const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: null }, { name: paymentName(orderId), version: null }];
-      const token = await auth();
+      const accessToken = token;
       let transaction;
       try {
         const rows = await fetchImpl(`${endpoint}:batchGet`, {
-          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
           body:JSON.stringify({ documents: checks.map(g=>g.name), newTransaction:{readWrite:{}} }),
           signal:AbortSignal.timeout(10000),
         });
@@ -126,7 +120,7 @@ export function createCheckoutLiveStore({
           if (!row || (check.version===null ? row.missing!==check.name : row.found?.updateTime!==check.version)) throw new LiveStoreError('conflict');
         }
         const commit = await fetchImpl(`${endpoint}:commit`, {
-          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
           body:JSON.stringify({transaction,writes:[
             {update:{name:registrationName,fields:fields(registration)},currentDocument:{exists:false}},
             {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{exists:false}},
@@ -136,7 +130,7 @@ export function createCheckoutLiveStore({
         return true;
       } catch (error) {
         if (transaction) {
-          try { await fetchImpl(`${endpoint}:rollback`, {method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({transaction})}); } catch {}
+          try { await fetchImpl(`${endpoint}:rollback`, {method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({transaction})}); } catch {}
         }
         throw error;
       }
@@ -148,9 +142,9 @@ export function createCheckoutLiveStore({
     },
     async confirmPrimaryPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob }) {
       if (!paymentVersion || !registrationVersion || fiscalJob.id !== orderId) throw new LiveStoreError('storage_invalid');
-      const token = await auth();
+      const accessToken = token;
       const result = await fetchImpl(`${endpoint}:commit`, {
-        method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+        method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
         body:JSON.stringify({writes:[
           {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{updateTime:paymentVersion}},
           {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
