@@ -938,14 +938,7 @@ service cloud.firestore {
 
     function ownRegistrationSandboxSetting(settingId) {
       return isRegistrationSandboxTester()
-        && settingId.matches('^circ-checkout-sandbox-' + request.auth.uid + '-[A-Fa-f0-9-]+
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-);
+        && settingId.matches('^circ-checkout-sandbox-' + request.auth.uid + '-[A-Fa-f0-9-]+$');
     }
 
     match /settings/{settingId} {
