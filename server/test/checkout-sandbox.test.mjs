@@ -12,6 +12,7 @@ const env = { FIREBASE_PROJECT_ID: 'circ-coimbra', EUPAGO_SANDBOX_API_KEY: 'test
   EUPAGO_SANDBOX_WEBHOOK_KEY: 'test-checkout-signature', EUPAGO_SANDBOX_CHANNEL: 'demo-checkout', FIREBASE_SANDBOX_SERVICE_ACCOUNT: 'injected' };
 const selection = { profile: 'external', congressMode: 'onsite', morningCourse: true, afternoonCourse: false, dinnerQuantity: 2 };
 const claims = { sub: 'admin', email: 'circ.chuc@gmail.com', email_verified: true };
+const PARTICIPANT_TESTER = { sub: 'participant-tester', email: 'araujotiagofc@gmail.com', email_verified: true };
 const time = '2026-10-09T20:00:00Z';
 function fixture() {
   const documents = new Map(); const payments = new Map(); const inspected = []; const sent = [];
@@ -34,7 +35,7 @@ function fixture() {
     sourceRegistration: async () => ({ data: structuredClone(source) }),
     list: async () => ({ records: [...documents.values()].map(d => structuredClone(d.record)), truncated: false }),
   };
-  const storeFactory = options => { assert.equal(options.uid, 'admin'); assert.equal(options.projectId, 'circ-coimbra'); return store; };
+  const storeFactory = options => { assert.equal(options.uid, currentClaims.sub); assert.equal(options.projectId, 'circ-coimbra'); return store; };
   const providerFactory = options => createEupagoSandbox({ ...options, fetchImpl: async (url, options) => {
     assert.ok(url.startsWith('https://sandbox.eupago.pt/clientes/rest_api/'));
     assert.equal(options.headers.Authorization, `ApiKey ${env.EUPAGO_SANDBOX_API_KEY}`);
@@ -103,6 +104,17 @@ async function start(method = 'mbway', chosen = selection) {
 async function complete(f, reference = f.record().orders.at(-1).reference) {
   f.paid(reference); const result = await f.notify(reference); assert.equal(result.status, 200, JSON.stringify(await result.clone().json())); return reference;
 }
+
+test('designated participant tester can create and price a sandbox registration but cannot purge', async () => {
+  const f = fixture();
+  f.setClaims(PARTICIPANT_TESTER);
+  assert.equal((await f.newSession()).status, 201);
+  const q = await f.quote({ profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
+  assert.equal(q.quote.amountCents, 9500);
+  const purge = await f.call('sessions/purge', { confirmation: 'APAGAR TESTES' });
+  assert.equal(purge.status, 403);
+  assert.equal((await purge.json()).error, 'admin-required');
+});
 for (const method of ['mbway', 'multibanco']) test(`${method}: full server-price checkout, signed confirmation and atomic registration in sandbox`, async () => {
   const f = await start(method); const r = f.record();
   assert.equal(r.orders[0].amountCents, 19000); assert.equal(f.sent[0].valor, 190);
@@ -304,7 +316,7 @@ test('unpaid or test registrations are not imported as real paid snapshots', asy
     assert.equal((await f.call('sessions', { id: SID, source: 'registration-copy' })).status, 400); assert.equal(f.record(), undefined);
   }
 });
-test('verified administrator and same-origin writes are mandatory', async () => {
+test('only the administrator or designated participant tester may use the sandbox, with same-origin writes', async () => {
   const f = fixture();
   for (const identity of [{ ...claims, email: 'participant@example.invalid' }, { ...claims, email_verified: false }]) {
     f.setClaims(identity); assert.equal((await f.newSession()).status, 403);
@@ -329,3 +341,4 @@ test('test history and reload preserve the same confirmed record without provide
   const data = await (await f.call(`sessions/${SID}`)).json(); assert.equal(data.session.orders[0].status, 'confirmed');
   assert.equal(f.inspected.length, queries); assert.equal(f.sent.length, 1);
 });
+

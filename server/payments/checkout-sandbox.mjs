@@ -10,6 +10,7 @@ import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, getRe
 
 const PREFIX = '/api/checkout/sandbox';
 const ADMIN = 'circ.chuc@gmail.com';
+const REGISTRATION_TESTER = 'araujotiagofc@gmail.com';
 const EVENT = 'circ-2027';
 const MAX_ORDERS = 20;
 const MAX_DINNERS = 20; // Test safety limit, not an event capacity.
@@ -89,7 +90,10 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     if (!env.FIREBASE_PROJECT_ID) return reply({ error: 'service-unavailable' }, 503);
     let claims;
     try { claims = await verify(token, env.FIREBASE_PROJECT_ID); } catch { return reply({ error: 'invalid-session' }, 401); }
-    if (claims.email_verified !== true || claims.email !== ADMIN) return reply({ error: 'admin-required' }, 403);
+    const email = String(claims.email || '').trim().toLowerCase();
+    const isAdmin = claims.email_verified === true && email === ADMIN;
+    const isRegistrationTester = claims.email_verified === true && email === REGISTRATION_TESTER;
+    if (!isAdmin && !isRegistrationTester) return reply({ error: 'admin-required' }, 403);
     if (request.method === 'POST' && request.headers.get('Origin') !== url.origin) return reply({ error: 'invalid-origin' }, 403);
     const configured = Boolean(env.EUPAGO_SANDBOX_API_KEY?.trim() && env.EUPAGO_SANDBOX_WEBHOOK_KEY
       && env.EUPAGO_SANDBOX_CHANNEL?.trim() && env.FIREBASE_SANDBOX_SERVICE_ACCOUNT);
@@ -99,6 +103,7 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
     const purgeCollection = url.pathname === `${PREFIX}/sessions/purge`;
     const deleteMatch = url.pathname.match(/^\/api\/checkout\/sandbox\/sessions\/([^/]+)\/delete$/);
     if (purgeCollection || deleteMatch) {
+      if (!isAdmin) return reply({ error: 'admin-required' }, 403);
       if (request.method !== 'POST') return reply({ error: 'method-not-allowed' }, 405);
       if (deleteMatch && !CHECKOUT_UUID.test(deleteMatch[1] || '')) return reply({ error: 'not-found' }, 404);
       try {
