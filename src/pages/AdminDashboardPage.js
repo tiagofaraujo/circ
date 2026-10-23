@@ -9,6 +9,7 @@ import {
   updatePaymentStatus,
   updateRegistrationNote,
   updateRegistrationStatus,
+  resetDesignatedParticipantRegistration,
 } from '../auth/adminStore';
 import { subscribeToUserStats } from '../auth/presenceStore';
 import AdminModuleNav from '../components/AdminModuleNav';
@@ -84,6 +85,7 @@ export default function AdminDashboardPage() {
   const [noteDrafts, setNoteDrafts] = useState({});
   const [userStats, setUserStats] = useState({ total: null, online: null });
   const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
+  const [resettingId, setResettingId] = useState('');
 
   useEffect(() => subscribeToRegistrations(
     (items) => {
@@ -176,6 +178,19 @@ export default function AdminDashboardPage() {
     } finally {
       setSavingId('');
     }
+  };
+
+  const resetParticipantRegistration = async (registration) => {
+    const email = String(registration.participantEmail || '').trim().toLowerCase();
+    if (email !== 'araujotiagofc@gmail.com') return;
+    const confirmed = window.confirm('Apagar a inscrição CIRC 2027 desta conta de teste e os registos associados? O perfil My CIRC será mantido.');
+    if (!confirmed) return;
+    setResettingId(registration.id); setError('');
+    try {
+      await resetDesignatedParticipantRegistration(user, registration);
+    } catch {
+      setError('Não foi possível limpar a inscrição desta conta de teste.');
+    } finally { setResettingId(''); }
   };
 
   const handleSignOut = async () => {
@@ -310,6 +325,11 @@ export default function AdminDashboardPage() {
                         <button type="button" onClick={() => saveRegistrationNote(item)} disabled={!noteChanged || noteSaving}>
                           {noteSaving ? 'A guardar…' : noteChanged ? 'Guardar' : 'Guardado'}
                         </button>
+                        {String(item.participantEmail || '').trim().toLowerCase() === 'araujotiagofc@gmail.com' && (
+                          <button type="button" className="admin-danger" onClick={() => resetParticipantRegistration(item)} disabled={resettingId === item.id}>
+                            {resettingId === item.id ? 'A limpar…' : 'Limpar inscrição de teste'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
