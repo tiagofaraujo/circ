@@ -161,6 +161,7 @@ export function createCheckoutLiveStore({
       const doc = await call(`https://firestore.googleapis.com/v1/${paymentName(id)}?currentDocument.updateTime=${encodeURIComponent(version)}`, 'PATCH', {fields:fields(data)});
       return { data: decode({mapValue:{fields:doc.fields||{}}}), version:doc.updateTime };
     },
+    async document(id) { return readDoc('documents', id); },
     async confirmPrimaryPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob }) {
       if (!paymentVersion || !registrationVersion || fiscalJob.id !== orderId) throw new LiveStoreError('storage_invalid');
       const accessToken = token;
@@ -170,6 +171,20 @@ export function createCheckoutLiveStore({
           {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{updateTime:paymentVersion}},
           {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
           {update:{name:documentName(orderId),fields:fields(fiscalJob)},currentDocument:{exists:false}},
+        ]}), signal:AbortSignal.timeout(10000),
+      });
+      if (!result.ok) throw new LiveStoreError([409,412].includes(result.status)?'conflict':'storage_unavailable');
+      return true;
+    },
+    async finalizeFiscalResult({ orderId, payment, paymentVersion, registration, registrationVersion, document, documentVersion }) {
+      if (!paymentVersion || !registrationVersion || !documentVersion || document.id !== orderId) throw new LiveStoreError('storage_invalid');
+      const accessToken = token;
+      const result = await fetchImpl(`${endpoint}:commit`, {
+        method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify({writes:[
+          {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{updateTime:paymentVersion}},
+          {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
+          {update:{name:documentName(orderId),fields:fields(document)},currentDocument:{updateTime:documentVersion}},
         ]}), signal:AbortSignal.timeout(10000),
       });
       if (!result.ok) throw new LiveStoreError([409,412].includes(result.status)?'conflict':'storage_unavailable');
