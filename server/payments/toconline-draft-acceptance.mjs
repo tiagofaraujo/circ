@@ -21,10 +21,10 @@ function legacyBase(apiUrl) {
   return url.toString().replace(/\/$/, '');
 }
 
-async function providerCall(base, token, path, { method = 'GET', body } = {}) {
+async function providerCall(base, token, path, { method = 'GET', body } = {}, fetchImpl = fetch) {
   let response;
   try {
-    response = await fetch(`${base}/${path.replace(/^\//, '')}`, {
+    response = await fetchImpl(`${base}/${path.replace(/^\//, '')}`, {
       method,
       redirect: 'manual',
       headers: {
@@ -66,6 +66,8 @@ export function createToconlineDraftAcceptanceApi({
   verify,
   storeFactory = createCheckoutSandboxStore,
   now = () => new Date().toISOString(),
+  sessionRunner = withToconlineSession,
+  fetchImpl = fetch,
 } = {}) {
   return async function handle(request, env) {
     const url = new URL(request.url);
@@ -113,7 +115,7 @@ export function createToconlineDraftAcceptanceApi({
       const billing = billingCustomerFromProfile(billingSource?.data);
       if (!billing.ok) return reply({ error: 'billing-customer-unconfirmed', issues: billing.issues }, 409);
 
-      const result = await withToconlineSession(request, env, Date.parse(now()), async (apiUrl, accessToken) => {
+      const result = await sessionRunner(request, env, Date.parse(now()), async (apiUrl, accessToken) => {
         const base = legacyBase(apiUrl);
         let documentId = null, lineId = null, headerResponse = null, lineResponse = null;
         let cleanup = { lineDeleted: false, documentDeleted: false };
@@ -134,9 +136,12 @@ export function createToconlineDraftAcceptanceApi({
           headerResponse = await providerCall(base, accessToken, 'commercial_sales_documents', {
             method: 'POST',
             body: { data: { type: 'commercial_sales_documents', attributes } },
-          });
+          }, fetchImpl);
           documentId = safeId(headerResponse?.data?.id);
           if (!documentId) throw Object.assign(new Error('toconline-draft-api-invalid-response'), { code: 'toconline-draft-api-invalid-response', status: 502 });
+          if (Number(headerResponse?.data?.attributes?.status) === 1) {
+            throw Object.assign(new Error('toconline-draft-unexpectedly-finalized'), { code: 'toconline-draft-unexpectedly-finalized', status: 502 });
+          }
 
           lineResponse = await providerCall(base, accessToken, 'commercial_sales_document_lines', {
             method: 'POST',
@@ -147,7 +152,7 @@ export function createToconlineDraftAcceptanceApi({
               unit_price: 95,
               item_id: 55,
             } } },
-          });
+          }, fetchImpl);
           lineId = safeId(lineResponse?.data?.id);
           if (!lineId) throw Object.assign(new Error('toconline-draft-api-invalid-response'), { code: 'toconline-draft-api-invalid-response', status: 502 });
 
@@ -165,11 +170,11 @@ export function createToconlineDraftAcceptanceApi({
           };
         } finally {
           if (lineId) {
-            try { await providerCall(base, accessToken, `commercial_sales_document_lines/${lineId}`, { method: 'DELETE' }); cleanup.lineDeleted = true; }
+            try { await providerCall(base, accessToken, `commercial_sales_document_lines/${lineId}`, { method: 'DELETE' }, fetchImpl); cleanup.lineDeleted = true; }
             catch { cleanup.lineDeleted = false; }
           }
           if (documentId) {
-            try { await providerCall(base, accessToken, `commercial_sales_documents/${documentId}`, { method: 'DELETE' }); cleanup.documentDeleted = true; }
+            try { await providerCall(base, accessToken, `commercial_sales_documents/${documentId}`, { method: 'DELETE' }, fetchImpl); cleanup.documentDeleted = true; }
             catch { cleanup.documentDeleted = false; }
           }
         }
@@ -203,7 +208,8 @@ export function createToconlineDraftAcceptanceApi({
     } catch (error) {
       const code = error?.code || error?.message || 'draft-test-failed';
       const safe = new Set(['toconline-not-connected', 'toconline-reauthorize-required', 'toconline-not-configured',
-        'toconline-draft-api-unavailable', 'toconline-draft-api-rejected', 'toconline-draft-api-invalid-response']);
+        'toconline-draft-api-unavailable', 'toconline-draft-api-rejected', 'toconline-draft-api-invalid-response',
+        'toconline-draft-unexpectedly-finalized']);
       return reply({ error: safe.has(code) ? code : 'draft-test-failed' }, Number(error?.status) || 502);
     }
   };
