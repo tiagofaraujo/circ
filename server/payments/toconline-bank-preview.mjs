@@ -1,4 +1,5 @@
 import { createToconlineReadonlyApi } from './toconline-readonly.mjs';
+import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { CHECKOUT_UUID as UUID } from './checkout-sandbox-store.mjs';
 
 // A non-persistent proposal only. No store writes, sales API calls or hard-coded bank IDs.
@@ -45,6 +46,9 @@ export function createToconlineBankPreviewApi({ verify, storeFactory, buildRehea
       if (order?.method !== 'bank_transfer' || existing.mode !== 'invoice_receipt'
         || existing.liveWritesEnabled !== false) return reply({ error: 'bank-preview-not-applicable' }, 422);
       const draft = buildRehearsal(saved.record, orderId, 'invoice_receipt', existing.date);
+      const billingSource = await store.billingProfile();
+      const billing = billingCustomerFromProfile(billingSource?.data);
+      if (!billing.ok) return reply({ error: 'billing-customer-unconfirmed', issues: billing.issues }, 409);
       if (existing.fiscalPolicyVersion !== draft.fiscalPolicyVersion
         || existing.pricingPolicyVersion !== draft.pricingPolicyVersion) return reply({ error: 'stale-tax-policy' }, 409);
       if (existing.sourceDigest !== draft.sourceDigest) return reply({ error: 'stale-source' }, 409);
@@ -83,7 +87,8 @@ export function createToconlineBankPreviewApi({ verify, storeFactory, buildRehea
         sessionId, orderId, amountCents: draft.amountCents,
         basedOnSimulatedDocument: existing.simulated?.salesDocumentNo || null,
         account: { source: 'company_bank_accounts', id: resource.account.id, ibanLast4: resource.account.ibanLast4 },
-        salesDocument: { ...draft.salesDocument, bank_account_id: Number(resource.account.id) },
+        customer: { source: 'users', ready: true },
+        salesDocument: { ...draft.salesDocument, ...billing.customer, bank_account_id: Number(resource.account.id) },
         taxPreview: draft.taxPreview,
       } }, 200, refreshHeaders);
     } catch (error) {
