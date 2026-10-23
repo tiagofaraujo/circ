@@ -353,6 +353,25 @@ async function readResources(session, cfg) {
   return results;
 }
 
+
+export async function withToconlineSession(request, env, nowMs, operation) {
+  let current = await validSession(request, env, nowMs);
+  let value;
+  try {
+    value = await operation(current.cfg.apiUrl, current.session.accessToken);
+  } catch (error) {
+    if (error?.code !== 'toconline-api-unauthorized') throw error;
+    current = { ...current, session: await refreshSession(current.session, env, nowMs), refreshed: true };
+    value = await operation(current.cfg.apiUrl, current.session.accessToken);
+  }
+  return {
+    value,
+    setCookie: current.refreshed
+      ? cookie(TOKEN_COOKIE, encryptSession(current.session, current.cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS })
+      : null,
+  };
+}
+
 function safeError(error) {
   const code = error.code || error.message || 'service-unavailable';
   const status = Number(error.status) || (code === 'sign-in-required' || code === 'invalid-session' || code === 'toconline-not-connected' || code === 'toconline-reauthorize-required' ? 401
