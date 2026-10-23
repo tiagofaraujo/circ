@@ -36,6 +36,7 @@ export const submissionTesterEmails = [
   'afsilvacarvalho@gmail.com',
 ];
 export const secretariatEmails = ['tiago_araujo@hotmail.com'];
+export const registrationTesterEmails = ['araujotiagofc@gmail.com'];
 
 export function isAdminUser(user) {
   return Boolean(
@@ -68,11 +69,13 @@ export function getUserAccess(user, storedRoles = {}, scientificReviewer = false
     )
   );
   const canManageRegistrations = isAdmin;
+  const canTestRegistrations = Boolean(isAdmin || (verified && storedRoles?.registrationTesting === true) || (verified && registrationTesterEmails.includes(email)));
   const canReviewSubmissions = verified && scientificReviewer === true;
 
   return {
     isAdmin,
     canManageRegistrations,
+    canTestRegistrations,
     canManageSubmissions,
     canReviewSubmissions,
     canTestSubmissions,
