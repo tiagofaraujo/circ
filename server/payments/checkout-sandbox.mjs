@@ -236,6 +236,7 @@ export function createCheckoutSandboxApi({ verify, storeFactory = createCheckout
       exact(body, ['id', 'selection', 'stamp', 'method', 'phone', 'sandboxAcknowledged']);
       if (!CHECKOUT_UUID.test(body.id || '') || !['mbway', 'multibanco', 'bank_transfer', 'stripe_card'].includes(body.method) || body.sandboxAcknowledged !== true
         || (body.method === 'mbway' && (typeof body.phone !== 'string' || !/^9\d{8}$/.test(body.phone))) || (body.method !== 'mbway' && body.phone !== undefined)) fail('invalid-request');
+      if (isRegistrationTester && body.method === 'bank_transfer') fail('invalid-request');
       // Keyed fingerprint is not reversible by enumerating nine-digit phone numbers.
       if (['mbway', 'multibanco'].includes(body.method) && !configured) fail('sandbox-not-configured');
       if (body.method === 'stripe_card' && !stripeConfiguration(env).ready) throw new Error('checkout/sandbox-not-configured');
