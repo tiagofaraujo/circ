@@ -43,6 +43,16 @@ const errors = {
   'stale-tax-policy': 'Este ensaio usa uma configuração fiscal anterior. Atualize a pré-visualização antes de simular a emissão.',
   'not-prepared': 'Prepare primeiro o documento antes de simular a emissão.',
   conflict: 'O registo foi alterado por outra operação. Atualize e tente novamente.',
+  'confirmation-required': 'A confirmação explícita do teste da API é obrigatória.',
+  'simulated-issue-required': 'Conclua primeiro a emissão simulada deste pedido.',
+  'first-test-scope-only': 'Este primeiro teste real da API está limitado à inscrição presencial simples de 95 €.',
+  'billing-customer-unconfirmed': 'Os dados de faturação do perfil estão incompletos ou inválidos.',
+  'toconline-draft-api-unavailable': 'A API TOConline não respondeu ao teste do rascunho.',
+  'toconline-draft-api-rejected': 'A API TOConline rejeitou a criação do rascunho. Nenhum documento foi finalizado.',
+  'toconline-draft-api-invalid-response': 'A API TOConline devolveu uma resposta inesperada. Nenhum documento foi finalizado.',
+  'toconline-draft-unexpectedly-finalized': 'A API devolveu inesperadamente um documento finalizado. O teste foi interrompido imediatamente.',
+  'draft-cleanup-required': 'O rascunho foi criado, mas a limpeza automática não ficou confirmada. Não repita o teste; confirme o rascunho no TOConline.',
+  'draft-test-failed': 'O teste real da API não foi concluído. Nenhum pedido de finalização foi efetuado.',
 };
 
 const tocMissingNames = {
@@ -69,6 +79,7 @@ export default function ToconlineReceiptTestPage() {
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [draftApiTestByOrder, setDraftApiTestByOrder] = useState({});
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -158,6 +169,24 @@ export default function ToconlineReceiptTestPage() {
       });
       setSession(current => ({ ...current, orders: current.orders.map(item => item.id === order.id ? { ...item, rehearsal: data.rehearsal } : item) }));
       setMessage(t('Emissão simulada concluída sem efeito fiscal e sem comunicação externa.', 'Simulated issue completed with no fiscal effect and no external communication.'));
+    });
+  }
+
+  function runDraftApiTest(order) {
+    const ok = window.confirm(t(
+      'Este teste cria um rascunho real no TOConline, adiciona a linha de 95 € e elimina o rascunho sem o finalizar. Não será emitida Fatura-recibo fiscal. Pretende continuar?',
+      'This test creates a real TOConline draft, adds the EUR 95 line, then deletes the draft without finalizing it. No fiscal invoice-receipt will be issued. Continue?'
+    ));
+    if (!ok) return;
+    run(async () => {
+      const data = await call(`/api/fiscal/toconline/draft-test/sessions/${session.id}/orders/${order.id}`, '', {
+        confirmation: 'TESTAR API SEM FINALIZAR',
+      });
+      setDraftApiTestByOrder(current => ({ ...current, [order.id]: data.test }));
+      setMessage(t(
+        'Teste real da API concluído: cabeçalho e linha aceites em rascunho e rascunho eliminado. Nenhum documento foi finalizado.',
+        'Real API test completed: draft header and line accepted, then draft deleted. No document was finalized.'
+      ));
     });
   }
 
@@ -300,6 +329,11 @@ export default function ToconlineReceiptTestPage() {
           <button type="button" disabled={busy || r?.status === 'simulated-issued'} onClick={() => prepare(order)}>{r ? t('Atualizar pré-visualização', 'Refresh preview') : t('Preparar pré-visualização TOConline', 'Prepare TOConline preview')}</button>
           {r?.status === 'prepared' && <button type="button" disabled={busy || r.fiscalPolicyVersion !== CIRC27_FISCAL_POLICY_VERSION} onClick={() => issue(order)}>{t('Simular emissão sem efeito fiscal', 'Simulate issue with no fiscal effect')}</button>}
           {r && <button type="button" className="secondary" disabled={busy} onClick={() => reset(order)}>{t('Repor este ensaio', 'Reset this rehearsal')}</button>}
+          {r?.status === 'simulated-issued' && order.method === 'bank_transfer' && order.amountCents === 9500 && tocConfig?.connected && (
+            <button type="button" disabled={busy} onClick={() => runDraftApiTest(order)}>
+              {t('Testar API real sem finalizar', 'Test real API without finalizing')}
+            </button>
+          )}
         </div>
 
         {r && <>
@@ -319,6 +353,16 @@ export default function ToconlineReceiptTestPage() {
           {r.receipt && <details><summary>{t('Pré-visualizar payload do recibo', 'Preview receipt payload')}</summary>
             <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(r.receipt, null, 2)}</pre>
           </details>}
+          {draftApiTestByOrder[order.id] && <div className="sandbox-checkout__confirmed">
+            <h3>{t('Teste real da API — rascunho eliminado', 'Real API test — draft deleted')}</h3>
+            <p><strong>{t('Cabeçalho aceite', 'Header accepted')}:</strong> {draftApiTestByOrder[order.id].headerAccepted ? t('sim', 'yes') : t('não', 'no')}</p>
+            <p><strong>{t('Linha aceite', 'Line accepted')}:</strong> {draftApiTestByOrder[order.id].lineAccepted ? t('sim', 'yes') : t('não', 'no')}</p>
+            <p><strong>{t('Finalizado', 'Finalized')}:</strong> {draftApiTestByOrder[order.id].finalized ? t('sim', 'yes') : t('não', 'no')}</p>
+            <p><strong>{t('Documento fiscal emitido', 'Fiscal document issued')}:</strong> {draftApiTestByOrder[order.id].fiscalDocumentIssued ? t('sim', 'yes') : t('não', 'no')}</p>
+            <p><strong>{t('Limpeza', 'Cleanup')}:</strong> {draftApiTestByOrder[order.id].cleanup?.documentDeleted ? t('rascunho eliminado', 'draft deleted') : t('por confirmar', 'pending')}</p>
+            <p><strong>{t('IVA devolvido pela linha', 'Tax returned for line')}:</strong> {draftApiTestByOrder[order.id].returnedTaxCode || '—'}{draftApiTestByOrder[order.id].returnedTaxPercentage != null ? ` · ${draftApiTestByOrder[order.id].returnedTaxPercentage}%` : ''}</p>
+          </div>}
+
           {r.simulated && <div className="sandbox-checkout__confirmed">
             <h3>{t('Documentos simulados', 'Simulated documents')}</h3>
             <p><strong>{r.simulated.salesDocumentNo}</strong> · ID {r.simulated.salesDocumentId}</p>
