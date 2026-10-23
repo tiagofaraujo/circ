@@ -187,7 +187,7 @@ function App() {
 
             <Route path="/admin/transferencias-teste" element={<AdminRoute permission="registrations"><SandboxBankTransferReviewPage /></AdminRoute>} />
             <Route path="/admin/recibos-teste" element={<AdminRoute permission="registrations"><ToconlineReceiptTestPage /></AdminRoute>} />
-            <Route path="/conta/inscricoes-teste" element={<AdminRoute permission="registrations"><SandboxCheckoutPage /></AdminRoute>} />
+            <Route path="/conta/inscricoes-teste" element={<ProtectedRoute><SandboxCheckoutPage /></ProtectedRoute>} />
             <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes-teste" replace />} />
             <Route path="/admin/pagamentos-teste" element={<AdminRoute permission="registrations"><AdminSandboxPaymentsPage /></AdminRoute>} />
             <Route path="/admin/empresas" element={<AdminRoute permission="registrations"><AdminCompaniesPage /></AdminRoute>} />
