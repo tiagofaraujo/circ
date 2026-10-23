@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { createCheckoutSandboxStore, CHECKOUT_UUID } from './checkout-sandbox-store.mjs';
 import { FISCAL_POLICY_VERSION, prepareRehearsalTaxes } from './toconline-rehearsal-tax.mjs';
 import { PRICING_POLICY_VERSION, inspectRehearsalPricing, pricingPaymentSnapshot } from './toconline-rehearsal-pricing.mjs';
+import { createToconlineBankPreviewApi } from './toconline-bank-preview.mjs';
 
 const PREFIX = '/api/fiscal/sandbox';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -193,9 +194,11 @@ async function readJson(request) {
 }
 
 export function createToconlineRehearsalApi({ verify, storeFactory = createCheckoutSandboxStore, now = () => new Date().toISOString() }) {
+  const bankPreview = createToconlineBankPreviewApi({ verify, storeFactory, now, buildRehearsal: buildToconlineRehearsal });
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(PREFIX)) return null;
+    if (url.pathname.startsWith(`${PREFIX}/bank-preview/`)) return bankPreview(request, env);
     if (!['GET', 'POST'].includes(request.method)) return json({ error: 'method-not-allowed' }, 405);
     const token = request.headers.get('Authorization')?.match(/^Bearer ([^\s]+)$/i)?.[1];
     if (!token) return json({ error: 'sign-in-required' }, 401);
