@@ -16,6 +16,8 @@ async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.he
 const stamp=q=>createHash('sha256').update(JSON.stringify(q)).digest('hex');
 const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
+const publicOrder=(id,p)=>({id,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
+  reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null});
 
 export function createCheckoutLiveApi({
   verify,
@@ -61,6 +63,13 @@ export function createCheckoutLiveApi({
         if(!LIVE_ORDER_UUID.test(data.id||'')||data.method!=='multibanco')fail('invalid-request');
         if(!openForPublic(now())&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
         const selection=data.selection;exact(selection,['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
+        const previousPayment=await store.payment(data.id);
+        if(previousPayment.data){
+          const previous=previousPayment.data;
+          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method
+            ||stamp(previous.quote)!==data.stamp)fail('idempotency-conflict',409);
+          return reply({order:publicOrder(data.id,previous)},200);
+        }
         if(selection.congressMode!=='onsite'||selection.morningCourse!==false||selection.afternoonCourse!==false||selection.dinnerQuantity!==0)fail('live-scope-not-enabled',409);
         const existing=await store.registration();if(existing.data)fail('registration-exists',409);
         const ctx=await store.context(selection.profile);
@@ -111,13 +120,12 @@ export function createCheckoutLiveApi({
         const payment=await store.payment(match[1]);
         if(!payment.data||payment.data.userId!==claims.sub)return reply({error:'not-found'},404);
         const p=payment.data;
-        return reply({order:{id:match[1],status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
-          reference:p.reference,entity:p.entity,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null}});
+        return reply({order:publicOrder(match[1],p)});
       }
       return reply({error:'not-found'},404);
     }catch(error){
       const code=error.code||error.message||'service-unavailable';
-      const status=Number(error.status)||(['registration-exists','quote-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete'].includes(code)?409:code==='registration-not-open'?403:503);
+      const status=Number(error.status)||(['registration-exists','quote-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict'].includes(code)?409:code==='registration-not-open'?403:503);
       return reply({error:code},status);
     }
   };
