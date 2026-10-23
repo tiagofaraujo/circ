@@ -24,6 +24,15 @@ function fixture() {
   let record = savedRecord(); let version = '1'; let identity = claims; let bank = goodResource();
   let responseStatus = 200; let afterRead = () => {}; let writes = 0; let reads = 0; const provider = [];
   const store = { read: async () => { reads++; return { record: structuredClone(record), version }; },
+    billingProfile: async () => ({ data: {
+      name: 'Participante Teste CIRC',
+      billingName: 'Entidade Teste CIRC',
+      taxNumber: '123456789',
+      billingAddress: 'Rua de Teste, 1',
+      billingPostalCode: '3000-000',
+      billingCity: 'Coimbra',
+      billingCountry: 'Portugal',
+    } }),
     replace: async () => { writes++; throw new Error('Writes forbidden'); } };
   const verify = async () => identity;
   const api = createToconlineBankPreviewApi({ verify, storeFactory: () => store, buildRehearsal: buildToconlineRehearsal,
@@ -48,6 +57,9 @@ test('verified account ID is added to a server proposal, not to the historic sim
   const response = await f.call(); assert.equal(response.status, 200);
   const { preview } = await response.json();
   assert.equal(preview.salesDocument.bank_account_id, 77); // deliberately not the generic-account ID 2
+  assert.equal(preview.salesDocument.customer_business_name, 'Entidade Teste CIRC');
+  assert.equal(preview.salesDocument.customer_tax_registration_number, '123456789');
+  assert.equal(preview.salesDocument.customer_country, 'PT');
   assert.equal(preview.salesDocument.document_type, 'FR'); assert.equal(preview.salesDocument.payment_mechanism, 'TR');
   assert.equal(preview.basedOnSimulatedDocument, 'FR TESTE/A261038C3B');
   assert.equal(preview.amountCents, 22500); assert.equal(preview.taxPreview.exemptCents, 15500);
