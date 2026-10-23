@@ -13,6 +13,7 @@ const PROFILE_FIELDS = [
   'profession',
   'institution',
   'professionalId',
+  'billingName',
   'billingAddress',
   'billingPostalCode',
   'billingCity',
@@ -140,6 +141,7 @@ function writeLocalProfile(profile) {
   delete safeProfile.mobile;
   delete safeProfile.dateOfBirth;
   delete safeProfile.gender;
+  delete safeProfile.billingName;
   delete safeProfile.billingAddress;
   delete safeProfile.billingPostalCode;
   delete safeProfile.billingCity;
