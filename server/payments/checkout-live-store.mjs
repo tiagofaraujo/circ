@@ -127,13 +127,34 @@ export function createCheckoutLiveStore({
           ]}), signal:AbortSignal.timeout(10000),
         });
         if (!commit.ok) throw new LiveStoreError([409,412].includes(commit.status)?'conflict':'storage_unavailable');
-        return true;
+        const result = await commit.json();
+        return {
+          registrationVersion: result.writeResults?.[0]?.updateTime || null,
+          paymentVersion: result.writeResults?.[1]?.updateTime || null,
+        };
       } catch (error) {
         if (transaction) {
           try { await fetchImpl(`${endpoint}:rollback`, {method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({transaction})}); } catch {}
         }
         throw error;
       }
+    },
+    async updatePendingProvider({ orderId, payment, paymentVersion, registration, registrationVersion }) {
+      if (!paymentVersion || !registrationVersion) throw new LiveStoreError('storage_unavailable');
+      const accessToken = token;
+      const result = await fetchImpl(`${endpoint}:commit`, {
+        method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify({writes:[
+          {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{updateTime:paymentVersion}},
+          {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
+        ]}), signal:AbortSignal.timeout(10000),
+      });
+      if (!result.ok) throw new LiveStoreError([409,412].includes(result.status)?'conflict':'storage_unavailable');
+      const data = await result.json();
+      return {
+        paymentVersion: data.writeResults?.[0]?.updateTime || null,
+        registrationVersion: data.writeResults?.[1]?.updateTime || null,
+      };
     },
     async updatePayment(id, data, version) {
       if (!version) throw new LiveStoreError('storage_unavailable');
