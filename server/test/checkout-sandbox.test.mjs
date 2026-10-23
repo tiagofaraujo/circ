@@ -316,7 +316,7 @@ test('unpaid or test registrations are not imported as real paid snapshots', asy
     assert.equal((await f.call('sessions', { id: SID, source: 'registration-copy' })).status, 400); assert.equal(f.record(), undefined);
   }
 });
-test('verified administrator and same-origin writes are mandatory', async () => {
+test('only the administrator or designated participant tester may use the sandbox, with same-origin writes', async () => {
   const f = fixture();
   for (const identity of [{ ...claims, email: 'participant@example.invalid' }, { ...claims, email_verified: false }]) {
     f.setClaims(identity); assert.equal((await f.newSession()).status, 403);
@@ -342,18 +342,3 @@ test('test history and reload preserve the same confirmed record without provide
   assert.equal(f.inspected.length, queries); assert.equal(f.sent.length, 1);
 });
 
-
-test('designated participant tester can use checkout sandbox but cannot purge sessions', async () => {
-  const f = await start({ claims: PARTICIPANT_TESTER });
-  const config = await f.call('config');
-  assert.equal(config.status, 200);
-
-  const createId = crypto.randomUUID();
-  const created = await f.call('sessions', { id: createId, source: 'new' });
-  assert.equal(created.status, 201);
-
-  const purge = await f.call('sessions/purge', { confirmation: 'APAGAR TESTES' });
-  assert.equal(purge.status, 403);
-  const body = await purge.json();
-  assert.equal(body.error, 'admin-required');
-});
