@@ -11,6 +11,11 @@ export default function CircFiscalRehearsalDiagnostics({ rehearsal, resources, e
   const money = cents => Number.isSafeInteger(cents)
     ? new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100) : '—';
   const tax = rehearsal.taxPreview;
+  const servicesConfirmed = Boolean(check.serviceChecks?.length) && check.serviceChecks.every(item => item.ok);
+  const billingBank = resources?.resources?.billingBankAccount;
+  const bankConfirmed = rehearsal?.source?.method !== 'bank_transfer' || (billingBank?.source === 'company_bank_accounts'
+    && billingBank?.ok === true && billingBank?.status === 'matched' && billingBank?.account?.id);
+  const tariffConfirmed = rehearsal?.pricingCheck?.status === 'matches';
   return <div className="sandbox-checkout__confirmed">
     <h3>{t('Diagnóstico fiscal CIRC2027 — só leitura', 'CIRC2027 fiscal diagnostics — read only')}</h3>
     {!check.policyCurrent && <p role="alert"><strong>{t('Ensaio anterior à configuração M07.', 'Rehearsal predates the M07 configuration.')}</strong> {t('A revisão atual inclui o jantar isento.', 'The current revision includes exempt dinner tickets.')} {rehearsal.status === 'simulated-issued'
@@ -40,6 +45,13 @@ export default function CircFiscalRehearsalDiagnostics({ rehearsal, resources, e
       <p>{t('Estimativa com arredondamento por linha. Não valida a aceitação nem o cálculo da API do TOConline.', 'Per-line rounded estimate. This does not validate TOConline API acceptance or calculation.')}</p>
     </>}
     <p>{t('Configuração de trabalho: inscrições e jantar (participante ou acompanhante) isentos M07; cursos a 23%. Os preços finais não são alterados. Estas regras não constituem validação das vendas virtuais a clientes no estrangeiro.', 'Working configuration: registrations and dinner tickets (participants or guests) exempt under M07; courses at 23%. Final prices are unchanged. These rules do not validate virtual sales to customers abroad.')}</p>
-    <p><strong>{t('Emissão fiscal real bloqueada', 'Real fiscal issuance blocked')}.</strong> {t('A atualização do website não altera as fichas do TOConline. Permanecem por validar as fichas na API, a comunicação da série/ATCUD, os dados reais do cliente, os meios de recebimento e a emissão no TOConline.', 'Updating the website does not change TOConline service records. API catalogue checks, series registration/ATCUD, real customer data, receipt methods and TOConline issuance remain to be validated.')}</p>
+    <h4>{t('Estado de prontidão deste pedido', 'Readiness status for this order')}</h4>
+    <ul>
+      <li>{t('Série FR CIRC2027 presente na API e incluída no payload', 'CIRC2027 FR series present in the API and included in the payload')}: <strong>{check.seriesFound && check.seriesInPayload ? t('confirmado', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
+      <li>{t('Serviços e enquadramento fiscal usados neste pedido', 'Services and tax treatment used in this order')}: <strong>{servicesConfirmed ? t('confirmados', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
+      <li>{t('Tarifa pela data efetiva do pagamento', 'Tariff by effective payment date')}: <strong>{tariffConfirmed ? t('confirmada', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
+      <li>{t('Conta de recebimento da transferência', 'Transfer receipt account')}: <strong>{bankConfirmed ? t('confirmada', 'confirmed') : t('por confirmar', 'pending')}</strong></li>
+    </ul>
+    <p><strong>{t('Emissão fiscal real bloqueada', 'Real fiscal issuance blocked')}.</strong> {t('Para este pedido, a leitura atual já confirma os serviços, o enquadramento fiscal e a conta bancária quando assinalados acima. Continuam por concluir a utilização dos dados reais de faturação do adquirente e um teste controlado de aceitação pela API de emissão do TOConline. A comunicação da série/ATCUD foi confirmada administrativamente, mas o respetivo código não é exposto por esta leitura OAuth.', 'For this order, the current read already confirms the services, tax treatment and bank account when marked above. Real buyer billing data and a controlled acceptance test against the TOConline issuance API still remain. Series/ATCUD communication was administratively confirmed, but its code is not exposed by this OAuth read.')}</p>
   </div>;
 }
