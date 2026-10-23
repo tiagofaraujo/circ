@@ -5,7 +5,7 @@ const countryCode = value => {
   return ['pt', 'portugal', 'portugal - continente', 'portugal continente'].includes(v) ? 'PT' : null;
 };
 function validPortugueseTaxNumber(value) {
-  if (!/^\d{9}$/.test(value)) return false;
+  if (!/^\d{9}$/.test(value) || new Set(value).size === 1) return false;
   const digits = [...value].map(Number);
   const sum = digits.slice(0, 8).reduce((acc, digit, index) => acc + digit * (9 - index), 0);
   const mod = sum % 11;
