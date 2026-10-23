@@ -62,6 +62,13 @@ export function normalizeParticipantProfile(profile = {}) {
       professional.professionalId,
       professional.licenseNumber
     ),
+    billingName: firstFilled(
+      profile.billingName,
+      profile.invoiceName,
+      profile.customerBusinessName,
+      billing.name,
+      billing.businessName
+    ),
     billingAddress: firstFilled(
       profile.billingAddress,
       profile.invoiceAddress,
