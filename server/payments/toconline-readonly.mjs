@@ -406,7 +406,7 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
           refreshExpiresAt: current + SESSION_TTL_SECONDS * 1000,
           tokenType: data.token_type || 'Bearer',
         };
-        if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) await serverSessionStore.save(env, session);
+        if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) await serverSessionStore.save(env, { ...session, refreshExpiresAt: Number.MAX_SAFE_INTEGER });
         return redirect('/admin/recibos-teste?toconline=connected', [
           cookie(TOKEN_COOKIE, encryptSession(session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }),
           clearCookie(STATE_COOKIE, 'Lax'),
