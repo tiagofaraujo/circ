@@ -177,3 +177,20 @@ export function createCheckoutLiveStore({
     },
   };
 }
+
+
+export async function readLivePaymentById({ projectId, token, orderId, fetchImpl = fetch }) {
+  if (!/^[a-z0-9-]+$/.test(projectId || '') || typeof token !== 'string' || !token || !LIVE_ORDER_UUID.test(orderId || '')) {
+    throw new LiveStoreError('storage_unavailable');
+  }
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/payments/${orderId}`;
+  let response;
+  try {
+    response = await fetchImpl(url, { method:'GET', redirect:'manual', cache:'no-store',
+      headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}, signal:AbortSignal.timeout(10000) });
+  } catch { throw new LiveStoreError('storage_unavailable'); }
+  if (response.status === 404) return null;
+  if (!response.ok) throw new LiveStoreError(response.status===403?'storage_forbidden':'storage_unavailable');
+  const doc = await response.json();
+  return { data: decode({mapValue:{fields:doc.fields||{}}}), version:doc.updateTime, name:doc.name };
+}
