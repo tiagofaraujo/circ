@@ -41,6 +41,7 @@ function emptyForm(user) {
     profession: 'radiographer',
     institution: '',
     professionalId: '',
+    billingName: '',
     billingAddress: '',
     billingPostalCode: '',
     billingCity: '',
@@ -230,6 +231,7 @@ export default function ParticipantProfileFirebasePage() {
 
             <div className="profile-section-heading profile-section-heading--spaced"><p className="eyebrow">03</p><h2>{isEnglish ? 'Billing address' : 'Morada de faturação'}</h2></div>
             <div className="account-form-grid">
+              <label className="account-form-grid__wide"><span>{isEnglish ? 'Billing name / entity' : 'Nome / entidade para faturação'}</span><input name="billingName" autoComplete="organization" value={form.billingName || ''} onChange={updateField} placeholder={form.name || ''} /><small>{isEnglish ? 'Leave blank to use the participant name. Use the legal name when the invoice is for an organisation.' : 'Se ficar vazio, será usado o nome do participante. Para faturação a uma entidade, indique a denominação legal.'}</small></label>
               <label className="account-form-grid__wide"><span>{isEnglish ? 'Address' : 'Morada'}</span><textarea name="billingAddress" rows="3" autoComplete="street-address" value={form.billingAddress || ''} onChange={updateField} /></label>
               <label><span>{isEnglish ? 'Postal code' : 'Código postal'}</span><input name="billingPostalCode" autoComplete="postal-code" value={form.billingPostalCode || ''} onChange={updateField} /></label>
               <label><span>{isEnglish ? 'City' : 'Localidade'}</span><input name="billingCity" autoComplete="address-level2" value={form.billingCity || ''} onChange={updateField} /></label>
