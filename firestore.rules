@@ -931,8 +931,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    function isRegistrationSandboxTester() {
+      return hasVerifiedEmail()
+        && request.auth.token.email.lower() == 'araujotiagofc@gmail.com';
+    }
+
+    function ownRegistrationSandboxSetting(settingId) {
+      return isRegistrationSandboxTester()
+        && settingId.matches('^circ-checkout-sandbox-' + request.auth.uid + '-[A-Fa-f0-9-]+$');
+    }
+
     match /settings/{settingId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() || ownRegistrationSandboxSetting(settingId);
     }
 
     match /{document=**} {
