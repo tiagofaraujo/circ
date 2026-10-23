@@ -32,12 +32,23 @@ function BankPreviewRequest({ rehearsal, en }) {
           'toconline-not-connected': t('Autorize novamente a ligação TOConline acima e repita esta consulta.', 'Reauthorize the TOConline connection above and repeat this read.'),
           'toconline-reauthorize-required': t('A sessão TOConline expirou. Volte a autorizar a ligação acima.', 'The TOConline session expired. Reauthorize the connection above.'),
           'billing-bank-unconfirmed': t('A conta da empresa não ficou confirmada. Não foi acrescentado nenhum identificador à proposta.', 'The company account was not confirmed. No account identifier was added to the proposal.'),
+          'billing-customer-unconfirmed': t('Os dados de faturação do perfil estão incompletos ou inválidos. Corrija o Perfil em My CIRC antes de preparar a FR.', 'The profile billing details are incomplete or invalid. Correct the My CIRC Profile before preparing the FR.'),
           'payment-tariff-review-required': t('A tarifa e a data efetiva do pagamento precisam de estar confirmadas antes desta pré-visualização.', 'The tariff and effective payment date must be confirmed before this preview.'),
           'stale-source': t('O registo mudou durante a consulta. Atualize a página antes de repetir.', 'The record changed during the read. Refresh the page before retrying.'),
           'stale-tax-policy': t('Este ensaio usa uma configuração anterior. Não foi alterado nem substituído.', 'This rehearsal uses an older configuration. It was not changed or replaced.'),
         };
         const suffix = Number.isInteger(data.httpStatus) ? ` (HTTP ${data.httpStatus})` : '';
-        setError((messages[data.error] || t('Não foi possível preparar a proposta bancária. Nenhum documento foi emitido ou alterado.', 'The bank-associated proposal could not be prepared. No document was issued or changed.')) + suffix);
+        const issueLabels = {
+          'billing-name-required': t('nome/entidade de faturação', 'billing name/entity'),
+          'billing-country-unmapped': t('país de faturação', 'billing country'),
+          'billing-tax-number-invalid': t('NIF', 'tax number'),
+          'billing-address-required': t('morada', 'address'),
+          'billing-postcode-invalid': t('código postal', 'postal code'),
+          'billing-city-required': t('localidade', 'city'),
+        };
+        const details = Array.isArray(data.issues) && data.issues.length
+          ? ` — ${data.issues.map(item => issueLabels[item] || item).join(', ')}` : '';
+        setError((messages[data.error] || t('Não foi possível preparar a proposta bancária. Nenhum documento foi emitido ou alterado.', 'The bank-associated proposal could not be prepared. No document was issued or changed.')) + details + suffix);
         return;
       }
       const result = data.preview;
@@ -64,6 +75,7 @@ function BankPreviewRequest({ rehearsal, en }) {
       <p>{t('ID da conta', 'Account ID')}: <strong>{preview.account.id}</strong> · {t('IBAN terminado em', 'IBAN ending in')}: <strong>{preview.account.ibanLast4}</strong></p>
       <p>{t('Total preservado', 'Total preserved')}: <strong>{new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'currency', currency: 'EUR' }).format(preview.amountCents / 100)}</strong></p>
       {preview.basedOnSimulatedDocument && <p>{t('Simulação original preservada', 'Original simulation preserved')}: <strong>{preview.basedOnSimulatedDocument}</strong></p>}
+      <p>{t('Os dados do adquirente desta proposta são lidos do Perfil My CIRC no momento da consulta e não são guardados nesta simulação.', 'Buyer details in this proposal are read from the My CIRC Profile at query time and are not saved into this simulation.')}</p>
       <p>{t('Não guardada. Nenhuma emissão, movimento bancário ou chamada de escrita ao TOConline. A aceitação do documento pela API de emissão continua por testar.', 'Not saved. No issuance, bank movement or TOConline write call. Document acceptance by the issuance API remains untested.')}</p>
       <details open><summary>{t('Dados da FR com conta — apenas pré-visualização', 'FR data with account — preview only')}</summary>
         <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(preview.salesDocument, null, 2)}</pre>
