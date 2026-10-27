@@ -1,4 +1,6 @@
 # https://www.robotstxt.org/robotstxt.html
-# CIRC production build refresh — Google + email login
+# CIRC 2027 public website
 User-agent: *
 Disallow:
+
+Sitemap: https://circ-coimbra.org/sitemap.xml
