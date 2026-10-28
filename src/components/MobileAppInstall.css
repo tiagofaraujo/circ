@@ -22,4 +22,6 @@
   .mobile-app-install__button:focus-visible { outline: 3px solid var(--identity-peach); outline-offset: 4px; }
   .mobile-app-install__instructions { grid-column: 1 / -1; margin-top: 12px; padding-top: 2px; border-top: 1px solid rgba(255,255,255,.2); }
   .mobile-app-install__instructions p { margin: 10px 0 0; color: #eeeaf5; font-size: .75rem; line-height: 1.65; }
+  .event-hero .mobile-app-install__chrome { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.5); border-radius: 7px; color: #fff; font-size: .75rem; text-decoration: none; }
+  .event-hero .mobile-app-install__chrome:hover { background: rgba(255,255,255,.1); }
 }
