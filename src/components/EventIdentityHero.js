@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import HeroPhotoBackdrop from './HeroPhotoBackdrop';
+import MobileAppInstall from './MobileAppInstall';
 import '../towerHero.css';
 
 const towerSource = '/identity2027/tower-radiograph-source.jpg';
@@ -23,6 +24,7 @@ export default function EventIdentityHero({ en }) {
         <div className="event-hero__copy">
           <p className="event-hero__edition">CIRC 2027 <span>03 / {en ? 'Third edition' : 'Terceira edição'}</span></p>
           <p className="event-hero__name">{en ? 'Coimbra International Radiology Congress' : 'Congresso Internacional de Radiologia de Coimbra'}</p>
+          <MobileAppInstall en={en} />
           <h1 id="event-title" className="event-hero__slogan" lang="en">
             <span>The</span>{' '}
             <span>Invisible</span>{' '}
