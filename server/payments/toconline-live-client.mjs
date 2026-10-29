@@ -106,16 +106,24 @@ export function createToconlineLiveClient({
         if (response.status >= 500) fail('toconline-live-outcome-unknown', 502, true);
         fail('toconline-live-rejected', response.status || 502, false);
       }
-      let provider = null;
-      const text = await response.text();
-      if (text) {
-        try { provider = JSON.parse(text); } catch { provider = null; }
+      // A successful HTTP status alone does not identify a finalized FR.
+      // The POST may have issued it even if its response is incomplete: never
+      // repeat that POST or record an unidentifiable document as issued.
+      if (![200, 201].includes(response.status)) fail('toconline-live-outcome-unknown', 502, true);
+      let provider;
+      try { provider = await response.json(); }
+      catch { fail('toconline-live-outcome-unknown', 502, true); }
+      const documentId = provider?.id ?? provider?.data?.id;
+      const hasDocumentId = (Number.isSafeInteger(documentId) && documentId > 0)
+        || (typeof documentId === 'string' && documentId.trim().length > 0 && documentId.length <= 128);
+      if (!hasDocumentId || (Array.isArray(provider?.errors) && provider.errors.length > 0)) {
+        fail('toconline-live-outcome-unknown', 502, true);
       }
       return {
         accepted: true,
         finalized: true,
         externalReference: payload.external_reference,
-        providerDocumentId: provider?.id ?? provider?.data?.id ?? null,
+        providerDocumentId: documentId,
         providerDocumentNo: provider?.document_no ?? provider?.data?.attributes?.document_no ?? null,
       };
     },

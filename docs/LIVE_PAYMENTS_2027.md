@@ -65,5 +65,6 @@ Configurar apenas evento **PAID**, POST JSON sem encriptação e assinatura HMAC
 - Datas sem fuso na fronteira 31/01–01/02 vão para revisão manual.
 - Pagamento confirmado é persistido antes da tentativa de faturação.
 - TOConline: resultado de POST ambíguo nunca é repetido automaticamente.
+- TOConline: HTTP 200/201 só conta como emissão aceite quando a resposta contém o identificador do documento. Respostas vazias, ilegíveis, sem identificador ou HTTP 202 ficam em `outcome_unknown`; exigem conferência no TOConline antes de qualquer nova tentativa.
 - Callback duplicado não emite uma segunda Fatura-recibo.
 - Estados fiscais distintos: `pending`, `issued`, `pending_authorization`, `review_required`, `outcome_unknown`.

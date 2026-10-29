@@ -3,10 +3,9 @@ on:
   push:
     branches: [main, feature/toconline-receipt-rehearsal-20261017, feature/toconline-readonly-oauth-20261017]
     paths:
-      - 'server/payments/toconline-rehearsal.mjs'
-      - 'server/payments/toconline-readonly.mjs'
-      - 'server/test/toconline-rehearsal.test.mjs'
-      - 'server/test/toconline-readonly.test.mjs'
+      - 'server/payments/**'
+      - 'server/test/**'
+      - 'src/data/circ2027FiscalPolicy.json'
       - 'server/worker.mjs'
       - 'wrangler.jsonc'
       - 'src/pages/ToconlineReceiptTestPage.js'
@@ -34,7 +33,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: TOConline server tests
-        run: node --test server/test/toconline-rehearsal.test.mjs server/test/toconline-readonly.test.mjs
+        run: node --test server/test/*.test.mjs
       - name: Receipt rehearsal UI tests
         run: CI=true npm test -- --watchAll=false --runInBand src/pages/ToconlineReceiptTestPage.test.js
       - name: Production bundle
