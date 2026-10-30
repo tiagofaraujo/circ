@@ -23,7 +23,7 @@ const days = [
     ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
       ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Rita Vaz (ULS Coimbra)'],
       ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'A designar', 'Speaker to be announced'],
-      ['10:40', 'The art of spine radiography – Breathing Technique', 'The art of spine radiography – Breathing Technique', 'Michael Fuller (Flinders Medical Centre)', 'Michael Fuller (Flinders Medical Centre)'],
+      ['10:40', 'The Art of Spine Radiography: Novel and Creative Techniques', 'The Art of Spine Radiography: Novel and Creative Techniques', 'Michael Fuller (Flinders Medical Centre)', 'Michael Fuller (Flinders Medical Centre)'],
     ], {pt: 'Joana Santos (ESTeSC - UPC) e Raquel Reis (ULS Santo António)', en: 'Joana Santos (ESTeSC - UPC) and Raquel Reis (ULS Santo António)'}],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
