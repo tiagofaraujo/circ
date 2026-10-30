@@ -26,13 +26,13 @@ test('unauthenticated direct requests expose no hotel information and cannot be 
   }
 });
 
-test('a signed session for this Firebase project can read the eight offers', async () => {
+test('a signed session for this Firebase project can read the nine offers', async () => {
   const response = await protectedWorker.fetch(request(await token()), env);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
   assert.equal(response.headers.get('vary'), 'Authorization');
   const body = await response.json();
-  assert.equal(body.hotels.length, 8);
+  assert.equal(body.hotels.length, 9);
   assert.equal(body.hotels.find(h => h.id === 'tivoli-coimbra').promoCode, 'TCOIWED');
   const oslo = body.hotels.find(h => h.id === 'hotel-oslo-coimbra');
   assert.equal(oslo.promoCode, 'LOVECOIMBRA');

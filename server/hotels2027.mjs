@@ -1,4 +1,4 @@
-// Participant conditions supplied by the organisation; D. Luís and NH tourist taxes updated on 8 October 2026.
+// Participant conditions supplied by the organisation; Riversuites offer added on 30 October 2026.
 // These are received offers, not a declaration of official hotel status.
 // Keep private speaker rates and negotiation notes out of this public dataset.
 const confirmBreakfast = { pt: 'A confirmar com o hotel.', en: 'Confirm with the hotel.' };
@@ -19,6 +19,20 @@ export const hotels2027 = [
     breakfast: { pt: 'Incluído.', en: 'Included.' },
     tax: { pt: '2,00 € por pessoa e por noite, em vigor desde 1 de outubro de 2026, segundo informação do hotel.', en: '€2.00 per person, per night, effective from 1 October 2026, as confirmed by the hotel.' },
     conditions: { pt: 'Confirme a disponibilidade, o prazo de reserva e as condições de cancelamento diretamente com o hotel.', en: 'Confirm availability, the booking deadline and cancellation terms directly with the hotel.' },
+  },
+  {
+    id: 'riversuites', name: 'Riversuites — Alojamento Local', zone: 'Santa Clara · 300 m do Convento São Francisco',
+    image: { src: '/hotels/riversuites.webp', width: 1200, height: 800, alt: { pt: 'Vista sobre Coimbra a partir do Riversuites, imagem do site oficial', en: 'View over Coimbra from Riversuites, image from the official website' } },
+    website: 'https://www.riversuites.pt/', email: 'geral@riversuites.pt', phone: '+351 239 440 582', bookingType: 'email',
+    promoCode: 'CIRC 2027',
+    benefit: { pt: '73 € / 81 €', en: '€73 / €81' },
+    benefitLabel: { pt: 'Individual / duplo ou twin Basic · por quarto e por noite', en: 'Single / double or twin Basic · per room, per night' },
+    description: { pt: 'Proposta recebida — condições finais a confirmar. Tarifas com pequeno-almoço incluído.', en: 'Offer received — final terms to be confirmed. Rates include breakfast.' },
+    booking: { pt: 'Reserve por email ou telefone e indique o código CIRC 2027. Contacto: Diana Alves — Receção. Telefone alternativo: +351 915 843 782.', en: 'Book by email or telephone and quote code CIRC 2027. Contact: Diana Alves — Reception. Alternative telephone: +351 915 843 782.' },
+    dates: { pt: '8, 9 e 10 de abril de 2027.', en: '8, 9 and 10 April 2027.' },
+    breakfast: { pt: 'Incluído nas duas tarifas.', en: 'Included in both rates.' },
+    tax: { pt: '2,00 € por pessoa e por noite, segundo a proposta recebida.', en: '€2.00 per person, per night, according to the received offer.' },
+    conditions: { pt: 'Pagamento no check-in ou por transferência bancária. Cancelamento gratuito até 2 dias antes da chegada. Sem bloqueio de quartos; reservas sujeitas à disponibilidade e à confirmação final do alojamento.', en: 'Payment at check-in or by bank transfer. Free cancellation up to 2 days before arrival. No rooms are held; bookings are subject to availability and final confirmation by the property.' },
   },
   {
     id: 'hotel-astoria', name: 'Hotel Astória', zone: 'Baixa · Rio Mondego',
