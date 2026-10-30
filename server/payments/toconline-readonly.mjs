@@ -381,6 +381,27 @@ function safeError(error) {
   return json({ error: code }, status);
 }
 
+// Only fixed categories may reach the browser; never forward exception text,
+// provider responses, authorization codes, tokens or account credentials.
+function callbackFailureReason(error, stage) {
+  const reasons = new Map([
+    ['toconline-invalid-state', 'state'],
+    ['toconline-oauth-code-missing', 'code'],
+    ['toconline-oauth-unauthorized', 'credentials'],
+    ['toconline-oauth-rejected', 'provider'],
+    ['toconline-oauth-unavailable', 'network'],
+    ['toconline-oauth-invalid-response', 'provider-response'],
+    ['payments_service_identity_unavailable', 'firebase-identity'],
+    ['payments_storage_forbidden', 'firebase-permissions'],
+    ['payments_storage_unavailable', 'firebase-storage'],
+    ...['toconline-not-configured', 'toconline-oauth-url-invalid', 'toconline-api-url-invalid',
+      'toconline-redirect-url-invalid', 'toconline-session-key-missing']
+      .map(code => [code, 'configuration']),
+  ]);
+  return reasons.get(error?.code) || reasons.get(error?.message)
+    || (stage === 'server-session' ? 'server-session' : 'authorization');
+}
+
 export function createToconlineReadonlyApi({ verify, now = () => Date.now(), serverSessionStore = createToconlineServerSessionStore() }) {
   return async function handle(request, env) {
     const url = new URL(request.url);
@@ -388,6 +409,7 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
 
     if (url.pathname === `${PREFIX}/callback`) {
       if (request.method !== 'GET') return json({ error: 'method-not-allowed' }, 405);
+      let stage = 'authorization';
       try {
         const cfg = configuration(env);
         if (!cfg.configured) fail('toconline-not-configured');
@@ -406,13 +428,18 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
           refreshExpiresAt: current + SESSION_TTL_SECONDS * 1000,
           tokenType: data.token_type || 'Bearer',
         };
-        if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) await serverSessionStore.save(env, { ...session, refreshExpiresAt: Number.MAX_SAFE_INTEGER });
+        if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) {
+          stage = 'server-session';
+          await serverSessionStore.save(env, { ...session, refreshExpiresAt: Number.MAX_SAFE_INTEGER });
+        }
+        stage = 'authorization';
         return redirect('/admin/recibos-teste?toconline=connected', [
           cookie(TOKEN_COOKIE, encryptSession(session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }),
           clearCookie(STATE_COOKIE, 'Lax'),
         ]);
-      } catch {
-        return redirect('/admin/recibos-teste?toconline=error', [clearCookie(STATE_COOKIE, 'Lax')]);
+      } catch (error) {
+        const reason = callbackFailureReason(error, stage);
+        return redirect(`/admin/recibos-teste?toconline=error&toconline_reason=${reason}`, [clearCookie(STATE_COOKIE, 'Lax')]);
       }
     }
 

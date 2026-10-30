@@ -64,11 +64,34 @@ const tocMissingNames = {
   redirectUrl: 'TOCONLINE_REDIRECT_URL',
 };
 
+const connectionFailures = {
+  state: ['A confirmação de segurança da autorização expirou ou não corresponde a este navegador. Inicie novamente a autorização neste separador.', 'The authorization security check expired or does not match this browser. Start authorization again in this tab.'],
+  code: ['O TOConline não devolveu o código de autorização. Tente autorizar novamente a ligação.', 'TOConline did not return an authorization code. Try authorizing the connection again.'],
+  credentials: ['O TOConline recusou as credenciais da integração. É necessário verificar a configuração OAuth no servidor.', 'TOConline rejected the integration credentials. The server OAuth configuration needs to be checked.'],
+  provider: ['O TOConline recusou a troca do código de autorização. É necessário verificar a configuração OAuth e o endereço de retorno.', 'TOConline rejected the authorization code exchange. Check the OAuth configuration and callback address.'],
+  network: ['Não foi possível contactar o serviço de autorização do TOConline. Tente novamente.', 'The TOConline authorization service could not be reached. Try again.'],
+  'provider-response': ['O TOConline devolveu uma resposta de autorização incompleta ou inválida. A ligação não foi concluída.', 'TOConline returned an incomplete or invalid authorization response. The connection was not completed.'],
+  'firebase-identity': ['Não foi possível autenticar a conta de serviço Google Cloud. É necessário verificar o segredo FIREBASE_PAYMENTS_SERVICE_ACCOUNT no Cloudflare.', 'The Google Cloud service account could not be authenticated. Check the FIREBASE_PAYMENTS_SERVICE_ACCOUNT secret in Cloudflare.'],
+  'firebase-permissions': ['O Firestore recusou a gravação da sessão segura. É necessário verificar o papel atribuído à conta de serviço de pagamentos no Google Cloud.', 'Firestore refused to save the secure session. Check the role assigned to the payments service account in Google Cloud.'],
+  'firebase-storage': ['Não foi possível guardar a sessão segura no Firestore. É necessário verificar a disponibilidade e a configuração do armazenamento.', 'The secure session could not be saved in Firestore. Check storage availability and configuration.'],
+  'server-session': ['Não foi possível guardar a sessão segura no servidor. A ligação não foi concluída.', 'The secure session could not be saved on the server. The connection was not completed.'],
+  configuration: ['A configuração da ligação TOConline no servidor está incompleta ou inválida.', 'The server TOConline connection configuration is incomplete or invalid.'],
+  authorization: ['Não foi possível concluir a autorização TOConline. Tente novamente para obter o diagnóstico atualizado.', 'TOConline authorization could not be completed. Try again to obtain an updated diagnosis.'],
+};
+
 export default function ToconlineReceiptTestPage() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const en = language === 'en';
   const t = (pt, english) => en ? english : pt;
+  const callbackError = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('toconline') !== 'error') return '';
+    const reason = params.get('toconline_reason');
+    const text = Object.prototype.hasOwnProperty.call(connectionFailures, reason)
+      ? connectionFailures[reason] : connectionFailures.authorization;
+    return text[en ? 1 : 0];
+  }, [en]);
   const [config, setConfig] = useState(null);
   const [tocConfig, setTocConfig] = useState(null);
   const [tocResources, setTocResources] = useState(null);
@@ -239,6 +262,7 @@ export default function ToconlineReceiptTestPage() {
 
     <section className="sandbox-checkout__panel">
       <h2>{t('Ligação TOConline — apenas leitura', 'TOConline connection — read only')}</h2>
+      {callbackError && !tocConfig?.connected && <p className="sandbox-checkout__error" role="alert">{callbackError}</p>}
       <p>{t('O TOConline disponibiliza apenas o scope OAuth «commercial». Neste módulo o servidor CIRC restringe a utilização a uma lista fechada de pedidos GET: séries FR, serviços, taxas, motivos de isenção, contas bancárias, unidades e moeda. Não existe qualquer rota de escrita para o TOConline.', 'TOConline only provides the “commercial” OAuth scope. In this module the CIRC server restricts usage to a fixed list of GET requests: FR series, services, taxes, exemption reasons, bank accounts, units and currency. No TOConline write route is exposed.')}</p>
       {tocConfig && !tocConfig.configured && <>
         <p><strong>{t('Falta configurar as credenciais no Worker da Cloudflare.', 'Cloudflare Worker credentials still need to be configured.')}</strong></p>

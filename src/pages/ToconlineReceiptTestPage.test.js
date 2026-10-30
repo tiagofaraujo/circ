@@ -34,6 +34,7 @@ function json(data, ok = true, status = ok ? 200 : 400) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  window.history.replaceState(null, '', '/admin/recibos-teste');
   Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: jest.fn(() => '58a12222-b856-41c9-a519-e2cc97bb3b69') } });
   let state = { id: SID, registrationConfirmed: true, orders: [baseOrder] };
   global.fetch = jest.fn((url, options = {}) => {
@@ -57,7 +58,33 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => { delete global.fetch; });
+afterEach(() => {
+  delete global.fetch;
+  window.history.replaceState(null, '', '/admin/recibos-teste');
+});
+
+test.each([
+  ['firebase-identity', /Não foi possível autenticar a conta de serviço Google Cloud/],
+  ['firebase-permissions', /O Firestore recusou a gravação da sessão segura/],
+  ['state', /A confirmação de segurança da autorização expirou/],
+  ['__proto__', /Não foi possível concluir a autorização TOConline/],
+  ['PRIVATE-KEY-secret', /Não foi possível concluir a autorização TOConline/],
+])('shows an actionable callback failure for %s without rendering unknown URL details', async (reason, expected) => {
+  window.history.replaceState(null, '', `/admin/recibos-teste?toconline=error&toconline_reason=${reason}`);
+  render(<ToconlineReceiptTestPage />);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent(expected);
+  expect(alert).not.toHaveTextContent(/PRIVATE-KEY|__proto__/);
+  await screen.findByRole('heading', { name: /Multibanco.*160,00/ });
+  expect(fetch.mock.calls.every(([url]) => !String(url).endsWith('/issue'))).toBe(true);
+});
+
+test('legacy callback error URLs show a retry message', async () => {
+  window.history.replaceState(null, '', '/admin/recibos-teste?toconline=error');
+  render(<ToconlineReceiptTestPage />);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/Tente novamente para obter o diagnóstico atualizado/);
+  await screen.findByRole('heading', { name: /Multibanco.*160,00/ });
+});
 
 test('loads confirmed test payments and clearly states that TOConline writes are blocked', async () => {
   render(<ToconlineReceiptTestPage />);

@@ -19,7 +19,8 @@ function cookieValue(header, name) {
   return match?.[1] || '';
 }
 
-function fixture() {
+function fixture({ serverSessionStore, envOverrides = {} } = {}) {
+  const runtimeEnv = { ...env, ...envOverrides };
   let clock = Date.parse('2026-10-17T10:00:00Z');
   let identity = claims;
   const calls = [];
@@ -57,7 +58,7 @@ function fixture() {
     throw new Error(`unexpected fetch ${href}`);
   };
 
-  const api = createToconlineReadonlyApi({ verify: async () => identity, now: () => clock });
+  const api = createToconlineReadonlyApi({ verify: async () => identity, now: () => clock, serverSessionStore });
   const request = (path, { method = 'GET', cookie = '', origin = 'https://circ.local' } = {}) => new Request(`https://circ.local/api/fiscal/toconline/${path}`, {
     method,
     headers: {
@@ -67,8 +68,8 @@ function fixture() {
     },
   });
   return {
-    call: (path, options) => api(request(path, options), env),
-    raw: req => api(req, env),
+    call: (path, options) => api(request(path, options), runtimeEnv),
+    raw: req => api(req, runtimeEnv),
     calls,
     advance: ms => { clock += ms; },
     setIdentity: value => { identity = value; },
@@ -178,8 +179,49 @@ test('invalid callback state never exchanges a token', async t => {
     redirect: 'manual',
   }));
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get('location'), '/admin/recibos-teste?toconline=error');
+  assert.equal(response.headers.get('location'), '/admin/recibos-teste?toconline=error&toconline_reason=state');
   assert.equal(f.calls.length, 0);
+});
+
+for (const [message, reason] of [
+  ['payments_service_identity_unavailable', 'firebase-identity'],
+  ['payments_storage_forbidden', 'firebase-permissions'],
+  ['payments_storage_unavailable', 'firebase-storage'],
+  ['PRIVATE-KEY secret refresh-one unexpected provider detail', 'server-session'],
+]) {
+  test(`callback reports safe category ${reason} when server session storage fails`, async t => {
+    const f = fixture({
+      envOverrides: { FIREBASE_PAYMENTS_SERVICE_ACCOUNT: 'private-account-json' },
+      serverSessionStore: { save: async () => { throw new Error(message); } },
+    });
+    t.after(f.restore);
+    const start = await f.call('authorize', { method: 'POST' });
+    const { authorizationUrl } = await start.json();
+    const state = new URL(authorizationUrl).searchParams.get('state');
+    const stateCookie = cookieValue(start.headers.get('set-cookie'), '__Host-circ_toc_state');
+    const response = await f.raw(new Request(`https://circ.local/api/fiscal/toconline/callback?code=auth-code&state=${encodeURIComponent(state)}`, {
+      headers: { Cookie: `__Host-circ_toc_state=${stateCookie}` },
+    }));
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), `/admin/recibos-teste?toconline=error&toconline_reason=${reason}`);
+    assert.equal(cookieValue(response.headers.get('set-cookie'), '__Host-circ_toc_session'), '');
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.doesNotMatch([...response.headers].join(' '), /auth-code|refresh-one|access-one|PRIVATE-KEY|private-account-json/);
+    assert.equal(f.calls.length, 1);
+    assert.ok(f.calls[0].href.endsWith('/token'));
+  });
+}
+
+test('successful callback still stores the backend session before setting the browser session', async t => {
+  let saved;
+  const f = fixture({
+    envOverrides: { FIREBASE_PAYMENTS_SERVICE_ACCOUNT: 'private-account-json' },
+    serverSessionStore: { save: async (_env, session) => { saved = session; } },
+  });
+  t.after(f.restore);
+  await authorizeAndCallback(f);
+  assert.equal(saved.accessToken, 'access-one');
+  assert.equal(saved.refreshToken, 'refresh-one');
 });
 
 test('disconnect only clears the browser OAuth session', async t => {
