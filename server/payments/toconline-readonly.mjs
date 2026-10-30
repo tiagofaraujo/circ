@@ -392,6 +392,15 @@ function callbackFailureReason(error, stage) {
     ['toconline-oauth-unavailable', 'network'],
     ['toconline-oauth-invalid-response', 'provider-response'],
     ['payments_service_identity_unavailable', 'firebase-identity'],
+    ['payments_service_identity_json_invalid', 'firebase-json'],
+    ['payments_service_identity_account_invalid', 'firebase-account'],
+    ['payments_service_identity_key_invalid', 'firebase-key'],
+    ['payments_service_identity_signing_failed', 'firebase-signing'],
+    ['payments_service_identity_network_failed', 'firebase-network'],
+    ['payments_service_identity_signature_rejected', 'firebase-signature'],
+    ['payments_service_identity_clock_rejected', 'firebase-clock'],
+    ['payments_service_identity_token_rejected', 'firebase-token'],
+    ['payments_service_identity_response_invalid', 'firebase-response'],
     ['payments_storage_forbidden', 'firebase-permissions'],
     ['payments_storage_unavailable', 'firebase-storage'],
     ...['toconline-not-configured', 'toconline-oauth-url-invalid', 'toconline-api-url-invalid',
@@ -454,8 +463,11 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
       if (url.pathname === `${PREFIX}/config`) {
         if (request.method !== 'GET') return json({ error: 'method-not-allowed' }, 405);
         let backgroundSession = null;
+        let setupError = null;
         if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) {
-          try { backgroundSession = await serverSessionStore.load(env); } catch { backgroundSession = null; }
+          try { backgroundSession = await serverSessionStore.load(env); } catch (error) {
+            setupError = callbackFailureReason(error, 'server-session');
+          }
         }
         return json({
           provider: 'toconline',
@@ -469,6 +481,7 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
           mode: 'read-only',
           commercialWritesEnabled: false,
           backgroundAutomation: {
+            setupError,
             serviceIdentityConfigured: Boolean(env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT),
             sessionStored: Boolean(backgroundSession?.session?.refreshExpiresAt > now()),
             sessionExpiresAt: backgroundSession?.session?.refreshExpiresAt || null,

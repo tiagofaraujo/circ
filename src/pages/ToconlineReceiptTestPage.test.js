@@ -65,7 +65,7 @@ afterEach(() => {
 
 test.each([
   ['firebase-identity', /Não foi possível autenticar a conta de serviço Google Cloud/],
-  ['firebase-permissions', /O Firestore recusou a gravação da sessão segura/],
+  ['firebase-permissions', /O Firestore recusou o acesso à sessão segura/],
   ['state', /A confirmação de segurança da autorização expirou/],
   ['__proto__', /Não foi possível concluir a autorização TOConline/],
   ['PRIVATE-KEY-secret', /Não foi possível concluir a autorização TOConline/],
@@ -84,6 +84,18 @@ test('legacy callback error URLs show a retry message', async () => {
   render(<ToconlineReceiptTestPage />);
   expect(await screen.findByRole('alert')).toHaveTextContent(/Tente novamente para obter o diagnóstico atualizado/);
   await screen.findByRole('heading', { name: /Multibanco.*160,00/ });
+});
+
+test('fresh setup diagnosis takes precedence over a stale generic callback URL without re-authorizing', async () => {
+  window.history.replaceState(null, '', '/admin/recibos-teste?toconline=error&toconline_reason=firebase-identity');
+  const original = global.fetch;
+  global.fetch = jest.fn((url, options) => url === '/api/fiscal/toconline/config'
+    ? json({ configured: true, connected: false, backgroundAutomation: { setupError: 'firebase-key', serviceIdentityConfigured: true, sessionStored: false } })
+    : original(url, options));
+  render(<ToconlineReceiptTestPage />);
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Não foi possível ler a chave privada/));
+  expect(screen.getByRole('button', { name: 'Autorizar TOConline em modo só de leitura' })).toBeEnabled();
+  expect(fetch.mock.calls.every(([url]) => !String(url).endsWith('/authorize') && !String(url).endsWith('/issue'))).toBe(true);
 });
 
 test('loads confirmed test payments and clearly states that TOConline writes are blocked', async () => {

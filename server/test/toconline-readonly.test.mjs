@@ -116,6 +116,29 @@ test('config reports safe setup state without exposing credentials', async t => 
   assert.ok(!JSON.stringify(data).includes(env.TOCONLINE_OAUTH_CLIENT_SECRET));
 });
 
+for (const [code, reason] of [
+  ['payments_service_identity_json_invalid', 'firebase-json'],
+  ['payments_service_identity_key_invalid', 'firebase-key'],
+  ['payments_service_identity_token_rejected', 'firebase-token'],
+  ['private-error-detail', 'server-session'],
+]) {
+  test(`config reports ${reason} without requiring a new TOConline authorization`, async t => {
+    const f = fixture({
+      envOverrides: { FIREBASE_PAYMENTS_SERVICE_ACCOUNT: 'private-account-json' },
+      serverSessionStore: { load: async () => { throw Object.assign(new Error('private-error-detail'), { code }); } },
+    });
+    t.after(f.restore);
+    const response = await f.call('config');
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.connected, false);
+    assert.equal(data.backgroundAutomation.setupError, reason);
+    assert.equal(data.backgroundAutomation.sessionStored, false);
+    assert.doesNotMatch(JSON.stringify(data), /private-error-detail|private-account-json|refresh-one|access-one/);
+    assert.equal(f.calls.length, 0);
+  });
+}
+
 test('authorization is admin-only, same-origin and uses signed state', async t => {
   const f = fixture(); t.after(f.restore);
   f.setIdentity({ ...claims, email: 'participant@example.test' });

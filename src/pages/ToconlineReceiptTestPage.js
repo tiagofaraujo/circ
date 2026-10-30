@@ -72,8 +72,17 @@ const connectionFailures = {
   network: ['Não foi possível contactar o serviço de autorização do TOConline. Tente novamente.', 'The TOConline authorization service could not be reached. Try again.'],
   'provider-response': ['O TOConline devolveu uma resposta de autorização incompleta ou inválida. A ligação não foi concluída.', 'TOConline returned an incomplete or invalid authorization response. The connection was not completed.'],
   'firebase-identity': ['Não foi possível autenticar a conta de serviço Google Cloud. É necessário verificar o segredo FIREBASE_PAYMENTS_SERVICE_ACCOUNT no Cloudflare.', 'The Google Cloud service account could not be authenticated. Check the FIREBASE_PAYMENTS_SERVICE_ACCOUNT secret in Cloudflare.'],
-  'firebase-permissions': ['O Firestore recusou a gravação da sessão segura. É necessário verificar o papel atribuído à conta de serviço de pagamentos no Google Cloud.', 'Firestore refused to save the secure session. Check the role assigned to the payments service account in Google Cloud.'],
-  'firebase-storage': ['Não foi possível guardar a sessão segura no Firestore. É necessário verificar a disponibilidade e a configuração do armazenamento.', 'The secure session could not be saved in Firestore. Check storage availability and configuration.'],
+  'firebase-json': ['O valor guardado em FIREBASE_PAYMENTS_SERVICE_ACCOUNT não é um JSON válido. É necessário colar o conteúdo completo do ficheiro no segredo Cloudflare.', 'The FIREBASE_PAYMENTS_SERVICE_ACCOUNT value is not valid JSON. Paste the complete file contents into the Cloudflare secret.'],
+  'firebase-account': ['O JSON guardado no Cloudflare não corresponde a uma conta de serviço do projeto Firebase configurado no servidor.', 'The JSON stored in Cloudflare does not match a service account for the server Firebase project.'],
+  'firebase-key': ['Não foi possível ler a chave privada do JSON guardado no Cloudflare. Verifique se o ficheiro foi copiado integralmente, sem alterar a formatação.', 'The private key in the JSON stored in Cloudflare could not be read. Check that the complete file was copied without changing its formatting.'],
+  'firebase-signing': ['O servidor não conseguiu assinar o pedido de autenticação Google Cloud. É necessário verificar a compatibilidade da chave com o servidor.', 'The server could not sign the Google Cloud authentication request. Key compatibility with the server needs to be checked.'],
+  'firebase-network': ['O servidor não conseguiu contactar o serviço de autenticação Google. Tente atualizar a página.', 'The server could not reach the Google authentication service. Try refreshing the page.'],
+  'firebase-signature': ['O Google recusou a assinatura da chave. É necessário verificar se a chave pertence à conta de serviço indicada e continua ativa.', 'Google rejected the key signature. Check that the key belongs to the specified service account and is still active.'],
+  'firebase-clock': ['O Google recusou a validade temporal do pedido de autenticação. É necessário verificar a hora e a duração do pedido no servidor.', 'Google rejected the authentication request time validity. Check the server clock and request lifetime.'],
+  'firebase-token': ['O Google recusou o pedido de autenticação da conta de serviço. É necessário verificar o estado da conta e da chave no Google Cloud.', 'Google rejected the service account authentication request. Check the account and key status in Google Cloud.'],
+  'firebase-response': ['A resposta do serviço de autenticação Google não tinha o formato esperado. A ligação não foi concluída.', 'The Google authentication response did not have the expected format. The connection was not completed.'],
+  'firebase-permissions': ['O Firestore recusou o acesso à sessão segura. É necessário verificar o papel atribuído à conta de serviço de pagamentos no Google Cloud.', 'Firestore refused access to the secure session. Check the role assigned to the payments service account in Google Cloud.'],
+  'firebase-storage': ['Não foi possível aceder à sessão segura no Firestore. É necessário verificar a disponibilidade e a configuração do armazenamento.', 'The secure session could not be accessed in Firestore. Check storage availability and configuration.'],
   'server-session': ['Não foi possível guardar a sessão segura no servidor. A ligação não foi concluída.', 'The secure session could not be saved on the server. The connection was not completed.'],
   configuration: ['A configuração da ligação TOConline no servidor está incompleta ou inválida.', 'The server TOConline connection configuration is incomplete or invalid.'],
   authorization: ['Não foi possível concluir a autorização TOConline. Tente novamente para obter o diagnóstico atualizado.', 'TOConline authorization could not be completed. Try again to obtain an updated diagnosis.'],
@@ -94,6 +103,11 @@ export default function ToconlineReceiptTestPage() {
   }, [en]);
   const [config, setConfig] = useState(null);
   const [tocConfig, setTocConfig] = useState(null);
+  const setupReason = tocConfig?.backgroundAutomation?.setupError;
+  const setupError = setupReason
+    ? (Object.prototype.hasOwnProperty.call(connectionFailures, setupReason)
+      ? connectionFailures[setupReason] : connectionFailures['server-session'])[en ? 1 : 0]
+    : '';
   const [tocResources, setTocResources] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState('');
@@ -262,7 +276,7 @@ export default function ToconlineReceiptTestPage() {
 
     <section className="sandbox-checkout__panel">
       <h2>{t('Ligação TOConline — apenas leitura', 'TOConline connection — read only')}</h2>
-      {callbackError && !tocConfig?.connected && <p className="sandbox-checkout__error" role="alert">{callbackError}</p>}
+      {(setupError || (callbackError && !tocConfig?.connected)) && <p className="sandbox-checkout__error" role="alert">{setupError || callbackError}</p>}
       <p>{t('O TOConline disponibiliza apenas o scope OAuth «commercial». Neste módulo o servidor CIRC restringe a utilização a uma lista fechada de pedidos GET: séries FR, serviços, taxas, motivos de isenção, contas bancárias, unidades e moeda. Não existe qualquer rota de escrita para o TOConline.', 'TOConline only provides the “commercial” OAuth scope. In this module the CIRC server restricts usage to a fixed list of GET requests: FR series, services, taxes, exemption reasons, bank accounts, units and currency. No TOConline write route is exposed.')}</p>
       {tocConfig && !tocConfig.configured && <>
         <p><strong>{t('Falta configurar as credenciais no Worker da Cloudflare.', 'Cloudflare Worker credentials still need to be configured.')}</strong></p>
