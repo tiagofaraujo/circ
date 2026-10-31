@@ -1,6 +1,10 @@
 # CIRC 2027 — ativação controlada de pagamentos reais e faturação automática
 
-Estado: **desativado por defeito**. O Worker exige `LIVE_CHECKOUT_ENABLED=true` para criar pagamentos reais.
+Estado: **ensaio privado temporário autorizado**. O Worker exige `LIVE_CHECKOUT_ENABLED=true` para criar pagamentos reais. A variável `LIVE_PILOT_UNTIL` fecha automaticamente a criação no prazo UTC definido em `wrangler.jsonc`.
+
+Enquanto `LIVE_PILOT_UNTIL` estiver definida, o checkout fica exclusivo da conta de administração, mesmo após a abertura pública. Apenas o cenário de 95 € é aceite; a tarifa continua a ser calculada no servidor, sem substituição do preço. Prazo inválido, vazio ou expirado bloqueia a criação. O diagnóstico apresenta o prazo em hora de Lisboa.
+
+O fecho da criação (por prazo ou `LIVE_CHECKOUT_ENABLED=false`) permite continuar a consultar pedidos próprios e a receber notificações de pagamentos já existentes. O webhook exige sempre HMAC válido, pedido de produção persistido, correspondência dos dados e reconciliação na EuPago antes de confirmar e tentar emitir a FR. Uma notificação não cria uma inscrição nem um pagamento novo.
 
 ## Primeira fase suportada
 
@@ -87,8 +91,7 @@ os pagamentos. Também permite recuperar o pedido sem uma nova pré-visualizaç�
 que poderia estar bloqueada pela inscrição entretanto criada. A leitura mantém
 a verificação de proprietário e exige um pagamento de produção.
 
-Este desenvolvimento não ativa o interruptor, não cria referências nem executa
-pagamentos. A primeira geração/utilização real exige autorização própria do ensaio.
+A ativação temporária deste ensaio e a geração de uma referência de 95 € foram autorizadas pelo administrador. A geração continua a exigir a ação explícita na conta autenticada. O pagamento é realizado pelo próprio utilizador.
 
 ## Sequência de ativação
 
@@ -98,7 +101,7 @@ pagamentos. A primeira geração/utilização real exige autorização própria 
 4. Entrar com `circ.chuc@gmail.com` em Recibos — teste e renovar uma vez a autorização TOConline. A sessão de backend fica cifrada em Firestore.
 5. Confirmar no diagnóstico que a automação no servidor indica sessão segura disponível.
 6. Configurar o webhook de produção na EuPago.
-7. Alterar `LIVE_CHECKOUT_ENABLED` para `true` apenas numa alteração revista e publicada.
+7. Após autorização, publicar `LIVE_CHECKOUT_ENABLED=true` com `LIVE_PILOT_UNTIL` em UTC e confirmar o prazo no diagnóstico. Este ensaio não autoriza a abertura pública nem a remoção do limite.
 8. Fazer o primeiro pagamento real controlado.
 9. Confirmar: pagamento `paid`, inscrição `confirmed`, documento fiscal `issued` e número/ID TOConline guardados.
 10. Só depois expandir para cursos, jantar, virtual e MB WAY.

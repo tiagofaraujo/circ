@@ -30,7 +30,8 @@
     "FIREBASE_PROJECT_ID": "circ-coimbra",
     "EUPAGO_LIVE_CHANNEL": "CIRC 2027",
     "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda",
-    "LIVE_CHECKOUT_ENABLED": "false",
+    "LIVE_CHECKOUT_ENABLED": "true",
+    "LIVE_PILOT_UNTIL": "2026-10-31T12:54:32Z",
     "TOCONLINE_REDIRECT_URL": "https://circ-coimbra.org/api/fiscal/toconline/callback"
   }
 }

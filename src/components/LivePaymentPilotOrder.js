@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const STAMP = /^[a-f0-9]{64}$/;
 const preWriteRejections = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed',
-  'profile-incomplete', 'pilot-not-configured', 'pilot-confirmation-required', 'live-checkout-not-configured', 'registration-not-open']);
+  'profile-incomplete', 'pilot-not-configured', 'pilot-confirmation-required', 'live-checkout-not-configured', 'registration-not-open', 'live-scope-not-enabled']);
 const paymentStates = {
   pending: ['A aguardar pagamento', 'Awaiting payment'], creating: ['Criação em processamento — não repetir', 'Creation in progress — do not repeat'],
   creation_unknown: ['Resultado da criação por confirmar — não repetir', 'Creation outcome unknown — do not repeat'],

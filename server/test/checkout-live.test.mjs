@@ -11,14 +11,14 @@ const claims={sub:'admin',email:'circ.chuc@gmail.com',email_verified:true};
 const selection={profile:'external',congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0};
 const profile={name:'Pessoa Teste',taxNumber:'203821432',billingAddress:'Rua Teste 1',billingPostalCode:'3030-471',billingCity:'Coimbra',billingCountry:'Portugal'};
 
-function fixture({identity=claims,date='2026-10-23T20:00:00Z'}={}){
+function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={}}={}){
   let registration=null,payment=null,providerCalls=0;
   const currentProfile=structuredClone(profile);
   const store={
     registrationId:`circ-2027-${identity.sub}`,
     registration:async()=>({data:registration,version:registration?'r2':null}),
     payment:async id=>({data:id===ID?payment:null,version:payment?'p2':null}),
-    context:async()=>({uid:identity.sub,emailVerified:true,guards:[]}),
+    context:async()=>({uid:identity.sub,emailVerified:true,guards:[],...context}),
     profile:async()=>({data:currentProfile,version:'u1'}),
     createPendingPrimary:async({registration:r,payment:p})=>{registration=structuredClone(r);payment=structuredClone(p);return{registrationVersion:'r1',paymentVersion:'p1'};},
     updatePendingProvider:async({registration:r,payment:p})=>{registration=structuredClone(r);payment=structuredClone(p);return{registrationVersion:'r2',paymentVersion:'p2'};},
@@ -34,7 +34,8 @@ function fixture({identity=claims,date='2026-10-23T20:00:00Z'}={}){
     headers:{Authorization:'Bearer user-token',Origin:'https://circ.local',...(body===undefined?{}:{'Content-Type':'application/json'})},
     ...(body===undefined?{}:{body:JSON.stringify(body)})});
   return{call:(path,body,configuration=env)=>api(req(path,body),configuration),
-    preview:async()=>await(await previewApi(req('/pilot-preview',{profile:'external'}),env)).json(),
+    preview:async(configuration=env,selected='external')=>await(await previewApi(req('/pilot-preview',{profile:selected}),configuration)).json(),
+    setDate:value=>{date=value;},
     profile:()=>currentProfile,providerCalls:()=>providerCalls,payment:()=>payment,registration:()=>registration};
 }
 
@@ -177,4 +178,50 @@ test('setup diagnosis requires an authenticated verified admin and does not enri
   const response=await api(new Request('https://circ.local/api/checkout/live/config',
     {headers:{Authorization:'Bearer token'}}),{...env,LIVE_CHECKOUT_ENABLED:'false'});
   assert.ok(!Object.hasOwn(await response.json(),'checks'));
+});
+
+const windowEnv={...env,LIVE_PILOT_UNTIL:'2026-11-16T13:00:00Z'};
+test('temporary pilot admits only the verified admin with acknowledgement, even after public opening',async()=>{
+  const participant=fixture({identity:{...claims,sub:'participant',email:'participant@example.test'},date:'2026-11-16T12:00:00Z'});
+  const config=await(await participant.call('/config',undefined,windowEnv)).json();
+  assert.equal(config.enabled,false); assert.equal(config.publicOpen,false); assert.equal(config.pilotAvailable,false);
+  assert.deepEqual(config.methods,[]);
+  assert.equal((await participant.call('/orders',pilotOrder({}),windowEnv)).status,503);
+  assert.equal(participant.registration(),null); assert.equal(participant.providerCalls(),0);
+  const admin=fixture({date:'2026-11-16T12:00:00Z'});
+  const q=await admin.preview(windowEnv);
+  assert.equal(q.creationEnabled,true);
+  assert.equal((await admin.call('/orders',{...pilotOrder(q),pilotAcknowledged:false},windowEnv)).status,403);
+  assert.equal((await admin.call('/orders',pilotOrder(q),windowEnv)).status,201);
+});
+
+test('pilot expiration and invalid deadlines block new work while owners retain order reads',async()=>{
+  const f=fixture({date:'2026-11-16T12:00:00Z'}); const q=await f.preview(windowEnv);
+  assert.equal((await f.call('/orders',pilotOrder(q),windowEnv)).status,201);
+  f.setDate(windowEnv.LIVE_PILOT_UNTIL);
+  assert.equal((await f.call('/orders',pilotOrder(q),windowEnv)).status,503);
+  const data=await(await f.call('/diagnostics',undefined,windowEnv)).json();
+  assert.equal(data.liveCheckoutEnabled,false); assert.equal(data.privatePilot,true); assert.equal(data.pilotUntil,windowEnv.LIVE_PILOT_UNTIL);
+  assert.equal((await f.call(`/orders/${ID}`,undefined,windowEnv)).status,200);
+  assert.equal(f.providerCalls(),1);
+  for(const deadline of ['',null,'tomorrow','2026-02-30T12:00:00Z']){
+    const blocked=fixture(); const invalid={...env,LIVE_PILOT_UNTIL:deadline};
+    const preview=await blocked.preview(invalid); assert.equal(preview.creationEnabled,false);
+    assert.equal((await blocked.call('/orders',pilotOrder(preview),invalid)).status,503);
+    assert.equal(blocked.providerCalls(),0); assert.equal(blocked.registration(),null);
+  }
+});
+
+test('temporary authorization cannot create references at other legitimate server prices',async()=>{
+  const deadline={...env,LIVE_PILOT_UNTIL:'2027-02-02T12:00:00Z'};
+  const cases=[{date:'2027-02-01T12:00:00Z',selected:'external',amount:15000},
+    {date:'2026-11-16T12:00:00Z',selected:'student',amount:6000,context:{profileName:'Pessoa Teste',
+      student:{userId:'admin',eventId:'circ-2027',academicYear:'2026/2027',status:'approved',profileName:'Pessoa Teste'}}}];
+  for(const {selected,amount,...options} of cases){
+    const f=fixture(options); const q=await f.preview(deadline,selected);
+    assert.equal(q.quote.amountCents,amount); assert.equal(q.creationEnabled,false);
+    const response=await f.call('/orders',{...pilotOrder(q),selection:{...selection,profile:selected}},deadline);
+    assert.equal(response.status,409); assert.equal((await response.json()).error,'live-scope-not-enabled');
+    assert.equal(f.providerCalls(),0); assert.equal(f.registration(),null);
+  }
 });

@@ -25,7 +25,7 @@ function signed(body){
   return new Request('https://circ.local/api/payments/live/notifications',{method:'POST',
     headers:{'Content-Type':'application/json','X-Signature':sig},body:text});
 }
-function fixture({fiscalError=null,initialPayment=null}={}){
+function fixture({fiscalError=null,initialPayment=null,notFound=false}={}){
   let payment=initialPayment||{eventId:'circ-2027',id:ID,environment:'production',registrationId:`circ-2027-${UID}`,userId:UID,status:'pending',
     amountCents:9500,currency:'EUR',method:'multibanco',identifier,reference:'123456789',entity:'12345',transactionId:null,paidAt:null,
     provider:'eupago',quote,billingSnapshot:billing,createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
@@ -46,13 +46,13 @@ function fixture({fiscalError=null,initialPayment=null}={}){
   };
   const handler=createLivePaymentWebhook({
     tokenProvider:async()=> 'service-token',
-    paymentLookup:async()=>({data:structuredClone(payment),version:payment.status==='paid'?'p2':'p1'}),
+    paymentLookup:async()=>({data:notFound?null:structuredClone(payment),version:payment.status==='paid'?'p2':'p1'}),
     storeFactory:()=>store,
     providerFactory:()=>({inspectReference:async()=>({providerState:'paga'})}),
     fiscalClient:{issueFinalizedSalesDocument:async()=>{issueCalls++;if(fiscalError)throw fiscalError;return{providerDocumentId:'321',providerDocumentNo:'FR CIRC2027/1'};}},
     now:()=> '2026-11-15T12:01:00Z',
   });
-  return{call:(body)=>handler(signed(body),env),state:()=>({payment,registration,document}),calls:()=>({issueCalls,confirmCalls,finalizeCalls})};
+  return{call:(body,configuration=env)=>handler(signed(body),configuration),raw:(request,configuration=env)=>handler(request,configuration),state:()=>({payment,registration,document}),calls:()=>({issueCalls,confirmCalls,finalizeCalls})};
 }
 
 test('signed PAID webhook confirms payment once and issues one FR',async()=>{
@@ -118,5 +118,25 @@ test('invalid calendar date is rejected before payment lookup or fiscal work',as
   const response=await f.call(payload({date:'2027-02-30T12:00:00Z'}));
   assert.equal(response.status,422);
   assert.deepEqual(await response.json(),{error:'invalid_event'});
+  assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+});
+
+test('closing or expiring reference creation still confirms an existing paid order exactly once',async()=>{
+  for(const configuration of [{...env,LIVE_CHECKOUT_ENABLED:'false'}, {...env,LIVE_PILOT_UNTIL:'2026-10-31T13:00:00Z'}]){
+    const f=fixture();
+    assert.equal((await f.call(payload(),configuration)).status,200);
+    assert.equal(f.state().registration.status,'confirmed'); assert.equal(f.state().document.status,'issued');
+    assert.equal((await f.call(payload(),configuration)).status,200);
+    assert.deepEqual(f.calls(),{issueCalls:1,confirmCalls:1,finalizeCalls:1});
+  }
+});
+
+test('closed checkout webhook refuses unknown orders and invalid signatures without fiscal work',async()=>{
+  const disabled={...env,LIVE_CHECKOUT_ENABLED:'false'};
+  const unknown=fixture({notFound:true});
+  assert.equal((await unknown.call(payload(),disabled)).status,404);
+  assert.deepEqual(unknown.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+  const f=fixture(); const request=signed(payload()); request.headers.set('X-Signature','invalid');
+  assert.equal((await f.raw(request,disabled)).status,401);
   assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
 });
