@@ -270,11 +270,11 @@ export default function ToconlineReceiptTestPage() {
       <h1>{t('Recibos e faturação — teste', 'Receipts and invoicing — test')}</h1></div></header>
 
     <section className="sandbox-checkout__notice">
-      <strong>{t('Simulação interna — não emite documentos fiscais', 'Internal simulation — no fiscal documents are issued')}</strong>
-      <p>{t('Este ensaio prepara os dados para Fatura-recibo de pagamentos de teste confirmados. A preparação e a simulação não chamam o TOConline, não comunicam à AT e não enviam emails. A ligação OAuth, separada, permite apenas consultar a configuração. A aceitação do documento pela API real ainda não foi testada.', 'This rehearsal prepares invoice-receipt data for confirmed test payments. Preparation and simulation do not call TOConline, communicate with the tax authority or send emails. The separate OAuth connection only reads configuration. Acceptance by the real API remains untested.')}</p>
+      <strong>{t('Simulações e ensaio privado', 'Simulations and private pilot')}</strong>
+      <p>{t('A simulação interna não emite documentos fiscais, não comunica à AT e não envia emails. A pré-visualização privada apenas consulta os dados. A criação de uma referência real exige ativação e confirmação próprias; após pagamento real confirmado, o servidor tentará emitir uma fatura-recibo definitiva no TOConline.', 'Internal simulation issues no fiscal documents, communicates nothing to the tax authority and sends no emails. The private preview only reads data. Creating a real reference requires separate activation and confirmation; after a confirmed real payment, the server will attempt to issue a final TOConline invoice-receipt.')}</p>
     </section>
 
-    {config && <p className="sandbox-checkout__muted"><strong>TOConline:</strong> {config.liveWritesEnabled ? t('escritas ativas', 'writes enabled') : t('escritas reais bloqueadas neste módulo', 'real writes blocked in this module')} · OAuth scope futuro: <code>{config.scopeRequired}</code></p>}
+    {config && <p className="sandbox-checkout__muted"><strong>Simulação TOConline:</strong> {config.liveWritesEnabled ? t('escritas ativas', 'writes enabled') : t('escritas reais bloqueadas nesta simulação', 'real writes blocked in this simulation')} · OAuth scope futuro: <code>{config.scopeRequired}</code></p>}
 
     <LivePaymentSetupDiagnostics user={user} en={en} />
     <LivePaymentPilotPreview user={user} en={en} />
@@ -282,7 +282,7 @@ export default function ToconlineReceiptTestPage() {
     <section className="sandbox-checkout__panel">
       <h2>{t('Ligação TOConline — apenas leitura', 'TOConline connection — read only')}</h2>
       {(setupError || (callbackError && !tocConfig?.connected)) && <p className="sandbox-checkout__error" role="alert">{setupError || callbackError}</p>}
-      <p>{t('O TOConline disponibiliza apenas o scope OAuth «commercial». Neste módulo o servidor CIRC restringe a utilização a uma lista fechada de pedidos GET: séries FR, serviços, taxas, motivos de isenção, contas bancárias, unidades e moeda. Não existe qualquer rota de escrita para o TOConline.', 'TOConline only provides the “commercial” OAuth scope. In this module the CIRC server restricts usage to a fixed list of GET requests: FR series, services, taxes, exemption reasons, bank accounts, units and currency. No TOConline write route is exposed.')}</p>
+      <p>{t('O TOConline disponibiliza apenas o scope OAuth «commercial». Neste módulo o servidor CIRC restringe a utilização a uma lista fechada de pedidos GET: séries FR, serviços, taxas, motivos de isenção, contas bancárias, unidades e moeda. Estas consultas não criam nem alteram documentos TOConline.', 'TOConline only provides the “commercial” OAuth scope. In this module the CIRC server restricts usage to a fixed list of GET requests: FR series, services, taxes, exemption reasons, bank accounts, units and currency. These queries do not create or change TOConline documents.')}</p>
       {tocConfig && !tocConfig.configured && <>
         <p><strong>{t('Falta configurar as credenciais no Worker da Cloudflare.', 'Cloudflare Worker credentials still need to be configured.')}</strong></p>
         <p>{t('No TOConline: Empresa → Configurações → Dados API. O endereço de retorno a registar é:', 'In TOConline: Company → Settings → API Data. Register this callback URL:')}</p>

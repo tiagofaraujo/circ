@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import LivePaymentPilotOrder from './LivePaymentPilotOrder';
 
 const errors = {
   'registration-exists-or-unchecked': ['Esta conta já tem uma inscrição, ou não foi possível confirmar a sua ausência. Não foi preparado outro pedido.', 'This account already has a registration, or its absence could not be confirmed. No additional order was prepared.'],
@@ -83,7 +84,8 @@ export default function LivePaymentPilotPreview({ user, en = false }) {
       <p>{t('Dados lidos do Perfil My CIRC apenas para esta consulta. Se estiverem incorretos, corrija o perfil e volte a pré-visualizar.',
         'Details were read from your My CIRC profile for this request only. If incorrect, update your profile and preview again.')}</p>
     </div>}
-    <p><strong>{t('Esta opção não cria referências Multibanco, não altera inscrições e não emite faturas-recibo. A criação do pagamento real continua bloqueada nesta preparação.',
-      'This option creates no Multibanco references, changes no registrations and issues no invoice-receipts. Creating a real payment remains blocked in this preparation.')}</strong></p>
+    <p><strong>{t('A pré-visualização não cria referências, não altera inscrições nem emite faturas-recibo. Só a ação «Gerar referência Multibanco real», após ativação e confirmação, pode criar o pedido.',
+      'Previewing creates no references, changes no registrations and issues no invoice-receipts. Only “Generate real Multibanco reference”, after activation and confirmation, can create the order.')}</strong></p>
+    <LivePaymentPilotOrder key={user.uid} user={user} preview={preview} en={en} />
   </section>;
 }

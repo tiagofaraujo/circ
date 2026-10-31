@@ -2,6 +2,7 @@ import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs
 import { createCheckoutLiveStore } from './checkout-live-store.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { quotePrimary } from './quote.mjs';
+import { liveDataStamp, isLivePilotConfigured } from './live-pilot-contract.mjs';
 
 const PATH = '/api/checkout/live/pilot-preview';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -52,7 +53,8 @@ export function createLivePilotPreviewApi({ verify,
       const name = typeof profile?.data?.name === 'string' ? profile.data.name.replace(/\s+/g, ' ').trim() : '';
       if (name.length < 5 || name.length > 200) return reply({ error: 'profile-incomplete' }, 409);
       return reply({ previewOnly: true, paymentCreated: false, fiscalDocumentIssued: false,
-        preparedAt, quote, billing: billing.customer });
+        preparedAt, quote, billing: billing.customer, stamp: liveDataStamp(quote),
+        billingStamp: liveDataStamp(billing.customer), creationEnabled: isLivePilotConfigured(env) });
     } catch (error) {
       const safe = new Set(['checkout/uls-not-verified', 'checkout/student-not-approved']);
       return reply({ error: safe.has(error?.message) ? error.message : 'preview-unavailable' }, safe.has(error?.message) ? 403 : 503);

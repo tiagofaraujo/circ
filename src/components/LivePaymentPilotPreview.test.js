@@ -7,7 +7,7 @@ const preview = { previewOnly: true, paymentCreated: false, fiscalDocumentIssued
   quote: { amountCents: 9500, currency: 'EUR' }, billing: { customer_business_name: 'Pessoa Ensaio',
     customer_tax_registration_number: '203821432', customer_address_detail: 'Rua Teste 1',
     customer_postcode: '3030-471', customer_city: 'Coimbra', customer_country: 'PT' } };
-beforeEach(() => { global.fetch = jest.fn(async () => ({ ok: true, json: async () => preview })); });
+beforeEach(() => { sessionStorage.clear(); global.fetch = jest.fn(async () => ({ ok: true, json: async () => preview })); });
 afterEach(() => { delete global.fetch; });
 
 test('only previews on explicit request and has no reference creation or fiscal action', async () => {
@@ -21,7 +21,7 @@ test('only previews on explicit request and has no reference creation or fiscal 
   const [url, options] = fetch.mock.calls[0];
   expect(url).toBe('/api/checkout/live/pilot-preview');
   expect(JSON.parse(options.body)).toEqual({ profile: 'external' });
-  expect(screen.getAllByRole('button')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Gerar referência Multibanco real' })).toBeDisabled();
 });
 
 test('profile changes clear old billing and quote; the backend can reject unverified eligibility', async () => {
