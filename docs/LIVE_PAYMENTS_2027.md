@@ -117,6 +117,16 @@ A ativação temporária deste ensaio e a geração de uma referência de 95 €
 9. Confirmar: pagamento `paid`, inscrição `confirmed`, documento fiscal `issued` e número/ID TOConline guardados.
 10. Só depois expandir para cursos, jantar, virtual e MB WAY.
 
+## Estados automáticos e exceções administrativas
+
+Na gestão de inscrições, os estados de pagamento e inscrição são de leitura. A confirmação validada do prestador grava `paid` e `confirmed` em conjunto; os antigos seletores e funções genéricas de alteração foram removidos. Registos históricos com pagamento pago e inscrição não confirmada são assinalados para conferência, sem alterar retroativamente dados.
+
+O menu de transferências continua **exclusivamente de testes**. A validação de um crédito simulado grava, no mesmo commit, o pedido confirmado, o pagamento de teste como pago e a inscrição de teste confirmada. A fila apresenta os estados sem exigir uma segunda alteração manual. Não confirma dinheiro nem inscrições reais.
+
+Na primeira modalidade real suportada (Multibanco, inscrição principal sem complementos), **Registar reembolso efetuado** regista uma devolução total concluída fora da plataforma. Exige motivo, referência, data e confirmação explícita. Uma transação relê o pedido original de produção e a inscrição, verifica titular, montante, moeda, referência e estado, e grava `refunded`, inscrição `cancelled` e auditoria em conjunto. Não cria um segundo `payments/{registrationId}`, não executa devoluções nem emite ou altera documentos fiscais. A regularização fiscal fica por conferir. Complementos, reembolsos parciais e outros meios exigem um fluxo próprio.
+
+Notificações duplicadas de um pagamento reembolsado são reconhecidas sem reativar a inscrição nem repetir a emissão fiscal.
+
 ## Proteções implementadas
 
 - Nenhuma criação live quando o interruptor está desligado.

@@ -13,7 +13,10 @@ test('recovery queries only the authenticated primary registration, reads at mos
   assert.deepEqual(await store.primaryPayment(),{id,data:{userId:'admin',environment:'production'},version:'version'});
   assert.equal(requests.length,1); assert.match(requests[0].url,/\/documents:runQuery$/);
   assert.deepEqual(JSON.parse(requests[0].options.body),{structuredQuery:{from:[{collectionId:'payments'}],
-    where:{fieldFilter:{field:{fieldPath:'registrationId'},op:'EQUAL',value:{stringValue:'circ-2027-admin'}}},limit:2}});
+    where:{compositeFilter:{op:'AND',filters:[
+      {fieldFilter:{field:{fieldPath:'registrationId'},op:'EQUAL',value:{stringValue:'circ-2027-admin'}}},
+      {fieldFilter:{field:{fieldPath:'environment'},op:'EQUAL',value:{stringValue:'production'}}},
+    ]}},limit:2}});
 });
 test('missing, multiple and malformed recovery documents cannot yield an arbitrary order',async()=>{
   for(const [rows,error] of [[[{readTime:'empty'}],null],[[{document},{document}],/order_recovery_ambiguous/],

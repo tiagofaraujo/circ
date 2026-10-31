@@ -140,3 +140,13 @@ test('closed checkout webhook refuses unknown orders and invalid signatures with
   assert.equal((await f.raw(request,disabled)).status,401);
   assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
 });
+
+test('a late duplicate paid callback cannot reactivate a refunded registration or issue another FR',async()=>{
+  const f=fixture({initialPayment:{eventId:'circ-2027',id:ID,environment:'production',registrationId:`circ-2027-${UID}`,userId:UID,status:'refunded',
+    amountCents:9500,currency:'EUR',method:'multibanco',identifier,reference:'123456789',entity:'12345',transactionId:'777',
+    paidAt:'2026-11-15T12:00:00Z',provider:'eupago',quote,billingSnapshot:billing,fiscalStatus:'issued'}});
+  const response=await f.call(payload());
+  assert.equal(response.status,200); assert.equal((await response.json()).duplicate,true);
+  assert.equal(f.state().payment.status,'refunded');
+  assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+});

@@ -25,6 +25,8 @@ function setup() {
     if (url.endsWith('/review')) {
       const payload = JSON.parse(options.body);
       s.orders[0].status = 'confirmed'; s.orders[0].bankTransfer.status = 'confirmed';
+      s.orders[0].payment = { status: 'paid', simulated: true };
+      s.registration = { status: 'confirmed', payment: { status: 'paid', simulated: true } };
       s.orders[0].bankTransfer.confirmation = { confirmedAt: '2026-10-10T11:00:00Z', creditReference: payload.creditReference };
       s.orders[0].bankTransfer.decisions.push({ id: OID, action: 'approve', at: '2026-10-10T11:00:00Z', actor: 'admin' });
     }
@@ -53,6 +55,8 @@ test('a direct test/order link opens the right review and updates queue after ap
   await waitFor(() => expect(approve).not.toBeDisabled());
   await act(async () => { fireEvent.click(approve); });
   await screen.findByText('Validação manual de teste registada');
+  expect(screen.getByText('Pagamento: Pago (teste)')).toBeInTheDocument();
+  expect(screen.getByText('Inscrição: Confirmada (teste)')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /C27T-SAMPLE/ })).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Mostrar'), { target: { value: 'confirmed' } });
   await screen.findByRole('button', { name: /C27T-SAMPLE/ });

@@ -148,10 +148,13 @@ export async function actOnBankTransfer({ store, saved, orderId, action, body, a
   if (await store.bankCreditExists(creditKey)) fail('transfer-credit-used');
   const registration = applyEntitlements(r, order, now);
   if (!registration) fail('review-required');
-  const next = { ...order, status: 'confirmed', bankTransfer: { ...transfer, status: 'confirmed',
+  const payment = { status: 'paid', simulated: true, amountCents: cents, currency: 'EUR', method: 'bank_transfer',
+    reference: creditReference, paidAt: now, bookingDate: date, confirmedBy: actor };
+  const next = { ...order, status: 'confirmed', payment, bankTransfer: { ...transfer, status: 'confirmed',
     confirmation: { simulated: true, confirmedBy: actor, confirmedAt: now, amountCents: cents, currency: 'EUR', creditReference, bookingDate: date, proofId: body.proofId },
     decisions: [...transfer.decisions, decision], updatedAt: now } };
   // Unique simulated bank entry, confirmation and test entitlements: one commit.
-  return store.confirmBankTransfer(r.id, { ...updatedRecord(r, next), registration }, saved.version,
+  const confirmedRegistration = order.quote.kind === 'primary' ? { ...registration, payment } : registration;
+  return store.confirmBankTransfer(r.id, { ...updatedRecord(r, next), registration: confirmedRegistration }, saved.version,
     { key: creditKey, owner: actor, sessionId: r.id, orderId, environment: 'sandbox', kind: 'bank-credit-test', recordedAt: now });
 }

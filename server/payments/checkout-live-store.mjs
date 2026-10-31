@@ -78,11 +78,14 @@ export function createCheckoutLiveStore({
     async registration() { return readDoc('registrations', registrationId); },
     async payment(id) { return readDoc('payments', id); },
     async primaryPayment() {
-      // One equality filter uses the existing single-field index. Two matches
-      // are ambiguous: never select an arbitrary reference from several orders.
+      // Ignore legacy administrative summaries without a production designation.
+      // Two production matches are ambiguous; never choose an arbitrary order.
       const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
         from: [{ collectionId: 'payments' }],
-        where: { fieldFilter: { field: { fieldPath: 'registrationId' }, op: 'EQUAL', value: { stringValue: registrationId } } },
+        where: { compositeFilter: { op: 'AND', filters: [
+          { fieldFilter: { field: { fieldPath: 'registrationId' }, op: 'EQUAL', value: { stringValue: registrationId } } },
+          { fieldFilter: { field: { fieldPath: 'environment' }, op: 'EQUAL', value: { stringValue: 'production' } } },
+        ] } },
         limit: 2,
       } });
       if (!Array.isArray(rows)) throw new LiveStoreError('storage_unavailable');
