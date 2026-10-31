@@ -98,6 +98,9 @@ O servidor lê a inscrição da própria conta e consulta os pagamentos pelo seu
 inscrição, valor, moeda, método e referência guardados. Vários pedidos ou divergências
 bloqueiam a recuperação. Esta consulta funciona após o fecho da criação e não chama
 a EuPago/TOConline nem altera dados.
+Como é uma leitura interativa, usa o token Firebase já verificado do administrador
+e as regras Firestore existentes, que já permitem esta leitura. Não requer
+`datastore.entities.list` na conta de serviço nem altera IAM ou regras de acesso.
 
 A ativação temporária deste ensaio e a geração de uma referência de 95 € foram autorizadas pelo administrador. A geração continua a exigir a ação explícita na conta autenticada. O pagamento é realizado pelo próprio utilizador.
 

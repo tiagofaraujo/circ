@@ -58,8 +58,10 @@ export function createCheckoutLiveApi({
     const recoveringOrder=request.method==='GET'&&url.pathname===`${PREFIX}/primary-order`;
     if(recoveringOrder&&!isAdmin)return reply({error:'admin-required'},403);
     if(!configured&&!readingOrder&&!recoveringOrder)return reply({error:'live-checkout-not-configured'},503);
-    let serviceToken;try{serviceToken=await tokenProvider(env);}catch{return reply({error:'payments-service-unavailable'},503);}
-    const store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:serviceToken});
+    // Recovery is an interactive admin read: use the already verified Firebase
+    // session and existing Firestore rules, without expanding service-account IAM.
+    let storeToken;try{storeToken=recoveringOrder?token:await tokenProvider(env);}catch{return reply({error:'payments-service-unavailable'},503);}
+    const store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:storeToken});
     try{
       if(recoveringOrder){
         const registration=(await store.registration())?.data;
