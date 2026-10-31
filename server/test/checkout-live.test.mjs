@@ -76,3 +76,46 @@ test('live checkout stays disabled unless explicit production flag and credentia
   assert.equal(config.enabled,false);
   assert.deepEqual(config.methods,[]);
 });
+
+test('admin setup diagnosis works with checkout disabled without contacting providers or storage',async()=>{
+  const values={...env,LIVE_CHECKOUT_ENABLED:'false',EUPAGO_LIVE_CHANNEL:'CIRC 2027',
+    EUPAGO_LIVE_API_KEY:'DO-NOT-EXPOSE-API',EUPAGO_LIVE_WEBHOOK_KEY:'DO-NOT-EXPOSE-HMAC',
+    FIREBASE_PAYMENTS_SERVICE_ACCOUNT:'DO-NOT-EXPOSE-JSON',TOCONLINE_OAUTH_CLIENT_SECRET:'DO-NOT-EXPOSE-OAUTH',
+    TOCONLINE_SESSION_KEY:'   '};
+  const api=createCheckoutLiveApi({verify:async()=>claims,
+    tokenProvider:()=>assert.fail('no service authentication'),storeFactory:()=>assert.fail('no storage'),
+    providerFactory:()=>assert.fail('no payment provider')});
+  const response=await api(new Request('https://circ.local/api/checkout/live/diagnostics',
+    {headers:{Authorization:'Bearer admin-token'}}),values);
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('Cache-Control'),/no-store/);
+  const data=await response.json();
+  assert.equal(data.liveCheckoutEnabled,false);
+  assert.equal(data.externalValidationPerformed,false);
+  assert.equal(data.channelMatchesExpected,true);
+  assert.equal(data.checks.EUPAGO_LIVE_API_KEY,true);
+  assert.equal(data.checks.EUPAGO_LIVE_WEBHOOK_KEY,true);
+  assert.equal(data.checks.TOCONLINE_OAUTH_CLIENT_ID,false);
+  assert.equal(data.checks.TOCONLINE_SESSION_KEY,false);
+  assert.ok(Object.values(data.checks).every(value=>typeof value==='boolean'));
+  assert.ok(!JSON.stringify(data).includes('DO-NOT-EXPOSE'));
+  const spaced=await(await api(new Request('https://circ.local/api/checkout/live/diagnostics',
+    {headers:{Authorization:'Bearer admin-token'}}),{...values,EUPAGO_LIVE_CHANNEL:'CIRC 2027 '})).json();
+  assert.equal(spaced.channelMatchesExpected,false);
+});
+
+test('setup diagnosis requires an authenticated verified admin and does not enrich public config',async()=>{
+  for(const [identity,status] of [[null,401],[{...claims,email_verified:false},403],
+    [{...claims,email:'participant@example.test'},403]]){
+    const api=createCheckoutLiveApi({verify:async()=>identity,
+      tokenProvider:()=>assert.fail('must not access service identity')});
+    const response=await api(new Request('https://circ.local/api/checkout/live/diagnostics',
+      {headers:identity?{Authorization:'Bearer token'}:{}}),env);
+    assert.equal(response.status,status);
+    assert.ok(!(await response.text()).includes('checks'));
+  }
+  const api=createCheckoutLiveApi({verify:async()=>({...claims,email:'participant@example.test'})});
+  const response=await api(new Request('https://circ.local/api/checkout/live/config',
+    {headers:{Authorization:'Bearer token'}}),{...env,LIVE_CHECKOUT_ENABLED:'false'});
+  assert.ok(!Object.hasOwn(await response.json(),'checks'));
+});
