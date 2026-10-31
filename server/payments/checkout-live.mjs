@@ -55,10 +55,30 @@ export function createCheckoutLiveApi({
     });
     const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
     const readingOrder=request.method==='GET'&&orderMatch&&LIVE_ORDER_UUID.test(orderMatch[1]);
-    if(!configured&&!readingOrder)return reply({error:'live-checkout-not-configured'},503);
+    const recoveringOrder=request.method==='GET'&&url.pathname===`${PREFIX}/primary-order`;
+    if(recoveringOrder&&!isAdmin)return reply({error:'admin-required'},403);
+    if(!configured&&!readingOrder&&!recoveringOrder)return reply({error:'live-checkout-not-configured'},503);
     let serviceToken;try{serviceToken=await tokenProvider(env);}catch{return reply({error:'payments-service-unavailable'},503);}
     const store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:serviceToken});
     try{
+      if(recoveringOrder){
+        const registration=(await store.registration())?.data;
+        if(!registration)return reply({error:'not-found'},404);
+        if(registration.userId!==claims.sub||registration.eventId!==EVENT||registration.primaryRegistration!==true
+          ||registration.isTest!==false||registration.testMode!==false)return reply({error:'order-recovery-mismatch'},409);
+        const located=await store.primaryPayment();
+        if(!located?.data)return reply({error:'not-found'},404);
+        const payment=located.data;
+        if(!LIVE_ORDER_UUID.test(located.id)||payment.id!==located.id||payment.userId!==claims.sub
+          ||payment.registrationId!==store.registrationId||payment.environment!=='production'||payment.provider!=='eupago'
+          ||payment.eventId!==EVENT||payment.method!=='multibanco'||payment.currency!=='EUR'
+          ||!Number.isSafeInteger(payment.amountCents)||payment.amountCents<=0
+          ||payment.amountCents!==registration.payment?.amountCents||payment.currency!==registration.payment?.currency
+          ||payment.method!==registration.payment?.method||(payment.reference||'')!==(registration.payment?.reference||'')){
+          return reply({error:'order-recovery-mismatch'},409);
+        }
+        return reply({order:publicOrder(located.id,payment)});
+      }
       if(readingOrder){
         const payment=await store.payment(orderMatch[1]);
         if(!payment.data||payment.data.userId!==claims.sub||payment.data.environment!=='production')return reply({error:'not-found'},404);

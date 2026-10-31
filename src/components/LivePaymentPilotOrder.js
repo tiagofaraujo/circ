@@ -51,8 +51,8 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
     });
     const data = await response.json();
     if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error });
-    const expectedId = body === undefined ? path.split('/').pop() : body.id;
-    if (!data.order || data.order.id !== expectedId || !Number.isSafeInteger(data.order.amountCents)
+    const expectedId = path === '/primary-order' ? null : body === undefined ? path.split('/').pop() : body.id;
+    if (!data.order || !UUID.test(data.order.id || '') || (expectedId && data.order.id !== expectedId) || !Number.isSafeInteger(data.order.amountCents)
       || data.order.amountCents <= 0 || data.order.currency !== 'EUR') throw new Error('invalid-response');
     return data.order;
   }
@@ -112,12 +112,36 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
     } finally { working.current = false; if (active.current) setBusy(false); }
   }
 
-  if (!preview && !id) return null;
+  async function recover() {
+    if (working.current || id) return;
+    working.current = true; setBusy(true); setError('');
+    const current = new AbortController(); controller.current = current;
+    try {
+      const token = await user.getIdToken();
+      if (!active.current) return;
+      const result = await request('/primary-order', undefined, token, current.signal);
+      if (!active.current) return;
+      try { sessionStorage.setItem(storageKey, result.id); } catch { /* The visible ID remains available for manual recovery. */ }
+      setId(result.id); setOrder(result);
+    } catch {
+      if (active.current) {
+        setNeedsPreview(true);
+        setError(t('Não foi possível recuperar um pedido de produção único desta inscrição. Nenhum pedido foi criado. A inscrição existente requer conferência pela organização.',
+          'Could not recover one unique production order for this registration. No order was created. The existing registration needs organizer review.'));
+      }
+    } finally { working.current = false; if (active.current) setBusy(false); }
+  }
+
   return <div className="sandbox-checkout__panel" aria-label={t('Referência do ensaio privado', 'Private pilot reference')} aria-busy={busy}>
-    <h3>{t('Gerar referência — pagamento real', 'Generate reference — real payment')}</h3>
-    {!enabled && <p><strong>{t('Criação bloqueada: os pagamentos reais estão desativados ou a configuração está incompleta. Não altere a ativação sem autorização para o ensaio.',
-      'Creation blocked: live payments are disabled or setup is incomplete. Do not enable payments without authorization for the pilot.')}</strong></p>}
+    <h3>{t('Referência Multibanco — ensaio privado', 'Multibanco reference — private pilot')}</h3>
     {!id && <>
+      <p>{t('Se já existe uma inscrição, pode consultar o pedido guardado no servidor, mesmo noutro navegador ou após o fecho do ensaio. Esta consulta não cria pagamentos nem emite documentos.',
+        'If a registration already exists, check its server order, including from another browser or after the pilot closes. This check creates no payments or documents.')}</p>
+      <button type="button" disabled={busy} onClick={recover}>{t('Consultar pedido existente', 'Check existing order')}</button>
+    </>}
+    {preview && !enabled && <p><strong>{t('Criação bloqueada: os pagamentos reais estão desativados ou a configuração está incompleta. Não altere a ativação sem autorização para o ensaio.',
+      'Creation blocked: live payments are disabled or setup is incomplete. Do not enable payments without authorization for the pilot.')}</strong></p>}
+    {!id && preview && <>
       <label className="check"><input type="checkbox" checked={approvedAccount} disabled={busy} onChange={event => setApprovedAccount(event.target.checked)} /> {t('Confirmo que a EuPago autorizou a conta a receber pagamentos.', 'I confirm that EuPago has approved this account to receive payments.')}</label>
       <label className="check"><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event => setAcknowledged(event.target.checked)} /> {t(
         `Conferi o valor de ${money(preview.quote.amountCents)} e os dados acima. Pretendo uma inscrição real, com fatura-recibo definitiva após confirmação do pagamento.`,

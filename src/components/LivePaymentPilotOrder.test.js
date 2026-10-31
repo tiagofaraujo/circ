@@ -107,3 +107,25 @@ test('English recovery shows a confirmed payment and fiscal status without any n
   expect(screen.getByText(/Fiscal document: Issued/)).toBeInTheDocument();
   expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
+
+test('an existing server order can be recovered with no preview and no browser identifier using GET only', async () => {
+  render(<LivePaymentPilotOrder user={user} preview={null} />);
+  expect(fetch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Consultar pedido existente' }));
+  expect(await screen.findByText('123456789')).toBeInTheDocument();
+  expect(screen.getByText('12345')).toBeInTheDocument();
+  expect(sessionStorage.getItem(key)).toBe(ID);
+  expect(fetch).toHaveBeenCalledWith('/api/checkout/live/primary-order', expect.objectContaining({ method: 'GET' }));
+  expect(window.confirm).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Gerar referência Multibanco real' })).not.toBeInTheDocument();
+});
+
+test('failed recovery reveals no private backend errors and cannot create a replacement order', async () => {
+  fetch.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'PRIVATE-ERROR' }) });
+  render(<LivePaymentPilotOrder user={user} preview={null} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Consultar pedido existente' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Nenhum pedido foi criado');
+  expect(screen.getByRole('alert')).not.toHaveTextContent('PRIVATE-ERROR');
+  expect(sessionStorage.getItem(key)).toBeNull();
+  expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});

@@ -18,6 +18,7 @@ function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={}}={}){
     registrationId:`circ-2027-${identity.sub}`,
     registration:async()=>({data:registration,version:registration?'r2':null}),
     payment:async id=>({data:id===ID?payment:null,version:payment?'p2':null}),
+    primaryPayment:async()=>payment?{id:ID,data:structuredClone(payment),version:'p2'}:null,
     context:async()=>({uid:identity.sub,emailVerified:true,guards:[],...context}),
     profile:async()=>({data:currentProfile,version:'u1'}),
     createPendingPrimary:async({registration:r,payment:p})=>{registration=structuredClone(r);payment=structuredClone(p);return{registrationVersion:'r1',paymentVersion:'p1'};},
@@ -70,6 +71,33 @@ test('same order UUID is idempotent and never creates a second provider referenc
 });
 
 const pilotOrder=q=>({id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,pilotConfirmation:'CRIAR REFERENCIA REAL',method:'multibanco',pilotAcknowledged:true});
+
+test('admin recovers the existing own production order without browser ID or enabled checkout',async()=>{
+  const f=fixture(); const q=await f.preview();
+  await f.call('/orders',pilotOrder(q));
+  const response=await f.call('/primary-order',undefined,{...env,LIVE_CHECKOUT_ENABLED:'false'});
+  assert.equal(response.status,200); assert.match(response.headers.get('Cache-Control'),/no-store/);
+  assert.deepEqual((await response.json()).order,{id:ID,status:'pending',amountCents:9500,currency:'EUR',method:'multibanco',
+    reference:'123456789',entity:'12345',paidAt:null,fiscalStatus:null});
+  assert.equal(f.providerCalls(),1);
+});
+
+test('recovery refuses other accounts, sandbox records, mismatched registrations and absent orders',async()=>{
+  const participant=fixture({identity:{...claims,email:'participant@example.test'}});
+  assert.equal((await participant.call('/primary-order',undefined,env)).status,403);
+  const absent=fixture(); assert.equal((await absent.call('/primary-order',undefined,env)).status,404);
+  assert.equal(absent.providerCalls(),0);
+  for(const [field,value] of [['userId','another-user'],['environment','sandbox'],['id','different-id'],
+    ['registrationId','another-registration'],['reference','999999999'],['amountCents',1]]){
+    const f=fixture(); const q=await f.preview(); await f.call('/orders',pilotOrder(q));
+    f.payment()[field]=value;
+    assert.equal((await f.call('/primary-order',undefined,env)).status,409);
+    assert.equal(f.providerCalls(),1);
+  }
+  const f=fixture(); const q=await f.preview(); await f.call('/orders',pilotOrder(q));
+  f.registration().isTest=true;
+  assert.equal((await f.call('/primary-order',undefined,env)).status,409);
+});
 
 test('billing changed after preview is rejected before reserving a registration or contacting EuPago',async()=>{
   const f=fixture(); const q=await f.preview();
