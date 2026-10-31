@@ -110,6 +110,9 @@ export default function SandboxBankTransferReviewPage() {
     </section>
     {selected && <section className="sandbox-checkout__panel"><h2>{t('Pedido selecionado', 'Selected request')} · {money(selected.amountCents)}</h2>
       <SandboxBankTransfer key={`${session.id}-${selected.id}`} sessionId={session.id} order={selected} en={en} api={api} run={run} busy={busy} onUpdate={update} view="organisation" />
+      {selected.status === 'confirmed' && selected.bankTransfer?.status === 'confirmed' && <p role="status"><strong>{t('Pagamento: Pago (teste)', 'Payment: Paid (test)')}</strong>
+        {session.registration?.status === 'confirmed' && <> · <strong>{t('Inscrição: Confirmada (teste)', 'Registration: Confirmed (test)')}</strong></>}
+        {' '}{t('Estados atualizados ao validar o crédito, sem uma segunda alteração manual.', 'Statuses update when the credit is approved, with no second manual change.')}</p>}
     </section>}
   </main>;
 }

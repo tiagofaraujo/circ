@@ -9,6 +9,7 @@ const paymentStates = {
   creation_unknown: ['Resultado da criação por confirmar — não repetir', 'Creation outcome unknown — do not repeat'],
   creation_failed: ['Criação recusada — requer revisão', 'Creation rejected — review required'],
   paid: ['Pagamento confirmado', 'Payment confirmed'], review_required: ['Requer revisão manual', 'Manual review required'],
+  refunded: ['Reembolsado', 'Refunded'], cancelled: ['Cancelado', 'Cancelled'],
 };
 const fiscalStates = {
   pending: ['Pendente', 'Pending'], issued: ['Emitido', 'Issued'], pending_authorization: ['Autorização TOConline necessária', 'TOConline authorization required'],

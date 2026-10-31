@@ -3,16 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
   paymentStatuses,
-  registrationStatuses,
   subscribeToRegistrationNotes,
   subscribeToRegistrations,
-  updatePaymentStatus,
   updateRegistrationNote,
-  updateRegistrationStatus,
   resetDesignatedParticipantRegistration,
 } from '../auth/adminStore';
 import { subscribeToUserStats } from '../auth/presenceStore';
 import AdminModuleNav from '../components/AdminModuleNav';
+import RegistrationRefund from '../components/RegistrationRefund';
 import '../admin.css';
 import '../adminOperations.css';
 
@@ -130,30 +128,6 @@ export default function AdminDashboardPage() {
     confirmed: registrations.filter((item) => item.status === 'confirmed').length,
   }), [registrations]);
 
-  const changePayment = async (registration, status) => {
-    setSavingId(`${registration.id}:payment`);
-    setError('');
-    try {
-      await updatePaymentStatus(user, registration, status);
-    } catch (updateError) {
-      setError('Não foi possível atualizar o pagamento. A alteração não foi guardada.');
-    } finally {
-      setSavingId('');
-    }
-  };
-
-  const changeRegistration = async (registration, status) => {
-    setSavingId(`${registration.id}:registration`);
-    setError('');
-    try {
-      await updateRegistrationStatus(user, registration, status);
-    } catch (updateError) {
-      setError('Não foi possível atualizar a inscrição. A alteração não foi guardada.');
-    } finally {
-      setSavingId('');
-    }
-  };
-
   const changeNoteDraft = (registrationId, value) => {
     setNoteDrafts((current) => ({ ...current, [registrationId]: value }));
   };
@@ -257,6 +231,7 @@ export default function AdminDashboardPage() {
           <button type="button" className="admin-export" onClick={() => exportRegistrations(visibleRegistrations, registrationNotes)} disabled={!visibleRegistrations.length}>Exportar CSV</button>
         </div>
 
+        <p className="admin-status-help">Os estados são atualizados pelo pagamento confirmado. Nas transferências, a validação do crédito confirma o pagamento e a inscrição. Os reembolsos já efetuados têm um registo administrativo próprio.</p>
         {error && <div className="admin-alert" role="alert">{error}</div>}
         {loading && <div className="admin-empty">A carregar inscrições…</div>}
         {!loading && !error && !visibleRegistrations.length && (
@@ -296,15 +271,17 @@ export default function AdminDashboardPage() {
                           ].filter(Boolean).join(' · ') || 'Sem complementos'}
                         </small>
                       )}
-                      <select value={item.status || 'draft'} onChange={(event) => changeRegistration(item, event.target.value)} disabled={savingId === `${item.id}:registration`} aria-label={`Estado da inscrição de ${item.participantName || item.participantEmail}`}>
-                        {registrationStatuses.map((status) => <option key={status} value={status}>{registrationLabels[status]}</option>)}
-                      </select>
+                      <span className={`admin-state admin-state--${item.status || 'draft'}`} aria-label={`Estado da inscrição de ${item.participantName || item.participantEmail}`}>
+                        {registrationLabels[item.status || 'draft'] || 'Requer conferência'}
+                      </span>
+                      {item.payment?.status === 'paid' && item.status !== 'confirmed' && <small>Estados por conferir — registo histórico</small>}
                     </td>
                     <td>
-                      <select className={`admin-status admin-status--${item.payment?.status || 'pending'}`} value={item.payment?.status || 'pending'} onChange={(event) => changePayment(item, event.target.value)} disabled={savingId === `${item.id}:payment`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>
-                        {paymentStatuses.map((status) => <option key={status} value={status}>{paymentLabels[status]}</option>)}
-                      </select>
+                      <span className={`admin-state admin-status--${item.payment?.status || 'pending'}`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>
+                        {paymentLabels[item.payment?.status || 'pending'] || 'Requer conferência'}
+                      </span>
                       <small>{item.payment?.method || 'Método não indicado'}</small>
+                      <RegistrationRefund user={user} registration={item} />
                     </td>
                     <td><strong>{formatMoney(item.payment?.amountCents, item.payment?.currency)}</strong><small>{item.payment?.reference || 'Sem referência'}</small></td>
                     <td><span>{formatDate(item.updatedAt || item.createdAt)}</span><small>{Number(item.documentCount || 0)} documento(s)</small></td>

@@ -83,6 +83,8 @@ test('manual validation records an explicit simulated credit, reviewer and entit
   const f = await start(); await f.upload(); const res = await f.review(); assert.equal(res.status, 200);
   assert.equal(f.order().status, 'confirmed'); assert.equal(f.order().bankTransfer.confirmation.confirmedBy, 'admin');
   assert.equal(f.order().bankTransfer.confirmation.confirmedAt, time); assert.equal(f.order().notification, null);
+  assert.equal(f.order().payment.status, 'paid'); assert.equal(f.order().payment.simulated, true);
+  assert.equal(f.record().registration.status, 'confirmed'); assert.equal(f.record().registration.payment.status, 'paid');
   assert.deepEqual(f.record().registration.entitlements, { congressMode: 'onsite', morningCourse: true, afternoonCourse: false, dinnerQuantity: 1 });
   const count = f.writes(); assert.equal((await f.review()).status, 200); assert.equal(f.writes(), count); assert.equal(f.credits.size, 1);
   const reload = await (await f.call(`sessions/${SID}`)).json(); assert.equal(reload.session.orders[0].bankTransfer.status, 'confirmed');

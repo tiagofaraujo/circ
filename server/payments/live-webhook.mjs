@@ -82,7 +82,7 @@ export function createLivePaymentWebhook({
       ||payment.amountCents!==event.amountCents||payment.currency!==event.currency
       ||(payment.reference&&payment.reference!==event.reference)||(payment.entity&&payment.entity!==event.entity)
       ||payment.userId==null||payment.registrationId!==`circ-2027-${payment.userId}`)return json({error:'payment_mismatch'},422);
-    if(payment.status==='paid'&&payment.transactionId===event.transactionId)return json({received:true,duplicate:true,fiscalStatus:payment.fiscalStatus||null});
+    if(['paid','refunded'].includes(payment.status)&&payment.transactionId===event.transactionId)return json({received:true,duplicate:true,fiscalStatus:payment.fiscalStatus||null});
     if(!['pending','creating','creation_unknown','review_required'].includes(payment.status))return json({error:'payment_state_conflict'},409);
     const store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:payment.userId,token:serviceToken});
     try{
