@@ -82,6 +82,23 @@ test('admin recovers the existing own production order without browser ID or ena
   assert.equal(f.providerCalls(),1);
 });
 
+test('interactive recovery uses the verified administrator session rather than service-account query permissions',async()=>{
+  const f=fixture(); const q=await f.preview(); await f.call('/orders',pilotOrder(q));
+  const api=createCheckoutLiveApi({verify:async()=>claims,
+    tokenProvider:()=>assert.fail('recovery must not request service credentials'),
+    providerFactory:()=>assert.fail('recovery must not contact a payment provider'),
+    storeFactory:({uid,token})=>{
+      assert.equal(uid,claims.sub); assert.equal(token,'admin-session');
+      return {registrationId:`circ-2027-${uid}`,registration:async()=>({data:f.registration()}),
+        primaryPayment:async()=>({id:ID,data:f.payment()})};
+    },
+  });
+  const response=await api(new Request('https://circ.local/api/checkout/live/primary-order',
+    {headers:{Authorization:'Bearer admin-session'}}),{...env,LIVE_CHECKOUT_ENABLED:'false'});
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).order.reference,'123456789');
+});
+
 test('recovery refuses other accounts, sandbox records, mismatched registrations and absent orders',async()=>{
   const participant=fixture({identity:{...claims,email:'participant@example.test'}});
   assert.equal((await participant.call('/primary-order',undefined,env)).status,403);
