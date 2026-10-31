@@ -77,6 +77,24 @@ export function createCheckoutLiveStore({
     async profile() { return readDoc('users', uid); },
     async registration() { return readDoc('registrations', registrationId); },
     async payment(id) { return readDoc('payments', id); },
+    async primaryPayment() {
+      // One equality filter uses the existing single-field index. Two matches
+      // are ambiguous: never select an arbitrary reference from several orders.
+      const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
+        from: [{ collectionId: 'payments' }],
+        where: { fieldFilter: { field: { fieldPath: 'registrationId' }, op: 'EQUAL', value: { stringValue: registrationId } } },
+        limit: 2,
+      } });
+      if (!Array.isArray(rows)) throw new LiveStoreError('storage_unavailable');
+      const documents = rows.filter(row => row.document).map(row => row.document);
+      if (documents.length > 1) throw new LiveStoreError('order_recovery_ambiguous');
+      if (!documents.length) return null;
+      const doc = documents[0];
+      const prefix = `${root}/payments/`;
+      const id = typeof doc.name === 'string' && doc.name.startsWith(prefix) ? doc.name.slice(prefix.length) : '';
+      if (!LIVE_ORDER_UUID.test(id)) throw new LiveStoreError('storage_invalid');
+      return { id, data: decode({ mapValue: { fields: doc.fields || {} } }), version: doc.updateTime };
+    },
     async context(profile) {
       const result = { uid, emailVerified: true, guards: [] };
       if (profile === 'student') {

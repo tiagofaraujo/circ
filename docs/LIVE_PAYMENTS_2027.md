@@ -91,6 +91,14 @@ os pagamentos. Também permite recuperar o pedido sem uma nova pré-visualizaç�
 que poderia estar bloqueada pela inscrição entretanto criada. A leitura mantém
 a verificação de proprietário e exige um pagamento de produção.
 
+Se o navegador não tiver o UUID, **Consultar pedido existente** usa apenas
+`GET /api/checkout/live/primary-order`, exclusivo do administrador verificado.
+O servidor lê a inscrição da própria conta e consulta os pagamentos pelo seu
+`registrationId`; só devolve um pedido único de produção que corresponda à conta,
+inscrição, valor, moeda, método e referência guardados. Vários pedidos ou divergências
+bloqueiam a recuperação. Esta consulta funciona após o fecho da criação e não chama
+a EuPago/TOConline nem altera dados.
+
 A ativação temporária deste ensaio e a geração de uma referência de 95 € foram autorizadas pelo administrador. A geração continua a exigir a ação explícita na conta autenticada. O pagamento é realizado pelo próprio utilizador.
 
 ## Sequência de ativação
