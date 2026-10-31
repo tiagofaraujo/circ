@@ -2,7 +2,7 @@ import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs
 import { createCheckoutLiveStore } from './checkout-live-store.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { quotePrimary } from './quote.mjs';
-import { liveDataStamp, isLivePilotConfigured } from './live-pilot-contract.mjs';
+import { liveDataStamp, isLivePilotConfigured, isPrivatePilotWindow } from './live-pilot-contract.mjs';
 
 const PATH = '/api/checkout/live/pilot-preview';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -54,7 +54,8 @@ export function createLivePilotPreviewApi({ verify,
       if (name.length < 5 || name.length > 200) return reply({ error: 'profile-incomplete' }, 409);
       return reply({ previewOnly: true, paymentCreated: false, fiscalDocumentIssued: false,
         preparedAt, quote, billing: billing.customer, stamp: liveDataStamp(quote),
-        billingStamp: liveDataStamp(billing.customer), creationEnabled: isLivePilotConfigured(env) });
+        billingStamp: liveDataStamp(billing.customer), creationEnabled: isLivePilotConfigured(env, Date.parse(preparedAt))
+          && (!isPrivatePilotWindow(env) || quote.amountCents === 9500) });
     } catch (error) {
       const safe = new Set(['checkout/uls-not-verified', 'checkout/student-not-approved']);
       return reply({ error: safe.has(error?.message) ? error.message : 'preview-unavailable' }, safe.has(error?.message) ? 403 : 503);

@@ -4,7 +4,7 @@ import { createEupagoLive } from './eupago-live.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { quotePrimary } from './quote.mjs';
 import { REGISTRATION_OPEN_DATE } from '../../src/data/registration2027.js';
-import { liveDataStamp as stamp, isLivePilotConfigured, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
+import { liveDataStamp as stamp, isLivePilotConfigured, isLiveCheckoutEnabled, isPrivatePilotWindow, livePilotDeadline, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
 
 const PREFIX = '/api/checkout/live';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -36,18 +36,21 @@ export function createCheckoutLiveApi({
     if(claims.email_verified!==true)return reply({error:'verified-email-required'},403);
     if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return reply({error:'invalid-origin'},403);
     const isAdmin=String(claims.email||'').toLowerCase()===ADMIN;
+    const privatePilot=isPrivatePilotWindow(env);
+    const creationEnabled=()=>isLiveCheckoutEnabled(env,Date.parse(now()));
     if(url.pathname===`${PREFIX}/diagnostics`&&request.method==='GET'){
       if(!isAdmin)return reply({error:'admin-required'},403);
       const required=['FIREBASE_PROJECT_ID','FIREBASE_PAYMENTS_SERVICE_ACCOUNT','EUPAGO_LIVE_API_KEY',
         'EUPAGO_LIVE_WEBHOOK_KEY','EUPAGO_LIVE_CHANNEL','TOCONLINE_OAUTH_CLIENT_ID',
         'TOCONLINE_OAUTH_CLIENT_SECRET','TOCONLINE_OAUTH_URL','TOCONLINE_API_URL','TOCONLINE_SESSION_KEY'];
-      return reply({environment:'production',liveCheckoutEnabled:env.LIVE_CHECKOUT_ENABLED==='true',
+      return reply({environment:'production',liveCheckoutEnabled:creationEnabled(),
+        privatePilot,pilotUntil:livePilotDeadline(env),
         checks:Object.fromEntries(required.map(name=>[name,typeof env[name]==='string'&&env[name].trim().length>0])),
         channelMatchesExpected:env.EUPAGO_LIVE_CHANNEL==='CIRC 2027',externalValidationPerformed:false});
     }
-    const configured=Boolean(env.LIVE_CHECKOUT_ENABLED==='true'&&env.EUPAGO_LIVE_API_KEY?.trim()&&env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT);
+    const configured=Boolean(creationEnabled()&&(!privatePilot||isAdmin)&&env.EUPAGO_LIVE_API_KEY?.trim()&&env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT);
     if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({
-      enabled:configured,environment:'production',publicOpen:openForPublic(now()),pilotAvailable:isAdmin&&configured,
+      enabled:configured,environment:'production',publicOpen:!privatePilot&&openForPublic(now()),pilotAvailable:isAdmin&&configured,
       methods:configured?['multibanco']:[],registrationOpenDate:REGISTRATION_OPEN_DATE,
     });
     const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
@@ -63,7 +66,7 @@ export function createCheckoutLiveApi({
       }
       if(url.pathname===`${PREFIX}/quote`&&request.method==='POST'){
         const data=await body(request);exact(data,['selection','pilotAcknowledged']);
-        if(!openForPublic(now())&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
+        if((privatePilot||!openForPublic(now()))&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
         const selection=data.selection;exact(selection,['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
         // First live cut: the exact fiscal scenario already accepted by TOConline.
         if(selection.congressMode!=='onsite'||selection.morningCourse!==false||selection.afternoonCourse!==false||selection.dinnerQuantity!==0)fail('live-scope-not-enabled',409);
@@ -71,14 +74,15 @@ export function createCheckoutLiveApi({
         if(existing.data)fail('registration-exists',409);
         const ctx=await store.context(selection.profile);
         const quote=quotePrimary(selection,{...ctx,emailVerified:true},null,new Date(now()));
+        if(privatePilot&&quote.amountCents!==9500)fail('live-scope-not-enabled',409);
         return reply({quote,stamp:stamp(quote)});
       }
       if(url.pathname===`${PREFIX}/orders`&&request.method==='POST'){
         const data=await body(request);exact(data,['id','selection','stamp','method','pilotAcknowledged','billingStamp','pilotConfirmation']);
         if(!LIVE_ORDER_UUID.test(data.id||'')||data.method!=='multibanco')fail('invalid-request');
-        if(!openForPublic(now())&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
+        if((privatePilot||!openForPublic(now()))&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
         const pilot=isAdmin&&data.pilotAcknowledged===true;
-        if(pilot&&!isLivePilotConfigured(env))fail('pilot-not-configured',503);
+        if(pilot&&!isLivePilotConfigured(env,Date.parse(now())))fail('pilot-not-configured',503);
         if(pilot&&(data.pilotConfirmation!==PILOT_CONFIRMATION||!/^[a-f0-9]{64}$/.test(data.billingStamp||'')))fail('pilot-confirmation-required',400);
         const selection=data.selection;exact(selection,['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
         const previousPayment=await store.payment(data.id);
@@ -92,6 +96,7 @@ export function createCheckoutLiveApi({
         const existing=await store.registration();if(existing.data)fail('registration-exists',409);
         const ctx=await store.context(selection.profile);
         const quote=quotePrimary(selection,{...ctx,emailVerified:true},null,new Date(now()));
+        if(privatePilot&&quote.amountCents!==9500)fail('live-scope-not-enabled',409);
         if(data.stamp!==stamp(quote))fail('quote-changed',409);
         const profile=await store.profile();
         const billing=billingCustomerFromProfile(profile.data);
@@ -117,6 +122,8 @@ export function createCheckoutLiveApi({
           reference:null,entity:null,transactionId:null,paidAt:null,provider:'eupago',
           quote,billingSnapshot:billing.customer,createdAt,updatedAt:createdAt,
         };
+        // Recheck after the profile/context reads, before the first durable write.
+        if(!creationEnabled())fail('live-checkout-not-configured',503);
         const reserved=await store.createPendingPrimary({orderId:data.id,registration,payment,guards:ctx.guards});
         let created;
         try{created=await providerFactory({apiKey:env.EUPAGO_LIVE_API_KEY}).createPayment(payment);}

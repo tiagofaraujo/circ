@@ -65,7 +65,9 @@ export function createLivePaymentWebhook({
     const url=new URL(request.url);if(url.pathname!==PATH)return null;
     if(request.method!=='POST')return json({error:'method_not_allowed'},405);
     if(url.search||!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type')||''))return json({error:'invalid_request'},400);
-    if(env.LIVE_CHECKOUT_ENABLED!=='true'||!env.EUPAGO_LIVE_WEBHOOK_KEY||!env.EUPAGO_LIVE_CHANNEL?.trim()
+    // Closing reference creation must not strand a previously created real payment.
+    // HMAC, persisted production order and provider reconciliation remain mandatory.
+    if(!env.EUPAGO_LIVE_WEBHOOK_KEY||!env.EUPAGO_LIVE_CHANNEL?.trim()
       ||!env.EUPAGO_LIVE_API_KEY||!env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT||!env.FIREBASE_PROJECT_ID)return json({error:'webhook_not_configured'},503);
     let bytes;try{bytes=await rawBody(request);}catch{return json({error:'invalid_request'},400);}
     let event;try{event=parsePaid(bytes,request.headers.get('X-Signature'),env.EUPAGO_LIVE_WEBHOOK_KEY,env.EUPAGO_LIVE_CHANNEL);}

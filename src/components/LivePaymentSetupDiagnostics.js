@@ -40,6 +40,12 @@ export default function LivePaymentSetupDiagnostics({ user, en = false }) {
     {data && <>
       <p><strong>{t('Pagamentos reais:', 'Live payments:')} {data.liveCheckoutEnabled
         ? t('ATIVOS', 'ENABLED') : t('desativados', 'disabled')}</strong></p>
+      {data.privatePilot && <p>{t('Ensaio exclusivo da administração: presencial, Multibanco, 95 €. Fecho automático da criação:',
+        'Admin-only pilot: onsite, Multibanco, €95. Reference creation closes automatically:')}{' '}
+        {data.pilotUntil ? new Date(data.pilotUntil).toLocaleString(en ? 'en-GB' : 'pt-PT', { timeZone: 'Europe/Lisbon' })
+          : t('prazo inválido — criação bloqueada', 'invalid deadline — creation blocked')}
+        {' '}{t('(hora de Lisboa). As confirmações de pagamentos existentes continuam disponíveis.',
+          '(Lisbon time). Existing payment confirmations remain available.')}</p>}
       <p>{t('Nome do canal:', 'Channel name:')} {data.channelMatchesExpected
         ? 'CIRC 2027' : t('por confirmar — o servidor deve usar exatamente «CIRC 2027»', 'unconfirmed — the server must use exactly “CIRC 2027”')}</p>
       <ul>{Object.entries(data.checks).map(([name, present]) => <li key={name}>
