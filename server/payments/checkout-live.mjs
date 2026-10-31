@@ -64,19 +64,22 @@ export function createCheckoutLiveApi({
       if(recoveringOrder){
         const registration=(await store.registration())?.data;
         if(!registration)return reply({error:'not-found'},404);
-        if(registration.userId!==claims.sub||registration.eventId!==EVENT||registration.primaryRegistration!==true
-          ||registration.isTest!==false||registration.testMode!==false)return reply({error:'order-recovery-mismatch'},409);
+        const registrationChecks={owner:registration.userId===claims.sub,event:registration.eventId===EVENT,
+          primary:registration.primaryRegistration===true,real:registration.isTest===false&&registration.testMode===false};
+        const registrationFailures=Object.keys(registrationChecks).filter(key=>!registrationChecks[key]);
+        if(registrationFailures.length)return reply({error:'order-recovery-mismatch',failedChecks:registrationFailures},409);
         const located=await store.primaryPayment();
         if(!located?.data)return reply({error:'not-found'},404);
         const payment=located.data;
-        if(!LIVE_ORDER_UUID.test(located.id)||payment.id!==located.id||payment.userId!==claims.sub
-          ||payment.registrationId!==store.registrationId||payment.environment!=='production'||payment.provider!=='eupago'
-          ||payment.eventId!==EVENT||payment.method!=='multibanco'||payment.currency!=='EUR'
-          ||!Number.isSafeInteger(payment.amountCents)||payment.amountCents<=0
-          ||payment.amountCents!==registration.payment?.amountCents||payment.currency!==registration.payment?.currency
-          ||payment.method!==registration.payment?.method||(payment.reference||'')!==(registration.payment?.reference||'')){
-          return reply({error:'order-recovery-mismatch'},409);
-        }
+        const paymentChecks={identifier:LIVE_ORDER_UUID.test(located.id)&&payment.id===located.id,
+          owner:payment.userId===claims.sub,registration:payment.registrationId===store.registrationId,
+          real:payment.environment==='production',provider:payment.provider==='eupago',event:payment.eventId===EVENT,
+          method:payment.method==='multibanco'&&payment.method===registration.payment?.method,
+          currency:payment.currency==='EUR'&&payment.currency===registration.payment?.currency,
+          amount:Number.isSafeInteger(payment.amountCents)&&payment.amountCents>0&&payment.amountCents===registration.payment?.amountCents,
+          reference:(payment.reference||'')===(registration.payment?.reference||'')};
+        const paymentFailures=Object.keys(paymentChecks).filter(key=>!paymentChecks[key]);
+        if(paymentFailures.length)return reply({error:'order-recovery-mismatch',failedChecks:paymentFailures},409);
         return reply({order:publicOrder(located.id,payment)});
       }
       if(readingOrder){
