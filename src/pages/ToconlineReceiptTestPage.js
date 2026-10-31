@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import AdminModuleNav from '../components/AdminModuleNav';
 import CircFiscalRehearsalDiagnostics from '../components/CircFiscalRehearsalDiagnostics';
+import LivePaymentSetupDiagnostics from '../components/LivePaymentSetupDiagnostics';
 import { CIRC27_FISCAL_POLICY_VERSION, inspectCIRC27Rehearsal } from './circ2027FiscalDiagnostics';
 import './SandboxCheckoutPage.css';
 
@@ -273,6 +274,8 @@ export default function ToconlineReceiptTestPage() {
     </section>
 
     {config && <p className="sandbox-checkout__muted"><strong>TOConline:</strong> {config.liveWritesEnabled ? t('escritas ativas', 'writes enabled') : t('escritas reais bloqueadas neste módulo', 'real writes blocked in this module')} · OAuth scope futuro: <code>{config.scopeRequired}</code></p>}
+
+    <LivePaymentSetupDiagnostics user={user} en={en} />
 
     <section className="sandbox-checkout__panel">
       <h2>{t('Ligação TOConline — apenas leitura', 'TOConline connection — read only')}</h2>

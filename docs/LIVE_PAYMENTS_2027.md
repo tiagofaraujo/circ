@@ -41,6 +41,18 @@ Webhook EuPago 2.0:
 
 Configurar apenas evento **PAID**, POST JSON sem encriptação e assinatura HMAC-SHA256 em `X-Signature`.
 
+## Diagnóstico antes da ativação
+
+Em **Recibos — teste**, a secção **Preparação EuPago — produção** consulta
+`GET /api/checkout/live/diagnostics`, restrito ao administrador verificado
+`circ.chuc@gmail.com`. Funciona com `LIVE_CHECKOUT_ENABLED=false`.
+
+Mostra apenas presença/ausência das configurações, correspondência exata do nome
+`CIRC 2027` e o estado do interruptor de pagamentos. Não devolve valores de segredos,
+não contacta os fornecedores nem o armazenamento e não cria pagamentos/documentos.
+Presença não comprova validade das chaves, aprovação da conta ou entrega de webhooks.
+A disponibilidade da sessão TOConline continua na secção de ligação já existente.
+
 ## Sequência de ativação
 
 1. Criar a identidade Firebase dedicada e atribuir apenas as permissões Firestore necessárias ao backend de pagamentos.

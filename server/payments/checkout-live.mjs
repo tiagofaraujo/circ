@@ -37,6 +37,15 @@ export function createCheckoutLiveApi({
     if(claims.email_verified!==true)return reply({error:'verified-email-required'},403);
     if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return reply({error:'invalid-origin'},403);
     const isAdmin=String(claims.email||'').toLowerCase()===ADMIN;
+    if(url.pathname===`${PREFIX}/diagnostics`&&request.method==='GET'){
+      if(!isAdmin)return reply({error:'admin-required'},403);
+      const required=['FIREBASE_PROJECT_ID','FIREBASE_PAYMENTS_SERVICE_ACCOUNT','EUPAGO_LIVE_API_KEY',
+        'EUPAGO_LIVE_WEBHOOK_KEY','EUPAGO_LIVE_CHANNEL','TOCONLINE_OAUTH_CLIENT_ID',
+        'TOCONLINE_OAUTH_CLIENT_SECRET','TOCONLINE_OAUTH_URL','TOCONLINE_API_URL','TOCONLINE_SESSION_KEY'];
+      return reply({environment:'production',liveCheckoutEnabled:env.LIVE_CHECKOUT_ENABLED==='true',
+        checks:Object.fromEntries(required.map(name=>[name,typeof env[name]==='string'&&env[name].trim().length>0])),
+        channelMatchesExpected:env.EUPAGO_LIVE_CHANNEL==='CIRC 2027',externalValidationPerformed:false});
+    }
     const configured=Boolean(env.LIVE_CHECKOUT_ENABLED==='true'&&env.EUPAGO_LIVE_API_KEY?.trim()&&env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT);
     if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({
       enabled:configured,environment:'production',publicOpen:openForPublic(now()),pilotAvailable:isAdmin&&configured,

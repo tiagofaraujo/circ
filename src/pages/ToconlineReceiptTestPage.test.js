@@ -38,6 +38,8 @@ beforeEach(() => {
   Object.defineProperty(global, 'crypto', { configurable: true, value: { randomUUID: jest.fn(() => '58a12222-b856-41c9-a519-e2cc97bb3b69') } });
   let state = { id: SID, registrationConfirmed: true, orders: [baseOrder] };
   global.fetch = jest.fn((url, options = {}) => {
+    if (url === '/api/checkout/live/diagnostics') return json({ environment: 'production', liveCheckoutEnabled: false,
+      checks: { EUPAGO_LIVE_API_KEY: true, EUPAGO_LIVE_WEBHOOK_KEY: false }, channelMatchesExpected: true, externalValidationPerformed: false });
     if (url === '/api/fiscal/sandbox/config') return json({ provider: 'toconline', liveWritesEnabled: false, scopeRequired: 'commercial' });
     if (url === '/api/fiscal/toconline/config') return json({ provider: 'toconline', configured: false, connected: false, missing: ['clientId', 'clientSecret', 'oauthUrl', 'apiUrl', 'sessionKey'], redirectUrl: 'https://circ-coimbra.org/api/fiscal/toconline/callback', mode: 'read-only', commercialWritesEnabled: false });
     if (url === '/api/checkout/sandbox/sessions') return json({ sessions: [{ id: SID, createdAt: '2026-10-17T09:00:00Z', confirmed: true }] });
@@ -106,6 +108,7 @@ test('loads confirmed test payments and clearly states that TOConline writes are
   expect(screen.getByText(/não emite documentos fiscais/i)).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Ligação TOConline — apenas leitura' })).toBeInTheDocument();
   expect(screen.getByText('TOCONLINE_OAUTH_CLIENT_ID')).toBeInTheDocument();
+  expect(await screen.findByText('Pagamentos reais: desativados')).toBeInTheDocument();
 });
 
 test('prepares a server rehearsal before allowing simulated issue', async () => {
