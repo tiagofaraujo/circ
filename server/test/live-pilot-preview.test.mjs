@@ -32,6 +32,9 @@ test('disabled live checkout allows only an admin read-only preview of real prof
   assert.equal(data.previewOnly, true);
   assert.equal(data.paymentCreated, false);
   assert.equal(data.fiscalDocumentIssued, false);
+  assert.equal(data.creationEnabled, false);
+  assert.match(data.stamp, /^[a-f0-9]{64}$/);
+  assert.match(data.billingStamp, /^[a-f0-9]{64}$/);
   assert.equal(data.quote.amountCents, 9500);
   assert.equal(data.quote.selection.congressMode, 'onsite');
   assert.equal(data.quote.selection.dinnerQuantity, 0);

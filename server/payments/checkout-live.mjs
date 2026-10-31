@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createEupagoLive } from './eupago-live.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { quotePrimary } from './quote.mjs';
 import { REGISTRATION_OPEN_DATE } from '../../src/data/registration2027.js';
+import { liveDataStamp as stamp, isLivePilotConfigured, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
 
 const PREFIX = '/api/checkout/live';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -13,7 +13,6 @@ const reply = (body,status=200)=>Response.json(body,{status,headers:{'Cache-Cont
 const fail=(code,status=400)=>{const e=new Error(code);e.code=code;e.status=status;throw e;};
 const exact=(o,keys)=>{if(!o||typeof o!=='object'||Array.isArray(o)||Object.keys(o).some(k=>!keys.includes(k)))fail('invalid-request');};
 async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type')||''))fail('invalid-request');let x;try{x=await request.json();}catch{fail('invalid-request');}return x;}
-const stamp=q=>createHash('sha256').update(JSON.stringify(q)).digest('hex');
 const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
 const publicOrder=(id,p)=>({id,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
@@ -51,10 +50,17 @@ export function createCheckoutLiveApi({
       enabled:configured,environment:'production',publicOpen:openForPublic(now()),pilotAvailable:isAdmin&&configured,
       methods:configured?['multibanco']:[],registrationOpenDate:REGISTRATION_OPEN_DATE,
     });
-    if(!configured)return reply({error:'live-checkout-not-configured'},503);
+    const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
+    const readingOrder=request.method==='GET'&&orderMatch&&LIVE_ORDER_UUID.test(orderMatch[1]);
+    if(!configured&&!readingOrder)return reply({error:'live-checkout-not-configured'},503);
     let serviceToken;try{serviceToken=await tokenProvider(env);}catch{return reply({error:'payments-service-unavailable'},503);}
     const store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:serviceToken});
     try{
+      if(readingOrder){
+        const payment=await store.payment(orderMatch[1]);
+        if(!payment.data||payment.data.userId!==claims.sub||payment.data.environment!=='production')return reply({error:'not-found'},404);
+        return reply({order:publicOrder(orderMatch[1],payment.data)});
+      }
       if(url.pathname===`${PREFIX}/quote`&&request.method==='POST'){
         const data=await body(request);exact(data,['selection','pilotAcknowledged']);
         if(!openForPublic(now())&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
@@ -68,15 +74,18 @@ export function createCheckoutLiveApi({
         return reply({quote,stamp:stamp(quote)});
       }
       if(url.pathname===`${PREFIX}/orders`&&request.method==='POST'){
-        const data=await body(request);exact(data,['id','selection','stamp','method','pilotAcknowledged']);
+        const data=await body(request);exact(data,['id','selection','stamp','method','pilotAcknowledged','billingStamp','pilotConfirmation']);
         if(!LIVE_ORDER_UUID.test(data.id||'')||data.method!=='multibanco')fail('invalid-request');
         if(!openForPublic(now())&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
+        const pilot=isAdmin&&data.pilotAcknowledged===true;
+        if(pilot&&!isLivePilotConfigured(env))fail('pilot-not-configured',503);
+        if(pilot&&(data.pilotConfirmation!==PILOT_CONFIRMATION||!/^[a-f0-9]{64}$/.test(data.billingStamp||'')))fail('pilot-confirmation-required',400);
         const selection=data.selection;exact(selection,['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
         const previousPayment=await store.payment(data.id);
         if(previousPayment.data){
           const previous=previousPayment.data;
           if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method
-            ||stamp(previous.quote)!==data.stamp)fail('idempotency-conflict',409);
+            ||stamp(previous.quote)!==data.stamp||(pilot&&stamp(previous.billingSnapshot)!==data.billingStamp))fail('idempotency-conflict',409);
           return reply({order:publicOrder(data.id,previous)},200);
         }
         if(selection.congressMode!=='onsite'||selection.morningCourse!==false||selection.afternoonCourse!==false||selection.dinnerQuantity!==0)fail('live-scope-not-enabled',409);
@@ -87,6 +96,7 @@ export function createCheckoutLiveApi({
         const profile=await store.profile();
         const billing=billingCustomerFromProfile(profile.data);
         if(!billing.ok)fail('billing-customer-unconfirmed',409);
+        if(pilot&&stamp(billing.customer)!==data.billingStamp)fail('billing-preview-changed',409);
         const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
         if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
         const createdAt=now();
@@ -124,17 +134,10 @@ export function createCheckoutLiveApi({
         return reply({order:{id:data.id,status:'pending',amountCents:quote.amountCents,currency:'EUR',method:'multibanco',
           reference:created.reference,entity:created.entity}},201);
       }
-      const match=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
-      if(match&&request.method==='GET'&&LIVE_ORDER_UUID.test(match[1])){
-        const payment=await store.payment(match[1]);
-        if(!payment.data||payment.data.userId!==claims.sub)return reply({error:'not-found'},404);
-        const p=payment.data;
-        return reply({order:publicOrder(match[1],p)});
-      }
       return reply({error:'not-found'},404);
     }catch(error){
       const code=error.code||error.message||'service-unavailable';
-      const status=Number(error.status)||(['registration-exists','quote-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict'].includes(code)?409:code==='registration-not-open'?403:503);
+      const status=Number(error.status)||(['registration-exists','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict'].includes(code)?409:code==='registration-not-open'?403:503);
       return reply({error:code},status);
     }
   };

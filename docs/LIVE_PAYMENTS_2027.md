@@ -65,7 +65,30 @@ Funciona com os pagamentos reais desativados: lê apenas os registos da própria
 conta e mostra o valor e os dados de faturação. Não guarda a pré-visualização,
 não chama a EuPago/TOConline, não cria referências/inscrições nem emite documentos.
 Uma inscrição existente, dados incompletos ou elegibilidade não validada bloqueiam
-a preparação. A interface não inclui ação para criar o pagamento real.
+a preparação.
+
+### Geração e recuperação do pedido privado
+
+Após a pré-visualização existe uma ação explícita **Gerar referência Multibanco real**.
+Permanece bloqueada com `LIVE_CHECKOUT_ENABLED=false` ou configurações em falta.
+Exige confirmação da aprovação EuPago, conferência do valor/dados e uma confirmação
+final que explica a inscrição real e a tentativa de emissão fiscal após pagamento.
+
+O pedido administrativo inclui impressões dos dados de faturação e da tarifa
+apresentados. O servidor volta a ler o perfil e recalcula a tarifa; alterações
+bloqueiam a criação antes de reservar a inscrição ou contactar a EuPago. A impressão
+é independente da ordem dos campos devolvidos pelo Firestore, preservando a
+idempotência após uma leitura do pedido.
+
+O navegador guarda apenas o UUID do pedido em `sessionStorage`, por utilizador,
+antes de enviar o POST. Uma resposta perdida não permite criar outro pedido pela
+interface: **Consultar este pedido** usa apenas GET, inclusive depois de desligar
+os pagamentos. Também permite recuperar o pedido sem uma nova pré-visualização,
+que poderia estar bloqueada pela inscrição entretanto criada. A leitura mantém
+a verificação de proprietário e exige um pagamento de produção.
+
+Este desenvolvimento não ativa o interruptor, não cria referências nem executa
+pagamentos. A primeira geração/utilização real exige autorização própria do ensaio.
 
 ## Sequência de ativação
 

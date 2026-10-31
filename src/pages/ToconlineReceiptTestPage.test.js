@@ -103,7 +103,7 @@ test('fresh setup diagnosis takes precedence over a stale generic callback URL w
 test('loads confirmed test payments and clearly states that TOConline writes are blocked', async () => {
   render(<ToconlineReceiptTestPage />);
   expect(await screen.findByRole('heading', { name: 'Recibos e faturação — teste' })).toBeInTheDocument();
-  expect(await screen.findByText(/escritas reais bloqueadas neste módulo/)).toBeInTheDocument();
+  expect(await screen.findByText(/escritas reais bloqueadas nesta simulação/)).toBeInTheDocument();
   expect(await screen.findByRole('heading', { name: /Multibanco.*160,00/ })).toBeInTheDocument();
   expect(screen.getByText(/não emite documentos fiscais/i)).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Ligação TOConline — apenas leitura' })).toBeInTheDocument();
