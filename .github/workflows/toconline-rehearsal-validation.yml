@@ -11,6 +11,7 @@ on:
       - 'src/pages/ToconlineReceiptTestPage.js'
       - 'src/pages/ToconlineReceiptTestPage.test.js'
       - 'src/components/LivePaymentSetupDiagnostics*'
+      - 'src/components/LivePaymentPilotPreview*'
       - 'src/App.js'
       - 'src/components/AdminModuleNav.js'
       - '.github/workflows/toconline-rehearsal-validation.yml'
@@ -23,6 +24,7 @@ on:
       - 'wrangler.jsonc'
       - 'src/pages/ToconlineReceiptTestPage*'
       - 'src/components/LivePaymentSetupDiagnostics*'
+      - 'src/components/LivePaymentPilotPreview*'
       - '.github/workflows/toconline-rehearsal-validation.yml'
   workflow_dispatch:
 permissions:
@@ -46,6 +48,6 @@ jobs:
       - name: TOConline server tests
         run: node --test server/test/*.test.mjs
       - name: Receipt rehearsal UI tests
-        run: CI=true npm test -- --watchAll=false --runInBand src/pages/ToconlineReceiptTestPage.test.js src/components/LivePaymentSetupDiagnostics.test.js
+        run: CI=true npm test -- --watchAll=false --runInBand src/pages/ToconlineReceiptTestPage.test.js src/components/LivePaymentSetupDiagnostics.test.js src/components/LivePaymentPilotPreview.test.js
       - name: Production bundle
         run: CI=true npm run build

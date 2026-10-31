@@ -53,6 +53,20 @@ não contacta os fornecedores nem o armazenamento e não cria pagamentos/documen
 Presença não comprova validade das chaves, aprovação da conta ou entrega de webhooks.
 A disponibilidade da sessão TOConline continua na secção de ligação já existente.
 
+### Pré-visualização do ensaio privado
+
+O botão **Pré-visualizar ensaio privado**, na mesma página, usa
+`POST /api/checkout/live/pilot-preview`, exclusivo do administrador verificado.
+O único parâmetro aceite é o perfil (`external`, `uls` ou `student`). A seleção fica
+limitada a presencial, Multibanco, sem cursos/jantar. A tarifa e a elegibilidade
+são calculadas pelas regras existentes, com dados lidos do servidor.
+
+Funciona com os pagamentos reais desativados: lê apenas os registos da própria
+conta e mostra o valor e os dados de faturação. Não guarda a pré-visualização,
+não chama a EuPago/TOConline, não cria referências/inscrições nem emite documentos.
+Uma inscrição existente, dados incompletos ou elegibilidade não validada bloqueiam
+a preparação. A interface não inclui ação para criar o pagamento real.
+
 ## Sequência de ativação
 
 1. Criar a identidade Firebase dedicada e atribuir apenas as permissões Firestore necessárias ao backend de pagamentos.
