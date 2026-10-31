@@ -129,3 +129,11 @@ test('failed recovery reveals no private backend errors and cannot create a repl
   expect(sessionStorage.getItem(key)).toBeNull();
   expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
 });
+
+test('recovery explains a missing order or a failed ownership check using only safe labels', async () => {
+  fetch.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'order-recovery-mismatch', failedChecks: ['owner','real','PRIVATE-DETAIL'] }) });
+  render(<LivePaymentPilotOrder user={user} preview={null} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Consultar pedido existente' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Conferências em falta: titular, identificação como produção');
+  expect(screen.getByRole('alert')).not.toHaveTextContent('PRIVATE-DETAIL');
+});

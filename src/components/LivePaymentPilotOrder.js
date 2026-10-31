@@ -50,7 +50,7 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const data = await response.json();
-    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error });
+    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error, failedChecks: data.failedChecks });
     const expectedId = path === '/primary-order' ? null : body === undefined ? path.split('/').pop() : body.id;
     if (!data.order || !UUID.test(data.order.id || '') || (expectedId && data.order.id !== expectedId) || !Number.isSafeInteger(data.order.amountCents)
       || data.order.amountCents <= 0 || data.order.currency !== 'EUR') throw new Error('invalid-response');
@@ -123,11 +123,24 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
       if (!active.current) return;
       try { sessionStorage.setItem(storageKey, result.id); } catch { /* The visible ID remains available for manual recovery. */ }
       setId(result.id); setOrder(result);
-    } catch {
+    } catch (issue) {
       if (active.current) {
         setNeedsPreview(true);
-        setError(t('Não foi possível recuperar um pedido de produção único desta inscrição. Nenhum pedido foi criado. A inscrição existente requer conferência pela organização.',
-          'Could not recover one unique production order for this registration. No order was created. The existing registration needs organizer review.'));
+        const reasons={
+          'not-found': ['A inscrição existe, mas não foi encontrado um pedido de pagamento associado.', 'The registration exists, but no associated payment order was found.'],
+          'storage_forbidden': ['O servidor não tem permissão para consultar os pedidos guardados.', 'The server is not permitted to query saved payment orders.'],
+          'order_recovery_ambiguous': ['Existe mais de um pedido associado a esta inscrição.', 'More than one order is associated with this registration.'],
+          'order-recovery-mismatch': ['Os dados guardados do pedido e da inscrição não correspondem.', 'The saved order and registration do not match.'],
+        };
+        const checkLabels={owner:['titular','owner'],event:['congresso','event'],primary:['inscrição principal','primary registration'],
+          real:['identificação como produção','production designation'],identifier:['identificador','identifier'],registration:['inscrição associada','associated registration'],
+          provider:['prestador EuPago','EuPago provider'],method:['método de pagamento','payment method'],currency:['moeda','currency'],amount:['valor','amount'],reference:['referência','reference']};
+        const failed=Array.isArray(issue.failedChecks)?issue.failedChecks.filter(key=>Object.hasOwn(checkLabels,key)).map(key=>checkLabels[key][en?1:0]):[];
+        setError((reasons[issue.code]?.[en?1:0] || t('Não foi possível recuperar um pedido de produção único desta inscrição.',
+          'Could not recover one unique production order for this registration.'))
+          +(failed.length?t(' Conferências em falta: ',' Unconfirmed checks: ')+failed.join(', ')+'.':'')
+          +t(' Nenhum pedido foi criado. A inscrição existente requer conferência pela organização.',
+            ' No order was created. The existing registration needs organizer review.'));
       }
     } finally { working.current = false; if (active.current) setBusy(false); }
   }
