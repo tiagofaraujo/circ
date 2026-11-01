@@ -63,6 +63,67 @@ export function createToconlineLiveClient({
     return session;
   }
   return {
+    // Read the original PDF of an already issued document. This path never
+    // calls a commercial write endpoint or changes the stored fiscal result.
+    async downloadSalesDocumentPdf(env, documentId) {
+      if (!/^[1-9][0-9]{0,17}$/.test(String(documentId))) fail('toconline-pdf-invalid-document', 400);
+      let session = await activeSession(env);
+      const api = baseUrl(env.TOCONLINE_API_URL, 'toconline-api-url-invalid');
+      const read = () => fetchImpl(`${api}/url_for_print/${documentId}?filter[type]=Document&filter[copies]=1`, {
+        method: 'GET', redirect: 'manual', cache: 'no-store',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/vnd.api+json', Authorization: `Bearer ${session.accessToken}` },
+        signal: AbortSignal.timeout(12000),
+      });
+      let response;
+      try { response = await read(); } catch { fail('toconline-pdf-unavailable', 502); }
+      if (response.status === 401) {
+        session = await refresh(session, env, fetchImpl, now());
+        await sessionStore.save(env, session);
+        try { response = await read(); } catch { fail('toconline-pdf-unavailable', 502); }
+      }
+      if (!response.ok) fail('toconline-pdf-unavailable', 502);
+      let json;
+      try { json = await response.json(); } catch { fail('toconline-pdf-invalid-response', 502); }
+      const location = json?.data?.attributes ?? json?.data ?? json;
+      const validUrl = raw => {
+        let url;
+        try { url = new URL(raw); } catch { fail('toconline-pdf-invalid-response', 502); }
+        if (url.protocol !== 'https:' || !/^app\d*\.toconline\.pt$/.test(url.hostname)
+          || url.username || url.password || url.port || url.hash || !url.pathname.startsWith('/public-file/')) fail('toconline-pdf-invalid-response', 502);
+        return url;
+      };
+      if (location?.scheme !== 'https' || typeof location.host !== 'string' || typeof location.path !== 'string'
+        || !location.path.startsWith('/public-file/')) fail('toconline-pdf-invalid-response', 502);
+      let url = validUrl(`${location.scheme}://${location.host}${location.path}`);
+      for (let redirects = 0; redirects <= 2; redirects++) {
+        // Signed print URLs do not need credentials. Never forward OAuth here.
+        try { response = await fetchImpl(url.toString(), { method: 'GET', redirect: 'manual', cache: 'no-store',
+          headers: { Accept: 'application/pdf' }, signal: AbortSignal.timeout(15000) }); }
+        catch { fail('toconline-pdf-unavailable', 502); }
+        if (![301, 302, 303, 307, 308].includes(response.status)) break;
+        if (redirects === 2) fail('toconline-pdf-invalid-response', 502);
+        url = validUrl(new URL(response.headers.get('Location') || '', url).toString());
+      }
+      const maxBytes = 8 * 1024 * 1024;
+      if (!response.ok || !response.body || Number(response.headers.get('Content-Length')) > maxBytes) fail('toconline-pdf-unavailable', 502);
+      const reader = response.body.getReader();
+      const chunks = [];
+      let length = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          length += value.byteLength;
+          if (length > maxBytes) { await reader.cancel(); fail('toconline-pdf-invalid-response', 502); }
+          chunks.push(value);
+        }
+      } catch { fail('toconline-pdf-unavailable', 502); }
+      const bytes = new Uint8Array(length);
+      let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      if (new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-') fail('toconline-pdf-invalid-response', 502);
+      return bytes;
+    },
     async issueFinalizedSalesDocument(env, payload) {
       if (!payload || payload.document_type !== 'FR' || payload.document_series_id !== 244
         || typeof payload.external_reference !== 'string' || !/^CIRC27-[A-Z0-9-]{8,80}$/.test(payload.external_reference)
