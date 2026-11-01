@@ -11,6 +11,7 @@ import { subscribeToUserStats } from '../auth/presenceStore';
 import AdminModuleNav from '../components/AdminModuleNav';
 import RegistrationRefund from '../components/RegistrationRefund';
 import RegistrationFiscalStatus from '../components/RegistrationFiscalStatus';
+import RegistrationRelease from '../components/RegistrationRelease';
 import '../admin.css';
 import '../adminOperations.css';
 
@@ -83,6 +84,7 @@ export default function AdminDashboardPage() {
   const [noteDrafts, setNoteDrafts] = useState({});
   const [userStats, setUserStats] = useState({ total: null, online: null });
   const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
+  const [releaseMessage, setReleaseMessage] = useState('');
 
   useEffect(() => subscribeToRegistrations(
     (items) => {
@@ -219,6 +221,7 @@ export default function AdminDashboardPage() {
 
         <p className="admin-status-help">Os estados são atualizados pelo pagamento confirmado. Nas transferências, a validação do crédito confirma o pagamento e a inscrição. Os reembolsos já efetuados têm um registo administrativo próprio.</p>
         {error && <div className="admin-alert" role="alert">{error}</div>}
+        {releaseMessage && <p role="status">{releaseMessage}</p>}
         {loading && <div className="admin-empty">A carregar inscrições…</div>}
         {!loading && !error && !visibleRegistrations.length && (
           <div className="admin-empty">
@@ -261,6 +264,7 @@ export default function AdminDashboardPage() {
                         {registrationLabels[item.status || 'draft'] || 'Requer conferência'}
                       </span>
                       {item.payment?.status === 'paid' && item.status !== 'confirmed' && <small>Estados por conferir — registo histórico</small>}
+                      {String(item.participantEmail || '').trim().toLowerCase() === 'araujotiagofc@gmail.com' && <RegistrationRelease registration={item} onReleased={() => setReleaseMessage('A inscrição de araujotiagofc@gmail.com foi libertada para nova inscrição. Os pagamentos e documentos anteriores foram preservados.')} />}
                     </td>
                     <td>
                       <span className={`admin-state admin-status--${item.payment?.status || 'pending'}`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>

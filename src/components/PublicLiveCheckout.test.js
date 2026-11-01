@@ -504,3 +504,100 @@ test('a missing precreation predecessor and failed reread retain the known old i
  expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
  expect(screen.queryByRole('button',{name:'Enviar pedido MB WAY'})).not.toBeInTheDocument();
 });
+
+const historicalOrder={...order,kind:'primary',status:'paid',historicalRegistration:true,fiscalStatus:'issued',fiscalDocumentNo:'FR CIRC2027/old'};
+test('an explicitly archived order followed by an empty canonical lookup permits a fully new MB WAY review',async()=>{
+ configuration.methods=['mbway']; localStorage.setItem('circ-production-order:user',ID);
+ Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ transport.mockResolvedValueOnce(response({order:historicalOrder})).mockResolvedValueOnce(response({error:'not-found'},false,404))
+  .mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID}}));
+ show(); await screen.findByRole('textbox',{name:/Número MB WAY/});
+ await waitFor(()=>expect(localStorage.getItem('circ-production-order:user')).toBeNull());
+ expect(transport.mock.calls.map(([url])=>url)).toEqual([`/api/checkout/live/orders/${ID}`,'/api/checkout/live/primary-order']);
+ expect(screen.queryByText('Pagamento confirmado')).not.toBeInTheDocument();
+ expect(screen.queryByText('FR CIRC2027/old')).not.toBeInTheDocument();
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await ready(); await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ await screen.findByText('A aguardar pagamento');
+ expect(JSON.parse(transport.mock.calls[3][1].body)).toEqual({id:PRIMARY_ID,selection,stamp:preview.stamp,billingStamp:preview.billingStamp,method:'mbway',phone:'912345678'});
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+});
+test('a canonical active order replaces an archived browser UUID without exposing another payment action',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:historicalOrder})).mockResolvedValueOnce(response({order:{...order,id:PRIMARY_ID,kind:'primary'}}));
+ show(); await screen.findByText('A aguardar pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('a canonical lookup failure preserves the historical recovery handle and blocks a new payment',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:historicalOrder})).mockRejectedValueOnce(new Error('offline'));
+ show();expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(transport).toHaveBeenCalledTimes(2);
+});
+test('an ordinary missing saved order is never treated as permission to abandon its UUID',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);transport.mockResolvedValueOnce(response({error:'not-found'},false,404));
+ show();expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(transport).toHaveBeenCalledTimes(1);
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+});
+test('a historical marker must be the explicit boolean and belong to the requested order',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:{...historicalOrder,historicalRegistration:'true'}}));
+ show();await screen.findByText('Pagamento confirmado');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(transport).toHaveBeenCalledTimes(1);
+ expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+});
+test('a historical response with a different identifier cannot clear the saved order',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:{...historicalOrder,id:PRIMARY_ID}}));
+ show();await screen.findByRole('alert');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(transport).toHaveBeenCalledTimes(1);
+});
+test('a stale registration snapshot stays blocked after archival until the subscription removes it',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:historicalOrder})).mockResolvedValueOnce(response({error:'not-found'},false,404));
+ const onLock=jest.fn(), registration={id:'circ-2027-user',payment:{orderId:ID,status:'pending',method:'multibanco'}};
+ const view=show({registration,onLock});await screen.findByText(/A inscrição anterior foi arquivada/);
+ expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ view.rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={selection} eligible registration={null} onLock={onLock}/></MemoryRouter>);
+ await ready();expect(onLock).toHaveBeenLastCalledWith(false);
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('a new payment snapshot for the same registration identifier recovers its active order after archival',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:historicalOrder})).mockResolvedValueOnce(response({error:'not-found'},false,404))
+  .mockResolvedValueOnce(response({order:{...order,id:PRIMARY_ID,kind:'primary'}}));
+ const registration={id:'circ-2027-user',payment:{orderId:ID,status:'pending',method:'multibanco'}};
+ const view=show({registration});await screen.findByText(/A inscrição anterior foi arquivada/);
+ view.rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={selection} eligible registration={{...registration,payment:{...registration.payment,orderId:PRIMARY_ID}}}/></MemoryRouter>);
+ await screen.findByText('A aguardar pagamento');
+ expect(transport.mock.calls[2][0]).toBe(`/api/checkout/live/orders/${PRIMARY_ID}`);
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+});
+test('an archived supplementary UUID is resolved separately and never clears the primary payment handle',async()=>{
+ localStorage.setItem('circ-production-order:user',PRIMARY_ID);localStorage.setItem('circ-production-supplementary-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:{...historicalOrder,kind:'supplementary'}})).mockResolvedValueOnce(response({error:'not-found'},false,404));
+ showSupplement();await screen.findByText(/A inscrição anterior foi arquivada/);
+ expect(transport.mock.calls[1][0]).toBe('/api/checkout/live/supplementary-order');
+ expect(localStorage.getItem('circ-production-supplementary-order:user')).toBeNull();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+});
+test('a historical-order creation refusal also requires the explicit marker and a canonical lookup',async()=>{
+ transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({error:'historical-order',order:historicalOrder},false,409))
+  .mockResolvedValueOnce(response({error:'not-found'},false,404));
+ show();await ready();await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ await waitFor(()=>expect(localStorage.getItem('circ-production-order:user')).toBeNull());await ready();
+ expect(transport.mock.calls[2][0]).toBe('/api/checkout/live/primary-order');
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+});
