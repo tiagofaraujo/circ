@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createToconlineReadonlyApi } from '../payments/toconline-readonly.mjs';
+import { createToconlineReadonlyApi, withToconlineSession } from '../payments/toconline-readonly.mjs';
 
 const env = {
   FIREBASE_PROJECT_ID: 'circ-coimbra',
@@ -72,6 +72,7 @@ function fixture({ serverSessionStore, envOverrides = {} } = {}) {
     raw: req => api(req, runtimeEnv),
     calls,
     advance: ms => { clock += ms; },
+    time: () => clock,
     setIdentity: value => { identity = value; },
     restore: () => { globalThis.fetch = originalFetch; },
   };
@@ -270,4 +271,97 @@ test('billing account discovery uses no caller-supplied bank ID, IBAN or URL and
   const before = f.calls.length;
   assert.equal((await f.call('resources', { cookie })).status, 403);
   assert.equal(f.calls.length, before);
+});
+
+function sharedSessionFixture() {
+  let stored = null;
+  const store = {
+    load: async () => stored ? { session: { ...stored } } : null,
+    save: async (_env, session) => { stored = { ...session }; },
+  };
+  const runtimeEnv = { ...env, FIREBASE_PAYMENTS_SERVICE_ACCOUNT: 'private-account-json' };
+  const f = fixture({ serverSessionStore: store, envOverrides: runtimeEnv });
+  return { f, store, runtimeEnv, getStored: () => stored, setStored: value => { stored = value; } };
+}
+
+test('panel refresh persists rotated credentials for background billing and an old tab reuses them', async t => {
+  const shared = sharedSessionFixture(); const { f } = shared; t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  f.advance(3_700_000);
+  const before = f.calls.length;
+  const first = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
+  assert.equal(first.status, 200);
+  assert.equal(shared.getStored().refreshToken, 'refresh-two');
+  assert.equal(shared.getStored().accessToken, 'access-two');
+  assert.equal(shared.getStored().refreshExpiresAt, Number.MAX_SAFE_INTEGER);
+  const oldTab = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
+  assert.equal(oldTab.status, 200);
+  const calls = f.calls.slice(before);
+  assert.equal(calls.filter(call => call.href.endsWith('/token')).length, 1);
+  assert.ok(calls.filter(call => !call.href.endsWith('/token')).every(call => call.method === 'GET'));
+  assert.doesNotMatch(JSON.stringify(await oldTab.json()), /access-two|refresh-two|private-account-json/);
+});
+
+test('an unexpired browser adopts credentials refreshed by background billing without rotating its old token', async t => {
+  const shared = sharedSessionFixture(); const { f } = shared; t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  shared.setStored({ ...shared.getStored(), accessToken: 'access-two', refreshToken: 'refresh-two', expiresAt: f.time() + 7_200_000 });
+  const before = f.calls.length;
+  const response = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
+  assert.equal(response.status, 200);
+  assert.ok(f.calls.slice(before).every(call => call.method === 'GET' && call.headers.Authorization === 'Bearer access-two'));
+  assert.ok(response.headers.get('set-cookie'));
+});
+
+test('shared operation runner also persists a refresh after a rejected access token', async t => {
+  const shared = sharedSessionFixture(); const { f, store, runtimeEnv } = shared; t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  let attempts = 0;
+  const result = await withToconlineSession(new Request('https://circ.local/api/fiscal/toconline/resources', {
+    headers: { Cookie: `__Host-circ_toc_session=${token}` },
+  }), runtimeEnv, f.time(), async (_api, accessToken) => {
+    if (attempts++ === 0) throw Object.assign(new Error('unauthorized'), { code: 'toconline-api-unauthorized' });
+    return accessToken;
+  }, { serverSessionStore: store });
+  assert.equal(result.value, 'access-two'); assert.equal(attempts, 2);
+  assert.equal(shared.getStored().refreshToken, 'refresh-two');
+});
+
+test('background credentials cannot extend an expired browser session or bypass a missing cookie', async t => {
+  const shared = sharedSessionFixture(); const { f } = shared; t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  shared.setStored({ ...shared.getStored(), expiresAt: f.time() + 86_400_000 });
+  f.advance(9 * 60 * 60 * 1000);
+  const before = f.calls.length;
+  assert.equal((await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` })).status, 401);
+  assert.equal((await f.call('resources')).status, 401);
+  assert.equal(f.calls.length, before);
+});
+
+test('a missing or inaccessible backend session never falls back to refreshing the old browser cookie', async t => {
+  for (const unavailable of [false, true]) {
+    const shared = sharedSessionFixture(); const { f, store } = shared;
+    try {
+      const token = await authorizeAndCallback(f);
+      f.advance(3_700_000);
+      store.load = async () => { if (unavailable) throw new Error('private-storage-detail'); return null; };
+      const before = f.calls.length;
+      const response = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
+      assert.equal(response.status, 503); assert.equal(f.calls.length, before);
+      assert.doesNotMatch(JSON.stringify(await response.json()), /private-storage-detail|access-one|refresh-one/);
+    } finally { f.restore(); }
+  }
+});
+
+test('failed persistence after rotation prevents commercial reads and keeps private storage errors out of the response', async t => {
+  const shared = sharedSessionFixture(); const { f, store } = shared; t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  f.advance(3_700_000);
+  store.save = async () => { throw new Error('private-storage-detail'); };
+  const before = f.calls.length;
+  const response = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
+  assert.equal(response.status, 503);
+  assert.equal(f.calls.slice(before).length, 1); assert.ok(f.calls[before].href.endsWith('/token'));
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.doesNotMatch(JSON.stringify(await response.json()), /private-storage-detail|access-two|refresh-two/);
 });

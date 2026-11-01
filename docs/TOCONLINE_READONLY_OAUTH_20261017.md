@@ -116,3 +116,21 @@ Os resultados devolvidos ao browser são reduzidos aos campos necessários ao di
 - https://api-docs.toconline.pt/apis/apis-auxiliares/contas-bancarias
 - https://api-docs.toconline.pt/apis/apis-auxiliares/unidades-de-medida
 - https://api-docs.toconline.pt/apis/apis-auxiliares/unidade-monetaria
+# Sincronização da renovação OAuth (01/11/2026)
+
+Quando a sessão de faturação automática está configurada, as consultas da
+administração usam as credenciais atuais da sessão cifrada no servidor. O cookie
+do navegador continua obrigatório e mantém o seu prazo próprio de oito horas;
+a sessão de faturação não alarga esse acesso interativo.
+
+Uma renovação feita numa consulta é guardada no servidor antes de utilizar as
+novas credenciais. Um separador com um cookie antigo adota as credenciais atuais,
+incluindo quando a renovação foi feita pela faturação automática. Não volta a
+renovar o token antigo do cookie. A leitura inicial e a recuperação de um 401
+usam o mesmo percurso de sincronização.
+
+Se não for possível consultar ou guardar a sessão do servidor, a consulta falha
+com um código fixo e não tenta usar o cookie antigo como alternativa. Sem a
+configuração de faturação automática, conserva-se o modo de leitura baseado no
+cookie. As consultas continuam limitadas aos recursos GET existentes; esta
+correção não retoma trabalhos fiscais pendentes nem emite documentos.
