@@ -12,3 +12,8 @@
 .admin-transfers__review legend { float: none; font-size: 1rem; font-weight: 700; }
 .admin-transfers .admin-transfers__confirmation { display: flex; align-items: start; gap: .65rem; margin: 1rem 0; }
 .admin-transfers__confirmation input { flex: 0 0 auto; margin-top: .3rem; }
+.admin-transfers__field { display: grid; align-content: start; gap: .4rem; min-width: 0; }
+.admin-transfers__field > input, .admin-transfers__field > textarea { width: 100%; }
+.admin-transfers__field small { line-height: 1.45; }
+.admin-transfers__field-error { color: #a02424; }
+.admin-transfers__field [aria-invalid="true"] { border-color: #a02424; }

@@ -151,8 +151,26 @@ function AdminTransfersQueue({ user, language }) {
   const amountCents = cents(amount);
   const normalizedReference = creditReference.trim().replace(/\s+/g, ' ');
   const createdDay = selected?.createdAt && Number.isFinite(Date.parse(selected.createdAt)) ? lisbonDay(new Date(selected.createdAt)) : '';
+  const today = lisbonToday();
+  const dayLabel = day => new Intl.DateTimeFormat(en ? 'en-GB' : 'pt-PT', { timeZone: 'Europe/Lisbon' }).format(new Date(`${day}T12:00:00Z`));
+  const amountOkay = amountCents !== null && amountCents <= 9999900;
   const dateOkay = (() => { try { return validDate(bookingDate) && (!createdDay || bookingDate >= createdDay); } catch { return false; } })();
-  const complete = amountCents !== null && dateOkay && normalizedReference.length >= 3 && normalizedReference.length <= 80 && reason.trim().length <= 500;
+  const referenceOkay = /^[A-Z0-9][A-Z0-9 /._:-]{2,79}$/.test(normalizedReference.toUpperCase());
+  const reasonOkay = reason.trim().length <= 500 && !/[\u0000-\u001f\u007f]/.test(reason.trim());
+  const fieldErrors = {
+    amount: !amountOkay && (amount.trim() || creditConfirmed)
+      ? t('Indique um montante entre 0,01 € e 99 999,00 €, com até duas casas decimais.', 'Enter an amount between €0.01 and €99,999.00, with up to two decimal places.') : '',
+    date: !dateOkay && (bookingDate || creditConfirmed)
+      ? bookingDate > today
+        ? t(`A data do crédito não pode ser posterior a ${dayLabel(today)} (hoje, hora de Lisboa).`, `The credit date cannot be later than ${dayLabel(today)} (today in Lisbon).`)
+        : bookingDate && createdDay && bookingDate < createdDay
+          ? t(`A data do crédito não pode ser anterior a ${dayLabel(createdDay)}, data do pedido.`, `The credit date cannot precede ${dayLabel(createdDay)}, the order date.`)
+          : t('Indique uma data de crédito válida.', 'Enter a valid credit date.') : '',
+    reference: !referenceOkay && (normalizedReference || creditConfirmed)
+      ? t('A referência do movimento não tem um formato válido. Use letras sem acentos, números e os separadores indicados.', 'The statement entry reference has an invalid format. Use unaccented letters, numbers and the listed separators.') : '',
+    reason: !reasonOkay ? t('A observação deve ter até 500 caracteres e ocupar uma única linha.', 'The note must contain up to 500 characters on a single line.') : '',
+  };
+  const complete = amountOkay && dateOkay && referenceOkay && reasonOkay;
   const blocked = loading || posting || readFailed || !selected || !mayReview(selected) || attempt?.mustRefresh || attempt?.state === 'success';
 
   async function approve(event) {
@@ -229,15 +247,36 @@ function AdminTransfersQueue({ user, language }) {
       {!mayReview(selected) ? <p>{selected.status === 'paid' ? t('Pagamento confirmado. Este pedido não permite uma nova validação.', 'Payment confirmed. This order cannot be validated again.') : t('Este pedido não está disponível para validação.', 'This order is not available for validation.')}</p> : <form onSubmit={approve}>
         {attempt?.state === 'ambiguous' && <p>{t('Os dados da tentativa anterior foram conservados. Após atualizar a lista, só será repetida essa mesma decisão.', 'The previous attempt details were retained. After refreshing the list, only that same decision can be repeated.')}</p>}
         <fieldset disabled={blocked || Boolean(attempt)}><legend>{t('Dados do crédito efetivamente recebido', 'Actual bank credit details')}</legend>
-          <label>{t('Montante creditado (€)', 'Credited amount (€)')}<input inputMode="decimal" autoComplete="off" value={amount} onChange={event => setAmount(event.target.value)} placeholder="95,00" required /></label>
-          <label>{t('Data do crédito bancário', 'Bank credit date')}<input type="date" min={createdDay || undefined} max={lisbonToday()} value={bookingDate} onChange={event => setDate(event.target.value)} required /></label>
-          <label>{t('Referência do movimento no extrato', 'Statement entry reference')}<input value={creditReference} minLength={3} maxLength={80} onChange={event => setReference(event.target.value)} required /></label>
-          <label>{t('Observação interna (opcional)', 'Internal note (optional)')}<textarea value={reason} maxLength={500} onChange={event => setReason(event.target.value)} /></label>
+          <div className="admin-transfers__field">
+            <label htmlFor="transfer-credit-amount">{t('Montante creditado (€)', 'Credited amount (€)')}</label>
+            <input id="transfer-credit-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={event => setAmount(event.target.value)} placeholder="95,00" required aria-invalid={Boolean(fieldErrors.amount)} aria-describedby={fieldErrors.amount ? 'transfer-amount-error' : undefined} />
+            {fieldErrors.amount && <small id="transfer-amount-error" className="admin-transfers__field-error">{fieldErrors.amount}</small>}
+          </div>
+          <div className="admin-transfers__field">
+            <label htmlFor="transfer-credit-date">{t('Data do crédito bancário', 'Bank credit date')}</label>
+            <input id="transfer-credit-date" type="date" min={createdDay || undefined} max={today} value={bookingDate} onChange={event => setDate(event.target.value)} required aria-invalid={Boolean(fieldErrors.date)} aria-describedby={`transfer-date-help${fieldErrors.date ? ' transfer-date-error' : ''}`} />
+            <small id="transfer-date-help">{t('Data efetiva em que o valor entrou na conta.', 'The date the funds were actually credited to the account.')}</small>
+            {fieldErrors.date && <small id="transfer-date-error" className="admin-transfers__field-error">{fieldErrors.date}</small>}
+          </div>
+          <div className="admin-transfers__field">
+            <label htmlFor="transfer-credit-reference">{t('Referência do movimento no extrato', 'Statement entry reference')}</label>
+            <input id="transfer-credit-reference" value={creditReference} minLength={3} maxLength={80} onChange={event => setReference(event.target.value)} required aria-invalid={Boolean(fieldErrors.reference)} aria-describedby={`transfer-reference-help${fieldErrors.reference ? ' transfer-reference-error' : ''}`} />
+            <small id="transfer-reference-help">{t('Copie a referência real do extrato: 3 a 80 caracteres, começando por letra ou número. Aceita letras sem acentos, números, espaços e / . _ : -.', 'Copy the actual statement reference: 3–80 characters, starting with a letter or number. Unaccented letters, numbers, spaces and / . _ : - are accepted.')}</small>
+            {fieldErrors.reference && <small id="transfer-reference-error" className="admin-transfers__field-error">{fieldErrors.reference}</small>}
+          </div>
+          <div className="admin-transfers__field">
+            <label htmlFor="transfer-credit-note">{t('Observação interna (opcional)', 'Internal note (optional)')}</label>
+            <textarea id="transfer-credit-note" value={reason} maxLength={500} onChange={event => setReason(event.target.value)} aria-invalid={Boolean(fieldErrors.reason)} aria-describedby={fieldErrors.reason ? 'transfer-note-error' : undefined} />
+            {fieldErrors.reason && <small id="transfer-note-error" className="admin-transfers__field-error">{fieldErrors.reason}</small>}
+          </div>
         </fieldset>
         {complete && <p>{t('Crédito a validar', 'Credit to validate')}: <strong>{money(amountCents)}</strong> · {bookingDate} · {normalizedReference}</p>}
         <label className="admin-transfers__confirmation"><input type="checkbox" checked={creditConfirmed} disabled={blocked} onChange={event => setConfirmed(event.target.checked)} />{t('Conferi o crédito efetivo na conta e a correspondência do montante, data e movimento com este pedido.', 'I checked the actual bank credit and matched its amount, date and statement entry to this order.')}</label>
         <p>{t('A validação confirma o pagamento, atualiza a inscrição e inicia a faturação correspondente.', 'Validation confirms payment, updates registration and starts the corresponding invoicing.')}</p>
-        <button type="submit" disabled={blocked || !complete || !creditConfirmed}>{posting ? t('A validar…', 'Validating…') : t('Validar crédito e confirmar pagamento', 'Validate credit and confirm payment')}</button>
+        {(!complete || !creditConfirmed) && <p id="transfer-validation-hint" aria-live="polite">{!complete
+          ? t('Preencha os dados do crédito e corrija os campos assinalados para poder validar.', 'Complete the credit details and correct the marked fields to enable validation.')
+          : t('Assinale a confirmação do crédito efetivo para poder validar.', 'Confirm that the funds were actually credited to enable validation.')}</p>}
+        <button type="submit" disabled={blocked || !complete || !creditConfirmed} aria-describedby={!complete || !creditConfirmed ? 'transfer-validation-hint' : undefined}>{posting ? t('A validar…', 'Validating…') : t('Validar crédito e confirmar pagamento', 'Validate credit and confirm payment')}</button>
       </form>}
     </section>}
   </main>;
