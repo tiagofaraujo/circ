@@ -4,6 +4,9 @@ import AdminModuleNav from '../components/AdminModuleNav';
 import { prepareProductionCleanup, archiveProductionCleanup, restoreProductionCleanup } from '../auth/productionCleanupStore';
 import '../admin.css';
 
+// This preparation retires the pre-opening material, never new participant data.
+const OPENING_CLEANUP_CUTOFF = Date.parse('2026-11-01T00:00:00Z');
+
 const errors = {
   'cleanup/admin-required': 'Esta operação requer a conta de administração.',
   'cleanup/inventory-too-large': 'O inventário excede o limite desta operação. A limpeza não foi iniciada.',
@@ -28,7 +31,7 @@ export default function AdminProductionCleanupPage() {
   const [restored, setRestored] = useState(false);
   async function inventory() {
     setBusy(true); setError(''); setChecked(false);
-    try { setPlan(await prepareProductionCleanup(user)); }
+    try { setPlan(await prepareProductionCleanup(user, { cutoff: OPENING_CLEANUP_CUTOFF })); }
     catch (issue) { setError(errors[issue.message] || 'Não foi possível concluir a conferência. Nenhum registo foi removido.'); }
     finally { setBusy(false); }
   }
@@ -61,7 +64,7 @@ export default function AdminProductionCleanupPage() {
       <p>Pagamentos reais, referências de pagamento em curso e documentos fiscais são preservados. Os trabalhos arquivados são retirados também da área dos revisores; as atribuições e avaliações ficam guardadas.</p>
       <button type="button" disabled={busy} onClick={inventory}>{busy ? 'A processar…' : 'Atualizar inventário'}</button>
       {plan && <>
-        <p>Conferência de {new Date(plan.preparedAt).toLocaleString('pt-PT')}. Registos posteriores a esta conferência ficam fora desta operação.</p>
+        <p>Conferência de {new Date(plan.preparedAt).toLocaleString('pt-PT')}. Apenas os registos anteriores a 1 de novembro de 2026 são abrangidos. A atividade nova fica fora desta operação.</p>
         <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Dados</th><th>Encontrados</th><th>A arquivar</th></tr></thead><tbody>
           <tr><td>Inscrições</td><td>{plan.totals.registrations}</td><td>{plan.eligible.registrations}</td></tr>
           <tr><td>Trabalhos de submissão</td><td>{plan.totals.submissions}</td><td>{plan.eligible.submissions}</td></tr>

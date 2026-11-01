@@ -16,6 +16,7 @@ test('requires the reviewed inventory before enabling archive and reports financ
   expect(screen.queryByRole('button', { name: 'Arquivar os registos conferidos' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Atualizar inventário' }));
   const action = await screen.findByRole('button', { name: 'Arquivar os registos conferidos' });
+  expect(prepareProductionCleanup).toHaveBeenCalledWith(expect.objectContaining({ uid: 'admin' }), { cutoff: Date.parse('2026-11-01T00:00:00Z') });
   expect(action).toBeDisabled();
   expect(screen.getByText(/1 inscrição\(ões\) com informação financeira real/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('checkbox'));
