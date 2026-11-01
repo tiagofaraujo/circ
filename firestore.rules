@@ -81,9 +81,9 @@ service cloud.firestore {
         );
     }
 
-    function hasValidAbstractSections() {
-      return request.resource.data.abstractSections is map
-        && request.resource.data.abstractSections.keys().hasAll([
+    function validAbstractFields(sections, abstract, allowIncomplete) {
+      return sections is map
+        && sections.keys().hasAll([
           'introduction',
           'objective',
           'methods',
@@ -91,7 +91,7 @@ service cloud.firestore {
           'conclusion',
           'keywords'
         ])
-        && request.resource.data.abstractSections.keys().hasOnly([
+        && sections.keys().hasOnly([
           'introduction',
           'objective',
           'methods',
@@ -99,31 +99,35 @@ service cloud.firestore {
           'conclusion',
           'keywords'
         ])
-        && request.resource.data.abstractSections.introduction is string
-        && request.resource.data.abstractSections.objective is string
-        && request.resource.data.abstractSections.methods is string
-        && request.resource.data.abstractSections.results is string
-        && request.resource.data.abstractSections.conclusion is string
-        && request.resource.data.abstractSections.keywords is string
-        && request.resource.data.abstractSections.introduction.size() <= 2500
-        && request.resource.data.abstractSections.objective.size() <= 1500
-        && request.resource.data.abstractSections.methods.size() <= 3000
-        && request.resource.data.abstractSections.results.size() <= 3000
-        && request.resource.data.abstractSections.conclusion.size() <= 2000
-        && request.resource.data.abstractSections.keywords.size() <= 500
-        && request.resource.data.abstract is string
-        && request.resource.data.abstract.size() <= 15000
+        && sections.introduction is string
+        && sections.objective is string
+        && sections.methods is string
+        && sections.results is string
+        && sections.conclusion is string
+        && sections.keywords is string
+        && sections.introduction.size() <= 2500
+        && sections.objective.size() <= 1500
+        && sections.methods.size() <= 3000
+        && sections.results.size() <= 3000
+        && sections.conclusion.size() <= 2000
+        && sections.keywords.size() <= 500
+        && abstract is string
+        && abstract.size() <= 15000
         && (
-          request.resource.data.status == 'draft'
+          allowIncomplete
           || (
-            request.resource.data.abstractSections.introduction.size() > 0
-            && request.resource.data.abstractSections.objective.size() > 0
-            && request.resource.data.abstractSections.methods.size() > 0
-            && request.resource.data.abstractSections.results.size() > 0
-            && request.resource.data.abstractSections.conclusion.size() > 0
-            && request.resource.data.abstractSections.keywords.size() > 0
+            sections.introduction.size() > 0
+            && sections.objective.size() > 0
+            && sections.methods.size() > 0
+            && sections.results.size() > 0
+            && sections.conclusion.size() > 0
+            && sections.keywords.size() > 0
           )
         );
+    }
+
+    function hasValidAbstractSections() {
+      return validAbstractFields(request.resource.data.abstractSections, request.resource.data.abstract, request.resource.data.status == 'draft');
     }
 
     function hasValidProductionSubmissionContent() {
@@ -749,7 +753,7 @@ service cloud.firestore {
       let source = getAfter(/databases/$(database)/documents/submissions/$(id)).data;
       let assignments = getAfter(/databases/$(database)/documents/scientificReviewAssignments/$(id)).data;
       let code = source.get('code', '');
-      return data.keys().hasOnly(['eventId', 'submissionId', 'code', 'title', 'type', 'abstract', 'abstractSections', 'status', 'isTest', 'active', 'evaluation', 'updatedAt', 'assignedBy'])
+      return data.keys().hasOnly(['eventId', 'submissionId', 'code', 'title', 'type', 'abstract', 'abstractSections', 'status', 'isTest', 'active', 'evaluation', 'evaluationHistory', 'revisionVersion', 'updatedAt', 'assignedBy'])
         && data.eventId == 'circ-2027' && source.eventId == 'circ-2027' && data.submissionId == id
         && source.status in ['submitted', 'under_review', 'revisions', 'accepted', 'rejected']
         && data.code == (code == '' ? id : code) && data.title == source.get('title', '')
@@ -757,26 +761,44 @@ service cloud.firestore {
         && data.abstractSections == source.get('abstractSections', null)
         && (data.abstractSections == null || data.abstractSections.keys().hasOnly(['introduction', 'objective', 'methods', 'results', 'conclusion', 'keywords']))
         && data.status == source.status && data.isTest == source.get('isTest', false)
+        && data.get('revisionVersion', 0) is int && data.get('revisionVersion', 0) >= 0
+        && data.get('revisionVersion', 0) == source.get('revisionVersion', 0)
         && data.active is bool && data.active == (email in assignments.reviewerEmails)
         && (!data.active || existingActive || activeReviewer(email))
         && data.updatedAt == request.time && data.assignedBy == request.auth.uid;
     }
+    function validReviewHistoryTransition() {
+      let beforeVersion = resource.data.get('revisionVersion', 0);
+      let afterVersion = request.resource.data.get('revisionVersion', 0);
+      let previousHistory = resource.data.get('evaluationHistory', []);
+      let previousEvaluation = resource.data.get('evaluation', null);
+      let changed = beforeVersion != afterVersion;
+      let expectedHistory = changed && previousEvaluation != null
+        ? previousHistory.concat([{'revisionVersion': beforeVersion, 'evaluation': previousEvaluation}])
+        : previousHistory;
+      return afterVersion >= beforeVersion
+        && request.resource.data.get('evaluationHistory', []) == expectedHistory
+        && request.resource.data.evaluation == (changed ? null : previousEvaluation);
+    }
     function validReviewScore(value) { return value is number && value >= 0 && value <= 10; }
     function validEvaluation(data) {
-      return data is map && data.keys().hasOnly(['scores', 'comment', 'reviewerUid', 'updatedAt'])
+      return data is map && data.keys().hasOnly(['scores', 'comment', 'reviewerUid', 'updatedAt', 'revisionVersion'])
         && data.scores is map && data.scores.keys().hasAll(['quality', 'originality', 'methodology', 'clinicalRelevance', 'impact'])
         && data.scores.keys().hasOnly(['quality', 'originality', 'methodology', 'clinicalRelevance', 'impact'])
         && validReviewScore(data.scores.quality) && validReviewScore(data.scores.originality)
         && validReviewScore(data.scores.methodology) && validReviewScore(data.scores.clinicalRelevance)
         && validReviewScore(data.scores.impact)
         && data.comment is string && data.comment.size() <= 4000
-        && data.reviewerUid == request.auth.uid && data.updatedAt == request.time;
+        && data.reviewerUid == request.auth.uid && data.updatedAt == request.time
+        && data.get('revisionVersion', 0) == resource.data.get('revisionVersion', 0);
     }
     function canScoreReview(email, id) {
       let source = get(/databases/$(database)/documents/submissions/$(id)).data;
       return ownReviewer(email) && activeReviewer(email) && resource.data.active == true
         && source.userId != request.auth.uid && source.eventId == 'circ-2027'
-        && source.status in ['submitted', 'under_review', 'revisions'];
+        && source.status in ['submitted', 'under_review']
+        && resource.data.status == source.status
+        && resource.data.get('revisionVersion', 0) == source.get('revisionVersion', 0);
     }
     function acceptedIdentityMatches(data, id) {
       let source = getAfter(/databases/$(database)/documents/submissions/$(id)).data;
@@ -829,10 +851,11 @@ service cloud.firestore {
           || (ownReviewer(email) && activeReviewer(email) && resource.data.active == true);
         allow create: if canManageSubmissions() && scientificReviewsEnabled()
           && validAnonymousReview(request.resource.data, submissionId, email, false)
-          && request.resource.data.evaluation == null;
+          && request.resource.data.evaluation == null
+          && request.resource.data.get('evaluationHistory', []) == [];
         allow update: if (canManageSubmissions() && scientificReviewsEnabled()
             && validAnonymousReview(request.resource.data, submissionId, email, resource.data.active)
-            && request.resource.data.evaluation == resource.data.evaluation)
+            && validReviewHistoryTransition())
           || (canScoreReview(email, submissionId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['evaluation', 'updatedAt'])
             && validEvaluation(request.resource.data.evaluation) && request.resource.data.updatedAt == request.time);
@@ -853,6 +876,40 @@ service cloud.firestore {
       allow create, update: if canManageSubmissions() && scientificReviewsEnabled()
         && acceptedIdentityMatches(request.resource.data, submissionId);
       allow delete: if canManageSubmissions();
+    }
+
+    function ownsCorrectionSource(id) {
+      let source = get(/databases/$(database)/documents/submissions/$(id)).data;
+      let review = source.get('review', {});
+      let actor = review.get('updatedBy', {});
+      return hasVerifiedEmail() && source.userId == request.auth.uid && source.eventId == 'circ-2027'
+        && source.get('isTest', false) == false && source.get('archived', false) == false
+        && source.status == 'revisions' && review.get('updatedAt', null) is timestamp
+        && actor.get('uid', '') is string && actor.get('uid', '').size() > 0
+        && actor.get('email', '') is string && actor.get('email', '').size() > 0;
+    }
+    function validCorrectionDraft(id) {
+      let data = request.resource.data;
+      let source = get(/databases/$(database)/documents/submissions/$(id)).data;
+      let correction = data.correction;
+      return data.keys().hasOnly(['eventId', 'submissionId', 'userId', 'sourceVersion', 'sourceUpdatedAt', 'correction', 'updatedAt'])
+        && data.eventId == 'circ-2027' && data.submissionId == id && data.userId == request.auth.uid
+        && data.sourceVersion is int && data.sourceVersion >= 0 && data.sourceVersion == source.get('revisionVersion', 0)
+        && data.sourceUpdatedAt == source.updatedAt && data.updatedAt == request.time
+        && correction is map && correction.keys().hasOnly(['title', 'abstractSections', 'abstract'])
+        && correction.title is string && correction.title.size() >= 3 && correction.title.size() <= 240
+        && validAbstractFields(correction.abstractSections, correction.abstract, true);
+    }
+    match /submissionCorrectionDrafts/{submissionId} {
+      allow get: if hasVerifiedEmail()
+        && get(/databases/$(database)/documents/submissions/$(submissionId)).data.userId == request.auth.uid;
+      allow list: if false;
+      allow create, update: if ownsCorrectionSource(submissionId) && validCorrectionDraft(submissionId);
+      allow delete: if false;
+    }
+    match /scientificRevisionHistory/{historyId} {
+      allow read: if canManageSubmissions();
+      allow write: if false;
     }
 
     match /submissions/{submissionId} {

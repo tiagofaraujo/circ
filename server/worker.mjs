@@ -13,6 +13,7 @@ import { createLivePaymentWebhook } from './payments/live-webhook.mjs';
 import { createLiveFiscalResumeApi } from './payments/live-fiscal-resume.mjs';
 import { createLiveInvoicePdfApi } from './payments/live-invoice-pdf.mjs';
 import { createToconlineDraftAcceptanceApi } from './payments/toconline-draft-acceptance.mjs';
+import { createSubmissionResubmitApi } from './submissions/resubmit.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -60,6 +61,7 @@ export function createWorker(verify = verifyFirebaseToken) {
   const liveFiscalResume = createLiveFiscalResumeApi({ verify });
   const liveInvoicePdf = createLiveInvoicePdfApi({ verify });
   const toconlineDraftAcceptance = createToconlineDraftAcceptanceApi({ verify });
+  const submissionResubmit = createSubmissionResubmitApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
@@ -92,6 +94,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (invoicePdfResponse) return invoicePdfResponse;
       const liveCheckoutResponse = await liveCheckout(request, env);
       if (liveCheckoutResponse) return liveCheckoutResponse;
+      const submissionResponse = await submissionResubmit(request, env);
+      if (submissionResponse) return submissionResponse;
       const checkoutResponse = await sandboxCheckout(request, env);
       if (checkoutResponse) return checkoutResponse;
       const sandboxResponse = await sandbox(request, env);

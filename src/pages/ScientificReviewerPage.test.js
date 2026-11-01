@@ -67,3 +67,30 @@ test('the disabled module never subscribes to assignments', () => {
   expect(subscribeReviewerWorks).not.toHaveBeenCalled();
   expect(screen.getByRole('heading', { name: 'Área de avaliação por ativar' })).toBeInTheDocument();
 });
+
+
+test('a correction request locks scoring and explains the pending author revision', () => {
+  subscribeReviewerWorks.mockImplementation((_email, next) => { receiveWorks = next; next([{ ...works[0], status: 'revisions' }]); return () => {}; });
+  render(<ScientificReviewerPage />);
+  fireEvent.click(screen.getByRole('button', { name: /CIRC-01/ }));
+  expect(screen.getAllByRole('spinbutton')[0]).toBeDisabled();
+  expect(screen.getByText(/Foram pedidas correções ao autor/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Guardar avaliação' })).not.toBeInTheDocument();
+});
+
+test('a new content version cannot reuse unsaved scores from the previous version', () => {
+  render(<ScientificReviewerPage />);
+  fireEvent.click(screen.getByRole('button', { name: /CIRC-01/ }));
+  const input = screen.getAllByRole('spinbutton')[0];
+  fireEvent.change(input, { target: { value: '8' } });
+  act(() => receiveWorks([{ ...works[0], title: 'Versão corrigida', revisionVersion: 1 }]));
+  expect(screen.getByRole('alert')).toHaveTextContent('Chegou uma versão corrigida');
+  expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(8);
+  expect(screen.getAllByRole('spinbutton')[0]).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Guardar avaliação' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Carregar versão atual e limpar/ }));
+  expect(screen.getAllByRole('spinbutton')[0]).toHaveValue(null);
+  expect(screen.getAllByRole('spinbutton')[0]).toBeEnabled();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(saveScientificEvaluation).not.toHaveBeenCalled();
+});

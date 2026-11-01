@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -13,6 +13,7 @@ import {
   normalizeAbstractSections,
 } from '../auth/submissionAbstract';
 import { isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
+import { hasEffectiveCorrectionRequest, loadSubmissionCorrection, saveSubmissionCorrection, resubmitSubmissionCorrection } from '../auth/submissionCorrections';
 import { exportSubmissionPdf } from '../auth/submissionPdf';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
@@ -36,6 +37,15 @@ const content = {
     rulesLabel: 'Formato',
     rulesValue: 'Resumo estruturado',
     newWork: 'Novo trabalho',
+    correctionTitle: 'Corrigir o trabalho e reenviar para avaliação',
+    correctionAction: 'Preparar correções',
+    correctionSave: 'Guardar correções',
+    correctionSubmit: 'Reenviar trabalho corrigido',
+    correctionSaved: 'As correções foram guardadas. Pode continuar a editá-las antes de reenviar.',
+    correctionSent: 'Versão corrigida reenviada para avaliação. O histórico anterior foi preservado.',
+    correctionReview: 'Reveja o título e o resumo. A tipologia e a identificação dos autores mantêm-se. Ao reenviar, a versão anterior e as avaliações ficam preservadas no histórico reservado à gestão.',
+    correctionRequest: 'Pedido de correções',
+    correctionStale: 'O pedido da gestão foi atualizado. Este formulário parte do último resumo submetido; ao guardar, substitui o rascunho preparado para o pedido anterior.',
     closedType: 'Prazo de submissão encerrado para esta tipologia.',
     newWorkHint: 'Guarde um rascunho antes da submissão definitiva.',
     journeyEyebrow: 'Percurso do autor',
@@ -85,7 +95,7 @@ const content = {
     keywordsPlaceholder: 'Ex.: Radiologia; Ressonância magnética; Diagnóstico',
     sectionsComplete: 'As seis secções do resumo estão preenchidas.',
     reviewLabel: 'Revisão e envio',
-    reviewText: 'Confirme os dados e a anonimização do título e do resumo. Depois de submeter, o trabalho segue para avaliação e deixa de poder ser editado.',
+    reviewText: 'Confirme os dados e a anonimização do título e do resumo. Depois de submeter, só pode voltar a editar se a gestão solicitar correções.',
     saveDraft: 'Guardar rascunho',
     updateDraft: 'Atualizar rascunho',
     submitWork: 'Submeter trabalho',
@@ -130,6 +140,15 @@ const content = {
     rulesLabel: 'Format',
     rulesValue: 'Structured abstract',
     newWork: 'New submission',
+    correctionTitle: 'Revise your work and resubmit for review',
+    correctionAction: 'Prepare revisions',
+    correctionSave: 'Save revisions',
+    correctionSubmit: 'Resubmit revised work',
+    correctionSaved: 'Your revisions were saved. You can keep editing before resubmitting.',
+    correctionSent: 'The revised version was resubmitted for review. The previous history was preserved.',
+    correctionReview: 'Review the title and abstract. The submission type and author identity stay unchanged. Resubmission preserves the previous version and evaluations in the history reserved to the organisers.',
+    correctionRequest: 'Revision request',
+    correctionStale: 'The organisers updated their request. This form starts from the last submitted abstract; saving replaces the draft prepared for the earlier request.',
     closedType: 'The submission deadline for this type has passed.',
     newWorkHint: 'Save a draft before final submission.',
     journeyEyebrow: 'Author journey',
@@ -179,7 +198,7 @@ const content = {
     keywordsPlaceholder: 'E.g. Radiology; Magnetic resonance imaging; Diagnosis',
     sectionsComplete: 'All six abstract sections are complete.',
     reviewLabel: 'Review and submission',
-    reviewText: 'Check the details and anonymise the title and abstract. After submission, the work enters review and can no longer be edited.',
+    reviewText: 'Check the details and anonymise the title and abstract. After submission, you can edit again only if the organisers request revisions.',
     saveDraft: 'Save draft',
     updateDraft: 'Update draft',
     submitWork: 'Submit work',
@@ -317,8 +336,9 @@ function formFromSubmission(submission) {
   };
 }
 
-function SubmissionForm({ t, onClose, onSave, submission }) {
-  const [form, setForm] = useState(() => formFromSubmission(submission));
+function SubmissionForm({ t, onClose, onSave, submission, correctionDraft }) {
+  const correcting = hasEffectiveCorrectionRequest(submission);
+  const [form, setForm] = useState(() => ({ ...formFromSubmission(submission), ...(correcting && correctionDraft && !correctionDraft.stale ? { title: correctionDraft.title, ...normalizeAbstractSections(correctionDraft.abstractSections) } : {}) }));
   const [saving, setSaving] = useState(false);
 
   const updateField = (field) => (event) => {
@@ -326,7 +346,7 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
   };
 
   const canSaveDraft = Boolean(form.title.trim().length >= 3 && form.authors.trim().length >= 2);
-  const canSubmit = canSaveDraft && hasCompleteAbstractSections(form) && isSubmissionTypeOpen(form.type);
+  const canSubmit = canSaveDraft && hasCompleteAbstractSections(form) && (correcting || isSubmissionTypeOpen(form.type));
   const abstractFields = [
     ['introduction', t.introductionLabel, t.introductionPlaceholder, 4],
     ['objective', t.objectiveLabel, t.objectivePlaceholder, 3],
@@ -356,13 +376,14 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
       <header className="submissions-composer__header">
         <div>
           <p className="eyebrow">{submission ? t.editFormEyebrow : t.formEyebrow}</p>
-          <h2 id="submissions-composer-title">{submission ? t.editFormTitle : t.formTitle}</h2>
+          <h2 id="submissions-composer-title">{correcting ? t.correctionTitle : submission ? t.editFormTitle : t.formTitle}</h2>
         </div>
         <button type="button" onClick={onClose} disabled={saving}>{t.close} ×</button>
       </header>
 
+      {correcting && correctionDraft?.stale && <p role="status">{t.correctionStale}</p>}
       <form onSubmit={(event) => { event.preventDefault(); save('submitted'); }}>
-        <fieldset className="submissions-form-step">
+        <fieldset className="submissions-form-step" disabled={correcting}>
           <legend><span>01</span>{t.typeLabel}</legend>
           <div className="submissions-type-grid">
             <label className={form.type === 'oral' ? 'is-selected' : ''}>
@@ -386,7 +407,7 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
           </label>
           <label>
             <span>{t.authorsLabel}</span>
-            <textarea rows="4" value={form.authors} onChange={updateField('authors')} placeholder={t.authorsPlaceholder} maxLength={SUBMISSION_LIMITS.authors} required />
+            <textarea rows="4" value={form.authors} onChange={updateField('authors')} readOnly={correcting} placeholder={t.authorsPlaceholder} maxLength={SUBMISSION_LIMITS.authors} required />
           </label>
         </fieldset>
 
@@ -394,7 +415,7 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
           <legend><span>03</span>{t.contentLabel}</legend>
           <label>
             <span>{t.affiliationLabel}</span>
-            <input value={form.affiliation} onChange={updateField('affiliation')} placeholder={t.affiliationPlaceholder} maxLength={SUBMISSION_LIMITS.affiliation} />
+            <input value={form.affiliation} onChange={updateField('affiliation')} readOnly={correcting} placeholder={t.affiliationPlaceholder} maxLength={SUBMISSION_LIMITS.affiliation} />
           </label>
           <p>{t.anonymousHint}</p>
           <div className="submissions-abstract-grid">
@@ -419,11 +440,11 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
             <div><small>{t.authorsLabel}</small><strong>{form.authors || '—'}</strong></div>
             <div><small>{t.contentLabel}</small><strong>{canSubmit ? t.sectionsComplete : '—'}</strong></div>
           </div>
-          <p>{t.reviewText}</p>
-          {!isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
+          <p>{correcting ? t.correctionReview : t.reviewText}</p>
+          {!correcting && !isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
           <div className="submissions-form-actions">
-            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : submission ? t.updateDraft : t.saveDraft}</button>
-            <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitWork} →</button>
+            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : correcting ? t.correctionSave : submission ? t.updateDraft : t.saveDraft}</button>
+            <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : correcting ? t.correctionSubmit : t.submitWork} →</button>
           </div>
         </fieldset>
       </form>
@@ -438,9 +459,19 @@ export default function ScientificSubmissionsPage() {
   const canSubmitWork = user?.emailVerified === true;
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState(null);
+  const [correctionDraft, setCorrectionDraft] = useState(null);
+  const [correctionRequestId, setCorrectionRequestId] = useState('');
+  const [correctionLoading, setCorrectionLoading] = useState(false);
   const [ownSubmissions, setOwnSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const activeAuthor = useRef(user?.uid);
+  activeAuthor.current = user?.uid;
+
+  useEffect(() => {
+    setOwnSubmissions([]); setComposerOpen(false); setEditingSubmission(null); setCorrectionDraft(null);
+    setCorrectionRequestId(''); setCorrectionLoading(false); setError(''); setNotice('');
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -452,6 +483,7 @@ export default function ScientificSubmissionsPage() {
   }, [language, user]);
 
   const openNewSubmission = () => {
+    setCorrectionDraft(null);
     setEditingSubmission(null);
     setComposerOpen(true);
   };
@@ -468,6 +500,18 @@ export default function ScientificSubmissionsPage() {
     }, 0);
   };
 
+  const prepareCorrections = async submission => {
+    if (!canSubmitWork || !hasEffectiveCorrectionRequest(submission) || correctionLoading) return;
+    setCorrectionLoading(true); setError('');
+    try {
+      const draft = await loadSubmissionCorrection(user, submission);
+      if (activeAuthor.current !== user.uid) return;
+      setCorrectionDraft(draft); setEditingSubmission(submission);
+      setCorrectionRequestId(crypto.randomUUID()); setComposerOpen(true);
+    } catch (error) { setError(submissionErrorMessage(error, language)); }
+    finally { setCorrectionLoading(false); }
+  };
+
   const closeComposer = () => {
     setComposerOpen(false);
     setEditingSubmission(null);
@@ -478,6 +522,15 @@ export default function ScientificSubmissionsPage() {
     setError('');
 
     try {
+      if (hasEffectiveCorrectionRequest(editingSubmission)) {
+        const draftUpdatedAt = await saveSubmissionCorrection(user, editingSubmission, form, correctionDraft?.draftUpdatedAt || null);
+        setCorrectionDraft({ title: form.title, abstractSections: normalizeAbstractSections(form), draftUpdatedAt });
+        if (status !== 'draft') await resubmitSubmissionCorrection(user, editingSubmission, form, correctionRequestId);
+        if (activeAuthor.current !== user.uid) return;
+        closeComposer();
+        setNotice(status === 'draft' ? t.correctionSaved : t.correctionSent);
+        return;
+      }
       if (isEditing) {
         await updateSubmissionDraft(
           user,
@@ -568,6 +621,7 @@ export default function ScientificSubmissionsPage() {
           key={editingSubmission?.id || 'new-submission'}
           t={t}
           submission={editingSubmission}
+          correctionDraft={correctionDraft}
           onClose={closeComposer}
           onSave={saveWork}
         />
@@ -620,6 +674,12 @@ export default function ScientificSubmissionsPage() {
                       {t.editDraft} →
                     </button>
                   )}
+
+                  {hasEffectiveCorrectionRequest(submission) && <section aria-label={t.correctionRequest}>
+                    <h4>{t.correctionRequest}</h4>
+                    <p>{submission.review?.note || (language === 'en' ? 'The organisers requested a revised title or abstract.' : 'A gestão solicitou uma revisão do título ou do resumo.')}</p>
+                    <button type="button" disabled={correctionLoading} onClick={() => prepareCorrections(submission)}>{correctionLoading ? '…' : t.correctionAction}</button>
+                  </section>}
 
                   <details className="submissions-work-details">
                     <summary>

@@ -3,7 +3,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const { before, after, beforeEach, test } = require('node:test');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } = require('firebase/firestore');
+const { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } = require('firebase/firestore');
 
 const source = fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8');
 const oralDeadline = 'timestamp.date(2027, 1, 16)';
@@ -112,4 +112,91 @@ test('production settings remain administrator-only, including former sandbox te
   await assertFails(setDoc(doc(tester, 'settings', key), { kind: 'sandbox-record' }));
   const admin = dbFor(open, 'admin', true, 'circ.chuc@gmail.com');
   await assertSucceeds(setDoc(doc(admin, 'settings', key), { kind: 'sandbox-record' }));
+});
+
+const correctionSource = () => submission('author', 'revisions', {
+  revisionVersion: 0, submittedAt: serverTimestamp(),
+  review: { note: 'Clarificar os métodos.', updatedAt: serverTimestamp(), updatedBy: { uid: 'manager', email: mail('manager') } },
+});
+async function seedCorrection(extra = {}) {
+  await open.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'submissions', 'correction'), { ...correctionSource(), ...extra }));
+  return (await getDoc(doc(dbFor(open), 'submissions', 'correction'))).data();
+}
+const correctionDraft = source => ({ eventId: 'circ-2027', submissionId: 'correction', userId: 'author',
+  sourceVersion: source.revisionVersion, sourceUpdatedAt: source.updatedAt, updatedAt: serverTimestamp(),
+  correction: { title: 'Trabalho corrigido', abstractSections: sections, abstract: 'Resumo corrigido' } });
+
+test('the author saves private correction drafts only under an effective management request', async () => {
+  const source = await seedCorrection(), db = dbFor(open), ref = doc(db, 'submissionCorrectionDrafts', 'correction');
+  await assertSucceeds(getDoc(ref));
+  await assertSucceeds(setDoc(ref, correctionDraft(source)));
+  await assertSucceeds(getDoc(ref));
+  await assertFails(getDoc(doc(dbFor(open, 'other'), 'submissionCorrectionDrafts', 'correction')));
+  await assertFails(setDoc(doc(dbFor(open, 'author', false), 'submissionCorrectionDrafts', 'correction'), correctionDraft(source)));
+  await assertFails(updateDoc(doc(db, 'submissions', 'correction'), { title: 'Mutação direta', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(db, 'submissions', 'correction'), { status: 'submitted', updatedAt: serverTimestamp() }));
+});
+
+test('private correction drafts reject identity edits, stale versions and stale management requests', async () => {
+  const source = await seedCorrection(), db = dbFor(open), ref = doc(db, 'submissionCorrectionDrafts', 'correction');
+  for (const patch of [{ sourceVersion: 1 }, { sourceUpdatedAt: Timestamp.fromMillis(1000) }, { userId: 'other' },
+    { correction: { title: 'Trabalho corrigido', abstractSections: sections, abstract: 'Resumo', authors: 'Autor alterado' } }]) {
+    await assertFails(setDoc(ref, { ...correctionDraft(source), ...patch }));
+  }
+  for (const change of [{ status: 'accepted' }, { archived: true }, { isTest: true }, { review: {} }]) {
+    await seedCorrection(change);
+    await assertFails(setDoc(ref, correctionDraft(source)));
+  }
+});
+
+test('revision history stays private to scientific management and cannot be forged by clients', async () => {
+  await open.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'scientificRevisionHistory', 'historic'), { reviewers: ['private@example.test'], source: { authors: 'Identidade privada' } });
+    await setDoc(doc(ctx.firestore(), 'users', 'manager'), { roles: { submissions: true } });
+  });
+  await assertFails(getDoc(doc(dbFor(open), 'scientificRevisionHistory', 'historic')));
+  await assertSucceeds(getDoc(doc(dbFor(open, 'manager'), 'scientificRevisionHistory', 'historic')));
+  await assertFails(setDoc(doc(dbFor(open), 'scientificRevisionHistory', 'forged'), { revisionVersion: 1 }));
+  await assertFails(updateDoc(doc(dbFor(open, 'manager'), 'scientificRevisionHistory', 'historic'), { reviewers: [] }));
+});
+
+const reviewScores = { quality: 7, originality: 7, methodology: 7, clinicalRelevance: 7, impact: 7 };
+const reviewCopy = (source, extra = {}) => ({ eventId: 'circ-2027', submissionId: 'versioned', code: source.code,
+  title: source.title, type: source.type, abstract: source.abstract, abstractSections: source.abstractSections,
+  status: source.status, isTest: false, active: true, revisionVersion: source.revisionVersion || 0,
+  evaluation: null, evaluationHistory: [], updatedAt: serverTimestamp(), assignedBy: 'manager', ...extra });
+async function seedVersioned(status = 'submitted', version = 1, copyExtra = {}) {
+  const source = submission('author', status, { revisionVersion: version });
+  await open.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'reviewConfiguration', 'circ-2027'), { enabled: true });
+    await setDoc(doc(db, 'users', 'manager'), { roles: { submissions: true } });
+    await setDoc(doc(db, 'scientificReviewers', mail('reviewer')), { active: true });
+    await setDoc(doc(db, 'submissions', 'versioned'), source);
+    await setDoc(doc(db, 'scientificReviewAssignments', 'versioned'), { reviewerEmails: [mail('reviewer')] });
+    await setDoc(doc(db, 'scientificReviewers', mail('reviewer'), 'works', 'versioned'), reviewCopy(source, copyExtra));
+  });
+  return source;
+}
+function scoreVersion(version) {
+  return { scores: reviewScores, comment: '', reviewerUid: 'reviewer', revisionVersion: version, updatedAt: serverTimestamp() };
+}
+
+test('stale evaluation versions and scoring during requested corrections are rejected', async () => {
+  const ref = doc(dbFor(open, 'reviewer'), 'scientificReviewers', mail('reviewer'), 'works', 'versioned');
+  await seedVersioned();
+  await assertFails(updateDoc(ref, { evaluation: scoreVersion(0), updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { evaluation: scoreVersion(1), updatedAt: serverTimestamp() }));
+  await seedVersioned('revisions', 1);
+  await assertFails(updateDoc(ref, { evaluation: scoreVersion(1), updatedAt: serverTimestamp() }));
+});
+
+test('reassignment to a new version must preserve the old score in history and clear the current score', async () => {
+  const oldEvaluation = { scores: reviewScores, comment: 'Avaliação anterior', reviewerUid: 'reviewer', updatedAt: Timestamp.fromMillis(1000), revisionVersion: 0 };
+  const source = await seedVersioned('submitted', 1, { revisionVersion: 0, evaluation: oldEvaluation, active: false });
+  const ref = doc(dbFor(open, 'manager'), 'scientificReviewers', mail('reviewer'), 'works', 'versioned');
+  const updated = reviewCopy(source, { assignedBy: 'manager' });
+  await assertFails(setDoc(ref, updated));
+  await assertSucceeds(setDoc(ref, { ...updated, evaluationHistory: [{ revisionVersion: 0, evaluation: oldEvaluation }] }));
+  await assertFails(updateDoc(ref, { evaluationHistory: [], updatedAt: serverTimestamp() }));
 });

@@ -7,6 +7,8 @@ import {
   parseReviewScores,
   REVIEW_COMMENT_LIMIT,
   reviewableStatuses,
+  scorableStatuses,
+  reviewVersion,
   reviewerEmail,
   validReviewerEmail,
 } from './scientificReview';
@@ -152,15 +154,23 @@ export async function assignScientificReviewers(user, submissionId, selectedEmai
       updatedAt: timestamp(),
       updatedBy: user.uid,
     });
-    allEmails.forEach((email, index) =>
+    allEmails.forEach((email, index) => {
+      const previousWork = existing[index].data();
+      const previousHistory = previousWork?.evaluationHistory;
+      if (previousHistory !== undefined && !Array.isArray(previousHistory)) throw new Error('review/conflict');
+      const history = previousHistory || [];
+      const versionChanged = Boolean(previousWork && reviewVersion(previousWork) !== reviewVersion(source));
       tx.set(workRef(db, email, submissionId), {
         ...anonymousReviewContent(source, submissionId),
         active: emails.includes(email),
-        evaluation: existing[index].data()?.evaluation || null,
+        evaluation: versionChanged ? null : previousWork?.evaluation || null,
+        evaluationHistory: versionChanged && previousWork.evaluation
+          ? [...history, { revisionVersion: reviewVersion(previousWork), evaluation: previousWork.evaluation }]
+          : history,
         updatedAt: timestamp(),
         assignedBy: user.uid,
-      }),
-    );
+      });
+    });
     if (source.status === 'accepted')
       tx.set(identityRef(db, submissionId), acceptedReviewIdentity(source));
     else tx.delete(identityRef(db, submissionId));
@@ -176,12 +186,12 @@ export async function saveScientificEvaluation(user, work, input, comment) {
   await db.runTransaction(async (tx) => {
     const current = await tx.get(ref);
     const data = current.data();
-    if (!data?.active || !reviewableStatuses.includes(data.status))
+    if (!data?.active || !scorableStatuses.includes(data.status))
       throw new Error('review/closed');
-    if (!sameTime(data.evaluation?.updatedAt, work.evaluation?.updatedAt))
+    if (reviewVersion(data) !== reviewVersion(work) || !sameTime(data.evaluation?.updatedAt, work.evaluation?.updatedAt))
       throw new Error('review/conflict');
     tx.update(ref, {
-      evaluation: { scores, comment: note, reviewerUid: user.uid, updatedAt: timestamp() },
+      evaluation: { scores, comment: note, reviewerUid: user.uid, revisionVersion: reviewVersion(data), updatedAt: timestamp() },
       updatedAt: timestamp(),
     });
   });

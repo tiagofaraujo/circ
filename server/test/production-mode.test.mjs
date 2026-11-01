@@ -23,3 +23,21 @@ test('production retains authenticated live payment and fiscal read routes', asy
     assert.equal(response.status, 401);
   }
 });
+
+test('production routes scientific correction requests through authentication', async () => {
+  const worker = createWorker();
+  const response = await worker.fetch(new Request('https://circ.test/api/submissions/real-work/resubmit', {
+    method: 'POST', headers: { Origin: 'https://circ.test', 'Content-Type': 'application/json' }, body: '{}',
+  }), { CIRC_OPERATION_MODE: 'production', FIREBASE_PROJECT_ID: 'circ-coimbra', SCIENTIFIC_CORRECTIONS_ENABLED: 'true' });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, 'sign-in-required');
+});
+
+test('scientific corrections remain closed until their rules are deployed', async () => {
+  const worker = createWorker(() => { throw new Error('disabled feature must not authenticate'); });
+  const response = await worker.fetch(new Request('https://circ.test/api/submissions/real-work/resubmit', { method: 'POST' }), {
+    CIRC_OPERATION_MODE: 'production',
+  });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error, 'corrections-not-enabled');
+});
