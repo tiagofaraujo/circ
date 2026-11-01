@@ -1,38 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLiveFiscalResumeApi } from '../payments/live-fiscal-resume.mjs';
-import { buildLiveOnsiteMultibancoFR } from '../payments/toconline-live-payload.mjs';
+import { buildLivePaymentFR } from '../payments/toconline-live-payload.mjs';
 import { quotePrimary } from '../payments/quote.mjs';
 import { createWorker } from '../worker.mjs';
 const ID='649d2dbd-6125-4212-bfa8-22035a3a55e7';
 const identity={sub:'admin',email:'circ.chuc@gmail.com',email_verified:true};
 const env={FIREBASE_PROJECT_ID:'circ-coimbra',LIVE_CHECKOUT_ENABLED:'false'};
 const confirmation={confirmation:'RETOMAR FATURACAO AUTORIZADA'};
-function fixture({error=null,failIssuedSave=false,waitForIssue=false,ownerId='admin',profile='external',amountCents=9500}={}){
+function fixture({error=null,failIssuedSave=false,waitForIssue=false,ownerId='admin',profile='external',amountCents=9500,method='multibanco',loseClaimAcknowledgement=false}={}){
   const quote=quotePrimary({profile:'external',congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
     {uid:'admin',emailVerified:true},null,new Date('2026-11-01T12:00:00Z'));
   quote.selection.profile=profile; quote.selection.courseAffiliation=profile==='uls'?'uls':'external';
   quote.amountCents=amountCents; quote.lines[0].unitAmountCents=amountCents; quote.lines[0].amountCents=amountCents;
   const billing={customer_business_name:'Pessoa Teste',customer_tax_registration_number:'203821432',customer_country:'PT'};
-  let payment={id:ID,userId:ownerId,eventId:'circ-2027',registrationId:`circ-2027-${ownerId}`,environment:'production',provider:'eupago',method:'multibanco',
+  const bank=method==='bank_transfer', creditKey='a'.repeat(64);
+  let credit=bank?{kind:'bank-credit-live',environment:'production',eventId:'circ-2027',orderId:ID,decisionId:ID,requestHash:'test-request-hash',creditReference:'STATEMENT/2026/1',creditKey,bookingDate:'2026-11-01',amountCents,currency:'EUR'}:null;
+  let payment={id:ID,userId:ownerId,eventId:'circ-2027',registrationId:`circ-2027-${ownerId}`,environment:'production',provider:bank?'internal_bank_transfer':'eupago',method,
     amountCents,currency:'EUR',identifier:'circ_live_'+ID.replaceAll('-',''),status:'paid',reference:'238871433',entity:'12477',
     paidAt:'2026-11-01T07:54:00Z',paymentDate:'2026-11-01',transactionId:'777',fiscalStatus:'pending_authorization',quote,billingSnapshot:billing};
+  if(bank)Object.assign(payment,{reference:ID,entity:null,transactionId:`bank_${creditKey}`,bankTransfer:{status:'confirmed',revision:1,iban:'PT50003300004567422451905',
+    billingAccount:{source:'company_bank_accounts',id:7,ibanLast4:'1905'},confirmation:{...credit}}});
   let registration={selection:{...quote.selection},userId:ownerId,eventId:'circ-2027',primaryRegistration:true,isTest:false,testMode:false,status:'confirmed',documentCount:0,
-    payment:{status:'paid',amountCents,currency:'EUR',method:'multibanco',reference:payment.reference}};
-  const salesDocument=buildLiveOnsiteMultibancoFR({orderId:ID,quote,billing:{customer:billing},paymentDate:payment.paymentDate});
+    payment:{status:'paid',amountCents,currency:'EUR',method,reference:payment.reference}};
+  const salesDocument=buildLivePaymentFR({orderId:ID,quote,billing:{customer:billing},paymentDate:payment.paymentDate,method,...(bank?{bankAccountId:7}:{})});
   let job={id:ID,eventId:'circ-2027',registrationId:payment.registrationId,userId:ownerId,type:'invoice_receipt',environment:'production',
     status:'pending_authorization',provider:'toconline',externalReference:salesDocument.external_reference,amountCents,
-    paymentMethod:'multibanco',salesDocument,errorCode:'toconline-reauthorize-required'};
+    paymentMethod:method,salesDocument,errorCode:'toconline-reauthorize-required'};
   let version=1,writes=0,issueCalls=0,claims=identity;
   let signalIssue,releaseIssue;
   const issuing=new Promise(resolve=>{signalIssue=resolve;});
   const release=new Promise(resolve=>{releaseIssue=resolve;});
   const snapshot=data=>({data:structuredClone(data),version:String(version)});
-  const store={registrationId:payment.registrationId,payment:async()=>snapshot(payment),registration:async()=>snapshot(registration),document:async()=>snapshot(job),
+  const store={registrationId:payment.registrationId,payment:async()=>snapshot(payment),registration:async()=>snapshot(registration),document:async()=>snapshot(job),bankCredit:async()=>snapshot(credit),
     finalizeFiscalResult:async input=>{
       if([input.paymentVersion,input.registrationVersion,input.documentVersion].some(v=>v!==String(version)))throw Object.assign(new Error('conflict'),{code:'conflict'});
       if(failIssuedSave&&input.document.status==='issued')throw new Error('storage failed after issuance');
-      payment=structuredClone(input.payment);registration=structuredClone(input.registration);job=structuredClone(input.document);version++;writes++;return true;
+      payment=structuredClone(input.payment);registration=structuredClone(input.registration);job=structuredClone(input.document);version++;writes++;
+      if(loseClaimAcknowledgement&&input.document.status==='issuing')throw new Error('claim response lost');
+      return true;
     }};
   const api=createLiveFiscalResumeApi({verify:async()=>claims,tokenProvider:async()=> 'service-token',paymentLookup:async()=>snapshot(payment),storeFactory:()=>store,
     fiscalClient:{issueFinalizedSalesDocument:async(runtime,payload)=>{
@@ -41,7 +47,7 @@ function fixture({error=null,failIssuedSave=false,waitForIssue=false,ownerId='ad
     }},now:()=> '2026-11-01T09:40:00Z'});
   const call=(body=confirmation,options={})=>api(new Request(`https://circ.local/api/checkout/live/orders/${ID}/fiscal-resume`,{
     method:'POST',headers:{Authorization:'Bearer token',Origin:'https://circ.local','Content-Type':'application/json',...options},body:JSON.stringify(body)}),env);
-  return{call,issuing,release:()=>releaseIssue(),setClaims:v=>{claims=v;},state:()=>({payment,registration,job,writes,issueCalls})};
+  return{call,issuing,release:()=>releaseIssue(),setClaims:v=>{claims=v;},state:()=>({payment,registration,job,credit,writes,issueCalls})};
 }
 test('an authorization-blocked paid job resumes once even with checkout closed and returns its original order',async()=>{
   const f=fixture();const response=await f.call();assert.equal(response.status,200);
@@ -102,4 +108,46 @@ test('administrator resumes a different attendee\'s ULS55 paid job without chang
 test('ordinary participants cannot use the administrative resume route, even for their own job',async()=>{
  const f=fixture({ownerId:'participant'});f.setClaims({sub:'participant',email:'participant@example.test',email_verified:true});
  assert.equal((await f.call()).status,403); assert.equal(f.state().issueCalls,0); assert.equal(f.state().writes,0);
+});
+
+test('bank transfer authorization resumes against its frozen company account and unique credited entry',async()=>{
+  const f=fixture({method:'bank_transfer',ownerId:'participant'});
+  const response=await f.call();assert.equal(response.status,200);assert.equal((await response.json()).order.fiscalStatus,'issued');
+  const s=f.state();assert.equal(s.issueCalls,1);assert.equal(s.job.salesDocument.payment_mechanism,'TR');assert.equal(s.job.salesDocument.bank_account_id,7);
+  assert.equal(s.payment.method,'bank_transfer');assert.equal(s.registration.documentCount,1);assert.equal((await f.call()).status,409);
+});
+
+test('bank fiscal resume rejects changed or missing credit identity before a fiscal POST',async()=>{
+  for(const mutate of [s=>{s.credit.orderId='another-order';},s=>{s.credit.requestHash='changed';},s=>{s.payment.bankTransfer.billingAccount.ibanLast4='9999';},
+    s=>{s.payment.bankTransfer.confirmation.bookingDate='2026-11-02';},s=>{s.job.salesDocument.bank_account_id=8;},s=>{s.payment.transactionId='different';}]){
+    const f=fixture({method:'bank_transfer'});mutate(f.state());assert.equal((await f.call()).status,409);assert.equal(f.state().issueCalls,0);assert.equal(f.state().writes,0);
+  }
+});
+
+function markUnstartedBank(f){const state=f.state();state.payment.fiscalStatus='pending';state.job.status='pending';state.job.issuanceProtocol='claimed-v1';delete state.job.errorCode;return f;}
+
+test('a new bank job whose credit acknowledgement was lost is administratively issuable exactly once',async()=>{
+  const f=markUnstartedBank(fixture({method:'bank_transfer',ownerId:'participant'}));
+  assert.equal((await f.call()).status,200);assert.equal(f.state().issueCalls,1);assert.equal(f.state().job.status,'issued');
+  assert.ok(f.state().job.issuanceAttemptId);assert.equal(f.state().job.issuanceAttemptId,f.state().payment.issuanceAttemptId);
+  assert.equal((await f.call()).status,409);assert.equal(f.state().issueCalls,1);assert.equal(f.state().registration.documentCount,1);
+});
+
+test('only the invocation that verifies its own bank claim can issue after a lost claim acknowledgement',async()=>{
+  const f=markUnstartedBank(fixture({method:'bank_transfer',loseClaimAcknowledgement:true}));
+  assert.equal((await f.call()).status,200);assert.equal(f.state().issueCalls,1);assert.equal(f.state().job.status,'issued');
+});
+
+test('legacy pending jobs, stale bank claims and uncertain results cannot be resumed as unstarted',async()=>{
+  for(const mutate of [s=>{delete s.job.issuanceProtocol;},s=>{s.job.issuanceAttemptId=ID;},s=>{s.payment.issuanceAttemptId=ID;},
+    s=>{s.job.issuanceStartedAt='2026-11-01T09:00:00Z';},s=>{s.job.resumeAttemptId=ID;},s=>{s.job.status='issuing';s.payment.fiscalStatus='issuing';},
+    s=>{s.job.status='outcome_unknown';s.payment.fiscalStatus='outcome_unknown';},s=>{s.payment.fiscalDocumentId=900;}]){
+    const f=markUnstartedBank(fixture({method:'bank_transfer'}));mutate(f.state());assert.equal((await f.call()).status,409);
+    assert.equal(f.state().issueCalls,0);assert.equal(f.state().writes,0);
+  }
+});
+
+test('a known authorization failure in the claimed bank protocol receives a fresh claim after explicit recovery',async()=>{
+  const f=fixture({method:'bank_transfer'});const s=f.state();s.job.issuanceProtocol='claimed-v1';s.job.issuanceAttemptId=ID;s.payment.issuanceAttemptId=ID;
+  assert.equal((await f.call()).status,200);assert.equal(f.state().issueCalls,1);assert.notEqual(f.state().job.issuanceAttemptId,ID);
 });

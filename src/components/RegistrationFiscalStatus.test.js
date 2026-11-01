@@ -69,3 +69,53 @@ test('changing the pending fiscal order discards the previous resume confirmatio
  expect(screen.getByRole('button',{name:'Consultar faturação'})).toBeEnabled();
  expect(fetch.mock.calls.filter(([,options])=>options.method==='POST')).toHaveLength(0);
 });
+test('a real bank transfer uses the existing order fiscal controls and requires explicit server permission',async()=>{
+ fetch.mockResolvedValueOnce(response({...pending,method:'bank_transfer'})).mockResolvedValueOnce(response({...pending,method:'bank_transfer',fiscalStatus:'issued',canResumeFiscal:false}));
+ show({...registration,payment:{...registration.payment,method:'bank_transfer'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Retomar faturação autorizada'}));
+ const confirm=screen.getByRole('button',{name:'Confirmar retoma'});expect(confirm).toBeDisabled();
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(confirm);
+ await screen.findByText('Fatura-recibo emitida');
+ expect(fetch.mock.calls.map(([url])=>url)).toEqual([`/api/checkout/live/orders/${ID}`,`/api/checkout/live/orders/${ID}/fiscal-resume`]);
+});
+test('an unconfirmed bank credit has no fiscal resume even if the job advertises pending authorization',async()=>{
+ fetch.mockResolvedValueOnce(response({...pending,status:'pending',method:'bank_transfer'}));
+ show({...registration,payment:{...registration.payment,method:'bank_transfer',status:'pending'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));
+ await screen.findByRole('status');
+ expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
+ expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test.each([false,undefined,'true'])('a pending bank invoice without an explicit true permission never offers resume (%s)',async canResumeFiscal=>{
+ fetch.mockResolvedValueOnce(response({...pending,method:'bank_transfer',fiscalStatus:'pending',canResumeFiscal}));
+ show({...registration,payment:{...registration.payment,method:'bank_transfer'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));
+ await screen.findByRole('status');
+ expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
+ expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('a server-authorized bank invoice that has not started requires one explicit confirmation to resume',async()=>{
+ const notStarted={...pending,method:'bank_transfer',fiscalStatus:'pending',canResumeFiscal:true};
+ fetch.mockResolvedValueOnce(response(notStarted)).mockResolvedValueOnce(response({...notStarted,fiscalStatus:'issued',canResumeFiscal:false}));
+ show({...registration,fiscalPendingOrderId:ID,payment:{...registration.payment,method:'bank_transfer'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));
+ const resume=await screen.findByRole('button',{name:'Retomar faturação autorizada'});
+ expect(screen.getByText('Emissão ainda não iniciada; confirme para retomar.')).toBeInTheDocument();
+ expect(screen.queryByText(/Renove primeiro a ligação/)).not.toBeInTheDocument();
+ expect(fetch).toHaveBeenCalledTimes(1);
+ fireEvent.click(resume); const confirm=screen.getByRole('button',{name:'Confirmar retoma'}); expect(confirm).toBeDisabled();
+ fireEvent.click(screen.getByRole('checkbox',{name:'Conferi este pagamento confirmado e pretendo retomar a emissão da fatura-recibo.'}));
+ fireEvent.click(confirm); fireEvent.click(confirm);
+ await screen.findByText('Fatura-recibo emitida');
+ expect(fetch.mock.calls.filter(([,options])=>options.method==='POST')).toHaveLength(1);
+ expect(fetch.mock.calls[1][0]).toBe(`/api/checkout/live/orders/${ID}/fiscal-resume`);
+ expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({confirmation:'RETOMAR FATURACAO AUTORIZADA'});
+});
+test('server permission cannot resume a pending invoice before the bank payment is confirmed',async()=>{
+ fetch.mockResolvedValueOnce(response({...pending,method:'bank_transfer',status:'pending',fiscalStatus:'pending',canResumeFiscal:true}));
+ show({...registration,payment:{...registration.payment,method:'bank_transfer',status:'pending'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'})); await screen.findByRole('status');
+ expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
+ expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});

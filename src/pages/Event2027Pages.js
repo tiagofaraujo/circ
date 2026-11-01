@@ -57,8 +57,8 @@ export function ParticipatePage2027() {
         status={en ? 'Registration and submissions open' : 'Inscrições e submissões abertas'}
         lead={
           en
-            ? 'Register for the in-person or virtual congress, courses and dinner, and submit scientific work in My CIRC. Pay by Multibanco.'
-            : 'Inscreva-se no congresso presencial ou virtual, nos cursos e no jantar, e submeta trabalhos científicos no My CIRC. Pague por Multibanco.'
+            ? 'Register for the in-person or virtual congress, courses and dinner, and submit scientific work in My CIRC. Choose from the available payment methods at checkout.'
+            : 'Inscreva-se no congresso presencial ou virtual, nos cursos e no jantar, e submeta trabalhos científicos no My CIRC. Escolha entre os meios de pagamento disponíveis no momento da compra.'
         }
       />
 
@@ -262,7 +262,7 @@ export function AccountRegistrationsPage2027() {
         <div>
           <p className="eyebrow">My CIRC · {en ? 'Registration' : 'Inscrição'}</p>
           <h1>{en ? 'Your registration' : 'A sua inscrição'}</h1>
-          <p>{en ? 'Choose the congress format, courses and dinner tickets, and pay by Multibanco.' : 'Escolha a modalidade do congresso, os cursos e os bilhetes de jantar, e pague por Multibanco.'}</p>
+          <p>{en ? 'Choose the congress format, courses and dinner tickets, and choose a payment method at checkout.' : 'Escolha a modalidade do congresso, os cursos e os bilhetes de jantar, e escolha um dos meios de pagamento disponíveis no momento da compra.'}</p>
         </div>
         <div className="account-hero__mark" aria-hidden="true">
           <span>CIRC</span>

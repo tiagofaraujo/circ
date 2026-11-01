@@ -88,3 +88,15 @@ test('signed-out navigation does not expose management links even with stale acc
   expect(screen.queryByRole('navigation', { name: 'Módulos de gestão' })).not.toBeInTheDocument();
   expect(document.querySelector(`a[href="${target}"]`)).toBeNull();
 });
+
+test('the administrator has a direct production transfer link', async () => {
+  useAuth.mockReturnValue({ user, isAdmin: true, access: { canManageRegistrations: true }, signOut: jest.fn() });
+  await show();
+  expect(screen.getByRole('link', { name: 'Transferências' })).toHaveAttribute('href', '/admin/transferencias');
+});
+
+test('financial access alone does not expose the administrator transfer action', async () => {
+  useAuth.mockReturnValue({ user: { ...user, email: 'staff@example.org' }, isAdmin: false, access: { canManageRegistrations: true }, signOut: jest.fn() });
+  await show();
+  expect(screen.queryByRole('link', { name: 'Transferências' })).not.toBeInTheDocument();
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLiveOnsiteMultibancoFR, buildLiveMultibancoFR } from '../payments/toconline-live-payload.mjs';
+import { buildLiveOnsiteMultibancoFR, buildLiveMultibancoFR, buildLivePaymentFR } from '../payments/toconline-live-payload.mjs';
 
 import { quotePrimary, quoteSupplementary } from '../payments/quote.mjs';
 
@@ -94,4 +94,17 @@ test('invalid dates, foreign billing and billing fields capable of overriding do
     {billing:{customer:{...billing.customer,customer_country:'ES'}}},{billing:{customer:{...billing.customer,payment_mechanism:'OTHER'}}}]){
     assert.throws(()=>buildLiveMultibancoFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',...changes}),/unsupported-order/);
   }
+});
+
+test('bank transfer FR uses documented TR only with a validated company billing account',()=>{
+  const input={orderId:ID,quote:primary({morningCourse:true}),billing,paymentDate:'2026-11-15',method:'bank_transfer'};
+  const result=buildLivePaymentFR({...input,bankAccountId:7});
+  assert.equal(result.payment_mechanism,'TR');assert.equal(result.bank_account_id,7);
+  assert.deepEqual(result.lines,build(input.quote).lines);
+  for(const bankAccountId of [undefined,null,0,-1,'7',1.5])assert.throws(()=>buildLivePaymentFR({...input,bankAccountId}),/bank-account-unconfirmed/);
+  assert.throws(()=>buildLivePaymentFR({...input,method:'multibanco',bankAccountId:7}),/bank-account-unconfirmed/);
+});
+
+test('unconfirmed MB WAY and unknown payment mappings cannot produce definitive invoice payloads',()=>{
+  for(const method of ['mbway','card','OU','__proto__'])assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method}),/payment-mechanism-unconfirmed/);
 });

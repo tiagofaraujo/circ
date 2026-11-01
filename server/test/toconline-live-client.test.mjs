@@ -126,3 +126,175 @@ for (const [name, responseFactory] of ambiguousResponses) {
     assert.equal(f.calls(), 1);
   });
 }
+
+const bankIban = 'PT50000000000000000001905';
+const bankRow = (id = '77', iban = bankIban) => ({
+  id, type: 'company_bank_accounts', attributes: { iban, name: 'Synthetic bank account', is_connected: false },
+});
+function bankClient(reply, overrides = {}) {
+  const calls = [];
+  const saved = [];
+  let loads = 0;
+  const session = {
+    accessToken: 'bank-access', refreshToken: 'bank-refresh', expiresAt: 999999, refreshExpiresAt: 9999999,
+    ...overrides.session,
+  };
+  const client = createToconlineLiveClient({
+    sessionStore: {
+      load: async () => { loads++; return overrides.missingSession ? null : { session }; },
+      save: async (_env, value) => { saved.push(value); },
+    },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      // No billing lookup test may issue or change a commercial document.
+      assert.ok(options.method === 'GET' || (options.method === 'POST' && url.endsWith('/oauth/token')));
+      assert.ok(!url.includes('commercial_sales_documents'));
+      return reply(url, options, calls);
+    },
+    now: () => 1000,
+  });
+  return { client, calls, saved, loads: () => loads };
+}
+
+test('billing bank resolver uses only the filtered company resource and returns a minimal numeric identity', async () => {
+  const f = bankClient(async () => Response.json({ data: [bankRow()] }));
+  const formatted = bankIban.toLowerCase().match(/.{1,4}/g).join(' ');
+  const account = await f.client.resolveBillingBankAccount(env, formatted);
+  assert.deepEqual(account, { id: 77, ibanLast4: '1905', source: 'company_bank_accounts' });
+  assert.equal(f.calls.length, 1);
+  const { url, options } = f.calls[0];
+  const requestUrl = new URL(url);
+  assert.equal(requestUrl.pathname, '/api/company_bank_accounts');
+  assert.equal(requestUrl.searchParams.get('filter[iban]'), bankIban);
+  assert.equal(requestUrl.searchParams.get('page[size]'), '2');
+  assert.equal(options.method, 'GET');
+  assert.equal(options.redirect, 'manual');
+  assert.equal(options.cache, 'no-store');
+  assert.equal(options.headers.Authorization, 'Bearer bank-access');
+  assert.equal(options.body, undefined);
+  assert.ok(!JSON.stringify(account).includes(bankIban));
+  assert.ok(!JSON.stringify(account).includes('Synthetic bank account'));
+  assert.equal(f.saved.length, 0);
+});
+
+test('billing bank resolver refuses invalid IBAN before loading a session or calling a provider', async () => {
+  for (const iban of ['', undefined, '1905', 'https://other.test/private']) {
+    const f = bankClient(() => assert.fail('no provider request expected'));
+    await assert.rejects(f.client.resolveBillingBankAccount(env, iban), { code: 'billing-bank-unconfirmed' });
+    assert.equal(f.loads(), 0);
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+const unconfirmedBankResponses = [
+  ['no matches', () => Response.json({ data: [] })],
+  ['multiple matches', () => Response.json({ data: [bankRow(), bankRow('78')] })],
+  ['different full IBAN with same suffix', () => Response.json({ data: [bankRow('77', 'PT50000100000000000001905')] })],
+  ['inactive account', () => Response.json({ data: [{ ...bankRow(), attributes: { iban: bankIban, is_active: false } }] })],
+  ['non-numeric ID', () => Response.json({ data: [bankRow('no-id')] })],
+  ['unsafe numeric ID', () => Response.json({ data: [bankRow('9007199254740992')] })],
+  ['missing attributes', () => Response.json({ data: [{ id: '77' }] })],
+  ['non-array data', () => Response.json({ data: bankRow() })],
+  ['missing data', () => Response.json({ accounts: [bankRow()] })],
+  ['unexpected pagination', () => Response.json({ data: [bankRow()], links: { next: 'https://api.example.test/api/company_bank_accounts?page=2' } })],
+  ['provider error in success response', () => Response.json({ data: [bankRow()], errors: [{ detail: 'private information' }] })],
+  ['invalid JSON', () => new Response('<html>not JSON</html>')],
+  ['HTTP403', () => new Response(null, { status: 403 })],
+  ['HTTP404', () => new Response(null, { status: 404 })],
+  ['HTTP500', () => new Response(null, { status: 500 })],
+  ['redirect', () => new Response(null, { status: 302, headers: { Location: 'https://other.test' } })],
+  ['network failure', () => { throw new Error('secret response'); }],
+];
+for (const [name, reply] of unconfirmedBankResponses) {
+  test(`billing bank resolver fails closed on ${name} without falling back or issuing`, async () => {
+    const f = bankClient(reply);
+    await assert.rejects(f.client.resolveBillingBankAccount(env, bankIban), error => {
+      assert.equal(error.code, 'billing-bank-unconfirmed');
+      assert.equal(error.message, 'billing-bank-unconfirmed');
+      assert.equal(error.uncertain, false);
+      return true;
+    });
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.saved.length, 0);
+  });
+}
+
+test('billing bank resolver refreshes a rejected access token once and repeats the same GET', async () => {
+  let reads = 0;
+  const f = bankClient(async (url, options) => {
+    if (url.endsWith('/token')) return Response.json({ access_token: 'bank-renewed', expires_in: 3600 });
+    reads++;
+    if (reads === 1) return new Response(null, { status: 401 });
+    assert.equal(options.headers.Authorization, 'Bearer bank-renewed');
+    return Response.json({ data: [bankRow('88')] });
+  });
+  assert.deepEqual(await f.client.resolveBillingBankAccount(env, bankIban), {
+    id: 88, ibanLast4: '1905', source: 'company_bank_accounts',
+  });
+  assert.equal(f.calls.length, 3);
+  assert.deepEqual(f.calls.map(call => call.options.method), ['GET', 'POST', 'GET']);
+  assert.equal(f.calls[0].url, f.calls[2].url);
+  assert.equal(f.saved.length, 1);
+  assert.equal(f.saved[0].accessToken, 'bank-renewed');
+});
+
+test('billing bank resolver converts a repeated401 to the safe reauthorization code without another refresh', async () => {
+  const f = bankClient(async url => url.endsWith('/token')
+    ? Response.json({ access_token: 'bank-renewed', expires_in: 3600 })
+    : new Response(null, { status: 401 }));
+  await assert.rejects(f.client.resolveBillingBankAccount(env, bankIban), {
+    code: 'toconline-reauthorize-required', status: 401,
+  });
+  assert.equal(f.calls.length, 3);
+  assert.equal(f.saved.length, 1);
+});
+
+test('billing bank resolver preserves missing-session and expired-refresh authorization errors', async () => {
+  for (const [overrides, code] of [
+    [{ missingSession: true }, 'toconline-background-session-missing'],
+    [{ session: { expiresAt: 1000, refreshExpiresAt: 999 } }, 'toconline-reauthorize-required'],
+  ]) {
+    const f = bankClient(() => assert.fail('no provider request expected'), overrides);
+    await assert.rejects(f.client.resolveBillingBankAccount(env, bankIban), { code });
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+test('billing bank resolver preserves rejected refresh authorization without retrying or writing documents', async () => {
+  const f = bankClient(async () => new Response(null, { status: 401 }));
+  await assert.rejects(f.client.resolveBillingBankAccount(env, bankIban), {
+    code: 'toconline-reauthorize-required', status: 401,
+  });
+  assert.deepEqual(f.calls.map(call => call.options.method), ['GET', 'POST']);
+  assert.equal(f.saved.length, 0);
+});
+
+test('billing bank resolver renews an expiring session before its only GET', async () => {
+  const f = bankClient(async (url, options) => {
+    if (url.endsWith('/token')) return Response.json({ access_token: 'bank-renewed', expires_in: 3600 });
+    assert.equal(options.headers.Authorization, 'Bearer bank-renewed');
+    return Response.json({ data: [bankRow()] });
+  }, { session: { expiresAt: 90000 } });
+  const account = await f.client.resolveBillingBankAccount(env, bankIban);
+  assert.equal(account.id, 77);
+  assert.deepEqual(f.calls.map(call => call.options.method), ['POST', 'GET']);
+  assert.equal(f.saved.length, 1);
+});
+
+test('billing bank resolver hides other OAuth/configuration/storage failures as unconfirmed', async () => {
+  for (const reply of [
+    async () => new Response(null, { status: 503 }),
+    async () => Response.json({ access_token: 'invalid' }),
+    async () => { throw new Error('private refresh error'); },
+  ]) {
+    const f = bankClient(reply, { session: { expiresAt: 90000 } });
+    await assert.rejects(f.client.resolveBillingBankAccount(env, bankIban), { code: 'billing-bank-unconfirmed' });
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.saved.length, 0);
+  }
+  const f = bankClient(() => assert.fail('invalid API URL must not be requested'));
+  await assert.rejects(f.client.resolveBillingBankAccount({ ...env, TOCONLINE_API_URL: 'http://other.test' }, bankIban), {
+    code: 'billing-bank-unconfirmed',
+  });
+  assert.equal(f.calls.length, 0);
+});

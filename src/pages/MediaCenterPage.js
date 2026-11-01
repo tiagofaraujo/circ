@@ -23,7 +23,7 @@ const copy = {
       ['Local do congresso', 'Convento São Francisco, Coimbra, Portugal — 9 e 10 de abril. Os locais dos cursos de 8 de abril serão anunciados após confirmação.'], ['Participação', 'Presencial e online.'],
       ['Organização', 'Iniciativa promovida pelos TSDT de Radiologia da ULS Coimbra, através da Associação Hemisfério Disciplinado.'],
       ['Público', 'Técnicos de radiologia, médicos, estudantes, investigadores, docentes e representantes da indústria da imagem médica, de Portugal e do estrangeiro.'],
-      ['Inscrições e submissões científicas', 'Abertas desde 1 de novembro de 2026 no My CIRC. Congresso presencial ou virtual, cursos e jantar, com pagamento por Multibanco.'],
+      ['Inscrições e submissões científicas', 'Abertas desde 1 de novembro de 2026 no My CIRC. Congresso presencial ou virtual, cursos e jantar, com os meios de pagamento disponíveis no momento da compra.'],
     ],
   },
   en: {
@@ -43,7 +43,7 @@ const copy = {
       ['Congress venue', 'Convento São Francisco, Coimbra, Portugal — 9 and 10 April. Venues for the courses on 8 April will be announced once confirmed.'], ['Attendance', 'In person and online.'],
       ['Organisation', 'An initiative promoted by the Radiology Technicians of ULS Coimbra, through Associação Hemisfério Disciplinado.'],
       ['Audience', 'Radiology technicians, doctors, students, researchers, lecturers and medical imaging industry representatives from Portugal and abroad.'],
-      ['Registration and scientific submissions', 'Open since 1 November 2026 in My CIRC. In-person or virtual congress, courses and dinner, with Multibanco payment.'],
+      ['Registration and scientific submissions', 'Open since 1 November 2026 in My CIRC. In-person or virtual congress, courses and dinner, using the payment methods available at checkout.'],
     ],
   },
 };

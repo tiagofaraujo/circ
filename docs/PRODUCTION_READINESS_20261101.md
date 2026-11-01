@@ -46,9 +46,10 @@ não pertencem à limpeza de inscrições e trabalhos.
 
 ## O que ainda não equivale a operação integral do catálogo
 
-- MB WAY, cartões, carteiras digitais e transferência bancária não têm checkout real
-  integrado nesta publicação. Uma operação direta no backoffice EuPago não comprova
-  o circuito completo CIRC.
+- A continuação descrita em `PAYMENT_METHODS_PRODUCTION_20261101.md` acrescenta
+  transferência bancária ao checkout real. MB WAY, cartões e carteiras digitais
+  continuam sem ativação completa. Uma operação direta no backoffice EuPago não
+  comprova o circuito completo CIRC.
 - A continuação descrita em `CATALOGUE_CHECKOUT_20261101.md` acrescenta cursos,
   jantar, participação virtual e pedidos complementares ao circuito Multibanco.
 - A faturação atual exige dados portugueses. Compradores com faturação estrangeira

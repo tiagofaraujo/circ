@@ -3,7 +3,7 @@ import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs
 import { createCheckoutLiveStore, readLivePaymentById, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createEupagoLive } from './eupago-live.mjs';
 import { quotePrimary, quoteSupplementary } from './quote.mjs';
-import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
+import { buildLivePaymentFR } from './toconline-live-payload.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
 import { completeLiveFiscalJob } from './live-fiscal-issue.mjs';
 
@@ -20,6 +20,7 @@ function cents(v){
   const t=typeof v==='number'&&Number.isFinite(v)?String(v):v;
   if(typeof t!=='string'||!/^\d{1,5}(?:\.\d{1,5})?$/.test(t))return null;
   const [w,f='']=t.split('.');const scaled=Number(w)*100+Number(f.padEnd(2,'0').slice(0,2));
+  if (/[1-9]/.test(f.slice(2))) return null;
   return Number.isSafeInteger(scaled)?scaled:null;
 }
 function orderId(identifier){
@@ -34,10 +35,10 @@ function parsePaid(bytes,signature,key,channel){
   const body=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
   if(!body||body.data!=null||(body.transactions!=null&&body.transaction!=null)||body.channel?.name!==channel)throw new Error('invalid_event');
   const tx=body.transactions??body.transaction;const id=orderId(tx?.identifier);
-  const method=new Map([['Multibanco','multibanco'],['PC:PT','multibanco']]).get(tx?.method);
+  const method=new Map([['Multibanco','multibanco'],['PC:PT','multibanco'],['Mbway','mbway'],['MW:PT','mbway']]).get(tx?.method);
   const amountCents=cents(tx?.amount?.value);const reference=digits(tx?.reference);const entity=tx?.entity==null?null:digits(tx.entity);const trid=digits(tx?.trid);
-  if(!tx||Array.isArray(tx)||tx.status!=='Paid'||!id||method!=='multibanco'||!reference||!/^[0-9]{5}$/.test(entity||'')||!trid
-    ||!Number.isSafeInteger(amountCents)||amountCents<100||amountCents>9999900||tx.amount?.currency!=='EUR'
+  if(!tx||Array.isArray(tx)||tx.status!=='Paid'||!id||!method||!reference||(entity!==null&&!/^[0-9]{5}$/.test(entity))||(method==='multibanco'&&!entity)||!trid
+    ||!Number.isSafeInteger(amountCents)||amountCents<(method==='multibanco'?100:50)||amountCents>9999900||tx.amount?.currency!=='EUR'
     ||typeof tx.date!=='string'||!/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|\+00:00)?$/.test(tx.date))throw new Error('invalid_event');
   const normalizedDate = tx.date.replace(/(?:Z|\+00:00)?$/, 'Z');
   const parsedDate = new Date(normalizedDate);
@@ -79,7 +80,7 @@ export function createLivePaymentWebhook({
     catch{return json({error:'storage_unavailable'},503);}
     if(!located?.data)return json({error:'payment_not_found'},404);
     const payment=located.data;
-    if(payment.environment!=='production'||payment.provider!=='eupago'||payment.identifier!==event.identifier||payment.method!=='multibanco'
+    if(payment.environment!=='production'||payment.provider!=='eupago'||payment.identifier!==event.identifier||payment.method!==event.method
       ||payment.amountCents!==event.amountCents||payment.currency!==event.currency
       ||(payment.reference&&payment.reference!==event.reference)||(payment.entity&&payment.entity!==event.entity)
       ||payment.userId==null||payment.registrationId!==`circ-2027-${payment.userId}`)return json({error:'payment_mismatch'},422);
@@ -122,19 +123,19 @@ export function createLivePaymentWebhook({
       const cutoffAmbiguous=paymentDate.timezoneUnspecified&&['2027-01-31','2027-02-01'].includes(paymentDate.date);
       if(cutoffAmbiguous||expected.amountCents!==event.amountCents)return review(cutoffAmbiguous?'payment-timezone-ambiguous':'payment-date-tariff-mismatch');
       let salesDocument;
-      try{salesDocument=buildLiveMultibancoFR({orderId:event.id,quote:expected,billing:{customer:payment.billingSnapshot},paymentDate:paymentDate.date});}
+      try{salesDocument=buildLivePaymentFR({orderId:event.id,quote:expected,billing:{customer:payment.billingSnapshot},paymentDate:paymentDate.date,method:payment.method});}
       catch{return review('fiscal-payload-blocked');}
       const p={...payment,kind,status:'paid',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,paymentDate:paymentDate.date,
         providerState:hint.providerState,fiscalStatus:'pending',fiscalQuote:expected,updatedAt:now()};
       const ent=expected.selection, owned=original.entitlements||original.selection;
       const r=kind==='primary'?{...original,status:'confirmed',fiscalPendingOrderId:event.id,
         entitlements:{congressMode:ent.congressMode==='courses-only'?'':ent.congressMode,morningCourse:ent.morningCourse,afternoonCourse:ent.afternoonCourse,dinnerQuantity:ent.dinnerQuantity},
-        payment:{orderId:event.id,status:'paid',amountCents:event.amountCents,currency:'EUR',method:'multibanco',reference:event.reference},updatedAt:now()}
+        payment:{orderId:event.id,status:'paid',amountCents:event.amountCents,currency:'EUR',method:payment.method,reference:event.reference},updatedAt:now()}
         :{...original,fiscalPendingOrderId:event.id,entitlements:{...owned,morningCourse:Boolean(owned.morningCourse||ent.morningCourse),afternoonCourse:Boolean(owned.afternoonCourse||ent.afternoonCourse),dinnerQuantity:Number(owned.dinnerQuantity||0)+ent.dinnerQuantity},
           paidSupplementaryOrderIds:[...(original.paidSupplementaryOrderIds||[]),event.id],supplementaryPaidAmountCents:Number(original.supplementaryPaidAmountCents||0)+event.amountCents,updatedAt:now()};
       const job={id:event.id,eventId:'circ-2027',registrationId:payment.registrationId,userId:payment.userId,type:'invoice_receipt',orderKind:kind,
         environment:'production',status:'pending',provider:'toconline',externalReference:salesDocument.external_reference,amountCents:event.amountCents,
-        paymentMethod:'multibanco',salesDocument,createdAt:now(),updatedAt:now()};
+        paymentMethod:payment.method,salesDocument,createdAt:now(),updatedAt:now()};
       await store.confirmPrimaryPaid({orderId:event.id,payment:p,paymentVersion:located.version,registration:r,registrationVersion:registration.version,fiscalJob:job});
 
       // Payment is already durably confirmed. Billing is best-effort and never changes the webhook acknowledgement to a retry storm.

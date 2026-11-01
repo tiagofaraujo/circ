@@ -1,9 +1,10 @@
-import { RESUMABLE_AUTH_ERRORS } from './live-fiscal-issue.mjs';
+import { canResumeLiveFiscalJob } from './live-fiscal-issue.mjs';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createEupagoLive } from './eupago-live.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
+import { livePaymentMethods, liveBankTransferAccount, MBWAY_APPROVAL_WINDOW_MS } from './live-payment-methods.mjs';
 import { quotePrimary, quoteSupplementary } from './quote.mjs';
 import { REGISTRATION_OPEN_DATE } from '../../src/data/registration2027.js';
 import { liveDataStamp as stamp, isLivePilotConfigured, isLiveCheckoutEnabled, isPrivatePilotWindow, livePilotDeadline, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
@@ -17,7 +18,10 @@ const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
 const orderKind=p=>p.kind||p.quote?.kind||'primary';
 export const publicLiveOrder=(id,p)=>({id,kind:orderKind(p),selection:p.quote?.selection||null,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
-  reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,...(p.fiscalDocumentId?{fiscalDocumentId:p.fiscalDocumentId,fiscalDocumentNo:p.fiscalDocumentNo||null}:{})});
+  reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,
+  ...(p.method==='mbway'?{expiresAt:p.expiresAt||null}:{}),
+  ...(p.method==='bank_transfer'&&p.bankTransfer?{bankTransfer:Object.fromEntries(['status','revision','payee','iban','paymentReference','reportedAt','confirmedAt','bookingDate'].filter(key=>p.bankTransfer[key]!==undefined).map(key=>[key,p.bankTransfer[key]]))}:{}),
+  ...(p.fiscalDocumentId?{fiscalDocumentId:p.fiscalDocumentId,fiscalDocumentNo:p.fiscalDocumentNo||null}:{})});
 const realRegistration=(r,uid)=>r?.userId===uid&&r.eventId===EVENT&&r.primaryRegistration===true&&r.isTest===false&&r.testMode===false;
 
 export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServiceTokenProvider(),storeFactory=createCheckoutLiveStore,providerFactory=createEupagoLive,now=()=>new Date().toISOString()}={}) {
@@ -39,7 +43,8 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       return reply({environment:'production',liveCheckoutEnabled:creationEnabled(),privatePilot,pilotUntil:livePilotDeadline(env),checks:Object.fromEntries(required.map(name=>[name,typeof env[name]==='string'&&env[name].trim().length>0])),channelMatchesExpected:env.EUPAGO_LIVE_CHANNEL==='CIRC 2027',externalValidationPerformed:false});
     }
     const configured=Boolean(isLivePilotConfigured(env,Date.parse(now()))&&(!privatePilot||isAdmin));
-    if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({enabled:configured,environment:'production',publicOpen:!privatePilot&&openForPublic(now()),pilotAvailable:isAdmin&&configured,methods:configured?['multibanco']:[],registrationOpenDate:REGISTRATION_OPEN_DATE});
+    const methods=privatePilot?['multibanco']:livePaymentMethods(env);
+    if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({enabled:configured,environment:'production',publicOpen:!privatePilot&&openForPublic(now()),pilotAvailable:isAdmin&&configured,methods:configured?methods:[],registrationOpenDate:REGISTRATION_OPEN_DATE});
     const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
     const readingOrder=request.method==='GET'&&orderMatch&&LIVE_ORDER_UUID.test(orderMatch[1]);
     const recoveringPrimary=request.method==='GET'&&url.pathname===`${PREFIX}/primary-order`;
@@ -60,8 +65,8 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         if(!located?.data)return reply({error:'not-found'},404);
         const p=located.data, kind=recoveringSupplement?'supplementary':'primary';
         const checks={identifier:LIVE_ORDER_UUID.test(located.id)&&p.id===located.id,owner:p.userId===claims.sub,registration:p.registrationId===store.registrationId,
-          real:p.environment==='production',provider:p.provider==='eupago',event:p.eventId===EVENT,kind:orderKind(p)===kind,
-          method:p.method==='multibanco',currency:p.currency==='EUR',amount:Number.isSafeInteger(p.amountCents)&&p.amountCents>0};
+          real:p.environment==='production',provider:p.provider===(p.method==='bank_transfer'?'internal_bank_transfer':'eupago'),event:p.eventId===EVENT,kind:orderKind(p)===kind,
+          method:['multibanco','mbway','bank_transfer'].includes(p.method),currency:p.currency==='EUR',amount:Number.isSafeInteger(p.amountCents)&&p.amountCents>0};
         if(kind==='primary'){checks.method=checks.method&&p.method===r.payment?.method;checks.currency=checks.currency&&p.currency===r.payment?.currency;
           checks.amount=checks.amount&&p.amountCents===r.payment?.amountCents;checks.reference=(p.reference||'')===(r.payment?.reference||'');}
         const failed=Object.keys(checks).filter(k=>!checks[k]);
@@ -71,9 +76,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const p=(await store.payment(orderMatch[1]))?.data;
         if(!p||(!isAdmin&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
         let eligibility={};
-        if(isAdmin&&p.status==='paid'&&p.fiscalStatus==='pending_authorization'){
+        if(isAdmin&&p.status==='paid'&&['pending','pending_authorization'].includes(p.fiscalStatus)){
           const j=(await store.document(orderMatch[1]))?.data;
-          eligibility={canResumeFiscal:Boolean(j?.status==='pending_authorization'&&RESUMABLE_AUTH_ERRORS.has(j.errorCode)&&j.userId===p.userId&&j.registrationId===p.registrationId&&j.environment==='production'&&!j.providerDocumentId&&!j.issuedAt)};
+          eligibility={canResumeFiscal:Boolean(canResumeLiveFiscalJob(p,j)&&j.userId===p.userId&&j.registrationId===p.registrationId&&j.environment==='production')};
         }
         return reply({order:{...publicLiveOrder(orderMatch[1],p),...eligibility}});
       }
@@ -82,18 +87,21 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       const creating=request.method==='POST'&&url.pathname===`${PREFIX}${kind==='supplementary'?'/supplementary':''}/orders`;
       if(!quoting&&!creating)return reply({error:'not-found'},404);
       const data=await body(request);
-      exact(data,quoting?['selection','pilotAcknowledged']:['id','selection','stamp','method','pilotAcknowledged','billingStamp','pilotConfirmation']);
+      exact(data,quoting?['selection','pilotAcknowledged']:['id','selection','stamp','method','phone','pilotAcknowledged','billingStamp','pilotConfirmation']);
       if((privatePilot||!openForPublic(now()))&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
       const pilot=isAdmin&&data.pilotAcknowledged===true;
-      if(creating&&(!LIVE_ORDER_UUID.test(data.id||'')||data.method!=='multibanco'))fail('invalid-request');
+      if(creating&&(!LIVE_ORDER_UUID.test(data.id||'')||!['multibanco','mbway','bank_transfer'].includes(data.method)
+        ||(data.method==='mbway'?(typeof data.phone!=='string'||!/^9\d{8}$/.test(data.phone)):data.phone!==undefined)))fail('invalid-request');
       if(pilot&&creating&&(!isLivePilotConfigured(env,Date.parse(now()))||data.pilotConfirmation!==PILOT_CONFIRMATION||!/^[a-f0-9]{64}$/.test(data.billingStamp||'')))fail('pilot-confirmation-required',400);
       exact(data.selection,kind==='supplementary'?['morningCourse','afternoonCourse','dinnerQuantity']:['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
       if(creating){
         const previous=(await store.payment(data.id))?.data;
         if(previous){
-          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||stamp(previous.quote)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp)fail('idempotency-conflict',409);
+          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||stamp(previous.quote)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp
+            ||(previous.method==='mbway'&&previous.methodFingerprint!==stamp({method:data.method,phone:data.phone})))fail('idempotency-conflict',409);
           return reply({order:publicLiveOrder(data.id,previous)});
         }
+        if(!methods.includes(data.method))fail('payment-method-unavailable',409);
       }
       const existing=await store.registration(), r=existing.data;
       if(kind==='primary'&&r)fail('registration-exists',409);
@@ -121,19 +129,33 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       const registration=kind==='primary'?{eventId:EVENT,userId:claims.sub,registrationKey:`${EVENT}:${claims.sub}`,primaryRegistration:true,
         participantName,participantEmail:claims.email||'',registrationType:typeLabel(quote.selection.congressMode),status:'submitted',isTest:false,testMode:false,
         selection:{...quote.selection,dinner:quote.selection.dinnerQuantity>0,ratePeriod:quote.ratePeriod},entitlements:{congressMode:'',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
-        addOnOrderCount:0,documentCount:0,payment:{orderId:data.id,status:'pending',amountCents:quote.amountCents,currency:'EUR',method:'multibanco',reference:''},createdAt,updatedAt:createdAt}
+        addOnOrderCount:0,documentCount:0,payment:{orderId:data.id,status:'pending',amountCents:quote.amountCents,currency:'EUR',method:data.method,reference:data.method==='bank_transfer'?data.id:''},createdAt,updatedAt:createdAt}
         :{...r,openSupplementaryOrderId:data.id,addOnOrderCount:Number(r.addOnOrderCount||0)+1,updatedAt:createdAt};
-      const payment={eventId:EVENT,id:data.id,kind,environment:'production',registrationId:store.registrationId,userId:claims.sub,status:'creating',amountCents:quote.amountCents,currency:'EUR',method:'multibanco',
-        identifier:`circ_live_${data.id.replaceAll('-','')}`,reference:null,entity:null,transactionId:null,paidAt:null,provider:'eupago',quote,billingSnapshot:billing.customer,createdAt,updatedAt:createdAt};
+      const account=data.method==='bank_transfer'?liveBankTransferAccount(env):null;
+      const payment={eventId:EVENT,id:data.id,kind,environment:'production',registrationId:store.registrationId,userId:claims.sub,status:account?'pending':'creating',amountCents:quote.amountCents,currency:'EUR',method:data.method,
+        identifier:`circ_live_${data.id.replaceAll('-','')}`,reference:account?data.id:null,entity:null,transactionId:null,paidAt:null,provider:account?'internal_bank_transfer':'eupago',quote,billingSnapshot:billing.customer,createdAt,updatedAt:createdAt,
+        ...(data.method==='mbway'?{methodFingerprint:stamp({method:data.method,phone:data.phone}),expiresAt:new Date(Date.parse(createdAt)+MBWAY_APPROVAL_WINDOW_MS).toISOString()}:{}),
+        ...(account?{bankTransfer:{status:'awaiting_transfer',revision:0,...account,paymentReference:data.id,reports:[],createdAt}}:{})};
       if(!creationEnabled())fail('live-checkout-not-configured',503);
       const reserved=kind==='primary'?await store.createPendingPrimary({orderId:data.id,registration,payment,guards:context.guards}):await store.createPendingSupplementary({orderId:data.id,registration,registrationVersion:existing.version,payment,guards:context.guards});
+      if(account)return reply({order:publicLiveOrder(data.id,payment)},201);
       let created;
-      try{created=await providerFactory({apiKey:env.EUPAGO_LIVE_API_KEY}).createPayment(payment);}
-      catch(error){const latest=await store.payment(data.id);if(latest.data)await store.updatePayment(data.id,{...latest.data,status:error?.uncertain?'creation_unknown':'creation_failed',updatedAt:now()},latest.version);
+      try{created=await providerFactory({apiKey:env.EUPAGO_LIVE_API_KEY}).createPayment({...payment,...(data.method==='mbway'?{phone:data.phone}:{})});}
+      catch(error){const latest=await store.payment(data.id);
+        // A signed callback can arrive while creation is waiting for its response.
+        // Once it has durably captured the paid transaction, do not roll it back.
+        if(latest.data?.userId===claims.sub&&latest.data.method===data.method&&latest.data.transactionId
+          &&['paid','refunded','review_required'].includes(latest.data.status))return reply({order:publicLiveOrder(data.id,latest.data)});
+        if(latest.data)await store.updatePayment(data.id,{...latest.data,status:error?.uncertain?'creation_unknown':'creation_failed',updatedAt:now()},latest.version);
         return reply({error:error?.uncertain?'creation-unknown':'provider-rejected',orderId:data.id},error?.uncertain?502:422);}
       const p={...payment,status:'pending',reference:created.reference,entity:created.entity,updatedAt:now()};
       const next=kind==='primary'?{...registration,payment:{...registration.payment,reference:created.reference},updatedAt:now()}:{...registration,updatedAt:now()};
-      await store.updatePendingProvider({orderId:data.id,payment:p,paymentVersion:reserved.paymentVersion,registration:next,registrationVersion:reserved.registrationVersion});
+      try{await store.updatePendingProvider({orderId:data.id,payment:p,paymentVersion:reserved.paymentVersion,registration:next,registrationVersion:reserved.registrationVersion});}
+      catch(error){const latest=(await store.payment(data.id))?.data;
+        if(latest?.userId===claims.sub&&latest.method===data.method&&latest.reference===created.reference
+          &&(!created.entity||latest.entity===created.entity)&&['pending','paid','refunded','review_required'].includes(latest.status))return reply({order:publicLiveOrder(data.id,latest)});
+        throw error;
+      }
       return reply({order:publicLiveOrder(data.id,p)},201);
     }catch(error){const code=error.code||(typeof error.message==='string'?error.message.replace(/^checkout\//,''):'service-unavailable');
       const conflict=['registration-exists','paid-registration-required','invalid-addition','course-already-owned','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict','fiscal-pending','conflict'].includes(code);

@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, readLivePaymentById, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
-import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
+import { buildLivePaymentFR } from './toconline-live-payload.mjs';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { getRegistrationPeriod } from '../../src/data/registration2027.js';
-import { completeLiveFiscalJob, RESUMABLE_AUTH_ERRORS } from './live-fiscal-issue.mjs';
+import { completeLiveFiscalJob, canResumeLiveFiscalJob, claimLiveFiscalJob } from './live-fiscal-issue.mjs';
 
 const CONFIRMATION = 'RETOMAR FATURACAO AUTORIZADA';
 const reply = (body, status = 200) => Response.json(body, { status, headers: {
@@ -43,13 +43,14 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
       const [payment, registration, job] = await Promise.all([store.payment(id), store.registration(), store.document(id)]);
       const p = payment?.data, r = registration?.data, j = job?.data;
       if (!p || p.userId !== ownerId || p.environment !== 'production') return reply({ error: 'not-found' }, 404);
-      if (p.status !== 'paid' || p.fiscalStatus !== 'pending_authorization'
-        || j?.status !== 'pending_authorization' || !RESUMABLE_AUTH_ERRORS.has(j.errorCode)
-        || j.providerDocumentId || j.issuedAt) return reply({ error: 'fiscal-resume-not-allowed' }, 409);
+      if (!canResumeLiveFiscalJob(p,j)) return reply({ error: 'fiscal-resume-not-allowed' }, 409);
       const kind=p.kind||p.quote?.kind||'primary';
       const fiscalQuote=p.fiscalQuote||p.quote;
+      const isTransfer=p.method==='bank_transfer';
+      const account=isTransfer?p.bankTransfer?.billingAccount:null;
+      const transfer=p.bankTransfer?.confirmation;
       if (p.id !== id || p.eventId !== 'circ-2027' || p.registrationId !== store.registrationId
-        || p.provider !== 'eupago' || p.method !== 'multibanco' || (!Number.isSafeInteger(p.amountCents) || p.amountCents <= 0 || p.amountCents > 9999900) || p.currency !== 'EUR'
+        || !['multibanco','mbway','bank_transfer'].includes(p.method) || p.provider !== (isTransfer?'internal_bank_transfer':'eupago') || (!Number.isSafeInteger(p.amountCents) || p.amountCents <= 0 || p.amountCents > 9999900) || p.currency !== 'EUR'
         || !p.paidAt || !p.transactionId || !['external','uls','student'].includes(p.quote?.selection?.profile)
         || fiscalQuote?.amountCents !== p.amountCents || fiscalQuote.kind !== kind || !['primary','supplementary'].includes(kind) || p.identifier !== `circ_live_${id.replaceAll('-', '')}`
         || r?.eventId !== 'circ-2027' || r.userId !== ownerId || r.primaryRegistration !== true
@@ -59,32 +60,37 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
           : r.openSupplementaryOrderId!==id || !Array.isArray(r.paidSupplementaryOrderIds) || !r.paidSupplementaryOrderIds.includes(id))
         || j.id !== id || j.userId !== ownerId || j.registrationId !== store.registrationId || j.eventId !== 'circ-2027'
         || j.environment !== 'production' || j.provider !== 'toconline' || j.type !== 'invoice_receipt'
-        || j.amountCents !== p.amountCents || j.paymentMethod !== 'multibanco') return reply({ error: 'fiscal-job-mismatch' }, 409);
+        || j.amountCents !== p.amountCents || j.paymentMethod !== p.method) return reply({ error: 'fiscal-job-mismatch' }, 409);
+      if(isTransfer){
+        if(p.reference!==id||p.bankTransfer?.status!=='confirmed'||account?.source!=='company_bank_accounts'
+          ||!Number.isSafeInteger(account.id)||account.id<=0||!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(p.bankTransfer.iban||'')
+          ||account.ibanLast4!==p.bankTransfer.iban.slice(-4)||transfer?.bookingDate!==p.paymentDate
+          ||transfer.amountCents!==p.amountCents||transfer.currency!=='EUR'||!/^[a-f0-9]{64}$/.test(transfer.creditKey||'')
+          ||p.transactionId!==`bank_${transfer.creditKey}`)return reply({error:'fiscal-job-mismatch'},409);
+        const credit=(await store.bankCredit(transfer.creditKey))?.data;
+        if(!credit||credit.kind!=='bank-credit-live'||credit.environment!=='production'||credit.eventId!=='circ-2027'
+          ||credit.orderId!==id||credit.decisionId!==transfer.decisionId||credit.requestHash!==transfer.requestHash
+          ||credit.bookingDate!==p.paymentDate||credit.amountCents!==p.amountCents||credit.currency!=='EUR')return reply({error:'fiscal-job-mismatch'},409);
+      }
       const date = new Date(`${p.paymentDate}T12:00:00Z`);
       if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== p.paymentDate) return reply({ error: 'fiscal-job-mismatch' }, 409);
       const period = getRegistrationPeriod(date);
       if (fiscalQuote.ratePeriod !== period || r.selection?.profile !== fiscalQuote.selection?.profile
         || (j.orderKind && j.orderKind !== kind)) return reply({ error: 'fiscal-job-mismatch' }, 409);
       let expected;
-      try { expected = buildLiveMultibancoFR({ orderId: id, quote: fiscalQuote, billing: { customer: p.billingSnapshot }, paymentDate: p.paymentDate }); }
+      try { expected = buildLivePaymentFR({ orderId: id, quote: fiscalQuote, billing: { customer: p.billingSnapshot }, paymentDate: p.paymentDate,method:p.method,...(isTransfer?{bankAccountId:account.id}:{}) }); }
       catch { return reply({ error: 'fiscal-job-mismatch' }, 409); }
       if (j.externalReference !== expected.external_reference || liveDataStamp(j.salesDocument) !== liveDataStamp(expected)) return reply({ error: 'fiscal-job-mismatch' }, 409);
       const attemptId = randomUUID();
-      await store.finalizeFiscalResult({ orderId: id,
-        payment: { ...p, fiscalStatus: 'issuing', updatedAt: now() }, paymentVersion: payment.version,
-        registration: { ...r, updatedAt: now() }, registrationVersion: registration.version,
-        document: { ...j, status: 'issuing', resumeAttemptId: attemptId, resumeStartedAt: now(),
-          resumedBy: { uid: claims.sub, email: claims.email }, updatedAt: now() }, documentVersion: job.version,
-      });
-      const [freshPayment, freshRegistration, freshJob] = await Promise.all([store.payment(id), store.registration(), store.document(id)]);
-      if (freshPayment.data?.fiscalStatus !== 'issuing' || freshPayment.data.status !== 'paid'
-        || freshRegistration.data?.status !== 'confirmed' || freshJob.data?.status !== 'issuing'
-        || freshJob.data.resumeAttemptId !== attemptId) return reply({ error: 'fiscal-resume-conflict' }, 409);
-      const fiscalStatus = await completeLiveFiscalJob({ store, orderId: id, payment: freshPayment,
-        registration: freshRegistration, job: freshJob, fiscalClient, env, now });
+      const claimed = await claimLiveFiscalJob({ store, orderId:id, payment, registration, job, now, attemptId,
+        jobUpdates:{ resumeAttemptId:attemptId,resumeStartedAt:now(),resumedBy:{uid:claims.sub,email:claims.email} } });
+      if(claimed.registration.data?.status!=='confirmed')return reply({error:'fiscal-resume-conflict'},409);
+      const fiscalStatus = await completeLiveFiscalJob({ store, orderId: id, payment: claimed.payment,
+        registration: claimed.registration, job: claimed.job, issuanceAttemptId:claimed.issuanceAttemptId, fiscalClient, env, now });
       return reply({ order: publicOrder(id, p, fiscalStatus) });
     } catch (error) {
-      return reply({ error: error?.code === 'conflict' ? 'fiscal-resume-conflict' : 'fiscal-resume-unavailable' }, error?.code === 'conflict' ? 409 : 503);
+      const conflict=['conflict','fiscal-claim-not-owned'].includes(error?.code);
+      return reply({ error: conflict ? 'fiscal-resume-conflict' : 'fiscal-resume-unavailable' }, conflict ? 409 : 503);
     }
   };
 }

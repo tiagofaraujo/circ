@@ -31,6 +31,8 @@
     "EUPAGO_LIVE_CHANNEL": "CIRC 2027",
     "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda",
     "LIVE_CHECKOUT_ENABLED": "true",
+    "LIVE_BANK_TRANSFER_ENABLED": "true",
+    "LIVE_MBWAY_ENABLED": "false",
     "CIRC_OPERATION_MODE": "production",
     "TOCONLINE_REDIRECT_URL": "https://circ-coimbra.org/api/fiscal/toconline/callback"
   }

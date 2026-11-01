@@ -18,8 +18,17 @@ test('production retires simulation and pilot endpoints before any provider call
 
 test('production retains authenticated live payment and fiscal read routes', async () => {
   const worker = createWorker();
-  for (const path of ['/api/checkout/live/config', '/api/fiscal/toconline/config']) {
+  for (const path of ['/api/checkout/live/config', '/api/fiscal/toconline/config', '/api/checkout/live/bank-transfers']) {
     const response = await worker.fetch(new Request(`https://circ.test${path}`), { CIRC_OPERATION_MODE: 'production' });
     assert.equal(response.status, 401);
   }
+});
+
+test('bank transfer review is routed before the generic checkout handler', async () => {
+  const worker = createWorker(() => { throw new Error('must not reach authentication for a wrong method'); });
+  const response = await worker.fetch(new Request('https://circ.test/api/checkout/live/bank-transfers', { method: 'POST' }), {
+    CIRC_OPERATION_MODE: 'production', FIREBASE_PROJECT_ID: 'circ-coimbra',
+  });
+  assert.equal(response.status, 405);
+  assert.equal((await response.json()).error, 'method-not-allowed');
 });

@@ -25,7 +25,7 @@ function signed(body){
   return new Request('https://circ.local/api/payments/live/notifications',{method:'POST',
     headers:{'Content-Type':'application/json','X-Signature':sig},body:text});
 }
-function fixture({fiscalError=null,initialPayment=null,notFound=false}={}){
+function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectReference=async()=>({providerState:'paga'})}={}){
   let payment=initialPayment||{eventId:'circ-2027',id:ID,environment:'production',registrationId:`circ-2027-${UID}`,userId:UID,status:'pending',
     amountCents:9500,currency:'EUR',method:'multibanco',identifier,reference:'123456789',entity:'12345',transactionId:null,paidAt:null,
     provider:'eupago',quote,billingSnapshot:billing,createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
@@ -48,7 +48,7 @@ function fixture({fiscalError=null,initialPayment=null,notFound=false}={}){
     tokenProvider:async()=> 'service-token',
     paymentLookup:async()=>({data:notFound?null:structuredClone(payment),version:payment.status==='paid'?'p2':'p1'}),
     storeFactory:()=>store,
-    providerFactory:()=>({inspectReference:async()=>({providerState:'paga'})}),
+    providerFactory:()=>({inspectReference}),
     fiscalClient:{issueFinalizedSalesDocument:async()=>{issueCalls++;if(fiscalError)throw fiscalError;return{providerDocumentId:'321',providerDocumentNo:'FR CIRC2027/1'};}},
     now:()=> '2026-11-15T12:01:00Z',
   });
@@ -158,4 +158,29 @@ test('a paid order whose eligibility changed is retained for review without issu
  assert.equal(f.state().payment.status,'review_required'); assert.equal(f.state().payment.reviewReason,'payment-eligibility-review');
  assert.equal(f.state().payment.transactionId,'777'); assert.equal(f.state().registration.payment.status,'awaiting_confirmation');
  assert.equal(f.calls().issueCalls,0);
+});
+
+test('signed MB WAY payment evidence is reconciled and retained for review while its fiscal mapping remains unconfirmed',async()=>{
+  let inspections=0;
+  const f=fixture({inspectReference:async attempt=>{inspections++;assert.equal(attempt.method,'mbway');assert.equal(attempt.entity,'10045');return{providerState:'paga'};}});
+  Object.assign(f.state().payment,{method:'mbway',entity:null});
+  const event=payload();Object.assign(event.transaction,{method:'Mbway',entity:10045});
+  const response=await f.call(event);assert.equal(response.status,200);assert.equal((await response.json()).reviewRequired,true);
+  const s=f.state();assert.equal(inspections,1);assert.equal(s.payment.method,'mbway');assert.equal(s.payment.entity,'10045');
+  assert.equal(s.payment.status,'review_required');assert.equal(s.payment.transactionId,'777');assert.equal(s.payment.paidAt,event.transaction.date);
+  assert.equal(s.payment.reviewReason,'fiscal-payload-blocked');assert.equal(s.registration.status,'submitted');
+  assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+});
+
+test('MB WAY callback cannot change the stored payment method or override a known entity',async()=>{
+  for(const change of [p=>{},p=>{p.method='mbway';p.entity='99999';}]){
+    const f=fixture({inspectReference:async()=>assert.fail('mismatched callback must not contact provider')});change(f.state().payment);
+    const event=payload();Object.assign(event.transaction,{method:'MW:PT',entity:10045});
+    assert.equal((await f.call(event)).status,422);assert.equal(f.state().payment.status,'pending');assert.equal(f.calls().issueCalls,0);
+  }
+});
+
+test('nonzero fractional cents are rejected rather than rounded into a matching paid amount',async()=>{
+  const f=fixture({inspectReference:async()=>assert.fail('fractional-cent event must be rejected before reconciliation')});
+  assert.equal((await f.call(payload({amount:'95.00001'}))).status,422);assert.equal(f.state().payment.status,'pending');assert.equal(f.calls().issueCalls,0);
 });

@@ -17,7 +17,7 @@ const accountLinks = [
 ];
 
 export default function MyCircShell({ children }) {
-  const { user, access, signOut } = useAuth();
+  const { user, access, isAdmin, signOut } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const en = language === 'en';
   const navigate = useNavigate();
@@ -62,6 +62,7 @@ export default function MyCircShell({ children }) {
 
   const managementLinks = [
     access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management', true],
+    isAdmin && access?.canManageRegistrations && ['/admin/transferencias', 'money-bill-transfer', 'Transferências', 'Bank transfers', false],
     access?.canManageRegistrations && ['/admin/faturacao', 'file-invoice-dollar', 'Faturação', 'Invoicing', false],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management', false],
     access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor', false],

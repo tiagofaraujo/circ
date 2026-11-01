@@ -38,8 +38,9 @@ reconciliação fiscal, recuperação OAuth e conflitos de persistência.
 Não foram criadas novas cobranças nem faturas em produção para esta verificação.
 O sucesso anterior da FR presencial não valida por si só uma nova FR com linhas mistas.
 
-Continuam disponíveis apenas Multibanco e faturação portuguesa. MB WAY, cartões,
-carteiras e transferência bancária não são anunciados como checkout integrado.
+Esta publicação inicial usa Multibanco e faturação portuguesa. A continuação
+`PAYMENT_METHODS_PRODUCTION_20261101.md` acrescenta transferência bancária.
+MB WAY, cartões e carteiras continuam sem ativação completa.
 O registo administrativo de reembolso continua limitado aos casos que o respetivo
 módulo consegue conferir; não executa devoluções bancárias e não foi ampliado aos
 novos conjuntos de compras. Não existe modo de inscrição principal apenas para jantar.

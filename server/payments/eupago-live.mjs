@@ -46,7 +46,7 @@ export function createEupagoLive({ apiKey, fetchImpl = fetch, timeoutMs = 10000 
       const data = await post(`${method}/create`, fields, true);
       const reference = String(data.referencia ?? '');
       const entity = data.entidade == null ? null : String(data.entidade);
-      if (!isReference(reference) || (method === 'multibanco' && !/^\d{5}$/.test(entity || ''))) {
+      if (!isReference(reference) || (entity !== null && !/^\d{5}$/.test(entity)) || (method === 'multibanco' && entity === null)) {
         throw new EupagoLiveError('invalid-provider-response', true, 'invalid-reference');
       }
       return { environment: 'production', method, identifier, amountCents, currency, reference, entity, status: 'pending' };
@@ -54,7 +54,9 @@ export function createEupagoLive({ apiKey, fetchImpl = fetch, timeoutMs = 10000 
     async inspectReference(attempt) {
       if (attempt?.environment !== 'production' || !isReference(attempt.reference)
         || !isIdentifier(attempt.identifier)
-        || (attempt.entity != null && !/^\d{5}$/.test(attempt.entity))) invalid();
+        || !['multibanco','mbway'].includes(attempt.method)
+        || (attempt.entity != null && !/^\d{5}$/.test(attempt.entity))
+        || (attempt.method === 'multibanco' && !/^\d{5}$/.test(attempt.entity || ''))) invalid();
       const data = await post('multibanco/info', { referencia: attempt.reference, ...(attempt.entity ? { entidade: attempt.entity } : {}) });
       if (String(data.referencia) !== attempt.reference || data.identificador !== attempt.identifier
         || (attempt.entity && String(data.entidade) !== attempt.entity)) throw new EupagoLiveError('reference-mismatch');
