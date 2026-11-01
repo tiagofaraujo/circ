@@ -68,8 +68,7 @@ test('print URL and PDF are GET-only and OAuth never follows the signed URL', as
   assert.ok(f.calls.every(call => call.options.method === 'GET' && call.options.redirect === 'manual'));
 });
 test('untrusted print locations, unsafe redirects and non-PDF content are rejected', async () => {
-  for (const location of [ { scheme: 'http', host: 'app.toconline.pt', path: '/public-file/a' },
-    { scheme: 'https', host: 'evil.test', path: '/public-file/a' }, { scheme: 'https', host: 'app.toconline.pt.evil.test', path: '/public-file/a' },
+  for (const location of [ { scheme: 'https', host: 'evil.test', path: '/public-file/a' }, { scheme: 'https', host: 'app.toconline.pt.evil.test', path: '/public-file/a' },
     { scheme: 'https', host: 'app.toconline.pt', path: '/admin/a' } ]) {
     const f = clientFixture(location); await assert.rejects(f.client.downloadSalesDocumentPdf(env, 321)); assert.equal(f.calls.length, 1);
   }
@@ -83,4 +82,17 @@ test('untrusted print locations, unsafe redirects and non-PDF content are reject
 test('a singleton JSON:API collection also identifies the original PDF', async () => {
   const f = clientFixture({ data: [{ attributes: { scheme: 'https', host: 'app14.toconline.pt', path: '/public-file/original' } }] });
   assert.equal(new TextDecoder().decode(await f.client.downloadSalesDocumentPdf(env, 321)), '%PDF-original');
+});
+test('print URLs and nested URI attributes use the same strict HTTPS origin restriction', async () => {
+  for (const response of [ 'https://app14.toconline.pt/public-file/original',
+    { data: { attributes: { url: 'https://app14.toconline.pt/public-file/original' } } },
+    { data: { attributes: { uri: { scheme: 'https:', host: 'app14.toconline.pt', path: '/public-file/original' } } } },
+    { scheme: 'http', host: 'app14.toconline.pt', path: '/public-file/original' } ]) {
+    const f = clientFixture(response);
+    assert.equal(new TextDecoder().decode(await f.client.downloadSalesDocumentPdf(env, 321)), '%PDF-original');
+    assert.ok(f.calls[1].url.startsWith('https://app14.toconline.pt/public-file/'));
+    assert.equal(f.calls[1].options.headers.Authorization, undefined);
+  }
+  const f = clientFixture({ data: { attributes: { url: 'https://evil.test/public-file/original' } } });
+  await assert.rejects(f.client.downloadSalesDocumentPdf(env, 321)); assert.equal(f.calls.length, 1);
 });
