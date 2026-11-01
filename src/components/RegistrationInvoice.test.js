@@ -14,6 +14,7 @@ test('shows the issued number and downloads once while the request is pending', 
   expect(screen.getByRole('button', { name: 'A descarregar PDF…' })).toBeDisabled();
   expect(downloadRegistrationInvoice).toHaveBeenCalledTimes(1);
   finish(); await waitFor(() => expect(screen.getByRole('button')).toBeEnabled());
+  expect(screen.getByRole('status')).toHaveTextContent('Transferência do PDF iniciada');
 });
 test('download failure preserves the issued document and permits a read-only retry', async () => {
   downloadRegistrationInvoice.mockRejectedValue(new Error('unavailable'));

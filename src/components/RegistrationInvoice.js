@@ -8,11 +8,12 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState('');
   const [downloadError, setDownloadError] = useState(false);
+  const [downloadStarted, setDownloadStarted] = useState(false);
   const download = useRef(null);
   const uid = user?.uid;
   const registrationId = registration.id;
   useEffect(() => {
-    setDocuments([]); setLoading(true); setLoadError(false); setBusy(''); setDownloadError(false);
+    setDocuments([]); setLoading(true); setLoadError(false); setBusy(''); setDownloadError(false); setDownloadStarted(false);
     return subscribeToRegistrationInvoices({ uid }, registrationId, data => {
       setDocuments(data); setLoading(false); setLoadError(false);
     }, () => { setLoading(false); setLoadError(true); });
@@ -23,8 +24,11 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
     if (download.current) return;
     const controller = new AbortController();
     download.current = controller;
-    setBusy(document.id); setDownloadError(false);
-    try { await downloadRegistrationInvoice(user, document, controller.signal); }
+    setBusy(document.id); setDownloadError(false); setDownloadStarted(false);
+    try {
+      await downloadRegistrationInvoice(user, document, controller.signal);
+      if (!controller.signal.aborted) setDownloadStarted(true);
+    }
     catch (error) {
       if (!controller.signal.aborted) {
         setDownloadError(true);
@@ -46,5 +50,6 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
       </button>
     </div>)}
     {downloadError && <p role="alert">{en ? 'The PDF could not be downloaded. Try again shortly or contact the organisers. The issued invoice remains unchanged.' : 'Não foi possível descarregar o PDF. Tente novamente dentro de instantes ou contacte a organização. A fatura emitida mantém-se válida.'}</p>}
+    {downloadStarted && <p role="status">{en ? 'PDF download started. Check your browser downloads.' : 'Transferência do PDF iniciada. Consulte as transferências do navegador.'}</p>}
   </div>;
 }
