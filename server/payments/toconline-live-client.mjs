@@ -84,8 +84,22 @@ export function createToconlineLiveClient({
       if (!response.ok) fail(`toconline-print-http-${response.status}`, 502);
       let json;
       try { json = await response.json(); } catch { fail('toconline-print-json-invalid', 502); }
-      const item = Array.isArray(json?.data) && json.data.length === 1 ? json.data[0] : json?.data;
-      const location = item?.attributes ?? item ?? json;
+      function printLocation(value, depth = 0) {
+        if (depth > 5) return null;
+        if (typeof value === 'string') return /^https?:\/\//.test(value) ? value.replace(/^http:/, 'https:') : null;
+        if (Array.isArray(value)) return value.length === 1 ? printLocation(value[0], depth + 1) : null;
+        if (!value || typeof value !== 'object') return null;
+        if (typeof value.host === 'string' && typeof value.path === 'string'
+          && ['https', 'https:', 'http', 'http:'].includes(value.scheme)) {
+          // Older print responses may advertise HTTP. Only HTTPS is requested.
+          return `https://${value.host}${value.path}`;
+        }
+        for (const key of ['data', 'attributes', 'url', 'uri']) {
+          const found = printLocation(value[key], depth + 1);
+          if (found) return found;
+        }
+        return null;
+      }
       const validUrl = raw => {
         let url;
         try { url = new URL(raw); } catch { fail('toconline-print-url-invalid', 502); }
@@ -93,9 +107,9 @@ export function createToconlineLiveClient({
           || url.username || url.password || url.port || url.hash || !url.pathname.startsWith('/public-file/')) fail('toconline-print-url-invalid', 502);
         return url;
       };
-      if (location?.scheme !== 'https' || typeof location.host !== 'string' || typeof location.path !== 'string'
-        || !location.path.startsWith('/public-file/')) fail('toconline-print-location-invalid', 502);
-      let url = validUrl(`${location.scheme}://${location.host}${location.path}`);
+      const location = printLocation(json);
+      if (!location) fail('toconline-print-location-invalid', 502);
+      let url = validUrl(location);
       for (let redirects = 0; redirects <= 2; redirects++) {
         // Signed print URLs do not need credentials. Never forward OAuth here.
         try { response = await fetchImpl(url.toString(), { method: 'GET', redirect: 'manual', cache: 'no-store',
