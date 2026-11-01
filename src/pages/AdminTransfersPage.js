@@ -156,7 +156,10 @@ function AdminTransfersQueue({ user, language }) {
   const amountOkay = amountCents !== null && amountCents <= 9999900;
   const dateOkay = (() => { try { return validDate(bookingDate) && (!createdDay || bookingDate >= createdDay); } catch { return false; } })();
   const referenceOkay = /^[A-Z0-9][A-Z0-9 /._:-]{2,79}$/.test(normalizedReference.toUpperCase());
-  const reasonOkay = reason.trim().length <= 500 && !/[\u0000-\u001f\u007f]/.test(reason.trim());
+  const reasonOkay = reason.trim().length <= 500 && !Array.from(reason.trim()).some(character => {
+    const code = character.codePointAt(0);
+    return code < 32 || code === 127;
+  });
   const fieldErrors = {
     amount: !amountOkay && (amount.trim() || creditConfirmed)
       ? t('Indique um montante entre 0,01 € e 99 999,00 €, com até duas casas decimais.', 'Enter an amount between €0.01 and €99,999.00, with up to two decimal places.') : '',
