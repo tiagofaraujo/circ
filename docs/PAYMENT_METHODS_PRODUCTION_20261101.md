@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Multibanco | Pagamento real de 95 € e FR CIRC2027/1 confirmados | Mantido; regressões verificadas |
 | Transferência bancária | Conferência de teste e rascunho TOConline com TR e conta da empresa aceites | Ligação ao checkout real, conferência administrativa, atualização automática e FR preparadas |
-| MB WAY | Ensaio EuPago de 1 € confirmado em 09/10/2026, com notificação recebida | Transporte, telefone, recuperação e callback preparados; falta confirmar o código TOConline |
+| MB WAY | Ensaio EuPago de 1 € confirmado em 09/10/2026, com notificação recebida | Validação real controlada na conta administradora; categoria genérica OU identificada como inferência e aceitação de vendas ainda por confirmar |
 | Visa/Mastercard | Implementação Stripe exclusivamente sandbox; não há ensaio externo de produção documentado | Não anunciado como meio real disponível |
 | Apple Pay/Google Pay | Preparação Stripe sandbox; sem aceitação real documentada | Falta integração real e confirmação de ativação no prestador |
 
@@ -55,10 +55,10 @@ não são automatizados. O módulo de registo de reembolsos existente não foi a
 ## MB WAY e cartões
 
 `LIVE_PAYMENT_MAPPING_REGISTRY` regista a versão, código e fonte de cada mapeamento
-TOConline. Multibanco usa MB; transferência usa TR. MB WAY mantém estado
-`unconfirmed`: a documentação consultada não identifica o código a usar na API de
-vendas para esse meio. Não é substituído por MB, TR ou OU por inferência.
-`LIVE_MBWAY_ENABLED` sozinho não pode ultrapassar esse bloqueio.
+TOConline. Multibanco usa MB; transferência usa TR. A continuação descrita em
+`MBWAY_PRODUCTION_VALIDATION_20261101.md` usa OU como categoria genérica para uma
+validação controlada, explicitando a inferência e a ausência de aceitação prévia
+comprovada no endpoint de vendas. MB WAY via EuPago fica identificado nas notas.
 
 O adaptador MB WAY valida o telefone português, congela a respetiva impressão no
 pedido, apresenta o prazo indicado e reconcilia o callback com o pedido guardado.
@@ -74,7 +74,9 @@ navegador continua indisponível, pelo que o estado da conta não foi inspeciona
 ## Publicação
 
 `LIVE_BANK_TRANSFER_ENABLED=true` ativa as instruções bancárias reais, mantendo
-as configurações sandbox isoladas. `LIVE_MBWAY_ENABLED=false` permanece explícito.
+as configurações sandbox isoladas. A continuação MB WAY usa
+`LIVE_MBWAY_ENABLED=true` com `LIVE_MBWAY_VALIDATION_ONLY=true`: só a administração
+o pode validar antes da abertura pública.
 `/api/checkout/live/config` é a fonte dos meios apresentados ao participante;
 os meios indisponíveis não são anunciados como operacionais.
 

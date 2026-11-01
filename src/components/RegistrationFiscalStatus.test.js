@@ -119,3 +119,12 @@ test('server permission cannot resume a pending invoice before the bank payment 
  expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
  expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
 });
+test('a paid MB WAY order with fiscal review stays confirmed and offers no fiscal retry',async()=>{
+ fetch.mockResolvedValueOnce(response({...pending,method:'mbway',fiscalStatus:'review_required',canResumeFiscal:true}));
+ show({...registration,payment:{...registration.payment,method:'mbway'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));
+ await screen.findByText('Pagamento confirmado. A fatura-recibo está pendente de conferência pela organização.');
+ expect(screen.getByRole('status')).toHaveTextContent('Faturação requer conferência');
+ expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
+ expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});

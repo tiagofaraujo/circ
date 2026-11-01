@@ -11,7 +11,7 @@ export default function RegistrationFiscalStatus({ registration }) {
   const pendingId = registration.fiscalPendingOrderId;
   const id = pendingId || registration.payment?.orderId;
   if (!isAdmin || registration.isTest === true || registration.testMode === true
-    || (!pendingId && !['multibanco', 'bank_transfer'].includes(registration.payment?.method))) return null;
+    || (!pendingId && !['multibanco', 'mbway', 'bank_transfer'].includes(registration.payment?.method))) return null;
   if (!UUID.test(id || '')) return pendingId ? <small>Referência do pedido fiscal por conferir</small>
     : registration.documentCount > 0 ? <small>Documento fiscal emitido</small> : null;
   return <RegistrationFiscalOrder key={id} id={id} user={user} registration={registration}
@@ -58,6 +58,7 @@ function RegistrationFiscalOrder({ id, user, registration, supplementary }) {
     <small>{supplementary ? 'Faturação da compra adicional' : 'Faturação da inscrição original'}</small>
     {!order && !supplementary && registration.documentCount > 0 && <small>Documento fiscal emitido</small>}
     {order && <small role="status">{labels[order.fiscalStatus] || 'Sem emissão fiscal confirmada'}{order.fiscalDocumentNo ? ` · ${order.fiscalDocumentNo}` : ''}</small>}
+    {order?.status === 'paid' && order.fiscalStatus === 'review_required' && <p>Pagamento confirmado. A fatura-recibo está pendente de conferência pela organização.</p>}
     <button type="button" onClick={refresh} disabled={busy}>Consultar faturação</button>
     {resumable && <>
       {authorizationRequired ? <p>Renove primeiro a ligação ao TOConline em <Link to="/admin/faturacao">Faturação</Link>.</p> : <p>Emissão ainda não iniciada; confirme para retomar.</p>}

@@ -80,6 +80,7 @@ export function ExistingRegistrationAddOns({ registration, user, en = false }) {
       {Number.isSafeInteger(registration.supplementaryPaidAmountCents) && registration.supplementaryPaidAmountCents > 0 && <p>{en ? 'Paid additional purchases' : 'Compras adicionais pagas'}: <strong>{formatEuro(registration.supplementaryPaidAmountCents / 100)}</strong></p>}
       {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The original invoice belongs to the company purchase.' : 'O documento de faturação original pertence à compra da empresa.'}</p>}
       <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>
+      {paid && registration.fiscalPendingOrderId && <p role="status">{en ? 'Payment is confirmed. The invoice-receipt awaits completion by the organisers; do not make another payment.' : 'O pagamento está confirmado. A fatura-recibo está pendente de conclusão pela organização; não efetue outro pagamento.'}</p>}
       {(!registration.voucherId || Number(registration.documentCount) > 0 || Number(registration.addOnOrderCount) > 0) && <>
         {registration.voucherId && <p><strong>{en ? 'Documents for your additional purchases' : 'Documentos das suas compras adicionais'}</strong></p>}
         <RegistrationInvoice user={user} registration={registration} en={en} />

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { buildLiveOnsiteMultibancoFR, buildLiveMultibancoFR, buildLivePaymentFR } from '../payments/toconline-live-payload.mjs';
 
 import { quotePrimary, quoteSupplementary } from '../payments/quote.mjs';
+import { LIVE_PAYMENT_MAPPING_REGISTRY } from '../payments/live-payment-methods.mjs';
 
 const billing={customer:{customer_business_name:'Pessoa Teste',customer_tax_registration_number:'203821432',customer_address_detail:'Rua Teste 1',customer_postcode:'3030-471',customer_city:'Coimbra',customer_country:'PT'}};
 const quote={eventId:'circ-2027',kind:'primary',currency:'EUR',amountCents:9500,ratePeriod:'early',
@@ -105,6 +106,15 @@ test('bank transfer FR uses documented TR only with a validated company billing 
   assert.throws(()=>buildLivePaymentFR({...input,method:'multibanco',bankAccountId:7}),/bank-account-unconfirmed/);
 });
 
-test('unconfirmed MB WAY and unknown payment mappings cannot produce definitive invoice payloads',()=>{
-  for(const method of ['mbway','card','OU','__proto__'])assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method}),/payment-mechanism-unconfirmed/);
+test('unknown payment mappings cannot produce definitive invoice payloads',()=>{
+  for(const method of ['unsupported','card','OU','__proto__'])assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method}),/payment-mechanism-unconfirmed/);
+});
+
+test('MB WAY uses the documented generic OU category with explicit provider note and no claimed sales API acceptance',()=>{
+  const payload=buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method:'mbway'});
+  assert.equal(payload.payment_mechanism,'OU');assert.equal(payload.notes,'CIRC 2027 — inscrição presencial · MB WAY via EuPago');
+  assert.deepEqual(payload.lines,build(quote).lines);assert.equal(payload.bank_account_id,undefined);
+  assert.equal(LIVE_PAYMENT_MAPPING_REGISTRY.mappings.mbway.status,'documented-generic');
+  assert.equal(LIVE_PAYMENT_MAPPING_REGISTRY.mappings.mbway.salesApiValidated,false);
+  assert.equal(LIVE_PAYMENT_MAPPING_REGISTRY.mappings.mbway.sources.length,2);
 });

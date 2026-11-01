@@ -293,3 +293,214 @@ test('supplementary MB WAY uses its own endpoint and keeps the primary payment r
  expect(JSON.parse(transport.mock.calls[2][1].body)).toMatchObject({selection:secondarySelection,method:'mbway',phone:'912345678'});
  expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
 });
+
+const liveMbwayOrder={...mbwayOrder,reference:'MBWAY-REF',canRetry:false};
+const closedMbwayOrder={...liveMbwayOrder,status:'expired',canRetry:true,paidAt:null};
+const mbwayRegistration={id:'circ-2027-user',status:'submitted',payment:{orderId:ID,status:'pending',method:'mbway'}};
+test('only explicit MB WAY reconciliation and a fresh billing, phone and consent review can create a replacement UUID',async()=>{
+ configuration.methods=['mbway']; const uuid=jest.fn(()=>PRIMARY_ID);
+ Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:uuid}});
+ transport.mockResolvedValueOnce(response({order:liveMbwayOrder})).mockResolvedValueOnce(response({order:closedMbwayOrder}))
+  .mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID}}));
+ const onLock=jest.fn(); show({registration:mbwayRegistration,onLock});
+ const reconcile=await screen.findByRole('button',{name:'Consultar pedido na MB WAY'});
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ fireEvent.click(reconcile); fireEvent.click(reconcile);
+ fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ expect(transport.mock.calls[1][0]).toBe(`/api/checkout/live/orders/${ID}/mbway-reconcile`);
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({});
+ expect(uuid).not.toHaveBeenCalled(); expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+ expect(screen.getByRole('textbox',{name:/Número MB WAY/})).toHaveValue('');
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.queryByRole('button',{name:'Enviar pedido MB WAY'})).not.toBeInTheDocument();
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'+351 923456789'}});
+ fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ const create=await screen.findByRole('button',{name:'Enviar pedido MB WAY'}); expect(create).toBeDisabled();
+ fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(create);
+ await screen.findByText(/Confirme este pedido na aplicação MB WAY/);
+ expect(uuid).toHaveBeenCalledTimes(1);
+ expect(JSON.parse(transport.mock.calls[2][1].body)).toEqual({selection});
+ expect(JSON.parse(transport.mock.calls[3][1].body)).toEqual({id:PRIMARY_ID,selection,stamp:preview.stamp,billingStamp:preview.billingStamp,method:'mbway',phone:'923456789',replacesOrderId:ID});
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(onLock).toHaveBeenCalledWith(false);
+});
+test.each([
+ ['pending',true,null],['expired',false,null],['cancelled',undefined,null],['expired','true',null],['expired',true,'2026-11-01T12:00:00Z'],
+])('status %s permission %s and paidAt %s cannot independently allow a new payment',async(status,canRetry,paidAt)=>{
+ transport.mockResolvedValueOnce(response({order:{...liveMbwayOrder,status,canRetry,paidAt}}));
+ show({registration:mbwayRegistration}); await screen.findByText(ID,{selector:'code'});
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('an unconfirmed MB WAY reference cannot be reconciled or retried by the browser',async()=>{
+ transport.mockResolvedValueOnce(response({order:{...liveMbwayOrder,status:'creation_unknown',reference:null,canRetry:true}}));
+ show({registration:mbwayRegistration}); await screen.findByText('Pedido por confirmar');
+ expect(screen.queryByRole('button',{name:'Consultar pedido na MB WAY'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+test('reconciliation that still reports pending never enables retry and polling only reads the existing order',async()=>{
+ jest.useFakeTimers();
+ try{
+  transport.mockResolvedValue(response({order:liveMbwayOrder})); show({registration:mbwayRegistration});
+  fireEvent.click(await screen.findByRole('button',{name:'Consultar pedido na MB WAY'}));
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Consultar pedido na MB WAY'})).toBeEnabled());
+  await act(async()=>{jest.advanceTimersByTime(15000);});
+  expect(screen.getByText('A aguardar pagamento')).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+  expect(transport.mock.calls.filter(([,options])=>options.method==='POST')).toHaveLength(1);
+  expect(transport.mock.calls.every(([url,options])=>options.method==='GET'||url.endsWith('/mbway-reconcile'))).toBe(true);
+ }finally{jest.useRealTimers();}
+});
+test('a lost reconciliation response keeps the existing UUID and never prepares another payment',async()=>{
+ transport.mockResolvedValueOnce(response({order:liveMbwayOrder})).mockRejectedValueOnce(new Error('lost'));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Consultar pedido na MB WAY'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('não envie outro pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(transport).toHaveBeenCalledTimes(2);
+});
+test('a historical local order follows its server replacement instead of offering another attempt',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:{...closedMbwayOrder,canRetry:false,replacementOrderId:PRIMARY_ID}}))
+  .mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID}}));
+ show({registration:{...mbwayRegistration,payment:{...mbwayRegistration.payment,orderId:PRIMARY_ID}}});
+ await screen.findByText('A aguardar pagamento');
+ expect(transport.mock.calls.map(([url])=>url)).toEqual([`/api/checkout/live/orders/${ID}`,`/api/checkout/live/orders/${PRIMARY_ID}`]);
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+});
+test('a retained new UUID takes precedence over a stale registration after a lost creation response',async()=>{
+ localStorage.setItem('circ-production-order:user',PRIMARY_ID);
+ transport.mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID}}));
+ show({registration:mbwayRegistration}); await screen.findByText('A aguardar pagamento');
+ expect(transport.mock.calls[0][0]).toBe(`/api/checkout/live/orders/${PRIMARY_ID}`);
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+});
+test('a new UUID with an unresolved lookup is retained even when the registration still refers to an old closed attempt',async()=>{
+ localStorage.setItem('circ-production-order:user',PRIMARY_ID);
+ transport.mockResolvedValueOnce(response({error:'not-found'},false,404));
+ show({registration:mbwayRegistration}); expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(transport).toHaveBeenCalledTimes(1);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+});
+test('a lost replacement creation response retains the new UUID for recovery with the old registration',async()=>{
+ configuration.methods=['mbway']; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview)).mockRejectedValueOnce(new Error('lost'));
+ const view=show({registration:mbwayRegistration});
+ fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ await screen.findByRole('alert'); expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ view.unmount(); transport.mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID}}));
+ show({registration:mbwayRegistration}); await screen.findByText('A aguardar pagamento');
+ expect(transport.mock.calls.at(-1)[0]).toBe(`/api/checkout/live/orders/${PRIMARY_ID}`);
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+});
+test('a server prewrite conflict recovers another browser replacement without another payment creation',async()=>{
+ configuration.methods=['mbway']; const candidate='33333333-3333-4333-8333-333333333333';
+ Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>candidate}});
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview))
+  .mockResolvedValueOnce(response({error:'replacement-required'},false,409))
+  .mockResolvedValueOnce(response({order:{...closedMbwayOrder,canRetry:false,replacementOrderId:PRIMARY_ID}}))
+  .mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID}}));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ await screen.findByText('A aguardar pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+});
+test('a late confirmed payment wins over a retry preparation and keeps the receipt in organiser review',async()=>{
+ configuration.methods=['mbway']; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ const paid={...liveMbwayOrder,status:'paid',canRetry:false,fiscalStatus:'review_required',paidAt:'2026-11-01T12:00:00Z'};
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview))
+  .mockResolvedValueOnce(response({error:'registration-exists'},false,409)).mockResolvedValueOnce(response({order:paid}));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ await screen.findByText('Pagamento confirmado');
+ expect(screen.getByText(/A fatura-recibo está pendente de conferência pela organização/)).toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(screen.queryByText('A aguardar pagamento')).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+test('a supplementary retry preserves the primary payment UUID and submits the predecessor on its own endpoint',async()=>{
+ configuration.methods=['mbway']; localStorage.setItem('circ-production-order:user',PRIMARY_ID);
+ const next='33333333-3333-4333-8333-333333333333'; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>next}});
+ transport.mockResolvedValueOnce(response({order:{...closedMbwayOrder,kind:'supplementary',amountCents:6500}}))
+  .mockResolvedValueOnce(response(secondaryPreview)).mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:next,kind:'supplementary',amountCents:6500}}));
+ showSupplement(); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ await screen.findByText('A aguardar pagamento');
+ expect(transport.mock.calls[2][0]).toBe('/api/checkout/live/supplementary/orders');
+ expect(JSON.parse(transport.mock.calls[2][1].body)).toMatchObject({id:next,replacesOrderId:ID,method:'mbway',selection:secondarySelection});
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(localStorage.getItem('circ-production-supplementary-order:user')).toBe(next);
+ expect(transport.mock.calls[0][0]).toBe('/api/checkout/live/supplementary-order');
+});
+test.each([
+ ['replacement-check-unavailable','expired',503],['replacement-not-closed','review_required',409],
+])('a definitive precreation %s restores the predecessor and discards only the unreserved candidate',async(error,status,httpStatus)=>{
+ configuration.methods=['mbway']; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ const predecessor={...closedMbwayOrder,status,canRetry:false};
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview))
+  .mockResolvedValueOnce(response({error,order:predecessor},false,httpStatus));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Não foi criado um novo pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.getByText(ID,{selector:'code'})).toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(screen.queryByText('Pagamento confirmado')).not.toBeInTheDocument();
+ expect(transport).toHaveBeenCalledTimes(3);
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+});
+test('a failed predecessor closure check needs a fresh read and a new explicit preparation before another attempt',async()=>{
+ configuration.methods=['mbway']; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview))
+  .mockResolvedValueOnce(response({error:'replacement-check-unavailable',order:{...closedMbwayOrder,canRetry:false}},false,503))
+  .mockResolvedValueOnce(response({order:closedMbwayOrder}));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'})); await screen.findByRole('alert');
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Atualizar estado do pagamento'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ expect(screen.getByRole('textbox',{name:/Número MB WAY/})).toHaveValue('');
+ expect(screen.queryByRole('button',{name:'Enviar pedido MB WAY'})).not.toBeInTheDocument();
+ expect(transport.mock.calls[3][0]).toBe(`/api/checkout/live/orders/${ID}`);
+ expect(transport.mock.calls[3][1].method).toBe('GET');
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+});
+test('an invalid predecessor in a precreation refusal is not adopted and is recovered by its known identifier',async()=>{
+ configuration.methods=['mbway']; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview))
+  .mockResolvedValueOnce(response({error:'replacement-not-closed',order:{...closedMbwayOrder,id:PRIMARY_ID,canRetry:false}},false,409))
+  .mockResolvedValueOnce(response({order:{...liveMbwayOrder,status:'review_required',canRetry:false}}));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'})); await screen.findByRole('alert');
+ expect(transport.mock.calls[3][0]).toBe(`/api/checkout/live/orders/${ID}`);
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+});
+test('a missing precreation predecessor and failed reread retain the known old identifier with creation blocked',async()=>{
+ configuration.methods=['mbway']; Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ transport.mockResolvedValueOnce(response({order:closedMbwayOrder})).mockResolvedValueOnce(response(preview))
+  .mockResolvedValueOnce(response({error:'replacement-check-unavailable'},false,503)).mockRejectedValueOnce(new Error('offline'));
+ show({registration:mbwayRegistration}); fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'912345678'}});
+ await reviewAndAcknowledge(); fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Consulte o estado deste pedido');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.getByRole('button',{name:'Atualizar estado do pagamento'})).toBeEnabled();
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Enviar pedido MB WAY'})).not.toBeInTheDocument();
+});

@@ -43,3 +43,10 @@ test('a voucher participant can access invoices for their own additional purchas
  expect(screen.getByText('Issued invoice')).toBeInTheDocument();
  expect(screen.getByText(/O documento de faturação original pertence à compra da empresa/)).toBeInTheDocument();
 });
+test('a paid MB WAY registration remains visibly paid while its receipt awaits the organisers',()=>{
+ show({...registration,voucherId:null,fiscalPendingOrderId:'11111111-1111-4111-8111-111111111111',payment:{status:'paid',method:'mbway',amountCents:9500}});
+ expect(screen.getByText('Paga')).toBeInTheDocument();
+ expect(screen.getByText(/A fatura-recibo está pendente de conclusão pela organização/)).toBeInTheDocument();
+ expect(screen.queryByText('Em conferência')).not.toBeInTheDocument();
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
+});

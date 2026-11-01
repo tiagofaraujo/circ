@@ -75,9 +75,10 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
       tax_code: rule.taxCode, tax_percentage: rule.percentage, tax_country_region: 'PT' };
   });
   const legacyOnsite = quote.kind === 'primary' && quote.lines.length === 1 && quote.lines[0].code === 'congress-onsite';
+  const notes=legacyOnsite?'CIRC 2027 — inscrição presencial':quote.kind==='supplementary'?'CIRC 2027 — pedido complementar':'CIRC 2027 — inscrição';
   return { document_type: 'FR', document_series_id: policy.series.id, date: paymentDate, due_date: paymentDate,
     currency_iso_code: 'EUR', ...billing.customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
-    notes: legacyOnsite ? 'CIRC 2027 — inscrição presencial' : quote.kind === 'supplementary' ? 'CIRC 2027 — pedido complementar' : 'CIRC 2027 — inscrição',
+    notes: method==='mbway'?`${notes} · MB WAY via EuPago`:notes,
     vat_included_prices: true, payment_mechanism: mechanism,
     ...(method === 'bank_transfer' ? { bank_account_id: bankAccountId } : {}),
     ...(lines.some(line => line.tax_code === 'ISE') ? { tax_exemption_reason_id: policy.exemption.id } : {}), lines };
