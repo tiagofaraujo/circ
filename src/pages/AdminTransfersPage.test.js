@@ -231,5 +231,65 @@ test('credit date cannot precede the order creation day in Lisbon',async()=>{
  show(); await openReview(); fill(); fireEvent.click(screen.getByRole('checkbox'));
  const date=screen.getByLabelText('Data do crédito bancário'); expect(date).toHaveAttribute('min','2026-10-25');
  fireEvent.change(date,{target:{value:'2026-10-24'}});
+ expect(date).toHaveAttribute('aria-invalid','true');
+ expect(date).toHaveAccessibleDescription(/anterior/i);
+ expect(screen.getByText(/anterior/i)).toBeVisible();
  expect(screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'})).toBeDisabled(); expect(posts()).toHaveLength(0);
+});
+
+test('future credit dates and invalid statement references explain the disabled approval without sending a payment request',async()=>{
+ show(); await openReview();
+ const amount=screen.getByLabelText('Montante creditado (€)');
+ const date=screen.getByLabelText('Data do crédito bancário');
+ const reference=screen.getByLabelText('Referência do movimento no extrato');
+ const approve=screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'});
+ fireEvent.change(amount,{target:{value:'55'}});
+ fireEvent.change(date,{target:{value:'2026-12-12'}});
+ fireEvent.change(reference,{target:{value:'çkjç'}});
+ fireEvent.click(screen.getByRole('checkbox'));
+ expect(date).toHaveAttribute('aria-invalid','true');
+ expect(date).toHaveAccessibleDescription(/posterior/i);
+ expect(screen.getByText(/posterior/i)).toBeVisible();
+ expect(screen.getByText(/posterior/i)).toHaveTextContent('01/11/2026');
+ expect(reference).toHaveAttribute('aria-invalid','true');
+ expect(reference).toHaveAccessibleDescription(/referência.*formato válido/i);
+ expect(screen.getByText(/referência.*formato válido/i)).toBeVisible();
+ expect(approve).toBeDisabled(); fireEvent.click(approve); expect(posts()).toHaveLength(0);
+
+ fireEvent.change(date,{target:{value:'2026-11-01'}});
+ expect(date).toHaveAttribute('aria-invalid','false');
+ expect(screen.queryByText(/posterior/i)).not.toBeInTheDocument();
+ expect(reference).toHaveAttribute('aria-invalid','true');
+ expect(approve).toBeDisabled(); fireEvent.click(approve); expect(posts()).toHaveLength(0);
+
+ fireEvent.change(reference,{target:{value:'BCP-ENTRY-42'}});
+ expect(reference).toHaveAttribute('aria-invalid','false');
+ expect(screen.queryByText(/referência.*formato válido/i)).not.toBeInTheDocument();
+ expect(approve).toBeEnabled(); expect(posts()).toHaveLength(0);
+});
+
+test('excessive credited amounts and multiline notes stay blocked with field feedback until corrected',async()=>{
+ show(); await openReview(); fill(); fireEvent.click(screen.getByRole('checkbox'));
+ const amount=screen.getByLabelText('Montante creditado (€)');
+ const note=screen.getByLabelText('Observação interna (opcional)');
+ const approve=screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'});
+ fireEvent.change(amount,{target:{value:'100000,00'}});
+ fireEvent.change(note,{target:{value:'Crédito conferido\nMovimento identificado'}});
+ expect(amount).toHaveAttribute('aria-invalid','true');
+ expect(amount).toHaveAccessibleDescription(/99[\s.]?999/);
+ expect(screen.getByText(/99[\s.]?999/)).toBeVisible();
+ expect(note).toHaveAttribute('aria-invalid','true');
+ expect(note).toHaveAccessibleDescription(/linha|controlo/i);
+ expect(screen.getByText(/linha|controlo/i)).toBeVisible();
+ expect(approve).toBeDisabled(); fireEvent.click(approve); expect(posts()).toHaveLength(0);
+
+ fireEvent.change(amount,{target:{value:'55,00'}});
+ expect(amount).toHaveAttribute('aria-invalid','false');
+ expect(note).toHaveAttribute('aria-invalid','true');
+ expect(approve).toBeDisabled(); expect(posts()).toHaveLength(0);
+
+ fireEvent.change(note,{target:{value:'Crédito conferido no extrato'}});
+ expect(note).toHaveAttribute('aria-invalid','false');
+ expect(screen.queryByText(/linha|controlo/i)).not.toBeInTheDocument();
+ expect(approve).toBeEnabled(); expect(posts()).toHaveLength(0);
 });
