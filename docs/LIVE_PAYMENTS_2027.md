@@ -117,6 +117,28 @@ A ativação temporária deste ensaio e a geração de uma referência de 95 €
 9. Confirmar: pagamento `paid`, inscrição `confirmed`, documento fiscal `issued` e número/ID TOConline guardados.
 10. Só depois expandir para cursos, jantar, virtual e MB WAY.
 
+## Retoma de faturação bloqueada por autorização
+
+Depois de renovar OAuth, **Retomar faturação autorizada** usa
+`POST /api/checkout/live/orders/{id}/fiscal-resume`. Exige administrador verificado,
+pedido próprio de produção pago de 95 € externos, inscrição confirmada sem documentos
+e trabalho fiscal `pending_authorization` com `toconline-background-session-missing`
+ou `toconline-reauthorize-required`. O payload tem de coincidir com os dados de
+faturação e a tarifa já congelados; não são aceites novos valores do navegador.
+
+Antes do POST fiscal, uma atualização atómica com precondições de versão reclama
+o trabalho como `issuing` e guarda o responsável e a tentativa. Pedidos simultâneos,
+emitidos, reembolsados, com resultado incerto ou campos divergentes são bloqueados.
+Uma resposta perdida exige consultar o pedido; a interface nunca repete o POST.
+Sucesso no fornecedor seguido de falha no armazenamento é tratado como incerto.
+A retoma não depende de abrir a criação de pagamentos e nunca cria outro pagamento.
+
+O identificador e número TOConline aceites acompanham o estado de emissão no
+pagamento e na consulta. O registo administrativo de reembolso fica bloqueado
+durante `pending` ou `issuing` da faturação. A API v1 de documentos de venda finaliza
+automaticamente o documento, conforme a documentação oficial:
+https://api-docs.toconline.pt/apis/vendas/documentos-de-venda
+
 ## Estados automáticos e exceções administrativas
 
 Na gestão de inscrições, os estados de pagamento e inscrição são de leitura. A confirmação validada do prestador grava `paid` e `confirmed` em conjunto; os antigos seletores e funções genéricas de alteração foram removidos. Registos históricos com pagamento pago e inscrição não confirmada são assinalados para conferência, sem alterar retroativamente dados.

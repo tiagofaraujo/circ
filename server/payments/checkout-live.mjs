@@ -16,7 +16,7 @@ async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.he
 const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
 const publicOrder=(id,p)=>({id,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
-  reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null});
+  reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,...(p.fiscalDocumentId?{fiscalDocumentId:p.fiscalDocumentId,fiscalDocumentNo:p.fiscalDocumentNo||null}:{})});
 
 export function createCheckoutLiveApi({
   verify,
