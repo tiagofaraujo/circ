@@ -30,6 +30,17 @@ test('owner downloads an issued bank-transfer invoice using its matching interna
   const f=fixture({payment:{provider:'internal_bank_transfer',method:'bank_transfer'},document:{paymentMethod:'bank_transfer'}});
   const response=await f.api(request(),env);assert.equal(response.status,200);assert.equal(await response.text(),'%PDF-original');assert.equal(f.calls(),1);
 });
+test('owner retains the original issued Stripe PDF including after registration archival',async()=>{
+  const f=fixture({payment:{provider:'stripe',method:'stripe_card',registrationArchiveId:'retained-history'},document:{paymentMethod:'stripe_card',registrationArchiveId:'retained-history'}});
+  const response=await f.api(request(),env);assert.equal(response.status,200);assert.equal(await response.text(),'%PDF-original');assert.equal(f.calls(),1);
+});
+test('Stripe PDF requires matching provider and method on the issued payment and fiscal job',async()=>{
+  for(const overrides of [{payment:{provider:'stripe',method:'stripe_card'},document:{paymentMethod:'mbway'}},
+    {payment:{provider:'eupago',method:'stripe_card'},document:{paymentMethod:'stripe_card'}},
+    {payment:{provider:'stripe',method:'mbway'},document:{paymentMethod:'stripe_card'}}]){
+    const f=fixture(overrides);assert.equal((await f.api(request(),env)).status,409);assert.equal(f.calls(),0);
+  }
+});
 test('bank invoice provider and payment-method mismatches never reach the PDF provider',async()=>{
   for(const overrides of [
     {payment:{provider:'internal_bank_transfer',method:'multibanco'},document:{paymentMethod:'bank_transfer'}},

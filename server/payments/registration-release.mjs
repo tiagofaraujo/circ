@@ -68,12 +68,15 @@ async function inspect(store,id,uid,tx){
       ||p.quote?.kind!==kind||p.quote?.eventId!==EVENT||!['paid','refunded'].includes(p.status)||!positive(p.amountCents)||p.currency!=='EUR'
       ||!date(p.paidAt)||typeof p.transactionId!=='string'||!p.transactionId||!/^20\d{2}-\d{2}-\d{2}$/.test(p.paymentDate||'')
       ||p.identifier!==`circ_live_${row.id.replaceAll('-','')}`||p.fiscalStatus!=='issued'||!providerId(p.fiscalDocumentId)
-      ||!(p.provider==='eupago'&&['multibanco','mbway'].includes(p.method)||p.provider==='internal_bank_transfer'&&p.method==='bank_transfer'))blocked();
+      ||!(p.provider==='eupago'&&['multibanco','mbway'].includes(p.method)||p.provider==='internal_bank_transfer'&&p.method==='bank_transfer'||p.provider==='stripe'&&p.method==='stripe_card'))blocked();
     const document=activeDocuments.find(d=>d.id===row.id),d=document?.data;
     if(!document||!rowIdentity(document,uid,id)||d.id!==row.id||d.environment!=='production'||d.provider!=='toconline'
       ||d.type!=='invoice_receipt'||d.status!=='issued'||d.amountCents!==p.amountCents||d.paymentMethod!==p.method
       ||d.orderKind!==kind||!date(d.issuedAt)||!providerId(d.providerDocumentId)||String(d.providerDocumentId)!==String(p.fiscalDocumentId)
       ||typeof d.providerDocumentNo!=='string'||!/^FR\s\S.{0,100}$/.test(d.providerDocumentNo)||p.fiscalDocumentNo!==d.providerDocumentNo)blocked();
+    if(p.provider==='stripe'&&(!/^cs_live_[A-Za-z0-9]{8,240}$/.test(p.reference||'')||!/^pi_[A-Za-z0-9]{8,240}$/.test(p.transactionId||'')||p.stripe?.id!==p.reference
+      ||p.stripe.status!=='complete'||p.stripe.paymentStatus!=='paid'||p.stripe.paymentIntentId!==p.transactionId
+      ||!['credit','debit'].includes(p.stripeInstrument?.funding)))blocked();
     if(kind==='supplementary')supplementary.push(row.id);
     if(p.method==='bank_transfer'){
       const c=p.bankTransfer?.confirmation,key=c?.creditKey;

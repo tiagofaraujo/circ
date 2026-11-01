@@ -64,6 +64,10 @@ de intervenção. A aceitação real exige um identificador de documento emitido
 
 ## Confirmação necessária para abrir ao público
 
+Em 1 de novembro de 2026, o organizador confirmou que o pagamento real MB WAY
+está a funcionar corretamente. O relato não inclui o identificador da FR/PDF;
+a aceitação fiscal específica continua sem evidência registada neste documento.
+
 Depois da publicação, verificar na conta administradora um pedido real aprovado
 no telemóvel, a atualização automática para pago/confirmada e a FR identificada
 com o respetivo PDF. Só depois se deve registar a aceitação de vendas e alterar

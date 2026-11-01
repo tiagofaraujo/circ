@@ -145,3 +145,26 @@ test('unproven archive markers cannot hide a linked unsettled payment',async()=>
   const f=fixture();f.payments[0].data.registrationArchiveId=archiveId;f.payments[0].data.registrationArchivedAt=time;f.sync(f.payments[0]);
   assert.equal((await f.call()).status,409);assert.equal(f.commits,0);
 });
+
+function stripeFixture(){
+  const f=fixture(),p=f.payments[0].data,r=f.registration.data,d=f.documents[0].data;
+  Object.assign(p,{provider:'stripe',method:'stripe_card',reference:'cs_live_archivedStripeSession',transactionId:'pi_archivedStripeIntent',
+    stripe:{id:'cs_live_archivedStripeSession',status:'complete',paymentStatus:'paid',paymentIntentId:'pi_archivedStripeIntent'},stripeInstrument:{funding:'credit',wallet:'apple_pay'}});
+  delete p.bankTransfer;r.payment.method='stripe_card';r.payment.reference=p.reference;d.paymentMethod='stripe_card';d.salesDocument.payment_mechanism='CC';
+  for(const row of [f.payments[0],f.registration,f.documents[0]])f.sync(row);return f;
+}
+
+test('a settled Stripe registration archives only its active registration while preserving issued payment and invoice references',async()=>{
+  const f=stripeFixture(),preview=await f.preview(),before=structuredClone([f.payments[0].data,f.documents[0].data]);
+  assert.equal((await f.call(confirmation(preview.stamp))).status,200);assert.equal(f.registration,null);
+  for(const [index,row] of [f.payments[0],f.documents[0]].entries()){
+    const{registrationArchiveId,registrationArchivedAt,...data}=row.data;assert.equal(registrationArchiveId,archiveId);assert.ok(registrationArchivedAt);assert.deepEqual(data,before[index]);
+  }
+});
+
+test('Stripe archival rejects mismatched session, intent and unconfirmed funding before mutation',async()=>{
+  for(const mutate of [p=>{p.stripe.id='cs_live_differentSession';},p=>{p.stripe.paymentIntentId='pi_differentIntent';},
+    p=>{p.stripe.paymentStatus='unpaid';},p=>{p.stripeInstrument.funding='unknown';},p=>{p.transactionId='bank_claim';}]){
+    const f=stripeFixture();mutate(f.payments[0].data);f.sync(f.payments[0]);assert.equal((await f.call()).status,409);assert.equal(f.commits,0);
+  }
+});

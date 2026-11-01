@@ -1,4 +1,5 @@
 import { createStripeSandboxWebhook } from './payments/stripe-webhook.mjs';
+import { createStripeLiveWebhook } from './payments/stripe-live-webhook.mjs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { handleSocialMetadata } from './social-metadata.mjs';
 import { handleMedia } from './media.mjs';
@@ -51,6 +52,7 @@ function json(body, status = 200, headers = {}) {
 // The injected verifier is only used by local tests. Production always uses Google's keys.
 export function createWorker(verify = verifyFirebaseToken) {
   const stripeWebhook = createStripeSandboxWebhook();
+  const stripeLiveWebhook = createStripeLiveWebhook();
   const sandbox = createSandboxApi({ verify });
   const sandboxWebhook = createSandboxWebhook({ checkoutHandler: createCheckoutSandboxNotification() });
   const sandboxCheckout = createCheckoutSandboxApi({ verify });
@@ -74,6 +76,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       )) return json({ error: 'retired-endpoint' }, 410);
       const livePaymentResponse = await livePaymentWebhook(request, env);
       if (livePaymentResponse) return livePaymentResponse;
+      const stripeLiveResponse = await stripeLiveWebhook(request, env);
+      if (stripeLiveResponse) return stripeLiveResponse;
       const stripeResponse = await stripeWebhook(request, env);
       if (stripeResponse) return stripeResponse;
       const notificationResponse = await sandboxWebhook(request, env);

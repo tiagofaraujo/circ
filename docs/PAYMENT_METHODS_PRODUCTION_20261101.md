@@ -5,10 +5,10 @@
 | Meio | Evidência anterior | Resultado desta alteração |
 | --- | --- | --- |
 | Multibanco | Pagamento real de 95 € e FR CIRC2027/1 confirmados | Mantido; regressões verificadas |
-| Transferência bancária | Conferência de teste e rascunho TOConline com TR e conta da empresa aceites | Ligação ao checkout real, conferência administrativa, atualização automática e FR preparadas |
-| MB WAY | Ensaio EuPago de 1 € confirmado em 09/10/2026, com notificação recebida | Validação real controlada na conta administradora; categoria genérica OU identificada como inferência e aceitação de vendas ainda por confirmar |
-| Visa/Mastercard | Implementação Stripe exclusivamente sandbox; não há ensaio externo de produção documentado | Não anunciado como meio real disponível |
-| Apple Pay/Google Pay | Preparação Stripe sandbox; sem aceitação real documentada | Falta integração real e confirmação de ativação no prestador |
+| Transferência bancária | Pagamento e emissão de recibo reais confirmados pelo organizador | Conferência administrativa, atualização automática e FR em produção |
+| MB WAY | Pagamento real confirmado pelo organizador em 01/11/2026 | Confirmação do pagamento registada; relato não identifica a FR. Validação permanece limitada a contas autorizadas |
+| Visa/Mastercard | Implementação e ensaios Stripe sandbox; sem pagamento real documentado | Percurso live preparado, dependente de credenciais e webhook de produção e de validação real |
+| Apple Pay/Google Pay | Preparação Stripe sandbox; sem aceitação real documentada | Carteiras sobre cartão no novo Hosted Checkout, sujeitas à elegibilidade e configuração da conta |
 
 Passar um teste automático ou um ensaio sandbox não comprova ativação contratual,
 aceitação de uma operação de produção ou emissão fiscal real. A revisão não criou
@@ -68,26 +68,34 @@ Não envia outro pedido quando o prazo termina ou quando a resposta é incerta.
 As chaves Stripe sandbox são explicitamente test-only; trocá-las por uma chave
 real não converte essa integração. A alternativa EuPago para cartões e carteiras
 usa a APIkey do canal, mas o prestador exige adesão contratual adicional aprovada.
-A existência da chave do canal CIRC não demonstra essa aprovação. A ligação ao
-navegador continua indisponível, pelo que o estado da conta não foi inspecionado.
+A existência da chave do canal CIRC não demonstra essa aprovação. A continuação
+`STRIPE_PRODUCTION_20261101.md` descreve o novo percurso Stripe live separado,
+com cartões e carteiras, credenciais próprias, assinatura e reconciliação de
+pagamentos, claim fiscal e diagnóstico administrativo. A conta do prestador
+ainda não foi inspecionada nesta revisão.
 
 ## Publicação
 
 `LIVE_BANK_TRANSFER_ENABLED=true` ativa as instruções bancárias reais, mantendo
 as configurações sandbox isoladas. A continuação MB WAY usa
-`LIVE_MBWAY_ENABLED=true` com `LIVE_MBWAY_VALIDATION_ONLY=true`: só a administração
-o pode validar antes da abertura pública.
+`LIVE_MBWAY_ENABLED=true` com `LIVE_MBWAY_VALIDATION_ONLY=true`: a administração
+e a conta incluída na allowlist podem validar o método antes da abertura pública.
+Stripe usa gates e allowlist próprios; sem configurações live válidas não é
+anunciado no checkout. A integração Stripe requer os dois Secrets de produção
+descritos no respetivo documento.
 `/api/checkout/live/config` é a fonte dos meios apresentados ao participante;
 os meios indisponíveis não são anunciados como operacionais.
 
-Esta alteração não depende de novas regras Firestore ou novos segredos.
+Os percursos bancários anteriores não dependem de novas regras Firestore ou segredos.
 Os testes usam prestadores simulados, sem aceder à conta bancária ou criar documentos.
 As correções científicas do PR 98 permanecem separadas e desativadas.
 
-Verificação local final: 481 testes de servidor passaram e 1 foi ignorado;
+Verificação da integração bancária: 481 testes de servidor passaram e 1 foi ignorado;
 358 testes de interface passaram; compilação de produção e `git diff --check`
 concluídos. A revisão independente confirmou paginação, privacidade das notas,
 claim exclusiva antes da emissão, respostas perdidas e proteção de trabalhos antigos.
+Na continuação Stripe, 619 testes de servidor e 457 de interface passaram,
+com um teste de servidor ignorado; a compilação e a revisão independente passaram.
 
 ## Fontes primárias
 
@@ -101,5 +109,6 @@ claim exclusiva antes da emissão, respostas perdidas e proteção de trabalhos 
   <https://eupago.atlassian.net/wiki/spaces/PAYSOFT/pages/1953857539>.
 
 Os resultados do ensaio de MB WAY constam de `CHECKOUT_SANDBOX_20261009.md`.
-A fronteira Stripe test-only e os testes ainda não efetuados constam de
-`STRIPE_SANDBOX_20261013.md`. Nenhum destes documentos comprova um pagamento live.
+A fronteira Stripe test-only consta de `STRIPE_SANDBOX_20261013.md`; esse ensaio
+não comprova um pagamento Stripe live. A confirmação MB WAY acima foi dada pelo
+organizador, sem uma consulta adicional à conta pela implementação Stripe.
