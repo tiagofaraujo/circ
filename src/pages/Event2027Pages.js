@@ -57,8 +57,8 @@ export function ParticipatePage2027() {
         status={en ? 'Registration and submissions open' : 'Inscrições e submissões abertas'}
         lead={
           en
-            ? 'In-person congress registration and scientific submissions are open in My CIRC. Registration payment is available by Multibanco.'
-            : 'As inscrições para o congresso presencial e as submissões científicas estão abertas no My CIRC. O pagamento da inscrição está disponível por Multibanco.'
+            ? 'Register for the in-person or virtual congress, courses and dinner, and submit scientific work in My CIRC. Pay by Multibanco.'
+            : 'Inscreva-se no congresso presencial ou virtual, nos cursos e no jantar, e submeta trabalhos científicos no My CIRC. Pague por Multibanco.'
         }
       />
 
@@ -87,8 +87,8 @@ export function ParticipatePage2027() {
           <h2>{en ? 'Choose morning, afternoon or both' : 'Escolha o curso da manhã, o da tarde ou ambos'}</h2>
           <p>
             {en
-              ? 'The published fee applies per course. Morning and afternoon courses are independent. Their registration options will become available in My CIRC once opened.'
-              : 'O preço publicado é por curso. Os cursos da manhã e da tarde são independentes. A abertura destas opções de inscrição será indicada no My CIRC.'}
+              ? 'The fee applies per course. Morning and afternoon courses are independent and can be booked in My CIRC, with or without congress attendance.'
+              : 'O preço é por curso. Os cursos da manhã e da tarde são independentes e podem ser adquiridos no My CIRC, com ou sem participação no congresso.'}
           </p>
         </article>
         <article className="info-card info-card--accent">
@@ -262,7 +262,7 @@ export function AccountRegistrationsPage2027() {
         <div>
           <p className="eyebrow">My CIRC · {en ? 'Registration' : 'Inscrição'}</p>
           <h1>{en ? 'Your registration' : 'A sua inscrição'}</h1>
-          <p>{en ? 'Register for the in-person congress and pay by Multibanco.' : 'Inscreva-se no congresso presencial e pague por Multibanco.'}</p>
+          <p>{en ? 'Choose the congress format, courses and dinner tickets, and pay by Multibanco.' : 'Escolha a modalidade do congresso, os cursos e os bilhetes de jantar, e pague por Multibanco.'}</p>
         </div>
         <div className="account-hero__mark" aria-hidden="true">
           <span>CIRC</span>
@@ -273,7 +273,7 @@ export function AccountRegistrationsPage2027() {
       <section className="account-registration-section">
         <div className="account-registration-alert">
           <span className="account-status">{en ? 'Registration open' : 'Inscrições abertas'}</span>
-          <p>{en ? 'Each participant has one primary registration. Courses and dinner tickets can be added later without creating a second registration.' : 'Cada participante terá uma única inscrição principal. Os cursos e bilhetes de jantar poderão ser acrescentados mais tarde, sem criar uma segunda inscrição.'}</p>
+          <p>{en ? 'Each participant has one primary registration. After payment, you can add courses and dinner tickets without creating a second registration.' : 'Cada participante tem uma única inscrição principal. Depois do pagamento, pode acrescentar cursos e bilhetes de jantar sem criar uma segunda inscrição.'}</p>
         </div>
         <RegistrationBuilder />
         <div className="account-form-actions"><Link className="text-link" to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link></div>

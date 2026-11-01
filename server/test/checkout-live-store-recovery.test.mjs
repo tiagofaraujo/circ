@@ -17,6 +17,7 @@ test('recovery queries only the authenticated primary registration, reads at mos
       {fieldFilter:{field:{fieldPath:'userId'},op:'EQUAL',value:{stringValue:'admin'}}},
       {fieldFilter:{field:{fieldPath:'registrationId'},op:'EQUAL',value:{stringValue:'circ-2027-admin'}}},
       {fieldFilter:{field:{fieldPath:'environment'},op:'EQUAL',value:{stringValue:'production'}}},
+      {fieldFilter:{field:{fieldPath:'quote.kind'},op:'EQUAL',value:{stringValue:'primary'}}},
     ]}},limit:2}});
 });
 test('missing, multiple and malformed recovery documents cannot yield an arbitrary order',async()=>{

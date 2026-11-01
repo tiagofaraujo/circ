@@ -1177,3 +1177,13 @@
 .registration-checkout { margin-top: 1.5rem; }
 .registration-checkout label { display: block; margin: 1rem 0; font-size: 0.9rem; }
 .registration-checkout button { margin: 0.5rem 0; }
+
+.registration-purchase-options { display: grid; gap: .75rem; margin: 1.25rem 0; border: 0; padding: 0; min-width: 0; }
+.registration-purchase-options legend { font-size: 1rem; font-weight: 700; }
+.registration-purchase-option { display: flex; align-items: center; gap: .8rem; padding: 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; }
+.registration-purchase-option > input[type="checkbox"] { flex: 0 0 auto; width: 1.15rem; height: 1.15rem; accent-color: var(--blue, #2b2bb4); }
+.registration-purchase-option > span { display: grid; gap: .3rem; }
+.registration-purchase-option small { color: var(--ink-soft, #53576d); }
+.registration-purchase-option--quantity { justify-content: space-between; }
+.registration-purchase-option--quantity input { width: 5.5rem; min-width: 4rem; padding: .5rem; }
+.registration-purchase-options[disabled] { opacity: .75; }

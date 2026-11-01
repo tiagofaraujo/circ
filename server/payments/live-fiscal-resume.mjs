@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, readLivePaymentById, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
-import { buildLiveOnsiteMultibancoFR } from './toconline-live-payload.mjs';
+import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { liveDataStamp } from './live-pilot-contract.mjs';
-import { CONGRESS_RATES, getRegistrationPeriod } from '../../src/data/registration2027.js';
+import { getRegistrationPeriod } from '../../src/data/registration2027.js';
 import { completeLiveFiscalJob, RESUMABLE_AUTH_ERRORS } from './live-fiscal-issue.mjs';
 
 const CONFIRMATION = 'RETOMAR FATURACAO AUTORIZADA';
@@ -46,25 +46,27 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
       if (p.status !== 'paid' || p.fiscalStatus !== 'pending_authorization'
         || j?.status !== 'pending_authorization' || !RESUMABLE_AUTH_ERRORS.has(j.errorCode)
         || j.providerDocumentId || j.issuedAt) return reply({ error: 'fiscal-resume-not-allowed' }, 409);
+      const kind=p.kind||p.quote?.kind||'primary';
+      const fiscalQuote=p.fiscalQuote||p.quote;
       if (p.id !== id || p.eventId !== 'circ-2027' || p.registrationId !== store.registrationId
         || p.provider !== 'eupago' || p.method !== 'multibanco' || (!Number.isSafeInteger(p.amountCents) || p.amountCents <= 0 || p.amountCents > 9999900) || p.currency !== 'EUR'
         || !p.paidAt || !p.transactionId || !['external','uls','student'].includes(p.quote?.selection?.profile)
-        || p.quote?.amountCents !== p.amountCents || p.identifier !== `circ_live_${id.replaceAll('-', '')}`
+        || fiscalQuote?.amountCents !== p.amountCents || fiscalQuote.kind !== kind || !['primary','supplementary'].includes(kind) || p.identifier !== `circ_live_${id.replaceAll('-', '')}`
         || r?.eventId !== 'circ-2027' || r.userId !== ownerId || r.primaryRegistration !== true
-        || r.isTest !== false || r.testMode !== false || r.status !== 'confirmed' || Number(r.documentCount || 0) !== 0
-        || r.payment?.status !== 'paid' || r.payment.amountCents !== p.amountCents || r.payment.currency !== p.currency
-        || r.payment.reference !== p.reference || r.payment.method !== p.method || (r.payment.orderId && r.payment.orderId !== id)
+        || r.isTest !== false || r.testMode !== false || r.status !== 'confirmed' || r.payment?.status !== 'paid'
+        || r.payment.currency !== 'EUR' || (r.fiscalPendingOrderId && r.fiscalPendingOrderId !== id)
+        || (kind==='primary' ? Number(r.documentCount||0)!==0 || r.payment.amountCents!==p.amountCents || r.payment.reference!==p.reference || r.payment.method!==p.method || (r.payment.orderId&&r.payment.orderId!==id)
+          : r.openSupplementaryOrderId!==id || !Array.isArray(r.paidSupplementaryOrderIds) || !r.paidSupplementaryOrderIds.includes(id))
         || j.id !== id || j.userId !== ownerId || j.registrationId !== store.registrationId || j.eventId !== 'circ-2027'
         || j.environment !== 'production' || j.provider !== 'toconline' || j.type !== 'invoice_receipt'
         || j.amountCents !== p.amountCents || j.paymentMethod !== 'multibanco') return reply({ error: 'fiscal-job-mismatch' }, 409);
       const date = new Date(`${p.paymentDate}T12:00:00Z`);
       if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== p.paymentDate) return reply({ error: 'fiscal-job-mismatch' }, 409);
       const period = getRegistrationPeriod(date);
-      if (CONGRESS_RATES[p.quote.selection.profile]?.[period] * 100 !== p.amountCents
-        || p.quote.ratePeriod !== period || r.selection?.profile !== p.quote.selection.profile
-        || r.selection?.congressMode !== 'onsite' || r.selection.morningCourse || r.selection.afternoonCourse || r.selection.dinnerQuantity) return reply({ error: 'fiscal-job-mismatch' }, 409);
+      if (fiscalQuote.ratePeriod !== period || r.selection?.profile !== fiscalQuote.selection?.profile
+        || (j.orderKind && j.orderKind !== kind)) return reply({ error: 'fiscal-job-mismatch' }, 409);
       let expected;
-      try { expected = buildLiveOnsiteMultibancoFR({ orderId: id, quote: p.quote, billing: { customer: p.billingSnapshot }, paymentDate: p.paymentDate }); }
+      try { expected = buildLiveMultibancoFR({ orderId: id, quote: fiscalQuote, billing: { customer: p.billingSnapshot }, paymentDate: p.paymentDate }); }
       catch { return reply({ error: 'fiscal-job-mismatch' }, 409); }
       if (j.externalReference !== expected.external_reference || liveDataStamp(j.salesDocument) !== liveDataStamp(expected)) return reply({ error: 'fiscal-job-mismatch' }, 409);
       const attemptId = randomUUID();

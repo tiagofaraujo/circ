@@ -49,8 +49,8 @@ não pertencem à limpeza de inscrições e trabalhos.
 - MB WAY, cartões, carteiras digitais e transferência bancária não têm checkout real
   integrado nesta publicação. Uma operação direta no backoffice EuPago não comprova
   o circuito completo CIRC.
-- Compra de cursos, jantar, participação virtual e pedidos complementares continua
-  indisponível; o catálogo e os valores são conservados e a limitação é visível.
+- A continuação descrita em `CATALOGUE_CHECKOUT_20261101.md` acrescenta cursos,
+  jantar, participação virtual e pedidos complementares ao circuito Multibanco.
 - A faturação atual exige dados portugueses. Compradores com faturação estrangeira
   precisam de um percurso próprio antes de aceitar pagamento.
 - A submissão inicial recebe resumos estruturados em texto; não existe carregamento

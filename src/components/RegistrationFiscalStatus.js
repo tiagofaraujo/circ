@@ -8,7 +8,17 @@ const labels = { issued: 'Fatura-recibo emitida', pending: 'Faturação pendente
 
 export default function RegistrationFiscalStatus({ registration }) {
   const { user, isAdmin } = useAuth();
-  const id = registration.payment?.orderId;
+  const pendingId = registration.fiscalPendingOrderId;
+  const id = pendingId || registration.payment?.orderId;
+  if (!isAdmin || registration.isTest === true || registration.testMode === true
+    || (!pendingId && registration.payment?.method !== 'multibanco')) return null;
+  if (!UUID.test(id || '')) return pendingId ? <small>Referência do pedido fiscal por conferir</small>
+    : registration.documentCount > 0 ? <small>Documento fiscal emitido</small> : null;
+  return <RegistrationFiscalOrder key={id} id={id} user={user} registration={registration}
+    supplementary={Boolean(pendingId && pendingId !== registration.payment?.orderId)} />;
+}
+
+function RegistrationFiscalOrder({ id, user, registration, supplementary }) {
   const [order, setOrder] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -16,8 +26,6 @@ export default function RegistrationFiscalStatus({ registration }) {
   const [confirmed, setConfirmed] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const working = useRef(false);
-  if (!isAdmin || registration.isTest === true || registration.testMode === true || registration.payment?.method !== 'multibanco') return null;
-  if (!UUID.test(id || '')) return registration.documentCount > 0 ? <small>Documento fiscal emitido</small> : null;
 
   async function request(resume = false) {
     const token = await user.getIdToken();
@@ -26,7 +34,7 @@ export default function RegistrationFiscalStatus({ registration }) {
       ...(resume ? { body: JSON.stringify({ confirmation: 'RETOMAR FATURACAO AUTORIZADA' }) } : {}),
     });
     const data = await response.json();
-    if (!response.ok || data.order?.id !== id || data.order.currency !== 'EUR' || !Number.isSafeInteger(data.order.amountCents)) throw new Error('unavailable');
+    if (!response.ok || data.order?.id !== id || data.order.currency !== 'EUR' || !Number.isSafeInteger(data.order.amountCents) || data.order.amountCents <= 0) throw new Error('unavailable');
     return data.order;
   }
   async function refresh() {
@@ -46,7 +54,8 @@ export default function RegistrationFiscalStatus({ registration }) {
     finally { working.current = false; setBusy(false); }
   }
   return <div className="admin-fiscal-status">
-    {!order && registration.documentCount > 0 && <small>Documento fiscal emitido</small>}
+    <small>{supplementary ? 'Faturação da compra adicional' : 'Faturação da inscrição original'}</small>
+    {!order && !supplementary && registration.documentCount > 0 && <small>Documento fiscal emitido</small>}
     {order && <small role="status">{labels[order.fiscalStatus] || 'Sem emissão fiscal confirmada'}{order.fiscalDocumentNo ? ` · ${order.fiscalDocumentNo}` : ''}</small>}
     <button type="button" onClick={refresh} disabled={busy}>Consultar faturação</button>
     {resumable && <>
