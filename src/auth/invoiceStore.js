@@ -20,7 +20,14 @@ export async function downloadRegistrationInvoice(user, document, signal) {
   const response = await fetch(`/api/checkout/live/orders/${document.id}/invoice.pdf`, {
     method: 'GET', headers: { Authorization: `Bearer ${token}` }, credentials: 'same-origin', cache: 'no-store', signal,
   });
-  if (!response.ok || !/^application\/pdf(?:;|$)/i.test(response.headers.get('Content-Type') || '')) throw new Error('invoices/download-unavailable');
+  if (!response.ok) {
+    let result;
+    try { result = await response.json(); } catch { /* No provider content is exposed. */ }
+    const error = new Error('invoices/download-unavailable');
+    error.code = result?.diagnostic || result?.error || `http-${response.status}`;
+    throw error;
+  }
+  if (!/^application\/pdf(?:;|$)/i.test(response.headers.get('Content-Type') || '')) throw new Error('invoices/download-unavailable');
   const blob = await response.blob();
   if (signal?.aborted) return;
   const url = URL.createObjectURL(blob);

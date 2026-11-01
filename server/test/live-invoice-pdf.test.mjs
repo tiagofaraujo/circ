@@ -80,3 +80,7 @@ test('untrusted print locations, unsafe redirects and non-PDF content are reject
     const f = clientFixture(location, response); await assert.rejects(f.client.downloadSalesDocumentPdf(env, 321));
   }
 });
+test('a singleton JSON:API collection also identifies the original PDF', async () => {
+  const f = clientFixture({ data: [{ attributes: { scheme: 'https', host: 'app14.toconline.pt', path: '/public-file/original' } }] });
+  assert.equal(new TextDecoder().decode(await f.client.downloadSalesDocumentPdf(env, 321)), '%PDF-original');
+});
