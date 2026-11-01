@@ -18,13 +18,15 @@ async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.he
 const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
 const orderKind=p=>p.kind||p.quote?.kind||'primary';
+const historical=p=>Boolean(p?.registrationArchiveId);
 export const publicLiveOrder=(id,p,{canRetry=false}={})=>({id,kind:orderKind(p),selection:p.quote?.selection||null,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
   reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,
-  ...(p.method==='mbway'?{expiresAt:p.expiresAt||null,canRetry:Boolean(canRetry&&isClosedUnpaidMbway(p)),...(p.replacementOrderId?{replacementOrderId:p.replacementOrderId}:{})}:{}),
+  ...(historical(p)?{historicalRegistration:true}:{}),
+  ...(p.method==='mbway'?{expiresAt:p.expiresAt||null,canRetry:Boolean(!historical(p)&&canRetry&&isClosedUnpaidMbway(p)),...(p.replacementOrderId?{replacementOrderId:p.replacementOrderId}:{})}:{}),
   ...(p.method==='bank_transfer'&&p.bankTransfer?{bankTransfer:Object.fromEntries(['status','revision','payee','iban','paymentReference','reportedAt','confirmedAt','bookingDate'].filter(key=>p.bankTransfer[key]!==undefined).map(key=>[key,p.bankTransfer[key]]))}:{}),
   ...(p.fiscalDocumentId?{fiscalDocumentId:p.fiscalDocumentId,fiscalDocumentNo:p.fiscalDocumentNo||null}:{})});
 const realRegistration=(r,uid)=>r?.userId===uid&&r.eventId===EVENT&&r.primaryRegistration===true&&r.isTest===false&&r.testMode===false;
-const retryAllowed=(p,r)=>realRegistration(r,p.userId)&&isClosedUnpaidMbway(p)&&(orderKind(p)==='primary'?canReplaceUnpaidPrimary(r,p)
+const retryAllowed=(p,r)=>!historical(p)&&realRegistration(r,p.userId)&&isClosedUnpaidMbway(p)&&(orderKind(p)==='primary'?canReplaceUnpaidPrimary(r,p)
   :r.status==='confirmed'&&r.payment?.status==='paid'&&!r.openSupplementaryOrderId&&!r.fiscalPendingOrderId);
 
 export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServiceTokenProvider(),storeFactory=createCheckoutLiveStore,providerFactory=createEupagoLive,now=()=>new Date().toISOString()}={}) {
@@ -46,7 +48,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       return reply({environment:'production',liveCheckoutEnabled:creationEnabled(),privatePilot,pilotUntil:livePilotDeadline(env),checks:Object.fromEntries(required.map(name=>[name,typeof env[name]==='string'&&env[name].trim().length>0])),channelMatchesExpected:env.EUPAGO_LIVE_CHANNEL==='CIRC 2027',externalValidationPerformed:false});
     }
     const configured=Boolean(isLivePilotConfigured(env,Date.parse(now()))&&(!privatePilot||isAdmin));
-    const methods=privatePilot?['multibanco']:livePaymentMethods(env,{isAdmin});
+    const methods=privatePilot?['multibanco']:livePaymentMethods(env,{isAdmin,emailVerified:claims.email_verified,email:claims.email});
     if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({enabled:configured,environment:'production',publicOpen:!privatePilot&&openForPublic(now()),pilotAvailable:isAdmin&&configured,methods:configured?methods:[],registrationOpenDate:REGISTRATION_OPEN_DATE});
     const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
     const readingOrder=request.method==='GET'&&orderMatch&&LIVE_ORDER_UUID.test(orderMatch[1]);
@@ -62,6 +64,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const input=await body(request);exact(input,[]);
         const saved=await store.payment(id),p=saved?.data;
         if(!p||(!isAdmin&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
+        if(historical(p))return reply({order:publicLiveOrder(id,p)});
         if(isAdmin&&p.userId!==claims.sub)store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:p.userId,token:storeToken});
         const registration=await store.registration(),r=registration?.data;
         if(p.method!=='mbway'||p.provider!=='eupago'||p.id!==id||p.eventId!==EVENT||p.registrationId!==store.registrationId
@@ -105,6 +108,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const direct=savedId?await store.payment(savedId):null;
         const located=direct?.data?{id:savedId,...direct}:recoveringPrimary?await store.primaryPayment():null;
         if(!located?.data)return reply({error:'not-found'},404);
+        if(historical(located.data))return reply({error:'not-found'},404);
         const p=located.data, kind=recoveringSupplement?'supplementary':'primary';
         const checks={identifier:LIVE_ORDER_UUID.test(located.id)&&p.id===located.id,owner:p.userId===claims.sub,registration:p.registrationId===store.registrationId,
           real:p.environment==='production',provider:p.provider===(p.method==='bank_transfer'?'internal_bank_transfer':'eupago'),event:p.eventId===EVENT,kind:orderKind(p)===kind,
@@ -118,12 +122,12 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const p=(await store.payment(orderMatch[1]))?.data;
         if(!p||(!isAdmin&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
         let eligibility={};
-        if(isAdmin&&p.status==='paid'&&['pending','pending_authorization'].includes(p.fiscalStatus)){
+        if(isAdmin&&!historical(p)&&p.status==='paid'&&['pending','pending_authorization'].includes(p.fiscalStatus)){
           const j=(await store.document(orderMatch[1]))?.data;
           eligibility={canResumeFiscal:Boolean(canResumeLiveFiscalJob(p,j)&&j.userId===p.userId&&j.registrationId===p.registrationId&&j.environment==='production')};
         }
         let canRetry=false;
-        if(isClosedUnpaidMbway(p)){
+        if(!historical(p)&&isClosedUnpaidMbway(p)){
           const ownerStore=p.userId===claims.sub?store:storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:p.userId,token:storeToken});
           canRetry=retryAllowed(p,(await ownerStore.registration())?.data);
         }
@@ -145,6 +149,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       if(creating){
         const previous=(await store.payment(data.id))?.data;
         if(previous){
+          if(previous.environment==='production'&&previous.userId===claims.sub&&historical(previous))return reply({error:'historical-order',order:publicLiveOrder(data.id,previous)},409);
           if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||stamp(previous.quote)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp
             ||(previous.method==='mbway'&&previous.methodFingerprint!==stamp({method:data.method,phone:data.phone}))
             ||(previous.replacesOrderId||null)!==(data.replacesOrderId||null))fail('idempotency-conflict',409);
@@ -156,7 +161,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       let replacement=null;
       if(kind==='primary'&&r){
         const previous=LIVE_ORDER_UUID.test(r.payment?.orderId||'')?await store.payment(r.payment.orderId):null;
-        if(!realRegistration(r,claims.sub)||!previous?.data||!canReplaceUnpaidPrimary(r,previous.data))fail('registration-exists',409);
+        if(!realRegistration(r,claims.sub)||!previous?.data||historical(previous.data)||!canReplaceUnpaidPrimary(r,previous.data))fail('registration-exists',409);
         if(creating&&data.replacesOrderId!==previous.data.id)fail('replacement-required',409);
         if((await store.document(previous.data.id))?.data)fail('mbway-order-not-retryable',409);
         replacement={orderId:previous.data.id,payment:previous.data,paymentVersion:previous.version,registrationVersion:existing.version};
@@ -165,6 +170,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         if(!realRegistration(r,claims.sub)||r.status!=='confirmed'||r.payment?.status!=='paid')fail('paid-registration-required',409);
         if(r.openSupplementaryOrderId){
           const p=LIVE_ORDER_UUID.test(r.openSupplementaryOrderId)?(await store.payment(r.openSupplementaryOrderId))?.data:null;
+          if(p&&p.userId===claims.sub&&historical(p))return reply({error:'historical-order',order:publicLiveOrder(r.openSupplementaryOrderId,p)},409);
           return reply({error:'supplementary-order-exists',...(p&&p.userId===claims.sub&&p.environment==='production'?{order:publicLiveOrder(r.openSupplementaryOrderId,p)}:{})},409);
         }
         if(r.fiscalPendingOrderId)fail('fiscal-pending',409);
@@ -172,7 +178,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         if(predecessor){
           if(creating&&data.replacesOrderId!==predecessor)fail('replacement-required',409);
           const previous=await store.payment(predecessor);
-          if(!previous?.data||previous.data.userId!==claims.sub||previous.data.registrationId!==store.registrationId||orderKind(previous.data)!=='supplementary'
+          if(!previous?.data||historical(previous.data)||previous.data.userId!==claims.sub||previous.data.registrationId!==store.registrationId||orderKind(previous.data)!=='supplementary'
             ||!isClosedUnpaidMbway(previous.data)||(await store.document(predecessor))?.data)fail('replacement-required',409);
           replacement={orderId:predecessor,payment:previous.data,paymentVersion:previous.version};
         }

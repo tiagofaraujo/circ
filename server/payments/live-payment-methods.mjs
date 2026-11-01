@@ -40,10 +40,14 @@ export function liveBankTransferAccount(env) {
   return { iban: proposedBankAccount.iban, payee: proposedBankAccount.beneficiary };
 }
 
-export function livePaymentMethods(env,{isAdmin=false}={}) {
+export function livePaymentMethods(env,{isAdmin=false,emailVerified=false,email=''}={}) {
+  const normalizedEmail=typeof email==='string'?email.trim().toLowerCase():'';
+  const validationEmails=typeof env.LIVE_MBWAY_VALIDATION_EMAILS==='string'
+    ?env.LIVE_MBWAY_VALIDATION_EMAILS.split(',').map(value=>value.trim().toLowerCase()).filter(value=>/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(value)):[];
+  const validationParticipant=emailVerified===true&&normalizedEmail.length>0&&validationEmails.includes(normalizedEmail);
   return ['multibanco',
     ...(env.LIVE_MBWAY_ENABLED === 'true' && LIVE_FISCAL_PAYMENT_MECHANISMS.mbway
-      &&(env.LIVE_MBWAY_VALIDATION_ONLY==='false'||isAdmin) ? ['mbway'] : []),
+      &&(env.LIVE_MBWAY_VALIDATION_ONLY==='false'||isAdmin||validationParticipant) ? ['mbway'] : []),
     ...(liveBankTransferAccount(env) ? ['bank_transfer'] : []),
   ];
 }

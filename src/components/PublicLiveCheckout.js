@@ -7,7 +7,7 @@ const knownMethods = ['multibanco', 'mbway', 'bank_transfer'];
 const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'] };
 const normalizedPhone = value => String(value || '').replace(/[\s().-]/g, '').match(/^(?:(?:\+|00)?351)?(9\d{8})$/)?.[1] || '';
 const canRetryOrder = order => order?.method === 'mbway' && ['expired', 'cancelled'].includes(order.status)
-  && order.canRetry === true && !order.replacementOrderId && !order.paidAt && !order.fiscalDocumentId;
+  && order.canRetry === true && order.historicalRegistration !== true && !order.replacementOrderId && !order.paidAt && !order.fiscalDocumentId;
 const retryConflicts = new Set(['registration-exists', 'replacement-required', 'idempotency-conflict', 'replacement-check-unavailable', 'replacement-not-closed']);
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
@@ -44,6 +44,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
+  const [historicalWaiting, setHistoricalWaiting] = useState(false);
   const [retrySource, setRetrySource] = useState('');
   const [methods, setMethods] = useState([]);
   const [method, setMethod] = useState('multibanco');
@@ -86,6 +87,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   }
   function acceptOrder(value, expectedId = null) {
     validateOrder(value, expectedId);
+    if (value.historicalRegistration === true) throw new Error('historical-order');
     setOrder(value); setId(value.id); setRetrySource(''); onLock(true);
     try { localStorage.setItem(key, value.id); } catch { /* An existing server order remains recoverable. */ }
   }
@@ -93,12 +95,33 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     const seen = new Set();
     for (let count = 0; count < 10; count += 1) {
       validateOrder(value, expectedId);
-      if (!value.replacementOrderId) return value;
+      if (value.historicalRegistration === true || !value.replacementOrderId) return value;
       if (seen.has(value.id)) throw new Error('invalid-order');
       seen.add(value.id); expectedId = value.replacementOrderId;
       value = (await request(`/orders/${expectedId}`, undefined, signal)).order;
     }
     throw new Error('order-history-needs-review');
+  }
+  async function resolveActiveOrder(value, expectedId = null, signal) {
+    const existing = await resolveExistingOrder(value, expectedId, signal);
+    if (existing.historicalRegistration !== true) return existing;
+    try {
+      const result = await request(supplementary ? '/supplementary-order' : '/primary-order', undefined, signal);
+      const current = await resolveExistingOrder(result.order, null, signal);
+      if (current.historicalRegistration === true) throw new Error('historical-canonical-order');
+      return current;
+    } catch (issue) {
+      if (issue.status !== 404 || issue.code !== 'not-found') throw issue;
+      if (!active.current || signal?.aborted) return null;
+      // Only this explicit server marker, followed by an empty canonical
+      // lookup, permits abandoning a saved UUID. An ordinary 404 never does.
+      const saved = localStorage.getItem(key);
+      if (saved && saved !== existing.id) throw new Error('saved-order-changed');
+      if (saved === existing.id) localStorage.removeItem(key);
+      setId(''); setOrder(null); setRetrySource(''); setPreview(null); setConfirmed(false); setPhone('');
+      setHistoricalWaiting(Boolean(registration)); setRecoveryBlocked(Boolean(registration)); onLock(Boolean(registration));
+      return null;
+    }
   }
   useEffect(() => {
     active.current = true;
@@ -118,7 +141,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       } finally { if (active.current && !controller.signal.aborted) setConfigBusy(false); }
     }
     async function recover() {
-      setBusy(true); setError('');
+      setBusy(true); setError(''); setRecoveryBlocked(false); setHistoricalWaiting(false);
       try {
         let saved = '';
         // A retained UUID may be a new attempt whose response was lost while
@@ -128,9 +151,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         if (saved && !UUID.test(saved)) throw new Error('invalid-order');
         if (saved || registration || supplementary) {
           const result = await request(saved ? `/orders/${saved}` : supplementary ? '/supplementary-order' : '/primary-order', undefined, controller.signal);
-          const recovered = await resolveExistingOrder(result.order, saved || null, controller.signal);
-          if (active.current && !controller.signal.aborted) acceptOrder(recovered);
-        }
+          const recovered = await resolveActiveOrder(result.order, saved || null, controller.signal);
+          if (active.current && !controller.signal.aborted && recovered) acceptOrder(recovered);
+        } else if (active.current && !controller.signal.aborted) onLock(false);
       } catch (issue) {
         if (supplementary && issue.status === 404 && issue.code === 'not-found') {
           // A browser may retain a completed slot after the server has released
@@ -145,9 +168,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     recover();
     configuration();
     return () => { active.current = false; controller.abort(); };
-    // Recovery runs once for the signed-in account and its registration.
+    // Recover again when the subscription points to a different active order.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, registration?.id]);
+  }, [key, registration?.id, registration?.payment?.orderId]);
   useEffect(() => { setPreview(null); setConfirmed(false); }, [paymentKey]);
 
   async function recoverSupplement(value) {
@@ -195,7 +218,13 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
-      if (retrySource && retryConflicts.has(issue.code)) {
+      if (issue.code === 'historical-order' && issue.order?.historicalRegistration === true) {
+        setPreview(null); setConfirmed(false);
+        try {
+          const current = await resolveActiveOrder(issue.order, orderId);
+          if (active.current && current) { acceptOrder(current); setRecoveryBlocked(false); }
+        } catch { if (active.current) { setRecoveryBlocked(true); setError(t('Não foi possível recuperar a inscrição atual. Não crie outro pagamento; atualize a página ou contacte a organização.', 'The current registration could not be recovered. Do not create another payment; refresh the page or contact the organisers.')); } }
+      } else if (retrySource && retryConflicts.has(issue.code)) {
         // These server refusals occur before provider creation. Recover the
         // predecessor/current attempt without creating another payment.
         const source = retrySource;
@@ -226,8 +255,8 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     working.current = true; if (!silent) { setBusy(true); setError(''); }
     try {
       const result = await request(`/orders/${id}`);
-      const current = await resolveExistingOrder(result.order, id);
-      if (active.current) { acceptOrder(current); setRecoveryBlocked(false); setError(''); setBankReportNeedsRefresh(false); bankReport.current = null; }
+      const current = await resolveActiveOrder(result.order, id);
+      if (active.current) { if (current) { acceptOrder(current); setRecoveryBlocked(false); } setError(''); setBankReportNeedsRefresh(false); bankReport.current = null; }
     }
     catch { if (active.current) setError(t('Não foi possível atualizar o estado. Mantenha este pedido e contacte a organização.', 'Could not refresh status. Keep this order and contact the organisers.')); }
     finally { working.current = false; if (active.current && !silent) setBusy(false); }
@@ -294,6 +323,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   return <section className="registration-checkout" aria-label={supplementary ? t('Pagamento do complemento', 'Supplement payment') : t('Pagamento da inscrição', 'Registration payment')} aria-busy={busy}>
     <h3>{id ? `${t('Pagamento', 'Payment')} · ${methodLabel}` : t('Pagamento', 'Payment')}</h3>
     <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>
+    {historicalWaiting && <p role="status">{t('A inscrição anterior foi arquivada. Aguarde a atualização da inscrição antes de continuar; os pagamentos e documentos anteriores foram preservados.', 'The previous registration was archived. Wait for the registration update before continuing; earlier payments and documents were preserved.')}</p>}
     {!id && !creationBlocked && <>
       {retrySource && <p role="status">{t('Está a preparar uma nova tentativa para um pedido encerrado sem pagamento. Reveja o valor, os dados de faturação e o número MB WAY antes de confirmar.', 'You are preparing another attempt for an order closed without payment. Review the amount, billing details and MB WAY number before confirming.')}</p>}
       {methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>

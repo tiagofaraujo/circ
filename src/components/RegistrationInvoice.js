@@ -42,8 +42,9 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
     <h3>{en ? 'Invoice-receipt' : 'Fatura-recibo'}</h3>
     {loading && <p role="status">{en ? 'Loading billing documents…' : 'A consultar os documentos de faturação…'}</p>}
     {loadError && <p role="alert">{en ? 'Billing documents could not be loaded.' : 'Não foi possível consultar os documentos de faturação.'} <button type="button" onClick={() => setRevision(value => value + 1)}>{en ? 'Try again' : 'Tentar novamente'}</button></p>}
-    {!loading && !loadError && documents.length === 0 && <p>{en ? 'Your invoice-receipt will appear here after issuance.' : 'A sua fatura-recibo ficará disponível aqui após a emissão.'}</p>}
-    {documents.map(document => <div key={document.id}>
+    {!loading && !loadError && !documents.some(document => !document.registrationArchiveId) && <p>{en ? 'The invoice-receipt for your current registration will appear here after issuance.' : 'A fatura-recibo da inscrição atual ficará disponível aqui após a emissão.'}</p>}
+    {documents.map(document => <div key={document.id} role="group" aria-label={document.registrationArchiveId ? (en ? 'Previous registration document' : 'Documento da inscrição anterior') : (en ? 'Current registration document' : 'Documento da inscrição atual')}>
+      <p><small>{document.registrationArchiveId ? (en ? 'Previous registration — preserved document' : 'Inscrição anterior — documento preservado') : (en ? 'Current registration' : 'Inscrição atual')}</small></p>
       <p><strong>{document.providerDocumentNo || (en ? 'Invoice-receipt issued' : 'Fatura-recibo emitida')}</strong></p>
       <button type="button" className="button button--dark" disabled={Boolean(busy)} onClick={() => getPdf(document)}>
         {busy === document.id ? (en ? 'Downloading PDF…' : 'A descarregar PDF…') : (en ? 'Download invoice-receipt (PDF)' : 'Descarregar fatura-recibo (PDF)')}

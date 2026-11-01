@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import RegistrationInvoice from './RegistrationInvoice';
 import { subscribeToRegistrationInvoices, downloadRegistrationInvoice } from '../auth/invoiceStore';
 jest.mock('../auth/invoiceStore', () => ({ subscribeToRegistrationInvoices: jest.fn(), downloadRegistrationInvoice: jest.fn() }));
@@ -31,4 +31,27 @@ test('a failed listing does not claim an invoice is absent and offers refresh', 
   expect(screen.queryByText(/ficará disponível/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
   expect(subscribeToRegistrationInvoices).toHaveBeenCalledTimes(2);
+});
+test('archived and current receipts are clearly distinct and both retain their original PDF downloads',async()=>{
+ const historical={...doc,registrationArchiveId:'archive-previous'};
+ const current={id:'22222222-2222-4222-8222-222222222222',providerDocumentNo:'FR CIRC2027/2'};
+ subscribeToRegistrationInvoices.mockImplementation((user,id,onData)=>{onData([historical,current]);return jest.fn();});
+ downloadRegistrationInvoice.mockResolvedValue(undefined);
+ render(<RegistrationInvoice {...props}/>);
+ const oldGroup=screen.getByRole('group',{name:'Documento da inscrição anterior'});
+ const currentGroup=screen.getByRole('group',{name:'Documento da inscrição atual'});
+ expect(within(oldGroup).getByText('Inscrição anterior — documento preservado')).toBeInTheDocument();
+ expect(within(oldGroup).getByText('FR CIRC2027/1')).toBeInTheDocument();
+ expect(within(currentGroup).getByText('FR CIRC2027/2')).toBeInTheDocument();
+ fireEvent.click(within(oldGroup).getByRole('button'));await waitFor(()=>expect(within(oldGroup).getByRole('button')).toBeEnabled());
+ fireEvent.click(within(currentGroup).getByRole('button'));await waitFor(()=>expect(within(currentGroup).getByRole('button')).toBeEnabled());
+ expect(downloadRegistrationInvoice).toHaveBeenCalledTimes(2);
+ expect(downloadRegistrationInvoice.mock.calls.map(([,document])=>document)).toEqual([historical,current]);
+});
+test('a preserved receipt never stands in for the receipt of a new registration',()=>{
+ subscribeToRegistrationInvoices.mockImplementation((user,id,onData)=>{onData([{...doc,registrationArchiveId:'archive-previous'}]);return jest.fn();});
+ render(<RegistrationInvoice {...props}/>);
+ expect(screen.getByText('Inscrição anterior — documento preservado')).toBeInTheDocument();
+ expect(screen.getByText('A fatura-recibo da inscrição atual ficará disponível aqui após a emissão.')).toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Descarregar fatura-recibo (PDF)'})).toBeEnabled();
 });

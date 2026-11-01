@@ -80,8 +80,13 @@ export function createCheckoutLiveStore({
     async payment(id) { return readDoc('payments', id); },
     async primaryPayment() {
       // Ignore legacy administrative summaries without a production designation.
-      // Two production matches are ambiguous; never choose an arbitrary order.
-      const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
+      // Historical registrations share the canonical participant ID. Scan a
+      // bounded sequence of pages rather than letting two old orders hide the
+      // current one. Two active matches or an unfinished scan fail closed.
+      const active=[],pageSize=25,maxPages=10;
+      let after=null;
+      for(let page=0;page<maxPages;page++){
+        const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
         from: [{ collectionId: 'payments' }],
         where: { compositeFilter: { op: 'AND', filters: [
           { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } },
@@ -89,17 +94,25 @@ export function createCheckoutLiveStore({
           { fieldFilter: { field: { fieldPath: 'environment' }, op: 'EQUAL', value: { stringValue: 'production' } } },
           { fieldFilter: { field: { fieldPath: 'quote.kind' }, op: 'EQUAL', value: { stringValue: 'primary' } } },
         ] } },
-        limit: 2,
-      } });
-      if (!Array.isArray(rows)) throw new LiveStoreError('storage_unavailable');
-      const documents = rows.filter(row => row.document).map(row => row.document);
-      if (documents.length > 1) throw new LiveStoreError('order_recovery_ambiguous');
-      if (!documents.length) return null;
-      const doc = documents[0];
-      const prefix = `${root}/payments/`;
-      const id = typeof doc.name === 'string' && doc.name.startsWith(prefix) ? doc.name.slice(prefix.length) : '';
-      if (!LIVE_ORDER_UUID.test(id)) throw new LiveStoreError('storage_invalid');
-      return { id, data: decode({ mapValue: { fields: doc.fields || {} } }), version: doc.updateTime };
+        orderBy:[{field:{fieldPath:'__name__'},direction:'ASCENDING'}],
+        ...(after?{startAt:{values:[{referenceValue:after}],before:false}}:{}),limit:pageSize,
+        } });
+        if (!Array.isArray(rows)) throw new LiveStoreError('storage_unavailable');
+        const documents = rows.filter(row => row.document).map(row => row.document);
+        for(const doc of documents){
+          const prefix = `${root}/payments/`;
+          const id = typeof doc.name === 'string' && doc.name.startsWith(prefix) ? doc.name.slice(prefix.length) : '';
+          if (!LIVE_ORDER_UUID.test(id)) throw new LiveStoreError('storage_invalid');
+          const data=decode({mapValue:{fields:doc.fields||{}}});
+          if(!data.registrationArchiveId)active.push({id,data,version:doc.updateTime});
+          if(active.length>1)throw new LiveStoreError('order_recovery_ambiguous');
+        }
+        if(documents.length<pageSize)return active[0]||null;
+        const next=documents.at(-1).name;
+        if(next===after)throw new LiveStoreError('storage_invalid');
+        after=next;
+      }
+      throw new LiveStoreError('order_recovery_scan_limit');
     },
     async context(profile) {
       const result = { uid, emailVerified: true, guards: [] };
