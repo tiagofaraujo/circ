@@ -4,7 +4,8 @@ import { completeLiveFiscalJob } from '../payments/live-fiscal-issue.mjs';
 
 const ID='11111111-1111-4111-8111-111111111111';
 const externalReference=`CIRC27-${ID.toUpperCase()}`;
-function fixture({ onIssue, providerError, failIssuedSave = false, loseCommittedResponse = false } = {}) {
+function fixture({ onIssue, providerError, failIssuedSave = false, loseCommittedResponse = false, claimedProtocol=false,
+  failClaim=false,loseClaimAcknowledgement=false,failClaimRead=false } = {}) {
   let p={id:ID,userId:'owner',registrationId:'circ-2027-owner',eventId:'circ-2027',environment:'production',provider:'eupago',method:'multibanco',
     amountCents:3500,currency:'EUR',identifier:'circ_live_'+ID.replaceAll('-',''),reference:'123456789',entity:'12345',transactionId:'777',
     paidAt:'2026-11-01T12:00:00Z',paymentDate:'2026-11-01',status:'paid',fiscalStatus:'pending',
@@ -14,14 +15,17 @@ function fixture({ onIssue, providerError, failIssuedSave = false, loseCommitted
     openSupplementaryOrderId:ID,fiscalPendingOrderId:ID};
   let j={id:ID,userId:'owner',registrationId:'circ-2027-owner',eventId:'circ-2027',environment:'production',provider:'toconline',type:'invoice_receipt',
     paymentMethod:'multibanco',amountCents:3500,externalReference,salesDocument:{external_reference:externalReference,lines:[{item_id:57,quantity:1,unit_price:35}]},status:'pending'};
+  if(claimedProtocol){p.method='bank_transfer';p.provider='internal_bank_transfer';j.paymentMethod='bank_transfer';j.issuanceProtocol='claimed-v1';}
   let pv=1,rv=1,jv=1,posts=0,commits=0,actualCommits=0;
   const clone=value=>structuredClone(value);
-  const store={payment:async()=>({data:clone(p),version:pv}),registration:async()=>({data:clone(r),version:rv}),document:async()=>({data:clone(j),version:jv}),
+  const store={payment:async()=>{if(failClaimRead&&p.fiscalStatus==='issuing')throw new Error('read unavailable');return{data:clone(p),version:pv};},registration:async()=>({data:clone(r),version:rv}),document:async()=>({data:clone(j),version:jv}),
     finalizeFiscalResult:async input=>{
       commits++;
       if(input.paymentVersion!==pv||input.registrationVersion!==rv||input.documentVersion!==jv)throw Object.assign(new Error('conflict'),{code:'conflict'});
+      if(failClaim&&input.document.status==='issuing')throw new Error('claim rejected before commit');
       if(failIssuedSave&&input.document.status==='issued')throw new Error('storage unavailable');
       p=clone(input.payment);r=clone(input.registration);j=clone(input.document);pv++;rv++;jv++;actualCommits++;
+      if(loseClaimAcknowledgement&&input.document.status==='issuing')throw new Error('claim acknowledgement lost');
       if(loseCommittedResponse&&actualCommits===1)throw new Error('response lost');
     }};
   const mutate=changes=>{
@@ -93,4 +97,35 @@ test('invalid document counts keep the accepted identity for reconciliation with
 test('an uncertain payment flag blocks a new fiscal POST even if the job status is stale',async()=>{
   const f=fixture();f.mutate({payment:{fiscalStatus:'outcome_unknown'}});
   assert.equal(await f.run(),'outcome_unknown');assert.equal(f.state().posts,0);assert.equal(f.state().commits,0);
+});
+
+test('new bank protocol durably claims before its only fiscal POST and remains compatible with storage-only result retries',async()=>{
+  let f;f=fixture({claimedProtocol:true,onIssue:()=>{
+    const s=f.state();assert.equal(s.payment.fiscalStatus,'issuing');assert.equal(s.job.status,'issuing');
+    assert.ok(s.job.issuanceAttemptId);assert.equal(s.payment.issuanceAttemptId,s.job.issuanceAttemptId);assert.equal(s.actualCommits,1);
+  }});
+  assert.equal(await f.run(),'issued');assert.equal(f.state().posts,1);assert.equal(f.state().actualCommits,2);
+  assert.equal(f.state().registration.documentCount,3);assert.equal(await f.run(),'issued');assert.equal(f.state().posts,1);
+});
+
+test('concurrent new bank completions cannot both own the pending fiscal job',async()=>{
+  const f=fixture({claimedProtocol:true});const results=await Promise.all([f.run(),f.run()]);
+  assert.ok(results.includes('issued'));assert.equal(f.state().posts,1);assert.equal(f.state().registration.documentCount,3);
+});
+
+test('a lost claim acknowledgement permits the original owner to issue once after verifying its own persisted attempt',async()=>{
+  const f=fixture({claimedProtocol:true,loseClaimAcknowledgement:true});assert.equal(await f.run(),'issued');
+  assert.equal(f.state().posts,1);assert.equal(f.state().actualCommits,2);assert.equal(f.state().registration.documentCount,3);
+});
+
+test('failed claims remain unstarted and a missing claim read never causes a speculative fiscal POST',async()=>{
+  const rejected=fixture({claimedProtocol:true,failClaim:true});assert.equal(await rejected.run(),'pending');assert.equal(rejected.state().posts,0);assert.equal(rejected.state().job.status,'pending');
+  const unreadable=fixture({claimedProtocol:true,failClaimRead:true});assert.equal(await unreadable.run(),'issuing');assert.equal(unreadable.state().posts,0);assert.equal(unreadable.state().job.status,'issuing');
+});
+
+test('an orphan issuing bank claim and an uncertain bank result never receive another fiscal POST',async()=>{
+  for(const status of ['issuing','outcome_unknown']){
+    const f=fixture({claimedProtocol:true});f.mutate({payment:{fiscalStatus:status,issuanceAttemptId:ID},job:{status,issuanceAttemptId:ID}});
+    assert.equal(await f.run(),status);assert.equal(f.state().posts,0);assert.equal(f.state().commits,0);
+  }
 });

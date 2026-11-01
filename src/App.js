@@ -40,6 +40,7 @@ import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminSecretariatPage from './pages/AdminSecretariatPage';
 import AdminCompaniesPage from './pages/AdminCompaniesPage';
 import AdminBillingPage from './pages/AdminBillingPage';
+import AdminTransfersPage from './pages/AdminTransfersPage';
 import AdminProductionCleanupPage from './pages/AdminProductionCleanupPage';
 import AdminStudentsPage from './pages/AdminStudentsPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
@@ -189,7 +190,8 @@ function App() {
             />
 
             <Route path="/admin/faturacao" element={<AdminRoute permission="registrations"><AdminBillingPage /></AdminRoute>} />
-            <Route path="/admin/transferencias-teste" element={<Navigate to="/admin" replace />} />
+            <Route path="/admin/transferencias" element={<AdminRoute permission="registrations"><AdminTransfersPage /></AdminRoute>} />
+            <Route path="/admin/transferencias-teste" element={<Navigate to="/admin/transferencias" replace />} />
             <Route path="/admin/recibos-teste" element={<LegacyBillingRedirect />} />
             <Route path="/conta/inscricoes-teste" element={<Navigate to="/conta/inscricoes" replace />} />
             <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes" replace />} />

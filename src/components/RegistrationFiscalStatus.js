@@ -11,7 +11,7 @@ export default function RegistrationFiscalStatus({ registration }) {
   const pendingId = registration.fiscalPendingOrderId;
   const id = pendingId || registration.payment?.orderId;
   if (!isAdmin || registration.isTest === true || registration.testMode === true
-    || (!pendingId && registration.payment?.method !== 'multibanco')) return null;
+    || (!pendingId && !['multibanco', 'bank_transfer'].includes(registration.payment?.method))) return null;
   if (!UUID.test(id || '')) return pendingId ? <small>Referência do pedido fiscal por conferir</small>
     : registration.documentCount > 0 ? <small>Documento fiscal emitido</small> : null;
   return <RegistrationFiscalOrder key={id} id={id} user={user} registration={registration}
@@ -44,7 +44,8 @@ function RegistrationFiscalOrder({ id, user, registration, supplementary }) {
     catch { setError('Não foi possível consultar a faturação. Atualize antes de qualquer nova ação.'); }
     finally { working.current = false; setBusy(false); }
   }
-  const resumable = order?.status === 'paid' && order.fiscalStatus === 'pending_authorization' && order.canResumeFiscal === true;
+  const authorizationRequired = order?.fiscalStatus === 'pending_authorization';
+  const resumable = order?.status === 'paid' && ['pending_authorization', 'pending'].includes(order.fiscalStatus) && order.canResumeFiscal === true;
   async function resume(event) {
     event.preventDefault();
     if (working.current || attempted || !resumable || !confirmed) return;
@@ -59,10 +60,10 @@ function RegistrationFiscalOrder({ id, user, registration, supplementary }) {
     {order && <small role="status">{labels[order.fiscalStatus] || 'Sem emissão fiscal confirmada'}{order.fiscalDocumentNo ? ` · ${order.fiscalDocumentNo}` : ''}</small>}
     <button type="button" onClick={refresh} disabled={busy}>Consultar faturação</button>
     {resumable && <>
-      <p>Renove primeiro a ligação ao TOConline em <Link to="/admin/faturacao">Faturação</Link>.</p>
+      {authorizationRequired ? <p>Renove primeiro a ligação ao TOConline em <Link to="/admin/faturacao">Faturação</Link>.</p> : <p>Emissão ainda não iniciada; confirme para retomar.</p>}
       {!open ? <button type="button" disabled={busy || attempted} onClick={() => setOpen(true)}>Retomar faturação autorizada</button> : <form onSubmit={resume} aria-label="Confirmar retoma da faturação">
         <p>Emitir a fatura-recibo definitiva de <strong>{(order.amountCents / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</strong> para este pagamento já confirmado.</p>
-        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy || attempted} />Confirmei a renovação da ligação TOConline e pretendo retomar esta emissão.</label>
+        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy || attempted} />{authorizationRequired ? 'Confirmei a renovação da ligação TOConline e pretendo retomar esta emissão.' : 'Conferi este pagamento confirmado e pretendo retomar a emissão da fatura-recibo.'}</label>
         <button type="submit" disabled={busy || attempted || !confirmed}>Confirmar retoma</button>
         <button type="button" disabled={busy} onClick={() => setOpen(false)}>Fechar</button>
       </form>}

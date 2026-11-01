@@ -13,6 +13,7 @@ import { createLivePaymentWebhook } from './payments/live-webhook.mjs';
 import { createLiveFiscalResumeApi } from './payments/live-fiscal-resume.mjs';
 import { createLiveInvoicePdfApi } from './payments/live-invoice-pdf.mjs';
 import { createToconlineDraftAcceptanceApi } from './payments/toconline-draft-acceptance.mjs';
+import { createBankTransferLiveApi } from './payments/bank-transfer-live.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -60,6 +61,7 @@ export function createWorker(verify = verifyFirebaseToken) {
   const liveFiscalResume = createLiveFiscalResumeApi({ verify });
   const liveInvoicePdf = createLiveInvoicePdfApi({ verify });
   const toconlineDraftAcceptance = createToconlineDraftAcceptanceApi({ verify });
+  const bankTransferLive = createBankTransferLiveApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
@@ -90,6 +92,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (fiscalResumeResponse) return fiscalResumeResponse;
       const invoicePdfResponse = await liveInvoicePdf(request, env);
       if (invoicePdfResponse) return invoicePdfResponse;
+      const bankTransferResponse = await bankTransferLive(request, env);
+      if (bankTransferResponse) return bankTransferResponse;
       const liveCheckoutResponse = await liveCheckout(request, env);
       if (liveCheckoutResponse) return liveCheckoutResponse;
       const checkoutResponse = await sandboxCheckout(request, env);

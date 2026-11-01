@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 const modules = [
+  { to: '/admin/transferencias', number: '08', label: 'Transferências', permission: 'canManageRegistrations', ownerOnly: true },
   { to: '/admin/faturacao', number: '07', label: 'Faturação', permission: 'canManageRegistrations' },
   { to: '/admin/empresas', number: '05', label: 'Empresas', permission: 'canManageRegistrations' },
   { to: '/admin', end: true, number: '01', label: 'Inscrições', permission: 'canManageRegistrations' },
@@ -13,8 +14,8 @@ const modules = [
 ];
 
 export default function AdminModuleNav() {
-  const { access } = useAuth();
-  const visibleModules = modules.filter((module) => access?.[module.permission]);
+  const { access, isAdmin } = useAuth();
+  const visibleModules = modules.filter((module) => access?.[module.permission] && (!module.ownerOnly || isAdmin));
 
   return (
     <nav className="admin-module-nav" aria-label="Módulos de administração">

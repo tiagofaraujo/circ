@@ -35,8 +35,8 @@ function Prices() {
             </div>
 
             <p className="prices-availability">{en
-                ? 'Register for the in-person or virtual congress, choose pre-congress courses and book dinner tickets in My CIRC, with Multibanco payment. Courses and dinner tickets can also be added to a paid registration.'
-                : 'Inscreva-se no congresso presencial ou virtual, escolha os cursos pré-congresso e reserve bilhetes de jantar no My CIRC, com pagamento por Multibanco. Também pode acrescentar cursos e jantar a uma inscrição paga.'}</p>
+                ? 'Register for the in-person or virtual congress, choose pre-congress courses and book dinner tickets in My CIRC, using the payment methods available at checkout. Courses and dinner tickets can also be added to a paid registration.'
+                : 'Inscreva-se no congresso presencial ou virtual, escolha os cursos pré-congresso e reserve bilhetes de jantar no My CIRC, com os meios de pagamento disponíveis no momento da compra. Também pode acrescentar cursos e jantar a uma inscrição paga.'}</p>
 
             <div className="price-guide" aria-label={en ? 'How the registration price is calculated' : 'Como é calculado o preço da inscrição'}>
                 <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante de IMR.'}</p></div></article>

@@ -1177,6 +1177,20 @@
 .registration-checkout { margin-top: 1.5rem; }
 .registration-checkout label { display: block; margin: 1rem 0; font-size: 0.9rem; }
 .registration-checkout button { margin: 0.5rem 0; }
+.registration-payment-methods { min-width: 0; margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; }
+.registration-payment-methods legend { width: auto; padding: 0 .35rem; font-size: 1rem; font-weight: 700; }
+.registration-payment-methods label { display: flex; align-items: center; gap: .6rem; }
+.registration-payment-methods input { width: 1.1rem; height: 1.1rem; accent-color: var(--blue, #2b2bb4); }
+.registration-payment-phone { display: grid !important; gap: .5rem; }
+.registration-payment-phone input { width: 100%; max-width: 22rem; padding: .75rem; border: 1px solid var(--line, #d9dbe4); border-radius: .3rem; font: inherit; }
+.registration-payment-phone small { font-size: .8rem; line-height: 1.5; color: var(--ink-soft, #53576d); }
+.registration-checkout dd, .registration-checkout code { overflow-wrap: anywhere; }
+.registration-bank-transfer__copy { display: flex; flex-wrap: wrap; gap: .5rem; }
+.registration-bank-transfer button { min-height: 44px; padding: .55rem .85rem; border: 1px solid var(--line, #d9dbe4); border-radius: .3rem; color: var(--blue, #2b2bb4); background: var(--paper, #fffdfa); font: inherit; }
+.registration-bank-transfer button:disabled { opacity: .55; }
+.registration-bank-transfer textarea { display: block; width: 100%; min-height: 6rem; margin-top: .5rem; padding: .75rem; border: 1px solid var(--line, #d9dbe4); border-radius: .3rem; font: inherit; resize: vertical; }
+.registration-bank-transfer input[type="checkbox"] { margin-right: .5rem; accent-color: var(--blue, #2b2bb4); }
+.registration-payment-methods input:focus-visible, .registration-checkout button:focus-visible { outline: 3px solid var(--coral, #e55041); outline-offset: 3px; }
 
 .registration-purchase-options { display: grid; gap: .75rem; margin: 1.25rem 0; border: 0; padding: 0; min-width: 0; }
 .registration-purchase-options legend { font-size: 1rem; font-weight: 700; }

@@ -1,0 +1,14 @@
+.admin-transfers__header { max-width: 65rem; margin: 1.5rem 0; }
+.admin-transfers__header h1 { font-size: clamp(2rem, 4vw, 3.5rem); color: var(--blue); }
+.admin-transfers__toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 1.5rem 0; }
+.admin-transfers label { display: grid; gap: .4rem; }
+.admin-transfers input, .admin-transfers select, .admin-transfers textarea { padding: .65rem; border: 1px solid var(--line); border-radius: .25rem; font: inherit; max-width: 100%; }
+.admin-transfers button { background: var(--blue); color: var(--white); border: 1px solid var(--blue); border-radius: .25rem; padding: .65rem 1rem; font: inherit; cursor: pointer; }
+.admin-transfers button:disabled { opacity: .55; cursor: not-allowed; }
+.admin-transfers__review { margin-top: 2rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: .4rem; }
+.admin-transfers__review dl { display: grid; grid-template-columns: minmax(7rem, auto) 1fr; gap: .4rem 1rem; }
+.admin-transfers__review dd { overflow-wrap: anywhere; margin: 0; }
+.admin-transfers__review fieldset { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 1rem; margin: 1rem 0; }
+.admin-transfers__review legend { float: none; font-size: 1rem; font-weight: 700; }
+.admin-transfers .admin-transfers__confirmation { display: flex; align-items: start; gap: .65rem; margin: 1rem 0; }
+.admin-transfers__confirmation input { flex: 0 0 auto; margin-top: .3rem; }

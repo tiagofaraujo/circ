@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const stamp = value => /^[a-f0-9]{64}$/.test(value || '');
+const knownMethods = ['multibanco', 'mbway', 'bank_transfer'];
+const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'] };
+const normalizedPhone = value => String(value || '').replace(/[\s().-]/g, '').match(/^(?:(?:\+|00)?351)?(9\d{8})$/)?.[1] || '';
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
-  'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending']);
+  'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable']);
 const states = { pending: ['A aguardar pagamento', 'Awaiting payment'], creating: ['Pedido em processamento', 'Order processing'],
   creation_unknown: ['Pedido por confirmar', 'Order needs checking'], creation_failed: ['Criação recusada — contacte a organização', 'Creation rejected — contact the organisers'],
   paid: ['Pagamento confirmado', 'Payment confirmed'], review_required: ['Pagamento em conferência pela organização', 'Payment under organiser review'],
@@ -22,6 +25,7 @@ const messages = {
   'course-already-owned': ['Um dos cursos já está incluído na inscrição. Atualize a página antes de preparar outra compra.', 'One of these courses is already included in your registration. Refresh the page before preparing another purchase.'],
   'paid-registration-required': ['A compra de complementos exige uma inscrição confirmada e paga.', 'Supplement purchases require a confirmed, paid registration.'],
   'fiscal-pending': ['O documento da compra anterior ainda está em processamento. Consulte esse pedido antes de criar outro.', 'The previous purchase document is still being processed. Check that order before creating another one.'],
+  'payment-method-unavailable': ['Este meio de pagamento não está disponível. Atualize a página para consultar as opções atuais.', 'This payment method is unavailable. Refresh the page to see the current options.'],
 };
 
 export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, onLock = () => {}, onNewPurchase = () => {} }) {
@@ -36,6 +40,16 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
+  const [methods, setMethods] = useState([]);
+  const [method, setMethod] = useState('multibanco');
+  const [phone, setPhone] = useState('');
+  const [configBusy, setConfigBusy] = useState(true);
+  const [configFailed, setConfigFailed] = useState(false);
+  const [copyMessage, setCopyMessage] = useState('');
+  const [bankNote, setBankNote] = useState('');
+  const [bankDeclared, setBankDeclared] = useState(false);
+  const [bankReportNeedsRefresh, setBankReportNeedsRefresh] = useState(false);
+  const bankReport = useRef(null);
   const currentSelection = useRef('');
   const working = useRef(false);
   const active = useRef(true);
@@ -43,7 +57,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const t = (pt, english) => en ? english : pt;
   const money = cents => new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
   const selectionKey = JSON.stringify(selection);
-  currentSelection.current = selectionKey;
+  const phoneValue = normalizedPhone(phone);
+  const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}`;
+  const paymentReady = methods.includes(method) && (method !== 'mbway' || Boolean(phoneValue));
+  currentSelection.current = paymentKey;
 
   async function request(path, body, signal, existingToken) {
     const requestSignal = signal === null ? undefined : signal || abort.current?.signal;
@@ -58,13 +75,27 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   function acceptOrder(value, expectedId = null) {
     if (!value || !UUID.test(value.id || '') || value.currency !== 'EUR' || !Number.isSafeInteger(value.amountCents) || value.amountCents <= 0
       || (expectedId && value.id !== expectedId) || (value.kind && value.kind !== kind)
-      || (supplementary && value.kind !== 'supplementary')) throw new Error('invalid-order');
+      || (supplementary && value.kind !== 'supplementary') || !knownMethods.includes(value.method)) throw new Error('invalid-order');
     setOrder(value); setId(value.id); onLock(true);
     try { localStorage.setItem(key, value.id); } catch { /* An existing server order remains recoverable. */ }
   }
   useEffect(() => {
     active.current = true;
     const controller = new AbortController(); abort.current = controller;
+    async function configuration() {
+      setConfigBusy(true); setConfigFailed(false);
+      try {
+        const result = await request('/config', undefined, controller.signal);
+        if (typeof result.enabled !== 'boolean' || !Array.isArray(result.methods)
+          || result.environment !== 'production') throw new Error('invalid-config');
+        if (active.current && !controller.signal.aborted) {
+          const available = result.enabled ? knownMethods.filter(value => result.methods.includes(value)) : [];
+          setMethods(available); setMethod(current => available.includes(current) ? current : available[0] || '');
+        }
+      } catch {
+        if (active.current && !controller.signal.aborted) { setMethods([]); setConfigFailed(true); }
+      } finally { if (active.current && !controller.signal.aborted) setConfigBusy(false); }
+    }
     async function recover() {
       setBusy(true); setError('');
       try {
@@ -87,11 +118,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       } finally { if (active.current && !controller.signal.aborted) setBusy(false); }
     }
     recover();
+    configuration();
     return () => { active.current = false; controller.abort(); };
     // Recovery runs once for the signed-in account and its registration.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, registration?.id]);
-  useEffect(() => { setPreview(null); setConfirmed(false); }, [selectionKey]);
+  useEffect(() => { setPreview(null); setConfirmed(false); }, [paymentKey]);
 
   async function recoverSupplement(value) {
     setRecoveryBlocked(true); onLock(true); setPreview(null); setConfirmed(false);
@@ -104,14 +136,14 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   }
 
   async function review() {
-    if (working.current || busy || id || creationBlocked || recoveryBlocked || !eligible) return;
+    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady) return;
     working.current = true; setBusy(true); setError(''); setPreview(null); setConfirmed(false);
     try {
       const result = await request(path('quote'), { selection });
       if (!stamp(result.stamp) || !stamp(result.billingStamp) || !result.billing || !Number.isSafeInteger(result.quote?.amountCents)
         || result.quote.amountCents <= 0 || result.quote.currency !== 'EUR'
         || (supplementary && result.quote.kind !== 'supplementary')) throw new Error('invalid-preview');
-      if (active.current && currentSelection.current === selectionKey) setPreview({ ...result, selectionKey });
+      if (active.current && currentSelection.current === paymentKey) setPreview({ ...result, paymentKey });
     } catch (issue) {
       if (active.current && supplementary && issue.code === 'supplementary-order-exists') await recoverSupplement(issue.order);
       else if (active.current) setError(messages[issue.code]?.[en ? 1 : 0] || t('Não foi possível preparar o pagamento. Atualize a página ou contacte a organização.', 'Could not prepare payment. Refresh the page or contact the organisers.'));
@@ -119,7 +151,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     finally { working.current = false; if (active.current) setBusy(false); }
   }
   async function create() {
-    if (working.current || busy || id || creationBlocked || recoveryBlocked || !eligible || !confirmed || !preview || preview.selectionKey !== selectionKey) return;
+    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !confirmed || !preview || preview.paymentKey !== paymentKey) return;
     working.current = true; setBusy(true); setError(''); onLock(true);
     let orderId = '', sent = false;
     try {
@@ -131,8 +163,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       setId(orderId); sent = true;
       // A newly saved registration can update the parent subscription while
       // this request is running. It must not abort the payment creation response.
-      const result = await request(path('orders'), { id: orderId, selection, stamp: preview.stamp, billingStamp: preview.billingStamp, method: 'multibanco' }, null, token);
-      if (active.current) acceptOrder(result.order, orderId);
+      const result = await request(path('orders'), { id: orderId, selection, stamp: preview.stamp, billingStamp: preview.billingStamp, method,
+        ...(method === 'mbway' ? { phone: phoneValue } : {}) }, null, token);
+      if (result.order?.method !== method) throw new Error('invalid-order');
+      if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
       if (supplementary && issue.code === 'supplementary-order-exists') {
@@ -150,7 +184,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   async function refresh(silent = false) {
     if (working.current || !UUID.test(id)) return;
     working.current = true; if (!silent) { setBusy(true); setError(''); }
-    try { const result = await request(`/orders/${id}`); if (active.current) { acceptOrder(result.order, id); setError(''); } }
+    try { const result = await request(`/orders/${id}`); if (active.current) { acceptOrder(result.order, id); setError(''); setBankReportNeedsRefresh(false); bankReport.current = null; } }
     catch { if (active.current) setError(t('Não foi possível atualizar o estado. Mantenha este pedido e contacte a organização.', 'Could not refresh status. Keep this order and contact the organisers.')); }
     finally { working.current = false; if (active.current && !silent) setBusy(false); }
   }
@@ -167,22 +201,59 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (!supplementary || order?.status !== 'paid' || order.fiscalStatus !== 'issued' || working.current) return;
     try { localStorage.removeItem(key); } catch { setError(t('Não foi possível preparar outra compra neste navegador.', 'Could not prepare another purchase in this browser.')); return; }
     setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError('');
+    setPhone(''); setBankNote(''); setBankDeclared(false); setCopyMessage(''); setBankReportNeedsRefresh(false); bankReport.current = null;
     onLock(false); onNewPurchase();
   }
   const customer = preview?.billing;
+  const currentMethod = order?.method || method;
+  const methodLabel = methodNames[currentMethod]?.[en ? 1 : 0] || t('Pagamento', 'Payment');
+  const bank = order?.method === 'bank_transfer' ? order.bankTransfer : null;
+  const bankPending = bank && ['pending', 'review_required'].includes(order.status);
+  const canReportBankTransfer = bankPending && ['awaiting_transfer', 'rejected'].includes(bank.status);
+
+  async function copyPaymentText(value, name) {
+    setCopyMessage('');
+    try { await navigator.clipboard.writeText(value); if (active.current) setCopyMessage(name === 'iban' ? t('IBAN copiado.', 'IBAN copied.') : t('Referência copiada.', 'Reference copied.')); }
+    catch { if (active.current) setCopyMessage(t('Não foi possível copiar automaticamente. Selecione e copie o texto apresentado.', 'Could not copy automatically. Select and copy the displayed text.')); }
+  }
+  async function reportBankTransfer(event) {
+    event.preventDefault();
+    if (working.current || busy || bankReportNeedsRefresh || !bankDeclared || !canReportBankTransfer
+      || !Number.isSafeInteger(bank.revision) || bank.revision < 0 || bankNote.length > 500) return;
+    working.current = true; setBusy(true); setError('');
+    try {
+      const slot = `${order.id}:${bank.revision}`;
+      if (bankReport.current?.slot !== slot) bankReport.current = { slot, id: crypto.randomUUID() };
+      const result = await request(`/orders/${order.id}/bank-transfer-report`, { id: bankReport.current.id, expectedRevision: bank.revision, note: bankNote.trim() });
+      if (active.current) { acceptOrder(result.order, order.id); setBankDeclared(false); }
+    } catch { if (active.current) { setBankReportNeedsRefresh(true); setError(t('Não foi possível confirmar a comunicação. Atualize o estado deste pedido antes de voltar a comunicar a transferência.', 'The transfer report could not be confirmed. Refresh this order before reporting the transfer again.')); } }
+    finally { working.current = false; if (active.current) setBusy(false); }
+  }
   return <section className="registration-checkout" aria-label={supplementary ? t('Pagamento do complemento', 'Supplement payment') : t('Pagamento da inscrição', 'Registration payment')} aria-busy={busy}>
-    <h3>{t('Pagamento por Multibanco', 'Multibanco payment')}</h3>
+    <h3>{id ? `${t('Pagamento', 'Payment')} · ${methodLabel}` : t('Pagamento', 'Payment')}</h3>
     <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>
     {!id && !creationBlocked && <>
-      <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.') : t('A inscrição é confirmada automaticamente após o pagamento. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Registration is confirmed automatically after payment. The invoice-receipt will be available in My CIRC once issued.')}</p>
-      <button type="button" className="button button--dark" disabled={busy || recoveryBlocked || !eligible} onClick={review}>{busy ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
+      {methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
+        {methods.map(value => <label key={value}><input type="radio" name={`payment-method-${kind}`} value={value} checked={method === value} onChange={() => setMethod(value)} />{methodNames[value][en ? 1 : 0]}</label>)}
+      </fieldset>}
+      {method === 'mbway' && methods.includes('mbway') && <label className="registration-payment-phone">{t('Número MB WAY', 'MB WAY phone number')}
+        <input type="tel" inputMode="tel" autoComplete="tel-national" value={phone} maxLength="20" placeholder="+351 9XXXXXXXX" disabled={busy} onChange={event => setPhone(event.target.value)} />
+        <small>{t('Número português com 9 algarismos. Pode incluir +351. Receberá o pedido na aplicação MB WAY.', 'A nine-digit Portuguese number, optionally with +351. The request will arrive in the MB WAY app.')}</small>
+      </label>}
+      {!configBusy && methods.length === 0 && <p role="alert">{configFailed ? t('Não foi possível consultar os meios de pagamento. Atualize a página antes de criar um pedido.', 'Payment methods could not be loaded. Refresh this page before creating an order.') : t('Os pagamentos estão temporariamente indisponíveis.', 'Payments are temporarily unavailable.')}</p>}
+      <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
+        : method === 'bank_transfer'
+          ? t('Após a organização conferir o crédito na conta, o pagamento e a inscrição são confirmados automaticamente. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Once the organisers verify the credited amount, payment and registration are confirmed automatically. The invoice-receipt will be available in My CIRC once issued.')
+          : t('A inscrição é confirmada automaticamente após o pagamento. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Registration is confirmed automatically after payment. The invoice-receipt will be available in My CIRC once issued.')}</p>
+      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !paymentReady} onClick={review}>{busy || configBusy ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
       {customer && <div className="registration-invoice">
         <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(preview.quote.amountCents)}</strong></p>
         <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
           <dt>NIF</dt><dd>{customer.customer_tax_registration_number}</dd><dt>{t('Morada', 'Address')}</dt><dd>{customer.customer_address_detail}</dd>
           <dt>{t('Código postal e localidade', 'Postcode and city')}</dt><dd>{customer.customer_postcode} · {customer.customer_city}</dd><dt>{t('País', 'Country')}</dt><dd>{customer.customer_country}</dd></dl>
-        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} /> {t('Conferi o valor e os dados de faturação e pretendo gerar a referência de pagamento.', 'I reviewed the amount and billing details and want to generate the payment reference.')}</label>
-        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible}>{t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
+        <p>{t('Meio de pagamento', 'Payment method')}: <strong>{methodLabel}</strong>{method === 'mbway' ? ` · +351 ${phoneValue}` : ''}</p>
+        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} /> {t('Conferi o valor, os dados de faturação e o meio de pagamento e pretendo criar este pedido.', 'I reviewed the amount, billing details and payment method and want to create this order.')}</label>
+        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !paymentReady}>{method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
       </div>}
     </>}
     {id && <>
@@ -193,7 +264,26 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     {order && <div className="registration-invoice">
       <p role="status"><strong>{states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
       <p>{t('Valor:', 'Amount:')} {money(order.amountCents)}</p>
-      {order.status === 'pending' && <dl><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference}</dd></dl>}
+      {order.status === 'pending' && order.method === 'multibanco' && <dl><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference}</dd></dl>}
+      {order.status === 'pending' && order.method === 'mbway' && <div>
+        <p>{t('Confirme este pedido na aplicação MB WAY. A confirmação do pagamento será recebida automaticamente.', 'Confirm this request in the MB WAY app. Payment confirmation will be received automatically.')}</p>
+        {order.expiresAt && Number.isFinite(Date.parse(order.expiresAt)) && <p>{t('Prazo indicado para aprovação', 'Approval deadline')}: {new Date(order.expiresAt).toLocaleString(en ? 'en-GB' : 'pt-PT', { timeZone: 'Europe/Lisbon' })} ({t('hora de Lisboa', 'Lisbon time')})</p>}
+        <p>{t('Se o prazo terminar, consulte o estado deste pedido ou contacte a organização antes de tentar outro pagamento.', 'If the deadline passes, check this order status or contact the organisers before attempting another payment.')}</p>
+      </div>}
+      {bankPending && <section className="registration-bank-transfer" aria-label={t('Instruções de transferência bancária', 'Bank transfer instructions')}>
+        {[bank.payee, bank.iban, bank.paymentReference].every(value => typeof value === 'string' && value.trim()) ? <>
+          <dl><dt>{t('Titular', 'Account holder')}</dt><dd>{bank.payee}</dd><dt>IBAN</dt><dd><strong>{bank.iban}</strong></dd><dt>{t('Referência a indicar na transferência', 'Transfer reference')}</dt><dd>{bank.paymentReference}</dd></dl>
+          <div className="registration-bank-transfer__copy"><button type="button" onClick={() => copyPaymentText(bank.iban, 'iban')}>{t('Copiar IBAN', 'Copy IBAN')}</button><button type="button" onClick={() => copyPaymentText(bank.paymentReference, 'reference')}>{t('Copiar referência', 'Copy reference')}</button></div>
+          {copyMessage && <p role="status">{copyMessage}</p>}
+          <p>{t('Indique a referência apresentada para identificar o seu pagamento. A inscrição será confirmada após a organização conferir a entrada do valor na conta.', 'Include the displayed reference to identify your payment. Registration will be confirmed after the organisers verify the amount credited to the account.')}</p>
+          {bank.status === 'under_review' && <p role="status">{t('Transferência comunicada — aguarda conferência da organização.', 'Transfer reported — awaiting organiser review.')}</p>}
+          {canReportBankTransfer && <form onSubmit={reportBankTransfer}>
+            <label>{t('Observação para a organização (opcional)', 'Note for the organisers (optional)')}<textarea value={bankNote} maxLength="500" disabled={busy || bankReportNeedsRefresh} onChange={event => setBankNote(event.target.value)} /></label>
+            <label><input type="checkbox" checked={bankDeclared} disabled={busy || bankReportNeedsRefresh} onChange={event => setBankDeclared(event.target.checked)} />{t('Já efetuei a transferência e pretendo comunicá-la à organização para conferência.', 'I have made the transfer and want to report it to the organisers for verification.')}</label>
+            <button type="submit" disabled={busy || bankReportNeedsRefresh || !bankDeclared}>{t('Comunicar transferência efetuada', 'Report completed transfer')}</button>
+          </form>}
+        </> : <p role="alert">{t('Os dados bancários deste pedido não estão disponíveis. Atualize o estado antes de efetuar a transferência.', 'Bank details for this order are unavailable. Refresh its status before making the transfer.')}</p>}
+      </section>}
       {order.fiscalDocumentNo && <p>{t('Fatura-recibo:', 'Invoice-receipt:')} <strong>{order.fiscalDocumentNo}</strong></p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus !== 'issued' && <p>{t('A faturação deste pedido ainda está em processamento. Aguarde a conclusão ou contacte a organização antes de preparar outro complemento.', 'This order invoice is still being processed. Wait for completion or contact the organisers before preparing another supplement.')}</p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus === 'issued' && <button type="button" onClick={newPurchase} disabled={busy}>{t('Preparar nova compra', 'Prepare another purchase')}</button>}

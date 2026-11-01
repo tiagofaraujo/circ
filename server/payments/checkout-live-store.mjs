@@ -228,6 +228,70 @@ export function createCheckoutLiveStore({
       return { data: decode({mapValue:{fields:doc.fields||{}}}), version:doc.updateTime };
     },
     async document(id) { return readDoc('documents', id); },
+    async bankCredit(key) {
+      if (!/^[a-f0-9]{64}$/.test(key || '')) throw new LiveStoreError('invalid_request');
+      return readDoc('settings', `circ-bank-credit-live-${key}`);
+    },
+    async adminBankTransfers({ after = null } = {}) {
+      if (after !== null && !LIVE_ORDER_UUID.test(after)) throw new LiveStoreError('invalid_request');
+      const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
+        from: [{ collectionId: 'payments' }],
+        where: { compositeFilter: { op: 'AND', filters: [
+          ['eventId', EVENT], ['environment', 'production'], ['method', 'bank_transfer'], ['provider', 'internal_bank_transfer'],
+        ].map(([fieldPath,value]) => ({ fieldFilter: { field: { fieldPath }, op: 'EQUAL', value: { stringValue: value } } })) } },
+        orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
+        ...(after ? { startAt: { values: [{ referenceValue: paymentName(after) }], before: false } } : {}),
+        limit: 101,
+      } });
+      if (!Array.isArray(rows)) throw new LiveStoreError('storage_unavailable');
+      return rows.filter(row => row.document).map(({document:doc}) => {
+        const prefix = `${root}/payments/`;
+        const id = typeof doc.name === 'string' && doc.name.startsWith(prefix) ? doc.name.slice(prefix.length) : '';
+        if (!LIVE_ORDER_UUID.test(id)) throw new LiveStoreError('storage_invalid');
+        return { id, data: decode({mapValue:{fields:doc.fields||{}}}), version:doc.updateTime };
+      });
+    },
+    async confirmBankTransferPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob, creditClaim, audit, guards = [] }) {
+      const key = creditClaim?.key, decisionId = creditClaim?.decisionId;
+      if (!paymentVersion || !registrationVersion || !LIVE_ORDER_UUID.test(orderId || '') || !LIVE_ORDER_UUID.test(decisionId || '')
+        || !/^[a-f0-9]{64}$/.test(key || '') || payment.id !== orderId || payment.userId !== uid || payment.registrationId !== registrationId
+        || payment.environment !== 'production' || payment.provider !== 'internal_bank_transfer' || payment.method !== 'bank_transfer' || payment.status !== 'paid'
+        || registration.userId !== uid || registration.eventId !== EVENT || fiscalJob.id !== orderId || fiscalJob.paymentMethod !== 'bank_transfer'
+        || creditClaim.orderId !== orderId || creditClaim.environment !== 'production' || creditClaim.eventId !== EVENT
+        || audit?.orderId !== orderId || audit.registrationId !== registrationId || audit.action !== 'payment.bank-transfer.confirmed') throw new LiveStoreError('storage_invalid');
+      let transaction;
+      try {
+        if (guards.length) {
+          const checks = [...guards.map(g => ({name:g.name,version:g.version})),
+            {name:registrationName,version:registrationVersion},{name:paymentName(orderId),version:paymentVersion},
+            {name:documentName(orderId),version:null},{name:`${root}/settings/circ-bank-credit-live-${key}`,version:null},
+            {name:`${root}/auditLogs/bank-live-${orderId}-${decisionId}`,version:null}];
+          const batch = await call(`${endpoint}:batchGet`,'POST',{documents:checks.map(check=>check.name),newTransaction:{readWrite:{}}});
+          if (!Array.isArray(batch)) throw new LiveStoreError('storage_unavailable');
+          transaction = batch.find(row=>row.transaction)?.transaction;
+          if (!transaction) throw new LiveStoreError('storage_unavailable');
+          for (const check of checks) {
+            const row=batch.find(item=>item.found?.name===check.name||item.missing===check.name);
+            if (!row || (check.version===null?row.missing!==check.name:row.found?.updateTime!==check.version)) throw new LiveStoreError('conflict');
+          }
+        }
+        const result = await fetchImpl(`${endpoint}:commit`, {
+          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+          body:JSON.stringify({...(transaction?{transaction}:{}),writes:[
+            {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{updateTime:paymentVersion}},
+            {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
+            {update:{name:documentName(orderId),fields:fields(fiscalJob)},currentDocument:{exists:false}},
+            {update:{name:`${root}/settings/circ-bank-credit-live-${key}`,fields:fields(creditClaim)},currentDocument:{exists:false}},
+            {update:{name:`${root}/auditLogs/bank-live-${orderId}-${decisionId}`,fields:fields(audit)},currentDocument:{exists:false}},
+          ]}), signal:AbortSignal.timeout(10000),
+        });
+        if (!result.ok) throw new LiveStoreError([409,412].includes(result.status)?'conflict':'storage_unavailable');
+        return true;
+      } catch (error) {
+        if (transaction) { try { await call(`${endpoint}:rollback`,'POST',{transaction}); } catch {} }
+        throw error;
+      }
+    },
     async confirmPrimaryPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob }) {
       if (!paymentVersion || !registrationVersion || fiscalJob.id !== orderId) throw new LiveStoreError('storage_invalid');
       const accessToken = token;

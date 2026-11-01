@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createToconlineServerSessionStore } from './toconline-server-session-store.mjs';
+import { readBillingBankAccount } from './toconline-billing-bank-readonly.mjs';
 
 function fail(code, status = 503, uncertain = false) {
   const error = new Error(code);
@@ -63,6 +64,57 @@ export function createToconlineLiveClient({
     return session;
   }
   return {
+    // Resolve the company's billing account through the documented filtered
+    // resource. OAuth renewal is the only POST this read-only path can make.
+    async resolveBillingBankAccount(env, iban) {
+      const expected = typeof iban === 'string' ? iban.replace(/\s/g, '').toUpperCase() : '';
+      if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(expected)) fail('billing-bank-unconfirmed', 409);
+      try {
+        let session = await activeSession(env);
+        const api = baseUrl(env.TOCONLINE_API_URL, 'toconline-api-url-invalid');
+        const providerGet = async resource => {
+          let response;
+          try {
+            response = await fetchImpl(`${api}/${resource}`, {
+              method: 'GET', redirect: 'manual', cache: 'no-store',
+              headers: {
+                Accept: 'application/json', 'Content-Type': 'application/vnd.api+json',
+                Authorization: `Bearer ${session.accessToken}`,
+              },
+              signal: AbortSignal.timeout(12000),
+            });
+          } catch { fail('billing-bank-unconfirmed', 409); }
+          // The shared reader rethrows this code so that the enclosing client
+          // can renew authorization once, without swallowing auth failures.
+          if (response.status === 401) fail('toconline-api-unauthorized', 401);
+          if (!response.ok || response.status >= 300) fail('billing-bank-unconfirmed', 409);
+          let json;
+          try { json = await response.json(); } catch { fail('billing-bank-unconfirmed', 409); }
+          if (!json || !Array.isArray(json.data) || json.links?.next
+            || Array.isArray(json.errors) && json.errors.length) fail('billing-bank-unconfirmed', 409);
+          return json.data;
+        };
+        let result;
+        try { result = await readBillingBankAccount(providerGet, expected); }
+        catch (error) {
+          if (error?.code !== 'toconline-api-unauthorized') throw error;
+          session = await refresh(session, env, fetchImpl, now());
+          await sessionStore.save(env, session);
+          try { result = await readBillingBankAccount(providerGet, expected); }
+          catch (retryError) {
+            if (retryError?.code === 'toconline-api-unauthorized') fail('toconline-reauthorize-required', 401);
+            throw retryError;
+          }
+        }
+        if (result?.ok !== true || result.status !== 'matched'
+          || result.source !== 'company_bank_accounts' || !Number.isSafeInteger(Number(result.account?.id))
+          || Number(result.account.id) <= 0) fail('billing-bank-unconfirmed', 409);
+        return { id: Number(result.account.id), ibanLast4: result.account.ibanLast4, source: 'company_bank_accounts' };
+      } catch (error) {
+        if (['toconline-background-session-missing', 'toconline-reauthorize-required'].includes(error?.code)) throw error;
+        fail('billing-bank-unconfirmed', 409);
+      }
+    },
     // Read the original PDF of an already issued document. This path never
     // calls a commercial write endpoint or changes the stored fiscal result.
     async downloadSalesDocumentPdf(env, documentId) {

@@ -142,7 +142,7 @@ function ProductionRegistrationBuilder({ registration }) {
         <h2>{registration ? (en ? 'Your pending registration' : 'A sua inscrição pendente') : (en ? 'Registration summary' : 'Resumo da inscrição')}</h2>
         <p>CIRC 2027 · {modeLabel(congressMode, en)}</p>
         <div className="registration-summary__total"><span>{en ? 'Estimated amount' : 'Valor estimado'}</span><strong>{formatEuro(total.total)}</strong></div>
-        <p>{en ? 'The server confirms the amount and billing details before a reference is created. The applicable congress tariff is based on the payment date.' : 'O servidor confirma o valor e os dados de faturação antes de criar a referência. A tarifa do congresso depende da data de pagamento.'}</p>
+        <p>{en ? 'The server confirms the amount and billing details before a payment order is created. The applicable congress tariff is based on the payment date.' : 'O servidor confirma o valor e os dados de faturação antes de criar o pedido de pagamento. A tarifa do congresso depende da data de pagamento.'}</p>
         {!user.emailVerified && <p role="alert">{en ? 'Verify your account email before creating a payment.' : 'Confirme o email da sua conta antes de criar um pagamento.'}</p>}
         {!categoryReady && user.emailVerified && <p role="status">{en ? 'Complete the eligibility check for this category before continuing.' : 'Conclua a validação da categoria selecionada antes de continuar.'}</p>}
         {!registration && !checkoutLocked && <CompanyVoucher eligible={profile === 'external' && congressMode === 'onsite' && !items.morningCourse && !items.afternoonCourse && items.dinnerQuantity === 0} />}

@@ -26,6 +26,19 @@ test('owner downloads the existing PDF with creation disabled and no fiscal writ
   assert.match(response.headers.get('Content-Disposition'), /attachment/);
   assert.match(response.headers.get('Cache-Control'), /no-store/); assert.equal(f.calls(), 1);
 });
+test('owner downloads an issued bank-transfer invoice using its matching internal payment and fiscal job',async()=>{
+  const f=fixture({payment:{provider:'internal_bank_transfer',method:'bank_transfer'},document:{paymentMethod:'bank_transfer'}});
+  const response=await f.api(request(),env);assert.equal(response.status,200);assert.equal(await response.text(),'%PDF-original');assert.equal(f.calls(),1);
+});
+test('bank invoice provider and payment-method mismatches never reach the PDF provider',async()=>{
+  for(const overrides of [
+    {payment:{provider:'internal_bank_transfer',method:'multibanco'},document:{paymentMethod:'bank_transfer'}},
+    {payment:{provider:'internal_bank_transfer',method:'bank_transfer'},document:{paymentMethod:'multibanco'}},
+    {payment:{provider:'internal_bank_transfer',method:'bank_transfer'},document:{paymentMethod:undefined}},
+    {payment:{provider:'eupago',method:'bank_transfer'},document:{paymentMethod:'bank_transfer'}},
+    {payment:{provider:'eupago',method:'multibanco'},document:{paymentMethod:'bank_transfer'}},
+  ]){const f=fixture(overrides);assert.equal((await f.api(request(),env)).status,409);assert.equal(f.calls(),0);}
+});
 test('other owners, mismatched documents, test data and unissued jobs never reach TOConline', async () => {
   for (const overrides of [ { payment: { userId: 'other' } }, { document: { userId: 'other' } },
     { document: { registrationId: 'other-registration' } }, { payment: { environment: 'sandbox' } },

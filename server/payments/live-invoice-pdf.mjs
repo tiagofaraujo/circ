@@ -27,9 +27,12 @@ export function createLiveInvoicePdfApi({ verify, storeFactory = createCheckoutL
       const [payment, document] = await Promise.all([store.payment(id), store.document(id)]);
       const p = payment?.data, d = document?.data;
       if (!p || !d || p.userId !== claims.sub || d.userId !== claims.sub) return reply('not-found', 404);
+      const matchingProvider = p.provider === 'internal_bank_transfer'
+        ? p.method === 'bank_transfer' && d.paymentMethod === 'bank_transfer'
+        : p.provider === 'eupago' && p.method !== 'bank_transfer' && d.paymentMethod !== 'bank_transfer';
       if (p.id !== id || d.id !== id || p.environment !== 'production' || d.environment !== 'production'
         || p.eventId !== 'circ-2027' || d.eventId !== 'circ-2027' || p.registrationId !== store.registrationId
-        || d.registrationId !== p.registrationId || p.provider !== 'eupago' || d.provider !== 'toconline'
+        || d.registrationId !== p.registrationId || !matchingProvider || d.provider !== 'toconline'
         || d.type !== 'invoice_receipt' || !['paid', 'refunded'].includes(p.status)
         || p.fiscalStatus !== 'issued' || d.status !== 'issued' || !d.issuedAt
         || String(p.fiscalDocumentId) !== String(d.providerDocumentId) || !/^[1-9][0-9]{0,17}$/.test(String(d.providerDocumentId))

@@ -1,5 +1,6 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE } from '../../src/data/registration2027.js';
+import { LIVE_FISCAL_PAYMENT_MECHANISMS } from './live-payment-methods.mjs';
 
 const EVENT = 'circ-2027';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -47,8 +48,11 @@ function validateSource(quote) {
 // Uses the existing catalogue and fiscal policy. Prices are gross values; the
 // TOConline API applies each line's explicit ISE/NOR framing. The API documents
 // the exemption reason on the header, required when any line is exempt.
-export function buildLiveMultibancoFR({ orderId, quote, billing, paymentDate }) {
+export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, method, bankAccountId }) {
   validateSource(quote);
+  const mechanism = Object.hasOwn(LIVE_FISCAL_PAYMENT_MECHANISMS,method) ? LIVE_FISCAL_PAYMENT_MECHANISMS[method] : null;
+  if (!mechanism) fail('payment-mechanism-unconfirmed');
+  if (method === 'bank_transfer' ? !Number.isSafeInteger(bankAccountId) || bankAccountId <= 0 : bankAccountId !== undefined) fail('bank-account-unconfirmed');
   const date = new Date(`${paymentDate}T00:00:00Z`);
   if (!UUID.test(orderId || '') || !/^20\d{2}-\d{2}-\d{2}$/.test(paymentDate || '')
     || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== paymentDate
@@ -74,8 +78,13 @@ export function buildLiveMultibancoFR({ orderId, quote, billing, paymentDate }) 
   return { document_type: 'FR', document_series_id: policy.series.id, date: paymentDate, due_date: paymentDate,
     currency_iso_code: 'EUR', ...billing.customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
     notes: legacyOnsite ? 'CIRC 2027 — inscrição presencial' : quote.kind === 'supplementary' ? 'CIRC 2027 — pedido complementar' : 'CIRC 2027 — inscrição',
-    vat_included_prices: true, payment_mechanism: 'MB',
+    vat_included_prices: true, payment_mechanism: mechanism,
+    ...(method === 'bank_transfer' ? { bank_account_id: bankAccountId } : {}),
     ...(lines.some(line => line.tax_code === 'ISE') ? { tax_exemption_reason_id: policy.exemption.id } : {}), lines };
+}
+
+export function buildLiveMultibancoFR(input) {
+  return buildLivePaymentFR({ ...input, method: 'multibanco' });
 }
 
 // Compatibility entry point for already persisted first-phase jobs. Its payload

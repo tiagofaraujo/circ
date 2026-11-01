@@ -11,7 +11,7 @@ const claims={sub:'admin',email:'circ.chuc@gmail.com',email_verified:true};
 const selection={profile:'external',congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0};
 const profile={name:'Pessoa Teste',taxNumber:'203821432',billingAddress:'Rua Teste 1',billingPostalCode:'3030-471',billingCity:'Coimbra',billingCountry:'Portugal'};
 
-function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={}}={}){
+function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={},onCreate}={}){
   let registration=null,payment=null,providerCalls=0;
   const currentProfile=structuredClone(profile);
   const store={
@@ -27,7 +27,7 @@ function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={}}={}){
   };
   const api=createCheckoutLiveApi({
     verify:async()=>identity,tokenProvider:async()=> 'service-token',storeFactory:()=>store,
-    providerFactory:()=>({createPayment:async()=>{providerCalls++;return{reference:'123456789',entity:'12345'};}}),
+    providerFactory:()=>({createPayment:async input=>{providerCalls++;return onCreate?onCreate(input):{reference:'123456789',entity:'12345'};}}),
     now:()=> date,
   });
   const previewApi=createLivePilotPreviewApi({verify:async()=>identity,tokenProvider:async()=> 'service-token',storeFactory:()=>store,now:()=>date});
@@ -39,6 +39,62 @@ function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={}}={}){
     setDate:value=>{date=value;},
     profile:()=>currentProfile,providerCalls:()=>providerCalls,payment:()=>payment,registration:()=>registration};
 }
+
+test('real bank transfer creates recoverable frozen instructions without contacting EuPago',async()=>{
+  const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+  const configuration={...env,LIVE_BANK_TRANSFER_ENABLED:'true'};
+  const config=await(await f.call('/config',undefined,configuration)).json();
+  assert.deepEqual(config.methods,['multibanco','bank_transfer']);
+  const q=await(await f.call('/quote',{selection},configuration)).json();
+  const data={id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'bank_transfer'};
+  const response=await f.call('/orders',data,configuration);assert.equal(response.status,201);
+  const order=(await response.json()).order;
+  assert.equal(order.method,'bank_transfer');assert.equal(order.reference,ID);assert.equal(order.status,'pending');
+  assert.equal(order.bankTransfer.status,'awaiting_transfer');assert.match(order.bankTransfer.iban,/^PT50\d{21}$/);
+  assert.equal(order.bankTransfer.payee,'Associação Hemisfério Disciplinado');assert.equal(order.bankTransfer.paymentReference,ID);
+  assert.equal(f.payment().provider,'internal_bank_transfer');assert.equal(f.payment().billingSnapshot.customer_tax_registration_number,'203821432');
+  assert.equal(f.registration().payment.method,'bank_transfer');assert.equal(f.registration().payment.reference,ID);
+  assert.equal(f.providerCalls(),0);assert.equal((await f.call('/orders',data,configuration)).status,200);
+  f.payment().bankTransfer.reports=[{note:'private-administrative-detail'}];
+  const recovered=await f.call('/primary-order',undefined,{...configuration,LIVE_BANK_TRANSFER_ENABLED:'false',LIVE_CHECKOUT_ENABLED:'false'});
+  assert.equal(recovered.status,200);assert.ok(!(await recovered.text()).includes('private-administrative-detail'));
+  assert.equal(f.providerCalls(),0);
+});
+
+test('bank activation is explicit and an unconfirmed MB WAY fiscal mapping cannot be bypassed by flags or request fields',async()=>{
+  for(const [method,extra,configuration] of [
+    ['bank_transfer',{},env],
+    ['mbway',{phone:'911111111'},{...env,LIVE_MBWAY_ENABLED:'true',TOCONLINE_MBWAY_PAYMENT_MECHANISM:'MB'}],
+  ]){
+    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+    const q=await(await f.call('/quote',{selection},configuration)).json();
+    const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method,...extra},configuration);
+    assert.equal(response.status,409);assert.equal((await response.json()).error,'payment-method-unavailable');
+    assert.equal(f.registration(),null);assert.equal(f.providerCalls(),0);
+    assert.deepEqual((await(await f.call('/config',undefined,configuration)).json()).methods,['multibanco']);
+  }
+});
+
+test('method-specific telephone fields are rejected before reservation',async()=>{
+  for(const fields of [{method:'mbway'},{method:'mbway',phone:'+351911111111'},{method:'mbway',phone:'811111111'},{method:'multibanco',phone:'911111111'},{method:'bank_transfer',phone:'911111111'}]){
+    const f=fixture({date:'2026-11-01T12:00:00Z'});const q=await(await f.call('/quote',{selection})).json();
+    const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,...fields},{...env,LIVE_BANK_TRANSFER_ENABLED:'true'});
+    assert.equal(response.status,400);assert.equal(f.providerCalls(),0);assert.equal(f.registration(),null);
+  }
+});
+
+test('a paid callback overtaking a failed creation response cannot be rolled back to creation_unknown',async()=>{
+  let f;
+  f=fixture({date:'2026-11-01T12:00:00Z',onCreate:async()=>{
+    Object.assign(f.payment(),{status:'paid',transactionId:'777',reference:'123456789',fiscalStatus:'issued'});
+    f.registration().status='confirmed';
+    throw Object.assign(new Error('transport'),{uncertain:true});
+  }});
+  const q=await(await f.call('/quote',{selection})).json();
+  const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
+  assert.equal(response.status,200);assert.equal((await response.json()).order.status,'paid');
+  assert.equal(f.payment().fiscalStatus,'issued');assert.equal(f.registration().status,'confirmed');assert.equal(f.providerCalls(),1);
+});
 
 test('admin pilot creates one real pending Multibanco order with frozen billing data',async()=>{
   const f=fixture();
@@ -321,6 +377,17 @@ test('admin inspection offers fiscal resume only for a known authorization-block
   const api=createCheckoutLiveApi({verify:async()=>claims,tokenProvider:async()=>'service-token',storeFactory:()=>({
    payment:async()=>({data:payment}),document:async()=>({data:{userId:'participant',registrationId:payment.registrationId,environment:'production',status:'pending_authorization',errorCode}}),
   })});
+  const response=await api(new Request(`https://circ.local/api/checkout/live/orders/${ID}`,{headers:{Authorization:'Bearer admin-token'}}),{...env,LIVE_CHECKOUT_ENABLED:'false'});
+  assert.equal(response.status,200);assert.equal((await response.json()).order.canResumeFiscal,expected);
+ }
+});
+
+test('admin inspection offers an unstarted bank invoice only with its new claim protocol and no prior attempt',async()=>{
+ for(const [mutate,expected] of [[()=>{},true],[j=>{delete j.issuanceProtocol;},false],[j=>{j.issuanceAttemptId=ID;},false],[j=>{j.status='issuing';},false],[j=>{j.providerDocumentId=900;},false]]){
+  const payment={id:ID,eventId:'circ-2027',userId:'participant',registrationId:'circ-2027-participant',environment:'production',status:'paid',fiscalStatus:'pending',currency:'EUR',amountCents:9500,method:'bank_transfer',provider:'internal_bank_transfer'};
+  const job={id:ID,eventId:'circ-2027',userId:payment.userId,registrationId:payment.registrationId,environment:'production',status:'pending',issuanceProtocol:'claimed-v1',provider:'toconline',type:'invoice_receipt',paymentMethod:'bank_transfer',amountCents:9500};
+  mutate(job);
+  const api=createCheckoutLiveApi({verify:async()=>claims,tokenProvider:async()=>'service-token',storeFactory:()=>({payment:async()=>({data:payment}),document:async()=>({data:job})})});
   const response=await api(new Request(`https://circ.local/api/checkout/live/orders/${ID}`,{headers:{Authorization:'Bearer admin-token'}}),{...env,LIVE_CHECKOUT_ENABLED:'false'});
   assert.equal(response.status,200);assert.equal((await response.json()).order.canResumeFiscal,expected);
  }
