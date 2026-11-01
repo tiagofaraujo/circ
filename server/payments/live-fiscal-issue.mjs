@@ -22,20 +22,22 @@ function immutableSourcesMatch(current, original) {
     && same(current.job.data, original.job.data, jobIdentity);
 }
 
-export function isUnstartedClaimedBankJob(payment, job) {
-  return payment?.status === 'paid' && payment.fiscalStatus === 'pending' && payment.method === 'bank_transfer'
-    && payment.provider === 'internal_bank_transfer' && payment.environment === 'production' && payment.eventId === 'circ-2027'
+export function isUnstartedClaimedPaymentJob(payment, job) {
+  return payment?.status === 'paid' && payment.fiscalStatus === 'pending'
+    && (payment.method==='bank_transfer'&&payment.provider==='internal_bank_transfer'||payment.method==='mbway'&&payment.provider==='eupago')
+    && payment.environment === 'production' && payment.eventId === 'circ-2027'
     && job?.status === 'pending' && job.issuanceProtocol === 'claimed-v1' && job.provider === 'toconline'
-    && job.type === 'invoice_receipt' && job.paymentMethod === 'bank_transfer' && job.environment === 'production'
+    && job.type === 'invoice_receipt' && job.paymentMethod === payment.method && job.environment === 'production'
     && job.id === payment.id && job.userId === payment.userId && job.registrationId === payment.registrationId
     && job.eventId === payment.eventId && job.amountCents === payment.amountCents
     && !payment.issuanceAttemptId && !job.issuanceAttemptId && !job.issuanceStartedAt && !job.resumeAttemptId && !job.resumeStartedAt
     && !hasId(payment.fiscalDocumentId) && !hasId(job.providerDocumentId) && !job.issuedAt;
 }
+export const isUnstartedClaimedBankJob=(payment,job)=>payment?.method==='bank_transfer'&&isUnstartedClaimedPaymentJob(payment,job);
 
 export function canResumeLiveFiscalJob(payment, job) {
   if (payment?.status !== 'paid' || hasId(payment.fiscalDocumentId) || hasId(job?.providerDocumentId) || job?.issuedAt) return false;
-  return isUnstartedClaimedBankJob(payment, job) || payment.fiscalStatus === 'pending_authorization'
+  return isUnstartedClaimedPaymentJob(payment, job) || payment.fiscalStatus === 'pending_authorization'
     && job?.status === 'pending_authorization' && RESUMABLE_AUTH_ERRORS.has(job.errorCode);
 }
 
@@ -80,7 +82,7 @@ export async function completeLiveFiscalJob({ store, orderId, payment, registrat
   if (payment.data?.status !== 'paid' || !['pending', 'issuing'].includes(job.data?.status)) return 'review_required';
   if (job.data.issuanceProtocol === 'claimed-v1') {
     if (job.data.status === 'pending') {
-      if (!isUnstartedClaimedBankJob(payment.data, job.data)) return 'review_required';
+      if (!isUnstartedClaimedPaymentJob(payment.data, job.data)) return 'review_required';
       try {
         const claimed = await claimLiveFiscalJob({ store, orderId, payment, registration, job, now });
         ({ payment, registration, job, issuanceAttemptId } = claimed);

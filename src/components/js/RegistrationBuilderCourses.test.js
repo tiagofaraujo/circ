@@ -29,10 +29,10 @@ test('students can buy one or both courses and courses-only requires at least on
  expect(screen.getByText(/70\s*€/)).toBeInTheDocument();
 });
 test('course prices retain the external affiliation for students and the ULS rate for ULS staff', () => {
- show(); const morning = () => screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }).closest('label');
- expect(morning()).toHaveTextContent(/35\s*€/);
- fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ })); expect(morning()).toHaveTextContent(/35\s*€/);
- fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ })); expect(morning()).toHaveTextContent(/20\s*€/);
+ show(); const morning = () => screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
+ expect(morning()).toHaveAccessibleName(/35\s*€/);
+ fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ })); expect(morning()).toHaveAccessibleName(/35\s*€/);
+ fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ })); expect(morning()).toHaveAccessibleName(/20\s*€/);
  expect(checkout().eligible).toBe(false);
 });
 test('virtual attendance and dinner quantity flow to the frozen server quote without changing the catalogue', () => {
@@ -50,4 +50,13 @@ test('a pending primary order freezes the existing selection and an admin has no
  expect(screen.getByRole('checkbox', { name:/Via Verde AVC/ })).toBeDisabled();
  expect(checkout().selection).toMatchObject({ congressMode:'courses-only', morningCourse:true,dinnerQuantity:1 });
  expect(screen.queryByRole('button',{name:/teste|simular/i})).not.toBeInTheDocument();
+});
+test('a server-closed unpaid MB WAY attempt keeps its checkout and the original catalogue selection',()=>{
+ mockRegistration={id:'circ-2027-participant',isTest:false,status:'submitted',selection:{profile:'external',congressMode:'virtual',morningCourse:true,afternoonCourse:false,dinnerQuantity:1},payment:{status:'pending',method:'mbway',closedUnpaidStatus:'cancelled'}};
+ show(); expect(screen.getByText('Production checkout')).toBeInTheDocument();
+ expect(checkout().registration).toBe(mockRegistration);
+ expect(checkout().selection).toEqual({profile:'external',congressMode:'virtual',morningCourse:true,afternoonCourse:false,dinnerQuantity:1});
+ expect(screen.getByRole('radio',{name:/Congresso virtual/})).toBeChecked();
+ expect(screen.getByRole('radio',{name:/Congresso virtual/})).toBeDisabled();
+ expect(screen.getByRole('spinbutton')).toBeDisabled();
 });

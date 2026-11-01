@@ -1,3 +1,4 @@
+import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
 export const LIVE_ORDER_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const isUid = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const EVENT = 'circ-2027';
@@ -119,13 +120,17 @@ export function createCheckoutLiveStore({
       }
       return result;
     },
-    async createPendingPrimary({ orderId, registration, payment, guards = [] }) {
+    async createPendingPrimary({ orderId, registration, payment, guards = [], replacement = null }) {
       if (!LIVE_ORDER_UUID.test(orderId || '') || registration.eventId !== EVENT || registration.userId !== uid
         || registration.isTest !== false || registration.testMode !== false
         || payment.environment !== 'production' || payment.userId !== uid || payment.registrationId !== registrationId) {
         throw new LiveStoreError('storage_invalid');
       }
-      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: null }, { name: paymentName(orderId), version: null }];
+      if(replacement&&(!replacement.registrationVersion||!replacement.paymentVersion||replacement.orderId===orderId
+        ||replacement.payment?.id!==replacement.orderId||replacement.payment.userId!==uid||replacement.payment.registrationId!==registrationId
+        ||(replacement.payment.kind||replacement.payment.quote?.kind)!=='primary'||!isClosedUnpaidMbway(replacement.payment)))throw new LiveStoreError('storage_invalid');
+      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: replacement?replacement.registrationVersion:null }, { name: paymentName(orderId), version: null },
+        ...(replacement?[{name:paymentName(replacement.orderId),version:replacement.paymentVersion}]:[])];
       const accessToken = token;
       let transaction;
       try {
@@ -145,8 +150,9 @@ export function createCheckoutLiveStore({
         const commit = await fetchImpl(`${endpoint}:commit`, {
           method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
           body:JSON.stringify({transaction,writes:[
-            {update:{name:registrationName,fields:fields(registration)},currentDocument:{exists:false}},
+            {update:{name:registrationName,fields:fields(registration)},currentDocument:replacement?{updateTime:replacement.registrationVersion}:{exists:false}},
             {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{exists:false}},
+            ...(replacement?[{update:{name:paymentName(replacement.orderId),fields:fields({...replacement.payment,retryAllowed:false,replacementOrderId:orderId,updatedAt:payment.createdAt})},currentDocument:{updateTime:replacement.paymentVersion}}]:[]),
           ]}), signal:AbortSignal.timeout(10000),
         });
         if (!commit.ok) throw new LiveStoreError([409,412].includes(commit.status)?'conflict':'storage_unavailable');
@@ -162,13 +168,17 @@ export function createCheckoutLiveStore({
         throw error;
       }
     },
-    async createPendingSupplementary({ orderId, registration, registrationVersion, payment, guards = [] }) {
+    async createPendingSupplementary({ orderId, registration, registrationVersion, payment, guards = [], replacement = null }) {
       if (!registrationVersion || payment.kind !== 'supplementary' || registration.openSupplementaryOrderId !== orderId || !LIVE_ORDER_UUID.test(orderId || '') || registration.eventId !== EVENT || registration.userId !== uid
         || registration.isTest !== false || registration.testMode !== false
         || payment.environment !== 'production' || payment.userId !== uid || payment.registrationId !== registrationId) {
         throw new LiveStoreError('storage_invalid');
       }
-      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: null }];
+      if(replacement&&(!replacement.paymentVersion||replacement.orderId===orderId||replacement.payment?.id!==replacement.orderId
+        ||replacement.payment.userId!==uid||replacement.payment.registrationId!==registrationId
+        ||(replacement.payment.kind||replacement.payment.quote?.kind)!=='supplementary'||!isClosedUnpaidMbway(replacement.payment)))throw new LiveStoreError('storage_invalid');
+      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: null },
+        ...(replacement?[{name:paymentName(replacement.orderId),version:replacement.paymentVersion}]:[])];
       const accessToken = token;
       let transaction;
       try {
@@ -190,6 +200,7 @@ export function createCheckoutLiveStore({
           body:JSON.stringify({transaction,writes:[
             {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
             {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{exists:false}},
+            ...(replacement?[{update:{name:paymentName(replacement.orderId),fields:fields({...replacement.payment,retryAllowed:false,replacementOrderId:orderId,updatedAt:payment.createdAt})},currentDocument:{updateTime:replacement.paymentVersion}}]:[]),
           ]}), signal:AbortSignal.timeout(10000),
         });
         if (!commit.ok) throw new LiveStoreError([409,412].includes(commit.status)?'conflict':'storage_unavailable');

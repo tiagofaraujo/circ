@@ -6,13 +6,16 @@ const stamp = value => /^[a-f0-9]{64}$/.test(value || '');
 const knownMethods = ['multibanco', 'mbway', 'bank_transfer'];
 const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'] };
 const normalizedPhone = value => String(value || '').replace(/[\s().-]/g, '').match(/^(?:(?:\+|00)?351)?(9\d{8})$/)?.[1] || '';
+const canRetryOrder = order => order?.method === 'mbway' && ['expired', 'cancelled'].includes(order.status)
+  && order.canRetry === true && !order.replacementOrderId && !order.paidAt && !order.fiscalDocumentId;
+const retryConflicts = new Set(['registration-exists', 'replacement-required', 'idempotency-conflict', 'replacement-check-unavailable', 'replacement-not-closed']);
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
   'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable']);
 const states = { pending: ['A aguardar pagamento', 'Awaiting payment'], creating: ['Pedido em processamento', 'Order processing'],
   creation_unknown: ['Pedido por confirmar', 'Order needs checking'], creation_failed: ['Criação recusada — contacte a organização', 'Creation rejected — contact the organisers'],
   paid: ['Pagamento confirmado', 'Payment confirmed'], review_required: ['Pagamento em conferência pela organização', 'Payment under organiser review'],
-  refunded: ['Reembolso registado', 'Refund recorded'], cancelled: ['Pedido cancelado', 'Order cancelled'] };
+  refunded: ['Reembolso registado', 'Refund recorded'], cancelled: ['Pedido cancelado', 'Order cancelled'], expired: ['Pedido MB WAY expirado', 'MB WAY request expired'] };
 const messages = {
   'invalid-session': ['A sessão expirou. Volte a iniciar sessão antes de continuar.', 'Your session expired. Sign in again before continuing.'],
   'verified-email-required': ['Confirme primeiro o email da sua conta.', 'Verify your account email first.'],
@@ -26,12 +29,13 @@ const messages = {
   'paid-registration-required': ['A compra de complementos exige uma inscrição confirmada e paga.', 'Supplement purchases require a confirmed, paid registration.'],
   'fiscal-pending': ['O documento da compra anterior ainda está em processamento. Consulte esse pedido antes de criar outro.', 'The previous purchase document is still being processed. Check that order before creating another one.'],
   'payment-method-unavailable': ['Este meio de pagamento não está disponível. Atualize a página para consultar as opções atuais.', 'This payment method is unavailable. Refresh the page to see the current options.'],
+  'replacement-check-unavailable': ['Não foi criado um novo pagamento. Não foi possível confirmar o encerramento do pedido anterior. Consulte o estado deste pedido antes de tentar novamente.', 'No new payment was created. Closure of the previous request could not be confirmed. Check this order status before trying again.'],
+  'replacement-not-closed': ['Não foi criado um novo pagamento. O pedido anterior está em conferência; aguarde a organização antes de efetuar outro pagamento.', 'No new payment was created. The previous request is under review; wait for the organisers before making another payment.'],
 };
 
 export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, onLock = () => {}, onNewPurchase = () => {} }) {
   const supplementary = kind === 'supplementary';
   const key = supplementary ? `circ-production-supplementary-order:${user.uid}` : `circ-production-order:${user.uid}`;
-  const creationBlocked = !supplementary && Boolean(registration);
   const path = name => supplementary ? `/supplementary/${name}` : `/${name}`;
   const [id, setId] = useState('');
   const [order, setOrder] = useState(null);
@@ -40,6 +44,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
+  const [retrySource, setRetrySource] = useState('');
   const [methods, setMethods] = useState([]);
   const [method, setMethod] = useState('multibanco');
   const [phone, setPhone] = useState('');
@@ -60,6 +65,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const phoneValue = normalizedPhone(phone);
   const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}`;
   const paymentReady = methods.includes(method) && (method !== 'mbway' || Boolean(phoneValue));
+  const creationBlocked = !supplementary && Boolean(registration) && !retrySource;
   currentSelection.current = paymentKey;
 
   async function request(path, body, signal, existingToken) {
@@ -72,12 +78,27 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (!response.ok) throw Object.assign(new Error('request-failed'), { code: result.error, status: response.status, order: result.order });
     return result;
   }
-  function acceptOrder(value, expectedId = null) {
+  function validateOrder(value, expectedId = null) {
     if (!value || !UUID.test(value.id || '') || value.currency !== 'EUR' || !Number.isSafeInteger(value.amountCents) || value.amountCents <= 0
       || (expectedId && value.id !== expectedId) || (value.kind && value.kind !== kind)
-      || (supplementary && value.kind !== 'supplementary') || !knownMethods.includes(value.method)) throw new Error('invalid-order');
-    setOrder(value); setId(value.id); onLock(true);
+      || (supplementary && value.kind !== 'supplementary') || !knownMethods.includes(value.method)
+      || (value.replacementOrderId && (!UUID.test(value.replacementOrderId) || value.replacementOrderId === value.id))) throw new Error('invalid-order');
+  }
+  function acceptOrder(value, expectedId = null) {
+    validateOrder(value, expectedId);
+    setOrder(value); setId(value.id); setRetrySource(''); onLock(true);
     try { localStorage.setItem(key, value.id); } catch { /* An existing server order remains recoverable. */ }
+  }
+  async function resolveExistingOrder(value, expectedId = null, signal) {
+    const seen = new Set();
+    for (let count = 0; count < 10; count += 1) {
+      validateOrder(value, expectedId);
+      if (!value.replacementOrderId) return value;
+      if (seen.has(value.id)) throw new Error('invalid-order');
+      seen.add(value.id); expectedId = value.replacementOrderId;
+      value = (await request(`/orders/${expectedId}`, undefined, signal)).order;
+    }
+    throw new Error('order-history-needs-review');
   }
   useEffect(() => {
     active.current = true;
@@ -99,12 +120,16 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     async function recover() {
       setBusy(true); setError('');
       try {
-        let saved = supplementary ? '' : registration?.payment?.orderId || '';
-        try { saved = saved || localStorage.getItem(key) || ''; } catch {}
+        let saved = '';
+        // A retained UUID may be a new attempt whose response was lost while
+        // the registration subscription still contains its predecessor.
+        try { saved = localStorage.getItem(key) || ''; } catch {}
+        saved = saved || (supplementary ? '' : registration?.payment?.orderId || '');
         if (saved && !UUID.test(saved)) throw new Error('invalid-order');
         if (saved || registration || supplementary) {
           const result = await request(saved ? `/orders/${saved}` : supplementary ? '/supplementary-order' : '/primary-order', undefined, controller.signal);
-          if (active.current && !controller.signal.aborted) acceptOrder(result.order, saved || null);
+          const recovered = await resolveExistingOrder(result.order, saved || null, controller.signal);
+          if (active.current && !controller.signal.aborted) acceptOrder(recovered);
         }
       } catch (issue) {
         if (supplementary && issue.status === 404 && issue.code === 'not-found') {
@@ -158,18 +183,33 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       const token = await user.getIdToken();
       if (!active.current) return;
       orderId = crypto.randomUUID();
+      if (!UUID.test(orderId) || orderId === retrySource) throw new Error('invalid-new-order');
       localStorage.setItem(key, orderId);
       if (!UUID.test(orderId) || localStorage.getItem(key) !== orderId) throw new Error('storage-unavailable');
       setId(orderId); sent = true;
       // A newly saved registration can update the parent subscription while
       // this request is running. It must not abort the payment creation response.
       const result = await request(path('orders'), { id: orderId, selection, stamp: preview.stamp, billingStamp: preview.billingStamp, method,
-        ...(method === 'mbway' ? { phone: phoneValue } : {}) }, null, token);
+        ...(method === 'mbway' ? { phone: phoneValue } : {}), ...(retrySource ? { replacesOrderId:retrySource } : {}) }, null, token);
       if (result.order?.method !== method) throw new Error('invalid-order');
       if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
-      if (supplementary && issue.code === 'supplementary-order-exists') {
+      if (retrySource && retryConflicts.has(issue.code)) {
+        // These server refusals occur before provider creation. Recover the
+        // predecessor/current attempt without creating another payment.
+        const source = retrySource;
+        setRecoveryBlocked(true); setPreview(null); setConfirmed(false); setOrder(null); setId(source);
+        try { localStorage.setItem(key, source); } catch {}
+        try {
+          let predecessor;
+          try { validateOrder(issue.order, source); predecessor = issue.order; }
+          catch { predecessor = (await request(`/orders/${source}`)).order; }
+          const current = await resolveExistingOrder(predecessor, source);
+          if (canRetryOrder(current)) throw new Error('retry-conflict-unresolved');
+          if (active.current) { acceptOrder(current); setRecoveryBlocked(false); setError(messages[issue.code]?.[en ? 1 : 0] || ''); }
+        } catch { if (active.current) setError(t('O pedido foi alterado entretanto. Consulte o estado deste pedido antes de criar outro pagamento.', 'The order has changed. Check this order status before creating another payment.')); }
+      } else if (supplementary && issue.code === 'supplementary-order-exists') {
         // The server refused creation before contacting the provider. Recover
         // its existing slot instead of displaying a second payable reference.
         if (orderId) try { localStorage.removeItem(key); } catch {}
@@ -184,12 +224,16 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   async function refresh(silent = false) {
     if (working.current || !UUID.test(id)) return;
     working.current = true; if (!silent) { setBusy(true); setError(''); }
-    try { const result = await request(`/orders/${id}`); if (active.current) { acceptOrder(result.order, id); setError(''); setBankReportNeedsRefresh(false); bankReport.current = null; } }
+    try {
+      const result = await request(`/orders/${id}`);
+      const current = await resolveExistingOrder(result.order, id);
+      if (active.current) { acceptOrder(current); setRecoveryBlocked(false); setError(''); setBankReportNeedsRefresh(false); bankReport.current = null; }
+    }
     catch { if (active.current) setError(t('Não foi possível atualizar o estado. Mantenha este pedido e contacte a organização.', 'Could not refresh status. Keep this order and contact the organisers.')); }
     finally { working.current = false; if (active.current && !silent) setBusy(false); }
   }
   useEffect(() => {
-    if (!id || !order || ['cancelled', 'refunded', 'creation_failed'].includes(order.status)
+    if (!id || !order || ['expired', 'cancelled', 'refunded', 'creation_failed'].includes(order.status)
       || (order.status === 'paid' && order.fiscalStatus === 'issued')) return undefined;
     const timer = setInterval(() => refresh(true), 5000);
     return () => clearInterval(timer);
@@ -203,6 +247,24 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError('');
     setPhone(''); setBankNote(''); setBankDeclared(false); setCopyMessage(''); setBankReportNeedsRefresh(false); bankReport.current = null;
     onLock(false); onNewPurchase();
+  }
+  async function reconcileMbway() {
+    if (working.current || busy || order?.method !== 'mbway' || !['pending', 'creation_unknown'].includes(order.status) || !order.reference) return;
+    working.current = true; setBusy(true); setError('');
+    try {
+      const result = await request(`/orders/${order.id}/mbway-reconcile`, {});
+      const current = await resolveExistingOrder(result.order, order.id);
+      if (active.current) { acceptOrder(current); setRecoveryBlocked(false); }
+    } catch { if (active.current) setError(t('Não foi possível confirmar o estado do pedido MB WAY. Mantenha este pedido e consulte novamente ou contacte a organização; não envie outro pagamento.', 'The MB WAY request status could not be confirmed. Keep this order and check again or contact the organisers; do not send another payment.')); }
+    finally { working.current = false; if (active.current) setBusy(false); }
+  }
+  function prepareRetry() {
+    if (working.current || busy || !canRetryOrder(order)) return;
+    const source = order.id;
+    try { localStorage.removeItem(key); } catch { setError(t('Não foi possível preparar outra tentativa neste navegador.', 'Could not prepare another attempt in this browser.')); return; }
+    setRetrySource(source); setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError(''); setPhone('');
+    setMethod(methods.includes('mbway') ? 'mbway' : methods[0] || '');
+    onLock(false);
   }
   const customer = preview?.billing;
   const currentMethod = order?.method || method;
@@ -233,6 +295,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     <h3>{id ? `${t('Pagamento', 'Payment')} · ${methodLabel}` : t('Pagamento', 'Payment')}</h3>
     <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>
     {!id && !creationBlocked && <>
+      {retrySource && <p role="status">{t('Está a preparar uma nova tentativa para um pedido encerrado sem pagamento. Reveja o valor, os dados de faturação e o número MB WAY antes de confirmar.', 'You are preparing another attempt for an order closed without payment. Review the amount, billing details and MB WAY number before confirming.')}</p>}
       {methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
         {methods.map(value => <label key={value}><input type="radio" name={`payment-method-${kind}`} value={value} checked={method === value} onChange={() => setMethod(value)} />{methodNames[value][en ? 1 : 0]}</label>)}
       </fieldset>}
@@ -268,8 +331,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       {order.status === 'pending' && order.method === 'mbway' && <div>
         <p>{t('Confirme este pedido na aplicação MB WAY. A confirmação do pagamento será recebida automaticamente.', 'Confirm this request in the MB WAY app. Payment confirmation will be received automatically.')}</p>
         {order.expiresAt && Number.isFinite(Date.parse(order.expiresAt)) && <p>{t('Prazo indicado para aprovação', 'Approval deadline')}: {new Date(order.expiresAt).toLocaleString(en ? 'en-GB' : 'pt-PT', { timeZone: 'Europe/Lisbon' })} ({t('hora de Lisboa', 'Lisbon time')})</p>}
-        <p>{t('Se o prazo terminar, consulte o estado deste pedido ou contacte a organização antes de tentar outro pagamento.', 'If the deadline passes, check this order status or contact the organisers before attempting another payment.')}</p>
+        <p>{t('Se o prazo terminar, consulte este pedido na MB WAY antes de tentar outro pagamento. Esta consulta verifica o pedido existente e não envia um novo pedido de pagamento.', 'If the deadline passes, check this request with MB WAY before attempting another payment. This checks the existing request and does not send a new payment request.')}</p>
       </div>}
+      {order.method === 'mbway' && ['pending', 'creation_unknown'].includes(order.status) && Boolean(order.reference) && <button type="button" disabled={busy} onClick={reconcileMbway}>{t('Consultar pedido na MB WAY', 'Check request with MB WAY')}</button>}
+      {canRetryOrder(order) && <div><p>{t('O encerramento sem pagamento foi confirmado. Pode preparar outra tentativa e voltar a conferir os dados antes de enviar um novo pedido.', 'Closure without payment was confirmed. You can prepare another attempt and review the details before sending a new request.')}</p><button type="button" disabled={busy} onClick={prepareRetry}>{t('Preparar nova tentativa de pagamento', 'Prepare another payment attempt')}</button></div>}
       {bankPending && <section className="registration-bank-transfer" aria-label={t('Instruções de transferência bancária', 'Bank transfer instructions')}>
         {[bank.payee, bank.iban, bank.paymentReference].every(value => typeof value === 'string' && value.trim()) ? <>
           <dl><dt>{t('Titular', 'Account holder')}</dt><dd>{bank.payee}</dd><dt>IBAN</dt><dd><strong>{bank.iban}</strong></dd><dt>{t('Referência a indicar na transferência', 'Transfer reference')}</dt><dd>{bank.paymentReference}</dd></dl>
@@ -285,6 +350,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         </> : <p role="alert">{t('Os dados bancários deste pedido não estão disponíveis. Atualize o estado antes de efetuar a transferência.', 'Bank details for this order are unavailable. Refresh its status before making the transfer.')}</p>}
       </section>}
       {order.fiscalDocumentNo && <p>{t('Fatura-recibo:', 'Invoice-receipt:')} <strong>{order.fiscalDocumentNo}</strong></p>}
+      {order.status === 'paid' && order.fiscalStatus === 'review_required' && <p role="status">{t('O pagamento está confirmado. A fatura-recibo está pendente de conferência pela organização; não efetue outro pagamento.', 'Payment is confirmed. The invoice-receipt awaits organiser review; do not make another payment.')}</p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus !== 'issued' && <p>{t('A faturação deste pedido ainda está em processamento. Aguarde a conclusão ou contacte a organização antes de preparar outro complemento.', 'This order invoice is still being processed. Wait for completion or contact the organisers before preparing another supplement.')}</p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus === 'issued' && <button type="button" onClick={newPurchase} disabled={busy}>{t('Preparar nova compra', 'Prepare another purchase')}</button>}
     </div>}

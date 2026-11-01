@@ -151,3 +151,18 @@ test('a known authorization failure in the claimed bank protocol receives a fres
   const f=fixture({method:'bank_transfer'});const s=f.state();s.job.issuanceProtocol='claimed-v1';s.job.issuanceAttemptId=ID;s.payment.issuanceAttemptId=ID;
   assert.equal((await f.call()).status,200);assert.equal(f.state().issueCalls,1);assert.notEqual(f.state().job.issuanceAttemptId,ID);
 });
+
+test('a claimed MB WAY invoice uses OU and resumes safely after a known authorization failure',async()=>{
+  const f=fixture({method:'mbway'});const s=f.state();s.job.issuanceProtocol='claimed-v1';s.job.issuanceAttemptId=ID;s.payment.issuanceAttemptId=ID;
+  assert.equal(s.job.salesDocument.payment_mechanism,'OU');assert.match(s.job.salesDocument.notes,/MB WAY via EuPago/);
+  assert.equal((await f.call()).status,200);assert.equal(f.state().issueCalls,1);assert.equal(f.state().job.status,'issued');
+  assert.notEqual(f.state().job.issuanceAttemptId,ID);assert.equal((await f.call()).status,409);assert.equal(f.state().issueCalls,1);
+});
+
+test('a new MB WAY job without any started claim is recoverable, while an orphan issuing claim is blocked',async()=>{
+  const f=fixture({method:'mbway'});f.state().payment.fiscalStatus='pending';f.state().job.status='pending';f.state().job.issuanceProtocol='claimed-v1';delete f.state().job.errorCode;
+  assert.equal((await f.call()).status,200);assert.equal(f.state().issueCalls,1);
+  const orphan=fixture({method:'mbway'});orphan.state().payment.fiscalStatus='issuing';orphan.state().job.status='issuing';orphan.state().job.issuanceProtocol='claimed-v1';
+  orphan.state().job.issuanceAttemptId=ID;orphan.state().payment.issuanceAttemptId=ID;
+  assert.equal((await orphan.call()).status,409);assert.equal(orphan.state().issueCalls,0);
+});

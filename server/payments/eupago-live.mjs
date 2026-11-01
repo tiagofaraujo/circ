@@ -62,9 +62,10 @@ export function createEupagoLive({ apiKey, fetchImpl = fetch, timeoutMs = 10000 
         || (attempt.entity && String(data.entidade) !== attempt.entity)) throw new EupagoLiveError('reference-mismatch');
       const raw = data.estado_referencia ?? data.estado;
       const state = typeof raw === 'string' ? raw.trim().toLowerCase() : null;
+      const normalizedState=({expirada:'expired',expirado:'expired',cancelada:'cancelled',cancelado:'cancelled'})[state]||state;
       return {
         reference: attempt.reference,
-        providerState: ['pendente','pago','paga','expirado','cancelado','transferida','erro'].includes(state) ? state : 'unknown',
+        providerState: ['pendente','pago','paga','expired','cancelled','transferida','erro'].includes(normalizedState) ? normalizedState : 'unknown',
       };
     },
   };

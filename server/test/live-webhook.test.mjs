@@ -41,6 +41,7 @@ function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectRef
     document:async()=>({data:structuredClone(document),version:document?'d1':null}),
     context:async()=>({uid:UID,emailVerified:true,guards:[]}),
     updatePendingProvider:async({payment:p,registration:r})=>{payment=structuredClone(p);registration=structuredClone(r);return{paymentVersion:'p2',registrationVersion:'r2'};},
+    updatePayment:async(id,p)=>{payment=structuredClone(p);},
     confirmPrimaryPaid:async({payment:p,registration:r,fiscalJob})=>{confirmCalls++;payment=structuredClone(p);registration=structuredClone(r);document=structuredClone(fiscalJob);return true;},
     finalizeFiscalResult:async({payment:p,registration:r,document:d})=>{finalizeCalls++;payment=structuredClone(p);registration=structuredClone(r);document=structuredClone(d);return true;},
   };
@@ -160,16 +161,26 @@ test('a paid order whose eligibility changed is retained for review without issu
  assert.equal(f.calls().issueCalls,0);
 });
 
-test('signed MB WAY payment evidence is reconciled and retained for review while its fiscal mapping remains unconfirmed',async()=>{
+test('signed MB WAY payment evidence confirms registration and issues a distinct OU invoice after reconciliation',async()=>{
   let inspections=0;
   const f=fixture({inspectReference:async attempt=>{inspections++;assert.equal(attempt.method,'mbway');assert.equal(attempt.entity,'10045');return{providerState:'paga'};}});
   Object.assign(f.state().payment,{method:'mbway',entity:null});
+  f.state().registration.payment.method='mbway';
   const event=payload();Object.assign(event.transaction,{method:'Mbway',entity:10045});
-  const response=await f.call(event);assert.equal(response.status,200);assert.equal((await response.json()).reviewRequired,true);
+  const response=await f.call(event);assert.equal(response.status,200);assert.equal((await response.json()).fiscalStatus,'issued');
   const s=f.state();assert.equal(inspections,1);assert.equal(s.payment.method,'mbway');assert.equal(s.payment.entity,'10045');
-  assert.equal(s.payment.status,'review_required');assert.equal(s.payment.transactionId,'777');assert.equal(s.payment.paidAt,event.transaction.date);
-  assert.equal(s.payment.reviewReason,'fiscal-payload-blocked');assert.equal(s.registration.status,'submitted');
-  assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+  assert.equal(s.payment.status,'paid');assert.equal(s.payment.transactionId,'777');assert.equal(s.payment.paidAt,event.transaction.date);
+  assert.equal(s.registration.status,'confirmed');assert.equal(s.document.salesDocument.payment_mechanism,'OU');
+  assert.match(s.document.salesDocument.notes,/MB WAY via EuPago/);assert.equal(s.document.issuanceProtocol,'claimed-v1');
+  assert.equal(f.calls().issueCalls,1);assert.equal(f.calls().confirmCalls,1);
+});
+
+test('fiscal payload failure does not roll back verified paid money or confirmed entitlements',async()=>{
+  const f=fixture();f.state().payment.billingSnapshot.customer_country='ES';
+  const response=await f.call(payload());assert.equal(response.status,200);assert.equal((await response.json()).fiscalStatus,'review_required');
+  const s=f.state();assert.equal(s.payment.status,'paid');assert.equal(s.registration.status,'confirmed');assert.equal(s.registration.entitlements.congressMode,'onsite');
+  assert.equal(s.document.status,'review_required');assert.equal(s.document.errorCode,'live-fiscal-payload-blocked');assert.equal(s.document.salesDocument,null);
+  assert.equal(s.registration.documentCount,0);assert.equal(f.calls().issueCalls,0);assert.equal(f.calls().confirmCalls,1);
 });
 
 test('MB WAY callback cannot change the stored payment method or override a known entity',async()=>{
