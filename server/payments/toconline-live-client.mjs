@@ -81,19 +81,20 @@ export function createToconlineLiveClient({
         await sessionStore.save(env, session);
         try { response = await read(); } catch { fail('toconline-pdf-unavailable', 502); }
       }
-      if (!response.ok) fail('toconline-pdf-unavailable', 502);
+      if (!response.ok) fail(`toconline-print-http-${response.status}`, 502);
       let json;
-      try { json = await response.json(); } catch { fail('toconline-pdf-invalid-response', 502); }
-      const location = json?.data?.attributes ?? json?.data ?? json;
+      try { json = await response.json(); } catch { fail('toconline-print-json-invalid', 502); }
+      const item = Array.isArray(json?.data) && json.data.length === 1 ? json.data[0] : json?.data;
+      const location = item?.attributes ?? item ?? json;
       const validUrl = raw => {
         let url;
-        try { url = new URL(raw); } catch { fail('toconline-pdf-invalid-response', 502); }
+        try { url = new URL(raw); } catch { fail('toconline-print-url-invalid', 502); }
         if (url.protocol !== 'https:' || !/^app\d*\.toconline\.pt$/.test(url.hostname)
-          || url.username || url.password || url.port || url.hash || !url.pathname.startsWith('/public-file/')) fail('toconline-pdf-invalid-response', 502);
+          || url.username || url.password || url.port || url.hash || !url.pathname.startsWith('/public-file/')) fail('toconline-print-url-invalid', 502);
         return url;
       };
       if (location?.scheme !== 'https' || typeof location.host !== 'string' || typeof location.path !== 'string'
-        || !location.path.startsWith('/public-file/')) fail('toconline-pdf-invalid-response', 502);
+        || !location.path.startsWith('/public-file/')) fail('toconline-print-location-invalid', 502);
       let url = validUrl(`${location.scheme}://${location.host}${location.path}`);
       for (let redirects = 0; redirects <= 2; redirects++) {
         // Signed print URLs do not need credentials. Never forward OAuth here.
@@ -105,7 +106,8 @@ export function createToconlineLiveClient({
         url = validUrl(new URL(response.headers.get('Location') || '', url).toString());
       }
       const maxBytes = 8 * 1024 * 1024;
-      if (!response.ok || !response.body || Number(response.headers.get('Content-Length')) > maxBytes) fail('toconline-pdf-unavailable', 502);
+      if (!response.ok) fail(`toconline-pdf-http-${response.status}`, 502);
+      if (!response.body || Number(response.headers.get('Content-Length')) > maxBytes) fail('toconline-pdf-unavailable', 502);
       const reader = response.body.getReader();
       const chunks = [];
       let length = 0;
@@ -121,7 +123,7 @@ export function createToconlineLiveClient({
       const bytes = new Uint8Array(length);
       let offset = 0;
       for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-      if (new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-') fail('toconline-pdf-invalid-response', 502);
+      if (new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-') fail('toconline-pdf-invalid-file', 502);
       return bytes;
     },
     async issueFinalizedSalesDocument(env, payload) {

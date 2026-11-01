@@ -3,7 +3,7 @@ import { createToconlineLiveClient } from './toconline-live-client.mjs';
 
 const headers = { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store',
   Vary: 'Authorization', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
-const reply = (error, status) => Response.json({ error }, { status, headers });
+const reply = (error, status, diagnostic) => Response.json({ error, ...(diagnostic ? { diagnostic } : {}) }, { status, headers });
 
 export function createLiveInvoicePdfApi({ verify, storeFactory = createCheckoutLiveStore,
   fiscalClient = createToconlineLiveClient(),
@@ -38,7 +38,8 @@ export function createLiveInvoicePdfApi({ verify, storeFactory = createCheckoutL
       return new Response(pdf, { headers: { ...headers, 'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="CIRC2027-fatura-recibo-${id}.pdf"` } });
     } catch (error) {
-      return reply(error?.code === 'storage_forbidden' ? 'not-found' : 'invoice-download-unavailable', error?.code === 'storage_forbidden' ? 404 : 503);
+      const diagnostic = claims.email === 'circ.chuc@gmail.com' && /^toconline-[a-z0-9-]+$/.test(error?.code || '') ? error.code : null;
+      return reply(error?.code === 'storage_forbidden' ? 'not-found' : 'invoice-download-unavailable', error?.code === 'storage_forbidden' ? 404 : 503, diagnostic);
     }
   };
 }

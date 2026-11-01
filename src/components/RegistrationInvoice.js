@@ -25,7 +25,12 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
     download.current = controller;
     setBusy(document.id); setDownloadError(false);
     try { await downloadRegistrationInvoice(user, document, controller.signal); }
-    catch { if (!controller.signal.aborted) setDownloadError(true); }
+    catch (error) {
+      if (!controller.signal.aborted) {
+        setDownloadError(true);
+        if (user.email === 'circ.chuc@gmail.com') console.warn('CIRC invoice PDF:', error.code || 'download-unavailable');
+      }
+    }
     finally { if (download.current === controller) download.current = null; if (!controller.signal.aborted) setBusy(''); }
   }
 
