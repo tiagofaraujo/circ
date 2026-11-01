@@ -53,7 +53,7 @@ export async function recordRegistrationRefund(user, registration, input) {
       || payment.environment !== 'production' || payment.eventId !== 'circ-2027' || payment.userId !== current.userId
       || payment.registrationId !== current.id || payment.provider !== 'eupago' || payment.method !== 'multibanco'
       || payment.identifier !== `circ_live_${paymentDoc.id.replaceAll('-', '')}`
-      || payment.status !== 'paid' || !payment.paidAt || !payment.transactionId || payment.fiscalStatus === 'pending'
+      || payment.status !== 'paid' || !payment.paidAt || !payment.transactionId || ['pending', 'issuing'].includes(payment.fiscalStatus)
       || payment.amountCents !== current.payment.amountCents || payment.currency !== current.payment.currency
       || payment.reference !== current.payment.reference || payment.method !== current.payment.method
       || payment.amountCents !== registration.payment.amountCents || payment.reference !== registration.payment.reference) fail('state-changed');

@@ -12,6 +12,7 @@ const paymentStates = {
   refunded: ['Reembolsado', 'Refunded'], cancelled: ['Cancelado', 'Cancelled'],
 };
 const fiscalStates = {
+  issuing: ['Emissão em processamento — não repetir', 'Issuance in progress — do not repeat'],
   pending: ['Pendente', 'Pending'], issued: ['Emitido', 'Issued'], pending_authorization: ['Autorização TOConline necessária', 'TOConline authorization required'],
   review_required: ['Requer revisão manual', 'Manual review required'], outcome_unknown: ['Resultado por confirmar — não repetir a emissão', 'Outcome unknown — do not repeat issuance'],
 };
@@ -25,6 +26,7 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [needsPreview, setNeedsPreview] = useState(false);
+  const [resumeAttempted, setResumeAttempted] = useState(false);
   const working = useRef(false);
   const active = useRef(true);
   const controller = useRef(null);
@@ -52,7 +54,7 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
     });
     const data = await response.json();
     if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error, failedChecks: data.failedChecks });
-    const expectedId = path === '/primary-order' ? null : body === undefined ? path.split('/').pop() : body.id;
+    const expectedId = path.endsWith('/fiscal-resume') ? path.split('/')[2] : path === '/primary-order' ? null : body === undefined ? path.split('/').pop() : body.id;
     if (!data.order || !UUID.test(data.order.id || '') || (expectedId && data.order.id !== expectedId) || !Number.isSafeInteger(data.order.amountCents)
       || data.order.amountCents <= 0 || data.order.currency !== 'EUR') throw new Error('invalid-response');
     return data.order;
@@ -106,7 +108,7 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
       const token = await user.getIdToken();
       if (!active.current) return;
       const result = await request(`/orders/${id}`, undefined, token, current.signal);
-      if (active.current) setOrder(result);
+      if (active.current) { setOrder(result); setResumeAttempted(false); }
     } catch {
       if (active.current) setError(t('Não foi possível consultar o pedido. Não crie outro: mantenha este identificador para conferência pela organização.',
         'Could not read the order. Do not create another: keep this identifier for the organizer to investigate.'));
@@ -146,6 +148,24 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
     } finally { working.current = false; if (active.current) setBusy(false); }
   }
 
+  async function resumeFiscal() {
+    if (working.current || resumeAttempted || !UUID.test(id) || order?.status !== 'paid'
+      || order.fiscalStatus !== 'pending_authorization' || order.amountCents !== 9500) return;
+    if (!window.confirm(t('Retomar a emissão da fatura-recibo definitiva de 95,00 € no TOConline para este pagamento já confirmado? O servidor só permite retomar um pedido bloqueado por falta de autorização.',
+      'Resume issuance of the final €95.00 TOConline invoice-receipt for this confirmed payment? Only an authorization-blocked job can resume.'))) return;
+    working.current = true; setBusy(true); setError(''); setResumeAttempted(true);
+    const current = new AbortController(); controller.current = current;
+    try {
+      const token = await user.getIdToken();
+      if (!active.current) return;
+      const result = await request(`/orders/${id}/fiscal-resume`, { confirmation: 'RETOMAR FATURACAO AUTORIZADA' }, token, current.signal);
+      if (active.current) setOrder(result);
+    } catch {
+      if (active.current) setError(t('O resultado da retoma requer consulta. Use «Consultar este pedido» antes de qualquer nova ação. Não repita uma emissão com resultado por confirmar.',
+        'Check this order before any further action. Do not repeat issuance when its outcome is unknown.'));
+    } finally { working.current = false; if (active.current) setBusy(false); }
+  }
+
   return <div className="sandbox-checkout__panel" aria-label={t('Referência do ensaio privado', 'Private pilot reference')} aria-busy={busy}>
     <h3>{t('Referência Multibanco — ensaio privado', 'Multibanco reference — private pilot')}</h3>
     {!id && <>
@@ -176,6 +196,12 @@ export default function LivePaymentPilotOrder({ user, preview, en = false }) {
         <p>{t('Referência:', 'Reference:')} <strong>{order.reference}</strong></p>
       </>}
       <p>{t('Documento fiscal:', 'Fiscal document:')} {fiscalStates[order.fiscalStatus]?.[en ? 1 : 0] || t('Sem emissão confirmada', 'No confirmed issuance')}</p>
+      {order.fiscalDocumentId && <p>{t('Documento TOConline:', 'TOConline document:')} {order.fiscalDocumentNo || order.fiscalDocumentId}</p>}
+      {order.status === 'paid' && order.fiscalStatus === 'pending_authorization' && order.amountCents === 9500 && <>
+        <p>{t('Depois de renovar a ligação TOConline, pode retomar a faturação deste pedido. Pedidos emitidos, em processamento ou com resultado incerto permanecem bloqueados contra uma nova emissão.',
+          'After renewing the TOConline connection, resume this order’s billing. Issued, processing or uncertain jobs remain blocked against another issuance.')}</p>
+        <button type="button" disabled={busy || resumeAttempted} onClick={resumeFiscal}>{t('Retomar faturação autorizada', 'Resume authorized billing')}</button>
+      </>}
     </div>}
   </div>;
 }

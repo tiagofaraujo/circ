@@ -5,6 +5,7 @@ import { createEupagoLive } from './eupago-live.mjs';
 import { quotePrimary } from './quote.mjs';
 import { buildLiveOnsiteMultibancoFR } from './toconline-live-payload.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
+import { completeLiveFiscalJob } from './live-fiscal-issue.mjs';
 
 const PATH='/api/payments/live/notifications';
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -117,23 +118,9 @@ export function createLivePaymentWebhook({
 
       // Payment is already durably confirmed. Billing is best-effort and never changes the webhook acknowledgement to a retry storm.
       const [freshPayment,freshRegistration,freshJob]=await Promise.all([store.payment(event.id),store.registration(),store.document(event.id)]);
-      try{
-        const issued=await fiscalClient.issueFinalizedSalesDocument(env,salesDocument);
-        await store.finalizeFiscalResult({orderId:event.id,
-          payment:{...freshPayment.data,fiscalStatus:'issued',updatedAt:now()},paymentVersion:freshPayment.version,
-          registration:{...freshRegistration.data,documentCount:Number(freshRegistration.data.documentCount||0)+1,updatedAt:now()},registrationVersion:freshRegistration.version,
-          document:{...freshJob.data,status:'issued',providerDocumentId:issued.providerDocumentId,providerDocumentNo:issued.providerDocumentNo,issuedAt:now(),updatedAt:now()},documentVersion:freshJob.version});
-        return json({received:true,duplicate:false,fiscalStatus:'issued'});
-      }catch(error){
-        const status=error?.uncertain?'outcome_unknown':['toconline-background-session-missing','toconline-reauthorize-required'].includes(error?.code)?'pending_authorization':'review_required';
-        try{
-          await store.finalizeFiscalResult({orderId:event.id,
-            payment:{...freshPayment.data,fiscalStatus:status,updatedAt:now()},paymentVersion:freshPayment.version,
-            registration:{...freshRegistration.data,updatedAt:now()},registrationVersion:freshRegistration.version,
-            document:{...freshJob.data,status,errorCode:error?.code||'toconline-failed',updatedAt:now()},documentVersion:freshJob.version});
-        }catch{}
-        return json({received:true,duplicate:false,fiscalStatus:status});
-      }
+      const fiscalStatus=await completeLiveFiscalJob({store,orderId:event.id,payment:freshPayment,
+        registration:freshRegistration,job:freshJob,fiscalClient,env,now});
+      return json({received:true,duplicate:false,fiscalStatus});
     }catch(error){
       if(error?.code==='conflict')return json({error:'retry_notification'},503);
       return json({error:'processing_unavailable'},503);

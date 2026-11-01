@@ -10,6 +10,7 @@ import { createToconlineReadonlyApi } from './payments/toconline-readonly.mjs';
 import { createCheckoutLiveApi } from './payments/checkout-live.mjs';
 import { createLivePilotPreviewApi } from './payments/live-pilot-preview.mjs';
 import { createLivePaymentWebhook } from './payments/live-webhook.mjs';
+import { createLiveFiscalResumeApi } from './payments/live-fiscal-resume.mjs';
 import { createToconlineDraftAcceptanceApi } from './payments/toconline-draft-acceptance.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
@@ -55,6 +56,7 @@ export function createWorker(verify = verifyFirebaseToken) {
   const liveCheckout = createCheckoutLiveApi({ verify });
   const livePilotPreview = createLivePilotPreviewApi({ verify });
   const livePaymentWebhook = createLivePaymentWebhook();
+  const liveFiscalResume = createLiveFiscalResumeApi({ verify });
   const toconlineDraftAcceptance = createToconlineDraftAcceptanceApi({ verify });
   return {
     async fetch(request, env) {
@@ -77,6 +79,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (fiscalResponse) return fiscalResponse;
       const pilotPreviewResponse = await livePilotPreview(request, env);
       if (pilotPreviewResponse) return pilotPreviewResponse;
+      const fiscalResumeResponse = await liveFiscalResume(request, env);
+      if (fiscalResumeResponse) return fiscalResumeResponse;
       const liveCheckoutResponse = await liveCheckout(request, env);
       if (liveCheckoutResponse) return liveCheckoutResponse;
       const checkoutResponse = await sandboxCheckout(request, env);

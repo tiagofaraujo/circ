@@ -137,3 +137,33 @@ test('recovery explains a missing order or a failed ownership check using only s
   expect(await screen.findByRole('alert')).toHaveTextContent('Conferências em falta: titular, identificação como produção');
   expect(screen.getByRole('alert')).not.toHaveTextContent('PRIVATE-DETAIL');
 });
+
+test('authorized billing resume requires explicit action and never creates another payment', async () => {
+  sessionStorage.setItem(key,ID);
+  fetch.mockResolvedValueOnce({ok:true,json:async()=>({order:{...order,status:'paid',fiscalStatus:'pending_authorization'}})});
+  render(<LivePaymentPilotOrder user={user} preview={null}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Consultar este pedido'}));
+  const button=await screen.findByRole('button',{name:'Retomar faturação autorizada'});
+  expect(fetch).toHaveBeenCalledTimes(1);
+  window.confirm.mockReturnValueOnce(false);fireEvent.click(button);expect(fetch).toHaveBeenCalledTimes(1);
+  fetch.mockResolvedValueOnce({ok:true,json:async()=>({order:{...order,status:'paid',fiscalStatus:'issued'}})});
+  fireEvent.click(button);await screen.findByText(/Documento fiscal: Emitido/);
+  expect(fetch.mock.calls[1][0]).toBe(`/api/checkout/live/orders/${ID}/fiscal-resume`);
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({confirmation:'RETOMAR FATURACAO AUTORIZADA'});
+  expect(fetch.mock.calls.some(([url])=>url==='/api/checkout/live/orders')).toBe(false);
+});
+
+test('lost resume response disables repeating POST until the existing order is queried', async () => {
+  sessionStorage.setItem(key,ID);
+  fetch.mockResolvedValueOnce({ok:true,json:async()=>({order:{...order,status:'paid',fiscalStatus:'pending_authorization'}})});
+  render(<LivePaymentPilotOrder user={user} preview={null}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Consultar este pedido'}));
+  const button=await screen.findByRole('button',{name:'Retomar faturação autorizada'});
+  fetch.mockRejectedValueOnce(new Error('connection lost'));fireEvent.click(button);
+  expect(await screen.findByRole('alert')).toHaveTextContent('O resultado da retoma requer consulta');
+  expect(button).toBeDisabled();fireEvent.click(button);expect(fetch).toHaveBeenCalledTimes(2);
+  fetch.mockResolvedValueOnce({ok:true,json:async()=>({order:{...order,status:'paid',fiscalStatus:'issuing'}})});
+  fireEvent.click(screen.getByRole('button',{name:'Consultar este pedido'}));
+  await screen.findByText(/Emissão em processamento/);
+  expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
+});
