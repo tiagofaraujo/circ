@@ -39,11 +39,9 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminSecretariatPage from './pages/AdminSecretariatPage';
 import AdminCompaniesPage from './pages/AdminCompaniesPage';
+import AdminBillingPage from './pages/AdminBillingPage';
+import AdminProductionCleanupPage from './pages/AdminProductionCleanupPage';
 import AdminStudentsPage from './pages/AdminStudentsPage';
-import AdminSandboxPaymentsPage from './pages/AdminSandboxPaymentsPage';
-import SandboxCheckoutPage from './pages/SandboxCheckoutPage';
-import SandboxBankTransferReviewPage from './pages/SandboxBankTransferReviewPage';
-import ToconlineReceiptTestPage from './pages/ToconlineReceiptTestPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
 import ScientificReviewerPage from './pages/ScientificReviewerPage';
 import ScientificReviewManagementPage from './pages/ScientificReviewManagementPage';
@@ -61,6 +59,11 @@ import './hero2027.css';
 import './photo2025.css';
 import './myCircApp.css';
 import './identity2027.css';
+
+function LegacyBillingRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/admin/faturacao${search}`} replace />;
+}
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -185,11 +188,14 @@ function App() {
               }
             />
 
-            <Route path="/admin/transferencias-teste" element={<AdminRoute permission="registrations"><SandboxBankTransferReviewPage /></AdminRoute>} />
-            <Route path="/admin/recibos-teste" element={<AdminRoute permission="registrations"><ToconlineReceiptTestPage /></AdminRoute>} />
-            <Route path="/conta/inscricoes-teste" element={<ProtectedRoute><SandboxCheckoutPage /></ProtectedRoute>} />
-            <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes-teste" replace />} />
-            <Route path="/admin/pagamentos-teste" element={<AdminRoute permission="registrations"><AdminSandboxPaymentsPage /></AdminRoute>} />
+            <Route path="/admin/faturacao" element={<AdminRoute permission="registrations"><AdminBillingPage /></AdminRoute>} />
+            <Route path="/admin/transferencias-teste" element={<Navigate to="/admin" replace />} />
+            <Route path="/admin/recibos-teste" element={<LegacyBillingRedirect />} />
+            <Route path="/conta/inscricoes-teste" element={<Navigate to="/conta/inscricoes" replace />} />
+            <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes" replace />} />
+            <Route path="/admin/pagamentos-teste" element={<Navigate to="/admin" replace />} />
+
+            <Route path="/admin/preparacao" element={<AdminRoute permission="registrations"><AdminProductionCleanupPage /></AdminRoute>} />
             <Route path="/admin/empresas" element={<AdminRoute permission="registrations"><AdminCompaniesPage /></AdminRoute>} />
             <Route path="/admin/estudantes" element={<AdminRoute permission="secretariat"><AdminStudentsPage /></AdminRoute>} />
 

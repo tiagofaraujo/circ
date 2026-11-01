@@ -150,3 +150,12 @@ test('a late duplicate paid callback cannot reactivate a refunded registration o
   assert.equal(f.state().payment.status,'refunded');
   assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
 });
+
+test('a paid order whose eligibility changed is retained for review without issuing a document',async()=>{
+ const f=fixture(); f.state().payment.quote={...quote,selection:{...quote.selection,profile:'student'}};
+ const response=await f.call(payload()); assert.equal(response.status,200);
+ assert.deepEqual(await response.json(),{received:true,reviewRequired:true});
+ assert.equal(f.state().payment.status,'review_required'); assert.equal(f.state().payment.reviewReason,'payment-eligibility-review');
+ assert.equal(f.state().payment.transactionId,'777'); assert.equal(f.state().registration.payment.status,'awaiting_confirmation');
+ assert.equal(f.calls().issueCalls,0);
+});

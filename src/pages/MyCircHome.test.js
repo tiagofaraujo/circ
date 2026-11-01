@@ -50,15 +50,16 @@ test('submission managers retain personal access without gaining other managemen
   expect(screen.queryByRole('link', { name: 'Gestão de inscrições' })).not.toBeInTheDocument();
 });
 
-test('shows an explicitly labelled draft test from the user query', async () => {
+test('does not display administrative samples as participant work', async () => {
   subscribeToUserSubmissions.mockImplementation((uid, data) => {
     data([{ id: 'fixture', code: 'TEST-FIXTURE', isTest: true, title: 'Rascunho de exemplo', status: 'draft' }]);
     return unsubscribe;
   });
   show();
   await screen.findByText('100%');
-  expect(screen.getByText('TEST-FIXTURE · Teste')).toBeInTheDocument();
-  expect(screen.getByText('Rascunho')).toBeInTheDocument();
+  expect(screen.queryByText('TEST-FIXTURE')).not.toBeInTheDocument();
+  expect(screen.queryByText('Rascunho de exemplo')).not.toBeInTheDocument();
+  expect(screen.getByText('Espaço para a sua próxima ideia.')).toBeInTheDocument();
 });
 
 test('a permission/network error is not presented as an empty submission list', async () => {

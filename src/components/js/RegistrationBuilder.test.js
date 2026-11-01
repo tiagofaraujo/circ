@@ -1,108 +1,40 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import RegistrationBuilder from './RegistrationBuilder';
 import { useAuth } from '../../auth/AuthContext';
 import { useStudentVerification } from '../../auth/studentVerificationStore';
-import { saveAdminTestRegistration, saveAdminTestAddOnOrder, subscribeToAdminTestRegistration } from '../../auth/registrationStore';
-import RegistrationBuilder from './RegistrationBuilder';
+import PublicLiveCheckout from '../PublicLiveCheckout';
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
 jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: () => ({ verified: false }) }));
 jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: jest.fn() }));
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
 jest.mock('./StudentVerification', () => () => <div>Student document form</div>);
-jest.mock('../../auth/registrationStore', () => ({
-  subscribeToAdminTestRegistration: jest.fn(),
-  subscribeToAdminTestAddOnOrders: (_user, callback) => { callback([]); return () => {}; },
-  saveAdminTestRegistration: jest.fn(), saveAdminTestAddOnOrder: jest.fn(),
-}));
-beforeEach(() => {
-  jest.clearAllMocks();
-  subscribeToAdminTestRegistration.mockImplementation((_user, callback) => { callback(null); return () => {}; });
-  useAuth.mockReturnValue({ user: { uid: 'student', emailVerified: true }, isAdmin: false });
-  useStudentVerification.mockReturnValue({ approved: false });
+jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => null, CompanyRegistrationGate: ({ children }) => children(null) }));
+jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
+beforeEach(() => { jest.clearAllMocks(); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); });
+test('public registration offers only the live onsite selection and never creates test registrations', () => {
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ expect(screen.getByText('Production checkout')).toBeInTheDocument();
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({ eligible: true, selection: { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 } });
+ expect(screen.queryByText(/Modo de teste|Criar inscrição de teste|15 de novembro/)).not.toBeInTheDocument();
+ expect(screen.getByText(/A compra de cursos, jantar, participação virtual/)).toBeInTheDocument();
 });
-test('only approval unlocks student participation; external remains available', () => {
-  const { rerender } = render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Congressista externo/ }));
-  const congress = screen.getByRole('radio', { name: /CIRC 2027/ });
-  expect(congress).toBeEnabled();
-  fireEvent.click(congress);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
-  expect(congress).toBeDisabled();
-  expect(congress).not.toBeChecked();
-  expect(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ })).toBeDisabled();
-  expect(screen.getByRole('radio', { name: /Apenas cursos/ })).toBeDisabled();
-  useStudentVerification.mockReturnValue({ approved: true });
-  rerender(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  expect(congress).toBeEnabled();
-  expect(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ })).toBeEnabled();
-  expect(screen.getByRole('radio', { name: /Apenas cursos/ })).toBeEnabled();
-  expect(screen.getByRole('button', { name: 'Inscrições abrem a 15 de novembro' })).toBeDisabled();
+test('student and ULS rates require eligibility even for the administrator', () => {
+ useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });
+ const { rerender } = render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
+ expect(screen.getByText('Student document form')).toBeInTheDocument();
+ useStudentVerification.mockReturnValue({ approved: true }); rerender(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(true);
+ fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
 });
-
-test('students can select both courses and lose access when approval is withdrawn', () => {
-  useStudentVerification.mockReturnValue({ approved: true });
-  const { rerender } = render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
-  const mode = screen.getByRole('radio', { name: /Apenas cursos/ });
-  const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
-  const afternoon = screen.getByRole('checkbox', { name: /Via Verde AVC/ });
-  fireEvent.click(mode);
-  fireEvent.click(morning);
-  fireEvent.click(afternoon);
-  expect(morning).toBeChecked();
-  expect(afternoon).toBeChecked();
-  expect(screen.getByText(/70\s*€/)).toBeInTheDocument();
-  useStudentVerification.mockReturnValue({ approved: false });
-  rerender(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  expect(mode).not.toBeChecked();
-  expect(morning).not.toBeChecked();
-  expect(afternoon).not.toBeChecked();
-  expect(morning).toBeDisabled();
-});
-
-test('student courses-only simulation requires a course and submits the selected courses', async () => {
-  useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });
-  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
-  fireEvent.click(screen.getByRole('radio', { name: /Apenas cursos/ }));
-  const submit = screen.getByRole('button', { name: 'Criar inscrição de teste' });
-  expect(submit).toBeDisabled();
-  fireEvent.click(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }));
-  fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
-  expect(submit).toBeEnabled();
-  fireEvent.click(submit);
-  await waitFor(() => expect(saveAdminTestRegistration).toHaveBeenCalledWith(
-    expect.objectContaining({ uid: 'admin' }), expect.objectContaining({
-      profile: 'student', courseAffiliation: 'external', congressMode: 'courses-only',
-      morningCourse: true, afternoonCourse: true, total: 70,
-    })
-  ));
-});
-
-test('a legacy student registration can add the remaining course without buying the same course again', async () => {
-  useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });
-  subscribeToAdminTestRegistration.mockImplementation((_user, callback) => {
-    callback({ id: 'test-admin', isTest: true, selection: { profile: 'student', congressMode: 'onsite', morningCourse: true } });
-    return () => {};
-  });
-  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
-  const afternoon = screen.getByRole('checkbox', { name: /Via Verde AVC/ });
-  expect(morning).toBeChecked();
-  expect(morning).toBeDisabled();
-  expect(afternoon).toBeEnabled();
-  fireEvent.click(afternoon);
-  fireEvent.click(screen.getByRole('button', { name: /pedido complementar/i }));
-  await waitFor(() => expect(saveAdminTestAddOnOrder).toHaveBeenCalledWith(
-    expect.objectContaining({ uid: 'admin' }), { morningCourse: false, afternoonCourse: true, dinnerQuantity: 0 }
-  ));
-});
-test('administrative simulation remains clearly labelled as a test', () => {
-  useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });
-  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
-  fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ }));
-  expect(screen.getByRole('radio', { name: /CIRC 2027/ })).toBeEnabled();
-  expect(screen.getByText('Modo de teste administrativo')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Criar inscrição de teste' })).toBeDisabled();
+test('email verification is required before preparing payment', () => {
+ useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: false }, isAdmin: false });
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ expect(screen.getByRole('alert')).toHaveTextContent('Confirme o email');
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
 });

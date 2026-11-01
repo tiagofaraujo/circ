@@ -2,15 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
-  deleteAdminTestSubmission,
-  saveAdminTestSubmission,
+  deleteSubmissionDraft,
+  saveSubmission,
   subscribeToUserSubmissions,
-  updateAdminTestSubmission,
+  submissionErrorMessage,
+  updateSubmissionDraft,
 } from '../auth/adminOperationsStore';
 import {
   hasCompleteAbstractSections,
   normalizeAbstractSections,
 } from '../auth/submissionAbstract';
+import { isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
 import { exportSubmissionPdf } from '../auth/submissionPdf';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
@@ -20,44 +22,41 @@ const content = {
     eyebrow: 'My CIRC · Submissões científicas',
     title: 'Centro de Submissões',
     lead: 'Um espaço pensado para preparar, submeter e acompanhar o seu trabalho científico com clareza, do primeiro título à decisão final.',
-    status: 'Abertura · 15 de novembro de 2026',
-    statusText: 'As submissões abrem na mesma data das inscrições do CIRC 2027.',
+    status: 'Submissões abertas',
+    statusText: 'Prepare o resumo, guarde um rascunho ou submeta o trabalho para avaliação científica.',
     deskEyebrow: 'Preparar o seu trabalho',
     deskTitle: 'O seu próximo trabalho começa aqui.',
-    deskText: 'A partir de 15 de novembro, este será o ponto único para estruturar o resumo, reunir autores e acompanhar todas as atualizações.',
-    openLabel: 'Abertura',
-    openValue: '15 de nov. de 2026',
+    deskText: 'Estruture o resumo, reúna os autores e acompanhe o estado do seu trabalho nesta página.',
+    openLabel: 'Estado',
+    openValue: 'Aberto',
     oralDeadlineLabel: 'Resumos · Comunicações livres',
     oralDeadlineValue: 'Até 15 de jan. de 2027',
     posterDeadlineLabel: 'Pósteres',
     posterDeadlineValue: 'Até 28 de fev. de 2027',
-    rulesLabel: 'Normas',
-    rulesValue: 'Em preparação',
+    rulesLabel: 'Formato',
+    rulesValue: 'Resumo estruturado',
     newWork: 'Novo trabalho',
-    newWorkHint: 'Disponível a partir de 15 de novembro de 2026',
+    closedType: 'Prazo de submissão encerrado para esta tipologia.',
+    newWorkHint: 'Guarde um rascunho antes da submissão definitiva.',
     journeyEyebrow: 'Percurso do autor',
     journeyTitle: 'Quatro etapas. Sempre a saber onde está.',
     steps: [
-      ['01', 'Identificação', 'Título, área científica e modalidade do trabalho.'],
+      ['01', 'Identificação', 'Título e modalidade do trabalho.'],
       ['02', 'Autores', 'Autores, ordem, afiliações e contactos reunidos num só lugar.'],
       ['03', 'Resumo', 'Conteúdo científico organizado antes da revisão final.'],
       ['04', 'Submissão', 'Confirmação, histórico e estado do processo sempre visíveis.'],
     ],
     worksEyebrow: 'Os seus trabalhos',
     worksTitle: 'Ainda não existem trabalhos',
-    worksText: 'A partir de 15 de novembro poderá criar uma submissão, escolher a tipologia e guardá-la antes de enviar.',
+    worksText: 'Crie uma submissão, escolha a tipologia e guarde o resumo antes de o enviar para avaliação.',
     profile: 'Rever dados do perfil',
     preparationEyebrow: 'Preparação',
     preparationTitle: 'Tudo pronto antes de começar.',
     preparationText: 'O perfil do autor será reutilizado para reduzir o preenchimento e manter os dados consistentes.',
     checklist: ['Dados pessoais e profissionais', 'Título provisório', 'Autores e afiliações', 'Conteúdo do resumo'],
-    testMode: 'Modo de teste administrativo',
-    testModeText: 'Esta simulação cria um registo de teste no Firebase, visível apenas na administração e claramente separado das submissões reais.',
-    startTest: 'Criar trabalho de teste',
-    testHint: 'Simulação disponível apenas para administração',
-    formEyebrow: 'Nova submissão · Teste',
+    formEyebrow: 'Nova submissão',
     formTitle: 'Construa o trabalho passo a passo.',
-    close: 'Fechar teste',
+    close: 'Fechar formulário',
     typeLabel: 'Escolha a tipologia',
     oralType: 'Resumo · Comunicação livre',
     oralTypeHint: 'Prazo oficial · 15 de janeiro de 2027',
@@ -86,19 +85,19 @@ const content = {
     keywordsPlaceholder: 'Ex.: Radiologia; Ressonância magnética; Diagnóstico',
     sectionsComplete: 'As seis secções do resumo estão preenchidas.',
     reviewLabel: 'Revisão e envio',
-    reviewText: 'Confirme os dados. Neste modo, “Submeter teste” cria um registo Firebase identificado como demonstração.',
+    reviewText: 'Confirme os dados e a anonimização do título e do resumo. Depois de submeter, o trabalho segue para avaliação e deixa de poder ser editado.',
     saveDraft: 'Guardar rascunho',
     updateDraft: 'Atualizar rascunho',
-    submitTest: 'Submeter teste',
-    savedMessage: 'O rascunho de teste foi guardado e já está disponível na administração.',
-    draftUpdatedMessage: 'O rascunho de teste foi atualizado.',
-    submittedMessage: 'Submissão de teste concluída e disponível na Gestão de Submissões.',
+    submitWork: 'Submeter trabalho',
+    savedMessage: 'O rascunho foi guardado. Pode continuar a editá-lo antes de submeter.',
+    draftUpdatedMessage: 'O rascunho foi atualizado.',
+    submittedMessage: 'Trabalho submetido com sucesso. Pode acompanhar o estado da avaliação nesta página.',
     draftStatus: 'Rascunho',
     submittedStatus: 'Submetido',
     editDraft: 'Editar rascunho',
     editFormEyebrow: 'Editar submissão · Rascunho',
     editFormTitle: 'Continue o trabalho e submeta quando estiver pronto.',
-    removeTest: 'Eliminar teste',
+    removeDraft: 'Eliminar rascunho',
     viewSubmission: 'Consultar submissão',
     exportPdf: 'Exportar PDF',
     pdfError: 'Não foi possível abrir o documento. Confirme se o navegador bloqueou a nova janela.',
@@ -117,44 +116,41 @@ const content = {
     eyebrow: 'My CIRC · Scientific submissions',
     title: 'Submission Centre',
     lead: 'A space designed to prepare, submit and follow your scientific work clearly, from the first title to the final decision.',
-    status: 'Opening · 15 November 2026',
-    statusText: 'Submissions open on the same date as CIRC 2027 registration.',
+    status: 'Submissions open',
+    statusText: 'Prepare an abstract, save a draft or submit your work for scientific review.',
     deskEyebrow: 'Your editorial desk',
     deskTitle: 'Your next work starts here.',
-    deskText: 'From 15 November, this will be the single place to structure your abstract, bring authors together and follow every update.',
-    openLabel: 'Opening',
-    openValue: '15 Nov. 2026',
+    deskText: 'Structure your abstract, bring authors together and track the status of your work here.',
+    openLabel: 'Status',
+    openValue: 'Open',
     oralDeadlineLabel: 'Abstracts · Free communications',
     oralDeadlineValue: 'By 15 Jan. 2027',
     posterDeadlineLabel: 'Posters',
     posterDeadlineValue: 'By 28 Feb. 2027',
-    rulesLabel: 'Guidelines',
-    rulesValue: 'In preparation',
+    rulesLabel: 'Format',
+    rulesValue: 'Structured abstract',
     newWork: 'New submission',
-    newWorkHint: 'Available from 15 November 2026',
+    closedType: 'The submission deadline for this type has passed.',
+    newWorkHint: 'Save a draft before final submission.',
     journeyEyebrow: 'Author journey',
     journeyTitle: 'Four stages. Always know where you are.',
     steps: [
-      ['01', 'Identification', 'Title, scientific area and work format.'],
+      ['01', 'Identification', 'Title and submission format.'],
       ['02', 'Authors', 'Authors, order, affiliations and contacts in one place.'],
       ['03', 'Abstract', 'Scientific content organised before the final review.'],
       ['04', 'Submission', 'Confirmation, history and process status always visible.'],
     ],
     worksEyebrow: 'Your submissions',
     worksTitle: 'No submissions yet',
-    worksText: 'From 15 November, you will be able to create a submission, choose its type and save it before sending.',
+    worksText: 'Create a submission, select its type and save your abstract before sending it for review.',
     profile: 'Review profile details',
     preparationEyebrow: 'Preparation',
     preparationTitle: 'Everything ready before you begin.',
     preparationText: 'The author profile will be reused to reduce data entry and keep information consistent.',
     checklist: ['Personal and professional details', 'Working title', 'Authors and affiliations', 'Abstract content'],
-    testMode: 'Administrative test mode',
-    testModeText: 'This simulation creates a test record in Firebase, visible only to administration and clearly separated from real submissions.',
-    startTest: 'Create test submission',
-    testHint: 'Simulation available to administration only',
-    formEyebrow: 'New submission · Test',
+    formEyebrow: 'New submission',
     formTitle: 'Build the work step by step.',
-    close: 'Close test',
+    close: 'Close form',
     typeLabel: 'Choose the submission type',
     oralType: 'Abstract · Free communication',
     oralTypeHint: 'Official deadline · 15 January 2027',
@@ -183,19 +179,19 @@ const content = {
     keywordsPlaceholder: 'E.g. Radiology; Magnetic resonance imaging; Diagnosis',
     sectionsComplete: 'All six abstract sections are complete.',
     reviewLabel: 'Review and submission',
-    reviewText: 'Confirm the details. In this mode, “Submit test” creates a Firebase record identified as a demonstration.',
+    reviewText: 'Check the details and anonymise the title and abstract. After submission, the work enters review and can no longer be edited.',
     saveDraft: 'Save draft',
     updateDraft: 'Update draft',
-    submitTest: 'Submit test',
-    savedMessage: 'The test draft was saved and is now available in administration.',
-    draftUpdatedMessage: 'The test draft was updated.',
-    submittedMessage: 'Test submission completed and available in Submission Management.',
+    submitWork: 'Submit work',
+    savedMessage: 'Your draft was saved. You can keep editing it before submission.',
+    draftUpdatedMessage: 'Your draft was updated.',
+    submittedMessage: 'Your work was submitted successfully. You can track its review status here.',
     draftStatus: 'Draft',
     submittedStatus: 'Submitted',
     editDraft: 'Edit draft',
     editFormEyebrow: 'Edit submission · Draft',
     editFormTitle: 'Continue the work and submit it when ready.',
-    removeTest: 'Delete test',
+    removeDraft: 'Delete draft',
     viewSubmission: 'View submission',
     exportPdf: 'Export PDF',
     pdfError: 'The document could not be opened. Check whether the browser blocked the new window.',
@@ -295,7 +291,7 @@ function DocumentMark() {
   );
 }
 
-const emptyTestForm = {
+const emptySubmissionForm = {
   type: 'oral',
   title: '',
   authors: '',
@@ -308,12 +304,12 @@ const emptyTestForm = {
   keywords: '',
 };
 
-function testFormFromSubmission(submission) {
-  if (!submission) return { ...emptyTestForm };
+function formFromSubmission(submission) {
+  if (!submission) return { ...emptySubmissionForm, type: isSubmissionTypeOpen('oral') ? 'oral' : 'poster' };
 
   const sections = normalizeAbstractSections(submission.abstractSections);
   return {
-    type: submission.type || 'oral',
+    type: submission.type || (isSubmissionTypeOpen('oral') ? 'oral' : 'poster'),
     title: submission.title || '',
     authors: submission.authors || '',
     affiliation: submission.affiliation || '',
@@ -321,16 +317,16 @@ function testFormFromSubmission(submission) {
   };
 }
 
-function TestSubmissionForm({ t, onClose, onSave, submission }) {
-  const [form, setForm] = useState(() => testFormFromSubmission(submission));
+function SubmissionForm({ t, onClose, onSave, submission }) {
+  const [form, setForm] = useState(() => formFromSubmission(submission));
   const [saving, setSaving] = useState(false);
 
   const updateField = (field) => (event) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const canSaveDraft = Boolean(form.title.trim() && form.authors.trim());
-  const canSubmit = canSaveDraft && hasCompleteAbstractSections(form);
+  const canSaveDraft = Boolean(form.title.trim().length >= 3 && form.authors.trim().length >= 2);
+  const canSubmit = canSaveDraft && hasCompleteAbstractSections(form) && isSubmissionTypeOpen(form.type);
   const abstractFields = [
     ['introduction', t.introductionLabel, t.introductionPlaceholder, 4],
     ['objective', t.objectiveLabel, t.objectivePlaceholder, 3],
@@ -386,11 +382,11 @@ function TestSubmissionForm({ t, onClose, onSave, submission }) {
           <legend><span>02</span>{t.identityLabel}</legend>
           <label>
             <span>{t.titleLabel}</span>
-            <input value={form.title} onChange={updateField('title')} placeholder={t.titlePlaceholder} required />
+            <input value={form.title} onChange={updateField('title')} placeholder={t.titlePlaceholder} maxLength={SUBMISSION_LIMITS.title} minLength={3} required />
           </label>
           <label>
             <span>{t.authorsLabel}</span>
-            <textarea rows="4" value={form.authors} onChange={updateField('authors')} placeholder={t.authorsPlaceholder} required />
+            <textarea rows="4" value={form.authors} onChange={updateField('authors')} placeholder={t.authorsPlaceholder} maxLength={SUBMISSION_LIMITS.authors} required />
           </label>
         </fieldset>
 
@@ -398,19 +394,19 @@ function TestSubmissionForm({ t, onClose, onSave, submission }) {
           <legend><span>03</span>{t.contentLabel}</legend>
           <label>
             <span>{t.affiliationLabel}</span>
-            <input value={form.affiliation} onChange={updateField('affiliation')} placeholder={t.affiliationPlaceholder} />
+            <input value={form.affiliation} onChange={updateField('affiliation')} placeholder={t.affiliationPlaceholder} maxLength={SUBMISSION_LIMITS.affiliation} />
           </label>
           <p>{t.anonymousHint}</p>
           <div className="submissions-abstract-grid">
             {abstractFields.map(([field, label, placeholder, rows]) => (
               <label key={field}>
                 <span>{label}</span>
-                <textarea rows={rows} value={form[field]} onChange={updateField(field)} placeholder={placeholder} required />
+                <textarea rows={rows} value={form[field]} onChange={updateField(field)} placeholder={placeholder} maxLength={SUBMISSION_LIMITS[field]} required />
               </label>
             ))}
             <label className="submissions-abstract-grid__keywords">
               <span>{t.keywordsLabel}</span>
-              <input value={form.keywords} onChange={updateField('keywords')} placeholder={t.keywordsPlaceholder} required />
+              <input value={form.keywords} onChange={updateField('keywords')} placeholder={t.keywordsPlaceholder} maxLength={SUBMISSION_LIMITS.keywords} required />
             </label>
           </div>
         </fieldset>
@@ -424,9 +420,10 @@ function TestSubmissionForm({ t, onClose, onSave, submission }) {
             <div><small>{t.contentLabel}</small><strong>{canSubmit ? t.sectionsComplete : '—'}</strong></div>
           </div>
           <p>{t.reviewText}</p>
+          {!isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
           <div className="submissions-form-actions">
             <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : submission ? t.updateDraft : t.saveDraft}</button>
-            <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitTest} →</button>
+            <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitWork} →</button>
           </div>
         </fieldset>
       </form>
@@ -436,34 +433,35 @@ function TestSubmissionForm({ t, onClose, onSave, submission }) {
 
 export default function ScientificSubmissionsPage() {
   const { language } = useLanguage();
-  const { user, access } = useAuth();
+  const { user } = useAuth();
   const t = content[language === 'en' ? 'en' : 'pt'];
-  const canTestSubmissions = Boolean(access?.canTestSubmissions);
+  const canSubmitWork = user?.emailVerified === true;
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [ownSubmissions, setOwnSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!user) return undefined;
     return subscribeToUserSubmissions(
       user.uid,
       setOwnSubmissions,
-      () => setNotice(language === 'en' ? 'Unable to load your submissions.' : 'Não foi possível carregar as suas submissões.')
+      () => setError(language === 'en' ? 'Unable to load your submissions. Refresh the page to try again.' : 'Não foi possível carregar as suas submissões. Atualize a página para tentar novamente.')
     );
   }, [language, user]);
 
-  const openNewTestSubmission = () => {
+  const openNewSubmission = () => {
     setEditingSubmission(null);
     setComposerOpen(true);
   };
 
-  const editTestSubmission = (submission) => {
-    if (!submission?.isTest || submission.status !== 'draft') return;
+  const editSubmission = (submission) => {
+    if (submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft') return;
     setEditingSubmission(submission);
     setComposerOpen(true);
     window.setTimeout(() => {
-      document.getElementById('submissions-composer-title')?.scrollIntoView({
+      document.getElementById('submissions-composer-title')?.scrollIntoView?.({
         behavior: 'smooth',
         block: 'start',
       });
@@ -475,20 +473,20 @@ export default function ScientificSubmissionsPage() {
     setEditingSubmission(null);
   };
 
-  const saveTestSubmission = async (form, status) => {
+  const saveWork = async (form, status) => {
     const isEditing = Boolean(editingSubmission);
+    setError('');
 
     try {
       if (isEditing) {
-        await updateAdminTestSubmission(
+        await updateSubmissionDraft(
           user,
           editingSubmission,
           form,
-          status,
-          canTestSubmissions
+          status
         );
       } else {
-        await saveAdminTestSubmission(user, form, status, canTestSubmissions);
+        await saveSubmission(user, form, status);
       }
 
       closeComposer();
@@ -501,15 +499,17 @@ export default function ScientificSubmissionsPage() {
       );
       window.setTimeout(() => setNotice(''), 6000);
     } catch (error) {
-      setNotice(language === 'en' ? 'The test submission could not be saved.' : 'Não foi possível guardar a submissão de teste.');
+      setError(submissionErrorMessage(error, language));
     }
   };
 
-  const removeTestSubmission = async (submission) => {
+  const removeDraft = async (submission) => {
+    if (!window.confirm(language === 'en' ? 'Delete this draft permanently?' : 'Eliminar definitivamente este rascunho?')) return;
+    setError('');
     try {
-      await deleteAdminTestSubmission(user, submission, canTestSubmissions);
+      await deleteSubmissionDraft(user, submission);
     } catch (error) {
-      setNotice(language === 'en' ? 'The test submission could not be deleted.' : 'Não foi possível eliminar a submissão de teste.');
+      setError(submissionErrorMessage(error, language));
     }
   };
 
@@ -538,14 +538,9 @@ export default function ScientificSubmissionsPage() {
         </aside>
       </section>
 
-      {canTestSubmissions && (
-        <section className="submissions-test-banner" role="status">
-          <span>TEST</span>
-          <div><strong>{t.testMode}</strong><p>{t.testModeText}</p></div>
-        </section>
-      )}
-
-      {notice && <div className="submissions-test-notice" role="status">✓ {notice}</div>}
+      {!canSubmitWork && <p role="alert">{language === 'en' ? 'Verify your email address in your profile before creating or submitting work.' : 'Confirme o endereço de email no perfil antes de criar ou submeter um trabalho.'} <Link to="/conta/perfil">{t.profile}</Link></p>}
+      {notice && <div className="submissions-test-notice" role="status">{notice}</div>}
+      {error && <div className="submissions-test-notice" role="alert">{error}</div>}
 
       <section className="submissions-desk">
         <div className="submissions-desk__intro">
@@ -563,18 +558,18 @@ export default function ScientificSubmissionsPage() {
             <div><dt>{t.posterDeadlineLabel}</dt><dd>{t.posterDeadlineValue}</dd></div>
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
-          <button type="button" disabled={!canTestSubmissions} onClick={openNewTestSubmission} aria-describedby="submissions-new-hint">{canTestSubmissions ? t.startTest : t.newWork}<span>＋</span></button>
-          <small id="submissions-new-hint">{canTestSubmissions ? t.testHint : t.newWorkHint}</small>
+          <button type="button" disabled={!canSubmitWork} onClick={openNewSubmission} aria-describedby="submissions-new-hint">{t.newWork}<span>＋</span></button>
+          <small id="submissions-new-hint">{t.newWorkHint}</small>
         </div>
       </section>
 
-      {canTestSubmissions && composerOpen && (
-        <TestSubmissionForm
-          key={editingSubmission?.id || 'new-test-submission'}
+      {canSubmitWork && composerOpen && (
+        <SubmissionForm
+          key={editingSubmission?.id || 'new-submission'}
           t={t}
           submission={editingSubmission}
           onClose={closeComposer}
-          onSave={saveTestSubmission}
+          onSave={saveWork}
         />
       )}
 
@@ -607,10 +602,10 @@ export default function ScientificSubmissionsPage() {
               {ownSubmissions.map((submission) => (
                 <article key={submission.id}>
                   <div className="submissions-test-list__topline">
-                    <span>{submission.isTest ? 'TESTE · ' : ''}{submission.code || submission.id}</span>
+                    <span>{submission.code || submission.id}</span>
                     <strong className={'is-' + submission.status}>
                       {authorStatusLabels[language === 'en' ? 'en' : 'pt'][submission.status] || submission.status || '—'}
-                      {submission.isTest ? (language === 'en' ? ' · Test' : ' · Teste') : ''}
+
                     </strong>
                   </div>
                   <p>{submission.type === 'oral' ? t.oralType : t.posterType}</p>
@@ -620,8 +615,8 @@ export default function ScientificSubmissionsPage() {
                     {submissionDateMeta(submission, language, t).text}
                   </time>
 
-                  {canTestSubmissions && submission.isTest && submission.status === 'draft' && (
-                    <button type="button" onClick={() => editTestSubmission(submission)}>
+                  {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && (
+                    <button type="button" onClick={() => editSubmission(submission)}>
                       {t.editDraft} →
                     </button>
                   )}
@@ -649,8 +644,8 @@ export default function ScientificSubmissionsPage() {
                       </div>
                       <div className="submissions-work-details__actions">
                         <button type="button" onClick={() => exportPdf(submission)}>{t.exportPdf}</button>
-                        {canTestSubmissions && submission.isTest && (
-                          <button type="button" onClick={() => removeTestSubmission(submission)}>{t.removeTest}</button>
+                        {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && (
+                          <button type="button" onClick={() => removeDraft(submission)}>{t.removeDraft}</button>
                         )}
                       </div>
                     </div>

@@ -29,10 +29,14 @@ function Prices() {
                 <h2 id="prices-title">{en ? 'Registration fees' : 'Taxas de inscrição'}</h2>
                 <p className="prices-opening">
                     {en
-                        ? 'Registration opens on 15 November 2026'
-                        : 'Inscrições a partir de 15 de novembro de 2026'}
+                        ? 'Registration open · In-person congress'
+                        : 'Inscrições abertas · Congresso presencial'}
                 </p>
             </div>
+
+            <p className="prices-availability">{en
+                ? 'Online registration is available for the in-person congress, with Multibanco payment. Virtual attendance, courses and dinner bookings will be made available in My CIRC once their booking options open.'
+                : 'A inscrição online está disponível para o congresso presencial, com pagamento por Multibanco. A participação virtual, os cursos e o jantar ficarão disponíveis no My CIRC após a abertura das respetivas opções de compra.'}</p>
 
             <div className="price-guide" aria-label={en ? 'How the registration price is calculated' : 'Como é calculado o preço da inscrição'}>
                 <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante de IMR.'}</p></div></article>
@@ -112,8 +116,8 @@ function Prices() {
                     <p>
                         <strong>{en ? 'Dinner:' : 'Jantar:'}</strong>{' '}
                         {en
-                            ? '€30 per person. One or more dinner tickets may be added to any registration category.'
-                            : '30 € por pessoa. Pode adicionar um ou mais bilhetes de jantar a qualquer modalidade de inscrição.'}
+                            ? 'Published fee: €30 per person. Dinner ticket sales will be made available in My CIRC.'
+                            : 'Preço publicado: 30 € por pessoa. A compra dos bilhetes de jantar será disponibilizada no My CIRC.'}
                     </p>
                     <p>
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}
@@ -124,8 +128,8 @@ function Prices() {
                     <FiscalPriceNote en={en} />
                 </div>
                 <div className="price-simulator-link">
-                    <div><strong>{en ? 'Prefer a guided calculation?' : 'Prefere um cálculo guiado?'}</strong><span>{en ? 'Build a combination and see the estimated total immediately.' : 'Escolha as opções de participação e consulte o total estimado.'}</span></div>
-                    <Link to="/conta/inscricoes">{en ? 'Open simulator' : 'Abrir simulador'} <span aria-hidden="true">→</span></Link>
+                    <div><strong>{en ? 'Ready to register?' : 'Pronto para se inscrever?'}</strong><span>{en ? 'Review your details and the registration amount in My CIRC.' : 'Reveja os seus dados e o valor da inscrição no My CIRC.'}</span></div>
+                    <Link to="/conta/inscricoes">{en ? 'Register' : 'Inscrever-me'} <span aria-hidden="true">→</span></Link>
                 </div>
             </div>
         </section>

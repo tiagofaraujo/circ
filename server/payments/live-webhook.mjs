@@ -93,11 +93,16 @@ export function createLivePaymentWebhook({
       const registration=await store.registration();
       if(!registration.data||registration.data.isTest!==false||registration.data.testMode!==false||registration.data.status!=='submitted')return json({error:'registration_mismatch'},422);
       const ctx=await store.context(payment.quote?.selection?.profile);
-      const expected=quotePrimary(payment.quote.selection,{...ctx,emailVerified:true},null,new Date(`${paymentDate.date}T12:00:00Z`));
+      let expected; let eligibilityChanged=false;
+      try { expected=quotePrimary(payment.quote.selection,{...ctx,emailVerified:true},null,new Date(`${paymentDate.date}T12:00:00Z`)); }
+      catch (error) {
+        if (['checkout/uls-not-verified','checkout/student-not-approved'].includes(error.message)) eligibilityChanged=true;
+        else throw error;
+      }
       const cutoffAmbiguous=paymentDate.timezoneUnspecified&&['2027-01-31','2027-02-01'].includes(paymentDate.date);
-      if(cutoffAmbiguous||expected.amountCents!==event.amountCents){
+      if(eligibilityChanged||cutoffAmbiguous||expected.amountCents!==event.amountCents){
         const p={...payment,status:'review_required',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,
-          providerState:hint.providerState,reviewReason:cutoffAmbiguous?'payment-timezone-ambiguous':'payment-date-tariff-mismatch',updatedAt:now()};
+          providerState:hint.providerState,reviewReason:eligibilityChanged?'payment-eligibility-review':cutoffAmbiguous?'payment-timezone-ambiguous':'payment-date-tariff-mismatch',updatedAt:now()};
         const r={...registration.data,payment:{...registration.data.payment,status:'awaiting_confirmation',reference:event.reference},updatedAt:now()};
         await store.updatePendingProvider({orderId:event.id,payment:p,paymentVersion:located.version,registration:r,registrationVersion:registration.version});
         return json({received:true,reviewRequired:true});
@@ -110,7 +115,7 @@ export function createLivePaymentWebhook({
         providerState:hint.providerState,fiscalStatus:'pending',updatedAt:now()};
       const ent=expected.selection;
       const r={...registration.data,status:'confirmed',entitlements:{congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
-        payment:{status:'paid',amountCents:event.amountCents,currency:'EUR',method:'multibanco',reference:event.reference},updatedAt:now()};
+        payment:{orderId:event.id,status:'paid',amountCents:event.amountCents,currency:'EUR',method:'multibanco',reference:event.reference},updatedAt:now()};
       const job={id:event.id,eventId:'circ-2027',registrationId:payment.registrationId,userId:payment.userId,type:'invoice_receipt',
         environment:'production',status:'pending',provider:'toconline',externalReference:salesDocument.external_reference,amountCents:event.amountCents,
         paymentMethod:'multibanco',salesDocument,createdAt:now(),updatedAt:now()};

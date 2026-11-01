@@ -63,6 +63,11 @@ export function createWorker(verify = verifyFirebaseToken) {
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
+      if (env.CIRC_OPERATION_MODE === 'production' && (
+        /^\/api\/(?:payments\/sandbox|checkout\/sandbox|fiscal\/sandbox|payments\/stripe\/sandbox)(?:\/|$)/.test(pathname)
+        || pathname.startsWith('/api/fiscal/toconline/draft-test/')
+        || pathname === '/api/checkout/live/pilot-preview'
+      )) return json({ error: 'retired-endpoint' }, 410);
       const livePaymentResponse = await livePaymentWebhook(request, env);
       if (livePaymentResponse) return livePaymentResponse;
       const stripeResponse = await stripeWebhook(request, env);

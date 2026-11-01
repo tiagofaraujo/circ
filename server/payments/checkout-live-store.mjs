@@ -83,6 +83,7 @@ export function createCheckoutLiveStore({
       const rows = await call(`${endpoint}:runQuery`, 'POST', { structuredQuery: {
         from: [{ collectionId: 'payments' }],
         where: { compositeFilter: { op: 'AND', filters: [
+          { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } },
           { fieldFilter: { field: { fieldPath: 'registrationId' }, op: 'EQUAL', value: { stringValue: registrationId } } },
           { fieldFilter: { field: { fieldPath: 'environment' }, op: 'EQUAL', value: { stringValue: 'production' } } },
         ] } },

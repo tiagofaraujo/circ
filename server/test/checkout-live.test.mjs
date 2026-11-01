@@ -90,7 +90,7 @@ test('interactive recovery uses the verified administrator session rather than s
     storeFactory:({uid,token})=>{
       assert.equal(uid,claims.sub); assert.equal(token,'admin-session');
       return {registrationId:`circ-2027-${uid}`,registration:async()=>({data:f.registration()}),
-        primaryPayment:async()=>({id:ID,data:f.payment()})};
+        payment:async()=>({data:f.payment()}),primaryPayment:async()=>({id:ID,data:f.payment()})};
     },
   });
   const response=await api(new Request('https://circ.local/api/checkout/live/primary-order',
@@ -101,7 +101,7 @@ test('interactive recovery uses the verified administrator session rather than s
 
 test('recovery refuses other accounts, sandbox records, mismatched registrations and absent orders',async()=>{
   const participant=fixture({identity:{...claims,email:'participant@example.test'}});
-  assert.equal((await participant.call('/primary-order',undefined,env)).status,403);
+  assert.equal((await participant.call('/primary-order',undefined,env)).status,404);
   const absent=fixture(); assert.equal((await absent.call('/primary-order',undefined,env)).status,404);
   assert.equal(absent.providerCalls(),0);
   for(const [field,value] of [['userId','another-user'],['environment','sandbox'],['id','different-id'],
@@ -147,17 +147,17 @@ test('turning checkout off blocks creation but still allows an owner to recover 
   assert.equal(result.status,200); assert.equal((await result.json()).order.reference,'123456789');
   assert.equal(f.providerCalls(),1);
   f.payment().userId='another-user';
-  assert.equal((await f.call(`/orders/${ID}`,undefined,disabled)).status,404);
+  assert.equal((await f.call(`/orders/${ID}`,undefined,disabled)).status,200); // verified administrator may inspect another owner
 });
 
-test('public checkout retains its existing opening date and does not require pilot-only fields',async()=>{
+test('public checkout opens on 1 November and requires reviewed billing without pilot fields',async()=>{
   const identity={sub:'user1',email:'participant@example.test',email_verified:true};
   const early=fixture({identity});
   assert.equal((await early.call('/quote',{selection,pilotAcknowledged:true})).status,403);
   assert.equal(early.providerCalls(),0);
-  const opened=fixture({identity,date:'2026-11-15T12:00:00Z'});
+  const opened=fixture({identity,date:'2026-11-01T12:00:00Z'});
   const q=await(await opened.call('/quote',{selection})).json();
-  assert.equal((await opened.call('/orders',{id:ID,selection,stamp:q.stamp,method:'multibanco'})).status,201);
+  assert.equal((await opened.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,201);
   assert.equal(opened.providerCalls(),1);
 });
 
@@ -269,4 +269,59 @@ test('temporary authorization cannot create references at other legitimate serve
     assert.equal(response.status,409); assert.equal((await response.json()).error,'live-scope-not-enabled');
     assert.equal(f.providerCalls(),0); assert.equal(f.registration(),null);
   }
+});
+
+test('public owner recovers its persisted order with checkout closed and no administrative privilege',async()=>{
+ const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+ const q=await(await f.call('/quote',{selection})).json();
+ assert.equal((await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,201);
+ assert.equal(f.registration().payment.orderId,ID);
+ const r=await f.call('/primary-order',undefined,{...env,LIVE_CHECKOUT_ENABLED:'false'});
+ assert.equal(r.status,200); assert.equal((await r.json()).order.id,ID); assert.equal(f.providerCalls(),1);
+});
+
+test('public billing must match the reviewed snapshot before any provider request',async()=>{
+ const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+ const q=await(await f.call('/quote',{selection})).json(); f.profile().billingAddress='Alterada';
+ const r=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
+ assert.equal(r.status,409); assert.equal((await r.json()).error,'billing-preview-changed'); assert.equal(f.providerCalls(),0);
+});
+
+test('public activation requires callback and fiscal settings, not only the payment key',async()=>{
+ const f=fixture({date:'2026-11-01T12:00:00Z'});
+ for(const key of ['EUPAGO_LIVE_WEBHOOK_KEY','TOCONLINE_SESSION_KEY','TOCONLINE_OAUTH_CLIENT_SECRET']){
+  const r=await f.call('/config',undefined,{...env,[key]:''}); const config=await r.json(); assert.equal(config.enabled,false); assert.deepEqual(config.methods,[]);
+ }
+});
+
+test('a validated ULS attendee can obtain the existing catalogue rate in the public flow',async()=>{
+ const uid='uls-attendee', nameKey='pessoa nome', mec='1234';
+ const f=fixture({identity:{sub:uid,email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z',context:{
+  uls:{userId:uid,eventId:'circ-2027',status:'matched',method:'mec-name-match',mec,nameKey},
+  claim:{userId:uid,eventId:'circ-2027',method:'mec-name-match',mec,nameKey},roster:{active:true,eventId:'circ-2027',nameKey},
+ }});
+ const selected={...selection,profile:'uls'};
+ const response=await f.call('/quote',{selection:selected}); assert.equal(response.status,200);
+ const q=await response.json(); assert.equal(q.quote.amountCents,5500);
+ assert.equal((await f.call('/orders',{id:ID,selection:selected,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,201);
+ assert.equal(f.payment().amountCents,5500); assert.equal(f.providerCalls(),1);
+});
+
+test('an ordinary owner cannot inspect another participant payment',async()=>{
+ const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+ const q=await(await f.call('/quote',{selection})).json();
+ await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
+ f.payment().userId='another-participant';
+ assert.equal((await f.call(`/orders/${ID}`,undefined,{...env,LIVE_CHECKOUT_ENABLED:'false'})).status,404);
+});
+
+test('admin inspection offers fiscal resume only for a known authorization-blocked job',async()=>{
+ for(const [errorCode,expected] of [['toconline-reauthorize-required',true],['toconline-background-session-missing',true],['toconline-live-outcome-unknown',false]]){
+  const payment={id:ID,userId:'participant',registrationId:'circ-2027-participant',environment:'production',status:'paid',fiscalStatus:'pending_authorization',currency:'EUR',amountCents:5500,method:'multibanco'};
+  const api=createCheckoutLiveApi({verify:async()=>claims,tokenProvider:async()=>'service-token',storeFactory:()=>({
+   payment:async()=>({data:payment}),document:async()=>({data:{userId:'participant',registrationId:payment.registrationId,environment:'production',status:'pending_authorization',errorCode}}),
+  })});
+  const response=await api(new Request(`https://circ.local/api/checkout/live/orders/${ID}`,{headers:{Authorization:'Bearer admin-token'}}),{...env,LIVE_CHECKOUT_ENABLED:'false'});
+  assert.equal(response.status,200);assert.equal((await response.json()).order.canResumeFiscal,expected);
+ }
 });

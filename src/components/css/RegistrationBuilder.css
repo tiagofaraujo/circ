@@ -1170,3 +1170,10 @@
 }
 .registration-invoice h3 { font-size: 1.1rem; }
 .registration-invoice .button { margin: 0; }
+
+.registration-unavailable-options { border: 0; padding: 1rem 0 0; }
+.registration-unavailable-options legend { font-size: 0.9rem; font-weight: 650; }
+.registration-unavailable-options label { display: block; margin: 0.7rem 0; color: #56576a; }
+.registration-checkout { margin-top: 1.5rem; }
+.registration-checkout label { display: block; margin: 1rem 0; font-size: 0.9rem; }
+.registration-checkout button { margin: 0.5rem 0; }

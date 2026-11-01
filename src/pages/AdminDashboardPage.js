@@ -6,11 +6,11 @@ import {
   subscribeToRegistrationNotes,
   subscribeToRegistrations,
   updateRegistrationNote,
-  resetDesignatedParticipantRegistration,
 } from '../auth/adminStore';
 import { subscribeToUserStats } from '../auth/presenceStore';
 import AdminModuleNav from '../components/AdminModuleNav';
 import RegistrationRefund from '../components/RegistrationRefund';
+import RegistrationFiscalStatus from '../components/RegistrationFiscalStatus';
 import '../admin.css';
 import '../adminOperations.css';
 
@@ -83,7 +83,6 @@ export default function AdminDashboardPage() {
   const [noteDrafts, setNoteDrafts] = useState({});
   const [userStats, setUserStats] = useState({ total: null, online: null });
   const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
-  const [resettingId, setResettingId] = useState('');
 
   useEffect(() => subscribeToRegistrations(
     (items) => {
@@ -154,19 +153,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const resetParticipantRegistration = async (registration) => {
-    const email = String(registration.participantEmail || '').trim().toLowerCase();
-    if (email !== 'araujotiagofc@gmail.com') return;
-    const confirmed = window.confirm('Apagar a inscrição CIRC 2027 desta conta de teste e os registos associados? O perfil My CIRC será mantido.');
-    if (!confirmed) return;
-    setResettingId(registration.id); setError('');
-    try {
-      await resetDesignatedParticipantRegistration(user, registration);
-    } catch {
-      setError('Não foi possível limpar a inscrição desta conta de teste.');
-    } finally { setResettingId(''); }
-  };
-
   const handleSignOut = async () => {
     await signOut();
     navigate('/login', { replace: true });
@@ -183,7 +169,7 @@ export default function AdminDashboardPage() {
         <div className="admin-session">
           <span>Administrador verificado</span>
           <strong>{user?.email}</strong>
-          <Link className="admin-test-link" to="/conta/inscricoes">Testar uma inscrição →</Link>
+          <Link className="admin-test-link" to="/conta/inscricoes">Consultar inscrições →</Link>
           <button type="button" onClick={handleSignOut}>Terminar sessão</button>
         </div>
       </header>
@@ -255,7 +241,7 @@ export default function AdminDashboardPage() {
                   return (
                   <tr key={item.id}>
                     <td>
-                      {item.isTest && <span className="admin-test-badge">TESTE</span>}
+
                       <strong>{item.participantName || 'Sem nome'}</strong>
                       <span>{item.participantEmail || '—'}</span>
                       <small>{item.id}</small>
@@ -282,6 +268,7 @@ export default function AdminDashboardPage() {
                       </span>
                       <small>{item.payment?.method || 'Método não indicado'}</small>
                       <RegistrationRefund user={user} registration={item} />
+                      <RegistrationFiscalStatus registration={item} />
                     </td>
                     <td><strong>{formatMoney(item.payment?.amountCents, item.payment?.currency)}</strong><small>{item.payment?.reference || 'Sem referência'}</small></td>
                     <td><span>{formatDate(item.updatedAt || item.createdAt)}</span><small>{Number(item.documentCount || 0)} documento(s)</small></td>
@@ -302,11 +289,7 @@ export default function AdminDashboardPage() {
                         <button type="button" onClick={() => saveRegistrationNote(item)} disabled={!noteChanged || noteSaving}>
                           {noteSaving ? 'A guardar…' : noteChanged ? 'Guardar' : 'Guardado'}
                         </button>
-                        {String(item.participantEmail || '').trim().toLowerCase() === 'araujotiagofc@gmail.com' && (
-                          <button type="button" className="admin-danger" onClick={() => resetParticipantRegistration(item)} disabled={resettingId === item.id}>
-                            {resettingId === item.id ? 'A limpar…' : 'Limpar inscrição de teste'}
-                          </button>
-                        )}
+
                       </div>
                     </td>
                   </tr>
