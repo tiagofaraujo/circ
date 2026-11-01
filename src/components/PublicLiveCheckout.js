@@ -168,7 +168,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     recover();
     configuration();
     return () => { active.current = false; controller.abort(); };
-    // Recovery runs once for the signed-in account and its registration.
+    // Recover again when the subscription points to a different active order.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, registration?.id, registration?.payment?.orderId]);
   useEffect(() => { setPreview(null); setConfirmed(false); }, [paymentKey]);
