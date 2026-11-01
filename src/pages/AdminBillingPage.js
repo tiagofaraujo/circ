@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import AdminModuleNav from '../components/AdminModuleNav';
+import StripeProductionSetup from '../components/StripeProductionSetup';
 import '../admin.css';
 import './AdminBillingPage.css';
 
@@ -108,6 +109,8 @@ export default function AdminBillingPage() {
       </>}
       <Link to="/admin">{t('Consultar inscrições e pagamentos', 'View registrations and payments')}</Link>
     </section>
+
+    {payments && <StripeProductionSetup diagnostics={payments.stripe || null} />}
 
     <section aria-labelledby="billing-toconline-title" className="admin-billing__panel">
       <h2 id="billing-toconline-title">{t('Ligação TOConline', 'TOConline connection')}</h2>

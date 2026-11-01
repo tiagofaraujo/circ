@@ -601,3 +601,151 @@ test('a historical-order creation refusal also requires the explicit marker and 
  expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
 });
+
+const STRIPE_ID='cs_live_checkoutSession12345';
+const STRIPE_URL=`https://checkout.stripe.com/c/pay/${STRIPE_ID}#stripe-hosted-checkout`;
+const stripeOrder={...order,kind:'primary',method:'stripe_card',reference:STRIPE_ID,entity:null,
+ stripe:{id:STRIPE_ID,url:STRIPE_URL,expiresAt:1793620800,status:'open',paymentStatus:'unpaid'}};
+test('Stripe is one server-enabled method and creates only an acknowledged hosted payment with the UUID retained',async()=>{
+ configuration.methods=['stripe_card'];
+ transport.mockResolvedValueOnce(response(preview)).mockImplementationOnce(async()=>{
+  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);return response({order:stripeOrder});
+ });
+ show();await ready();expect(screen.getAllByRole('radio')).toHaveLength(1);
+ expect(screen.getByRole('radio',{name:'Cartão (Stripe)'})).toBeChecked();
+ expect(screen.queryByRole('button',{name:/Apple Pay|Google Pay|PayPal|Klarna|Revolut/i})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ const create=await screen.findByRole('button',{name:'Preparar pagamento na Stripe'});expect(create).toBeDisabled();
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(create);fireEvent.click(create);
+ const link=await screen.findByRole('link',{name:'Pagar na Stripe'});
+ expect(link).toHaveAttribute('href',STRIPE_URL);expect(link).toHaveAttribute('referrerpolicy','no-referrer');
+ expect(link).toHaveAttribute('rel','noopener noreferrer');
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({id:ID,selection,stamp:preview.stamp,billingStamp:preview.billingStamp,method:'stripe_card'});
+ expect(transport).toHaveBeenCalledTimes(2);expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+});
+test('a hidden Stripe method has no card option until the server advertises it',async()=>{
+ show();await ready();expect(screen.queryByRole('radio',{name:'Cartão (Stripe)'})).not.toBeInTheDocument();
+ expect(screen.queryByText(/carteiras digitais disponíveis/)).not.toBeInTheDocument();
+});
+test.each([
+ // eslint-disable-next-line no-script-url -- Untrusted URL fixture must be rejected.
+ 'javascript:alert(1)',`http://checkout.stripe.com/c/pay/${STRIPE_ID}`,`https://checkout.stripe.com.evil.invalid/c/pay/${STRIPE_ID}`,
+ `https://user@checkout.stripe.com/c/pay/${STRIPE_ID}`,`https://checkout.stripe.com:444/c/pay/${STRIPE_ID}`,
+ `https://payments.circ-coimbra.org/c/pay/${STRIPE_ID}`,'https://checkout.stripe.com/c/pay/cs_test_checkoutSession12345',
+ 'https://checkout.stripe.com/c/pay/cs_live_differentSession12345',`https://checkout.stripe.com/c/pay/${STRIPE_ID}/extra`,
+ `https://checkout.stripe.com/c/pay/${STRIPE_ID}?redirect=https://example.com`,
+])('unsafe or mismatched Stripe URL %s is never offered and never permits another order',async url=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:{...stripeOrder,stripe:{...stripeOrder.stripe,url}}}));
+ show();expect(await screen.findByRole('alert')).toHaveTextContent('endereço seguro');
+ expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.queryByRole('button',{name:'Preparar pagamento na Stripe'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('Stripe session reference must match the hosted link session',async()=>{
+ transport.mockResolvedValueOnce(response({order:{...stripeOrder,reference:'cs_live_differentSession12345'}}));
+ show({registration:{id:'registration',payment:{orderId:ID}}});
+ await screen.findByRole('alert');expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+test('an existing pending Stripe payment can be resumed without creating a new session',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);transport.mockResolvedValueOnce(response({order:stripeOrder}));
+ show();expect(await screen.findByRole('link',{name:'Pagar na Stripe'})).toHaveAttribute('href',STRIPE_URL);
+ expect(transport).toHaveBeenCalledTimes(1);expect(transport.mock.calls[0][1].method).toBe('GET');
+});
+test.each(['return','cancel','success&payment_status=paid'])('Stripe return query %s neither confirms nor cancels or creates a payment',async outcome=>{
+ localStorage.setItem('circ-production-order:user',ID);transport.mockResolvedValueOnce(response({order:stripeOrder}));
+ render(<MemoryRouter initialEntries={[`/conta/inscricoes?stripe=${outcome}&order=${ID}`]}><PublicLiveCheckout user={user} selection={selection} eligible/></MemoryRouter>);
+ await screen.findByText('A aguardar pagamento');expect(screen.queryByText('Pagamento confirmado')).not.toBeInTheDocument();
+ expect(screen.getByRole('link',{name:'Pagar na Stripe'})).toHaveAttribute('href',STRIPE_URL);
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+test('a lost Stripe creation response retains its UUID and recovers the same hosted session',async()=>{
+ configuration.methods=['stripe_card'];transport.mockResolvedValueOnce(response(preview)).mockRejectedValueOnce(new Error('lost'))
+  .mockResolvedValueOnce(response({order:stripeOrder}));
+ const view=show();await ready();await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Preparar pagamento na Stripe'}));
+ await screen.findByRole('alert');expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ view.unmount();show();await screen.findByRole('link',{name:'Pagar na Stripe'});
+ expect(transport.mock.calls.at(-1)[0]).toBe(`/api/checkout/live/orders/${ID}`);
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+});
+test('explicit Stripe reconciliation reads the existing payment without claiming paid from a complete session alone',async()=>{
+ transport.mockResolvedValueOnce(response({order:stripeOrder})).mockResolvedValueOnce(response({order:{...stripeOrder,stripe:{...stripeOrder.stripe,status:'complete',paymentStatus:'paid',url:null}}}));
+ show({registration:{id:'registration',payment:{orderId:ID}}});
+ const inspect=await screen.findByRole('button',{name:'Consultar pedido na Stripe'});
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+ fireEvent.click(inspect);fireEvent.click(inspect);
+ await screen.findByText(/A conclusão deste pagamento está a ser confirmada/);
+ expect(screen.getByText('A aguardar pagamento')).toBeInTheDocument();
+ expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+ expect(transport.mock.calls[1][0]).toBe(`/api/checkout/live/orders/${ID}/stripe-reconcile`);
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({});expect(transport).toHaveBeenCalledTimes(2);
+});
+test('failed Stripe inspection retains the original payment and prevents a new session',async()=>{
+ transport.mockResolvedValueOnce(response({order:stripeOrder})).mockRejectedValueOnce(new Error('offline'));
+ show({registration:{id:'registration',payment:{orderId:ID}}});fireEvent.click(await screen.findByRole('button',{name:'Consultar pedido na Stripe'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('não crie outro pagamento');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.queryByRole('button',{name:'Preparar pagamento na Stripe'})).not.toBeInTheDocument();
+});
+test.each(['expired','cancelled'])('a server-closed Stripe request %s has no payment link or general retry',async status=>{
+ transport.mockResolvedValueOnce(response({order:{...stripeOrder,status,canRetry:true,stripe:{...stripeOrder.stripe,status:'expired'}}}));
+ show({registration:{id:'registration',payment:{orderId:ID}}});await screen.findByText(/Este pedido foi encerrado/);
+ expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Preparar nova tentativa de pagamento'})).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+test('a passed Stripe deadline does not expire or replace an open session in the browser',async()=>{
+ jest.useFakeTimers();
+ try{
+  transport.mockResolvedValue(response({order:{...stripeOrder,stripe:{...stripeOrder.stripe,expiresAt:946684800}}}));
+  show({registration:{id:'registration',payment:{orderId:ID}}});await screen.findByText(/Prazo indicado pela Stripe/);
+  await act(async()=>{jest.advanceTimersByTime(15000);});
+  expect(screen.getByText('A aguardar pagamento')).toBeInTheDocument();
+  expect(screen.getByRole('link',{name:'Pagar na Stripe'})).toBeInTheDocument();
+  expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+ }finally{jest.useRealTimers();}
+});
+test('a confirmed Stripe payment never offers payment again and polls the pending receipt until issued',async()=>{
+ jest.useFakeTimers();
+ try{
+  const paid={...stripeOrder,status:'paid',paidAt:'2026-11-01T12:00:00Z',fiscalStatus:'pending',stripe:{...stripeOrder.stripe,status:'complete',paymentStatus:'paid',url:null}};
+  transport.mockResolvedValueOnce(response({order:paid})).mockResolvedValueOnce(response({order:{...paid,fiscalStatus:'issued',fiscalDocumentNo:'FR CIRC2027/Stripe'}}));
+  show({registration:{id:'registration',payment:{orderId:ID}}});
+  await screen.findByText(/A fatura-recibo está em processamento/);
+  expect(screen.getByText('Pagamento confirmado')).toBeInTheDocument();
+  expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+  await act(async()=>{jest.advanceTimersByTime(5000);});await screen.findByText('FR CIRC2027/Stripe');
+  const reads=transport.mock.calls.length;await act(async()=>{jest.advanceTimersByTime(15000);});
+  expect(transport).toHaveBeenCalledTimes(reads);expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+ }finally{jest.useRealTimers();}
+});
+test('a paid Stripe order in fiscal review remains confirmed with no payment or resume session link',async()=>{
+ transport.mockResolvedValueOnce(response({order:{...stripeOrder,status:'paid',fiscalStatus:'review_required'}}));
+ show({registration:{id:'registration',payment:{orderId:ID}}});await screen.findByText('Pagamento confirmado');
+ expect(screen.getByText(/A fatura-recibo está pendente de conferência pela organização/)).toBeInTheDocument();
+ expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Consultar pedido na Stripe'})).not.toBeInTheDocument();
+});
+test('supplementary Stripe checkout keeps its independent UUID and the original paid registration handle',async()=>{
+ configuration.methods=['stripe_card'];localStorage.setItem('circ-production-order:user',PRIMARY_ID);
+ transport.mockResolvedValueOnce(response({error:'not-found'},false,404)).mockResolvedValueOnce(response(secondaryPreview))
+  .mockResolvedValueOnce(response({order:{...stripeOrder,kind:'supplementary',amountCents:6500}}));
+ showSupplement();await ready();await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Preparar pagamento na Stripe'}));
+ await screen.findByRole('link',{name:'Pagar na Stripe'});
+ expect(transport.mock.calls[2][0]).toBe('/api/checkout/live/supplementary/orders');
+ expect(JSON.parse(transport.mock.calls[2][1].body)).toMatchObject({id:ID,method:'stripe_card',selection:secondarySelection});
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+ expect(localStorage.getItem('circ-production-supplementary-order:user')).toBe(ID);
+});
+test('a historical Stripe order still requires the explicit archive marker and an empty canonical lookup before release',async()=>{
+ localStorage.setItem('circ-production-order:user',ID);
+ transport.mockResolvedValueOnce(response({order:{...stripeOrder,status:'paid',historicalRegistration:true}}))
+  .mockResolvedValueOnce(response({error:'not-found'},false,404));
+ show();await ready();expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+ expect(transport.mock.calls[1][0]).toBe('/api/checkout/live/primary-order');
+ expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});

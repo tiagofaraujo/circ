@@ -118,3 +118,11 @@ test('MB WAY uses the documented generic OU category with explicit provider note
   assert.equal(LIVE_PAYMENT_MAPPING_REGISTRY.mappings.mbway.salesApiValidated,false);
   assert.equal(LIVE_PAYMENT_MAPPING_REGISTRY.mappings.mbway.sources.length,2);
 });
+
+test('Stripe fiscal payload distinguishes verified credit and debit and rejects unclassified funding',()=>{
+  for(const [cardFunding,mechanism] of [['credit','CC'],['debit','DC']]){
+    const payload=buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method:'stripe_card',cardFunding});
+    assert.equal(payload.payment_mechanism,mechanism);assert.match(payload.notes,/Cartão via Stripe/);assert.deepEqual(payload.lines,build(quote).lines);
+  }
+  for(const cardFunding of [undefined,'unknown','prepaid','CC','__proto__'])assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method:'stripe_card',cardFunding}),/payment-mechanism-unconfirmed/);
+});

@@ -29,7 +29,8 @@ export function createLiveInvoicePdfApi({ verify, storeFactory = createCheckoutL
       if (!p || !d || p.userId !== claims.sub || d.userId !== claims.sub) return reply('not-found', 404);
       const matchingProvider = p.provider === 'internal_bank_transfer'
         ? p.method === 'bank_transfer' && d.paymentMethod === 'bank_transfer'
-        : p.provider === 'eupago' && p.method !== 'bank_transfer' && d.paymentMethod !== 'bank_transfer';
+        :p.provider==='stripe'?p.method==='stripe_card'&&d.paymentMethod==='stripe_card'
+        :p.provider === 'eupago' && p.method !== 'bank_transfer' && p.method!=='stripe_card' && d.paymentMethod !== 'bank_transfer'&&d.paymentMethod!=='stripe_card';
       if (p.id !== id || d.id !== id || p.environment !== 'production' || d.environment !== 'production'
         || p.eventId !== 'circ-2027' || d.eventId !== 'circ-2027' || p.registrationId !== store.registrationId
         || d.registrationId !== p.registrationId || !matchingProvider || d.provider !== 'toconline'

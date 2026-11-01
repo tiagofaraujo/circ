@@ -48,9 +48,10 @@ function validateSource(quote) {
 // Uses the existing catalogue and fiscal policy. Prices are gross values; the
 // TOConline API applies each line's explicit ISE/NOR framing. The API documents
 // the exemption reason on the header, required when any line is exempt.
-export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, method, bankAccountId }) {
+export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, method, bankAccountId, cardFunding }) {
   validateSource(quote);
-  const mechanism = Object.hasOwn(LIVE_FISCAL_PAYMENT_MECHANISMS,method) ? LIVE_FISCAL_PAYMENT_MECHANISMS[method] : null;
+  const mechanism = method==='stripe_card'?(cardFunding==='credit'?'CC':cardFunding==='debit'?'DC':null)
+    :Object.hasOwn(LIVE_FISCAL_PAYMENT_MECHANISMS,method) ? LIVE_FISCAL_PAYMENT_MECHANISMS[method] : null;
   if (!mechanism) fail('payment-mechanism-unconfirmed');
   if (method === 'bank_transfer' ? !Number.isSafeInteger(bankAccountId) || bankAccountId <= 0 : bankAccountId !== undefined) fail('bank-account-unconfirmed');
   const date = new Date(`${paymentDate}T00:00:00Z`);
@@ -78,7 +79,7 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
   const notes=legacyOnsite?'CIRC 2027 — inscrição presencial':quote.kind==='supplementary'?'CIRC 2027 — pedido complementar':'CIRC 2027 — inscrição';
   return { document_type: 'FR', document_series_id: policy.series.id, date: paymentDate, due_date: paymentDate,
     currency_iso_code: 'EUR', ...billing.customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
-    notes: method==='mbway'?`${notes} · MB WAY via EuPago`:notes,
+    notes: method==='mbway'?`${notes} · MB WAY via EuPago`:method==='stripe_card'?`${notes} · Cartão via Stripe`:notes,
     vat_included_prices: true, payment_mechanism: mechanism,
     ...(method === 'bank_transfer' ? { bank_account_id: bankAccountId } : {}),
     ...(lines.some(line => line.tax_code === 'ISE') ? { tax_exemption_reason_id: policy.exemption.id } : {}), lines };

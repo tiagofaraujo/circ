@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RegistrationFiscalStatus from './RegistrationFiscalStatus';
 import { useAuth } from '../auth/AuthContext';
@@ -127,4 +127,38 @@ test('a paid MB WAY order with fiscal review stays confirmed and offers no fisca
  expect(screen.getByRole('status')).toHaveTextContent('Faturação requer conferência');
  expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
  expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+const stripeReview={...pending,method:'stripe_card',fiscalStatus:'review_required',fiscalResumeReason:'stripe-instrument',canResumeFiscal:true};
+test('a server-authorized Stripe instrument review requires explicit confirmation without TOConline renewal',async()=>{
+ fetch.mockResolvedValueOnce(response(stripeReview)).mockResolvedValueOnce(response({...stripeReview,fiscalStatus:'issued',canResumeFiscal:false,fiscalDocumentNo:'FR CIRC2027/Stripe'}));
+ show({...registration,payment:{...registration.payment,method:'stripe_card'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Retomar faturação autorizada'}));
+ expect(screen.getByText(/Confira as permissões de leitura da Stripe/)).toBeInTheDocument();
+ expect(screen.queryByText(/Renove primeiro a ligação ao TOConline/)).not.toBeInTheDocument();
+ const confirm=screen.getByRole('button',{name:'Confirmar retoma'});expect(confirm).toBeDisabled();
+ fireEvent.click(screen.getByRole('checkbox',{name:'Conferi as permissões de leitura da Stripe e pretendo consultar este pagamento para concluir a faturação.'}));
+ fireEvent.click(confirm);fireEvent.click(confirm);await screen.findByText(/FR CIRC2027\/Stripe/);
+ expect(fetch.mock.calls.filter(([,options])=>options.method==='POST')).toHaveLength(1);
+ expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({confirmation:'RETOMAR FATURACAO AUTORIZADA'});
+});
+test.each([
+ {canResumeFiscal:false},{canResumeFiscal:undefined},{fiscalResumeReason:undefined},{fiscalResumeReason:'unapproved'},
+ {method:'mbway'},{status:'pending'},
+])('Stripe review without the exact server permission/reason remains read-only (%j)',async change=>{
+ fetch.mockResolvedValueOnce(response({...stripeReview,...change}));
+ show({...registration,payment:{...registration.payment,method:'stripe_card'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));await screen.findByRole('status');
+ expect(screen.queryByRole('button',{name:'Retomar faturação autorizada'})).not.toBeInTheDocument();
+ expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('a Stripe instrument that remains unresolved never claims a receipt was issued',async()=>{
+ fetch.mockResolvedValueOnce(response(stripeReview)).mockResolvedValueOnce(response({...stripeReview,canResumeFiscal:false}));
+ show({...registration,payment:{...registration.payment,method:'stripe_card'}});
+ fireEvent.click(screen.getByRole('button',{name:'Consultar faturação'}));fireEvent.click(await screen.findByRole('button',{name:'Retomar faturação autorizada'}));
+ fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(screen.getByRole('button',{name:'Confirmar retoma'}));
+ await waitFor(()=>expect(screen.queryByRole('button',{name:'Confirmar retoma'})).not.toBeInTheDocument());
+ await screen.findByText('Pagamento confirmado. A fatura-recibo está pendente de conferência pela organização.');
+ expect(screen.queryByText('Fatura-recibo emitida')).not.toBeInTheDocument();
+ expect(fetch.mock.calls.filter(([,options])=>options.method==='POST')).toHaveLength(1);
 });

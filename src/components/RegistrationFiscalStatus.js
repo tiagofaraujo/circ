@@ -11,7 +11,7 @@ export default function RegistrationFiscalStatus({ registration }) {
   const pendingId = registration.fiscalPendingOrderId;
   const id = pendingId || registration.payment?.orderId;
   if (!isAdmin || registration.isTest === true || registration.testMode === true
-    || (!pendingId && !['multibanco', 'mbway', 'bank_transfer'].includes(registration.payment?.method))) return null;
+    || (!pendingId && !['multibanco', 'mbway', 'bank_transfer', 'stripe_card'].includes(registration.payment?.method))) return null;
   if (!UUID.test(id || '')) return pendingId ? <small>Referência do pedido fiscal por conferir</small>
     : registration.documentCount > 0 ? <small>Documento fiscal emitido</small> : null;
   return <RegistrationFiscalOrder key={id} id={id} user={user} registration={registration}
@@ -45,7 +45,8 @@ function RegistrationFiscalOrder({ id, user, registration, supplementary }) {
     finally { working.current = false; setBusy(false); }
   }
   const authorizationRequired = order?.fiscalStatus === 'pending_authorization';
-  const resumable = order?.status === 'paid' && ['pending_authorization', 'pending'].includes(order.fiscalStatus) && order.canResumeFiscal === true;
+  const stripeInstrumentRequired = order?.method === 'stripe_card' && order.fiscalStatus === 'review_required' && order.fiscalResumeReason === 'stripe-instrument';
+  const resumable = order?.status === 'paid' && (['pending_authorization', 'pending'].includes(order.fiscalStatus) || stripeInstrumentRequired) && order.canResumeFiscal === true;
   async function resume(event) {
     event.preventDefault();
     if (working.current || attempted || !resumable || !confirmed) return;
@@ -61,10 +62,10 @@ function RegistrationFiscalOrder({ id, user, registration, supplementary }) {
     {order?.status === 'paid' && order.fiscalStatus === 'review_required' && <p>Pagamento confirmado. A fatura-recibo está pendente de conferência pela organização.</p>}
     <button type="button" onClick={refresh} disabled={busy}>Consultar faturação</button>
     {resumable && <>
-      {authorizationRequired ? <p>Renove primeiro a ligação ao TOConline em <Link to="/admin/faturacao">Faturação</Link>.</p> : <p>Emissão ainda não iniciada; confirme para retomar.</p>}
+      {authorizationRequired ? <p>Renove primeiro a ligação ao TOConline em <Link to="/admin/faturacao">Faturação</Link>.</p> : stripeInstrumentRequired ? <p>Confira as permissões de leitura da Stripe em <Link to="/admin/faturacao">Faturação</Link> e confirme para voltar a consultar o meio de pagamento antes de concluir a fatura-recibo.</p> : <p>Emissão ainda não iniciada; confirme para retomar.</p>}
       {!open ? <button type="button" disabled={busy || attempted} onClick={() => setOpen(true)}>Retomar faturação autorizada</button> : <form onSubmit={resume} aria-label="Confirmar retoma da faturação">
-        <p>Emitir a fatura-recibo definitiva de <strong>{(order.amountCents / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</strong> para este pagamento já confirmado.</p>
-        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy || attempted} />{authorizationRequired ? 'Confirmei a renovação da ligação TOConline e pretendo retomar esta emissão.' : 'Conferi este pagamento confirmado e pretendo retomar a emissão da fatura-recibo.'}</label>
+        <p>{stripeInstrumentRequired ? 'Consultar novamente o meio de pagamento e concluir, se a confirmação permitir, a fatura-recibo de ' : 'Emitir a fatura-recibo definitiva de '}<strong>{(order.amountCents / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</strong> para este pagamento já confirmado.</p>
+        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy || attempted} />{authorizationRequired ? 'Confirmei a renovação da ligação TOConline e pretendo retomar esta emissão.' : stripeInstrumentRequired ? 'Conferi as permissões de leitura da Stripe e pretendo consultar este pagamento para concluir a faturação.' : 'Conferi este pagamento confirmado e pretendo retomar a emissão da fatura-recibo.'}</label>
         <button type="submit" disabled={busy || attempted || !confirmed}>Confirmar retoma</button>
         <button type="button" disabled={busy} onClick={() => setOpen(false)}>Fechar</button>
       </form>}

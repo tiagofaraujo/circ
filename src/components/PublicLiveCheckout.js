@@ -3,8 +3,17 @@ import { Link } from 'react-router-dom';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const stamp = value => /^[a-f0-9]{64}$/.test(value || '');
-const knownMethods = ['multibanco', 'mbway', 'bank_transfer'];
-const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'] };
+const knownMethods = ['multibanco', 'mbway', 'bank_transfer', 'stripe_card'];
+const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'], stripe_card:['Cartão (Stripe)', 'Card (Stripe)'] };
+const stripeSession = value => /^cs_live_[A-Za-z0-9]{8,240}$/.test(value || '');
+function stripeCheckoutUrl(order) {
+  if (!stripeSession(order.stripe?.id) || order.stripe.id !== order.reference) return null;
+  try {
+    const url = new URL(order.stripe.url);
+    return url.origin === 'https://checkout.stripe.com' && !url.username && !url.password && !url.search
+      && [`/c/pay/${order.stripe.id}`, `/pay/${order.stripe.id}`].includes(url.pathname) ? url.href : null;
+  } catch { return null; }
+}
 const normalizedPhone = value => String(value || '').replace(/[\s().-]/g, '').match(/^(?:(?:\+|00)?351)?(9\d{8})$/)?.[1] || '';
 const canRetryOrder = order => order?.method === 'mbway' && ['expired', 'cancelled'].includes(order.status)
   && order.canRetry === true && order.historicalRegistration !== true && !order.replacementOrderId && !order.paidAt && !order.fiscalDocumentId;
@@ -15,7 +24,7 @@ const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-change
 const states = { pending: ['A aguardar pagamento', 'Awaiting payment'], creating: ['Pedido em processamento', 'Order processing'],
   creation_unknown: ['Pedido por confirmar', 'Order needs checking'], creation_failed: ['Criação recusada — contacte a organização', 'Creation rejected — contact the organisers'],
   paid: ['Pagamento confirmado', 'Payment confirmed'], review_required: ['Pagamento em conferência pela organização', 'Payment under organiser review'],
-  refunded: ['Reembolso registado', 'Refund recorded'], cancelled: ['Pedido cancelado', 'Order cancelled'], expired: ['Pedido MB WAY expirado', 'MB WAY request expired'] };
+  refunded: ['Reembolso registado', 'Refund recorded'], cancelled: ['Pedido cancelado', 'Order cancelled'], expired: ['Pedido expirado', 'Request expired'] };
 const messages = {
   'invalid-session': ['A sessão expirou. Volte a iniciar sessão antes de continuar.', 'Your session expired. Sign in again before continuing.'],
   'verified-email-required': ['Confirme primeiro o email da sua conta.', 'Verify your account email first.'],
@@ -287,6 +296,16 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     } catch { if (active.current) setError(t('Não foi possível confirmar o estado do pedido MB WAY. Mantenha este pedido e consulte novamente ou contacte a organização; não envie outro pagamento.', 'The MB WAY request status could not be confirmed. Keep this order and check again or contact the organisers; do not send another payment.')); }
     finally { working.current = false; if (active.current) setBusy(false); }
   }
+  async function reconcileStripe() {
+    if (working.current || busy || order?.method !== 'stripe_card' || !['pending', 'creation_unknown'].includes(order.status) || !stripeSession(order.reference)) return;
+    working.current = true; setBusy(true); setError('');
+    try {
+      const result = await request(`/orders/${order.id}/stripe-reconcile`, {});
+      const current = await resolveActiveOrder(result.order, order.id);
+      if (active.current && current) { acceptOrder(current); setRecoveryBlocked(false); }
+    } catch { if (active.current) setError(t('Não foi possível consultar este pagamento na Stripe. Mantenha o pedido e tente consultar novamente ou contacte a organização; não crie outro pagamento.', 'This Stripe payment could not be checked. Keep this order and check again or contact the organisers; do not create another payment.')); }
+    finally { working.current = false; if (active.current) setBusy(false); }
+  }
   function prepareRetry() {
     if (working.current || busy || !canRetryOrder(order)) return;
     const source = order.id;
@@ -301,6 +320,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const bank = order?.method === 'bank_transfer' ? order.bankTransfer : null;
   const bankPending = bank && ['pending', 'review_required'].includes(order.status);
   const canReportBankTransfer = bankPending && ['awaiting_transfer', 'rejected'].includes(bank.status);
+  const stripe = order?.method === 'stripe_card' ? order.stripe : null;
+  const stripeOpen = order?.method === 'stripe_card' && order.status === 'pending' && stripe?.status === 'open' && stripe.paymentStatus === 'unpaid' && !order.paidAt;
+  const checkoutUrl = stripeOpen ? stripeCheckoutUrl(order) : null;
+  const stripeDeadline = Number.isSafeInteger(stripe?.expiresAt) && stripe.expiresAt > 0 ? new Date(stripe.expiresAt * 1000) : null;
 
   async function copyPaymentText(value, name) {
     setCopyMessage('');
@@ -333,6 +356,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <input type="tel" inputMode="tel" autoComplete="tel-national" value={phone} maxLength="20" placeholder="+351 9XXXXXXXX" disabled={busy} onChange={event => setPhone(event.target.value)} />
         <small>{t('Número português com 9 algarismos. Pode incluir +351. Receberá o pedido na aplicação MB WAY.', 'A nine-digit Portuguese number, optionally with +351. The request will arrive in the MB WAY app.')}</small>
       </label>}
+      {method === 'stripe_card' && methods.includes('stripe_card') && <p>{t('O pagamento é concluído no checkout seguro da Stripe. Os cartões e as carteiras digitais disponíveis são apresentados aí, de acordo com a conta e o dispositivo.', 'Payment is completed in secure Stripe Checkout. Available cards and digital wallets are shown there according to the account and device.')}</p>}
       {!configBusy && methods.length === 0 && <p role="alert">{configFailed ? t('Não foi possível consultar os meios de pagamento. Atualize a página antes de criar um pedido.', 'Payment methods could not be loaded. Refresh this page before creating an order.') : t('Os pagamentos estão temporariamente indisponíveis.', 'Payments are temporarily unavailable.')}</p>}
       <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
         : method === 'bank_transfer'
@@ -346,7 +370,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
           <dt>{t('Código postal e localidade', 'Postcode and city')}</dt><dd>{customer.customer_postcode} · {customer.customer_city}</dd><dt>{t('País', 'Country')}</dt><dd>{customer.customer_country}</dd></dl>
         <p>{t('Meio de pagamento', 'Payment method')}: <strong>{methodLabel}</strong>{method === 'mbway' ? ` · +351 ${phoneValue}` : ''}</p>
         <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} /> {t('Conferi o valor, os dados de faturação e o meio de pagamento e pretendo criar este pedido.', 'I reviewed the amount, billing details and payment method and want to create this order.')}</label>
-        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !paymentReady}>{method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
+        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !paymentReady}>{method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : method === 'stripe_card' ? t('Preparar pagamento na Stripe', 'Prepare Stripe payment') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
       </div>}
     </>}
     {id && <>
@@ -364,6 +388,15 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <p>{t('Se o prazo terminar, consulte este pedido na MB WAY antes de tentar outro pagamento. Esta consulta verifica o pedido existente e não envia um novo pedido de pagamento.', 'If the deadline passes, check this request with MB WAY before attempting another payment. This checks the existing request and does not send a new payment request.')}</p>
       </div>}
       {order.method === 'mbway' && ['pending', 'creation_unknown'].includes(order.status) && Boolean(order.reference) && <button type="button" disabled={busy} onClick={reconcileMbway}>{t('Consultar pedido na MB WAY', 'Check request with MB WAY')}</button>}
+      {order.method === 'stripe_card' && <section aria-label={t('Pagamento na Stripe', 'Stripe payment')}>
+        {order.status === 'pending' && <p>{t('Use o mesmo pedido para concluir o pagamento. Voltar ao My CIRC ou fechar o checkout não confirma nem cancela o pagamento.', 'Use the same order to complete payment. Returning to My CIRC or closing Checkout does not confirm or cancel payment.')}</p>}
+        {checkoutUrl && <p><a className="button button--dark" href={checkoutUrl} rel="noopener noreferrer" referrerPolicy="no-referrer">{t('Pagar na Stripe', 'Pay with Stripe')}</a></p>}
+        {stripeOpen && !checkoutUrl && <p role="alert">{t('Não foi possível disponibilizar um endereço seguro para este pedido. Consulte o estado ou contacte a organização; não crie outro pagamento.', 'A safe payment link could not be provided for this order. Check its status or contact the organisers; do not create another payment.')}</p>}
+        {order.status === 'pending' && stripeDeadline && Number.isFinite(stripeDeadline.getTime()) && <p>{t('Prazo indicado pela Stripe', 'Stripe expiry time')}: {stripeDeadline.toLocaleString(en ? 'en-GB' : 'pt-PT', { timeZone:'Europe/Lisbon' })} ({t('hora de Lisboa', 'Lisbon time')})</p>}
+        {order.status === 'pending' && stripe?.status === 'complete' && <p>{t('A conclusão deste pagamento está a ser confirmada. Aguarde a atualização e não efetue outro pagamento.', 'Completion of this payment is being confirmed. Wait for the update and do not make another payment.')}</p>}
+        {['expired', 'cancelled'].includes(order.status) && <p>{t('Este pedido foi encerrado. Contacte a organização antes de preparar outro pagamento.', 'This request is closed. Contact the organisers before preparing another payment.')}</p>}
+        {['pending', 'creation_unknown'].includes(order.status) && stripeSession(order.reference) && <button type="button" disabled={busy} onClick={reconcileStripe}>{t('Consultar pedido na Stripe', 'Check request with Stripe')}</button>}
+      </section>}
       {canRetryOrder(order) && <div><p>{t('O encerramento sem pagamento foi confirmado. Pode preparar outra tentativa e voltar a conferir os dados antes de enviar um novo pedido.', 'Closure without payment was confirmed. You can prepare another attempt and review the details before sending a new request.')}</p><button type="button" disabled={busy} onClick={prepareRetry}>{t('Preparar nova tentativa de pagamento', 'Prepare another payment attempt')}</button></div>}
       {bankPending && <section className="registration-bank-transfer" aria-label={t('Instruções de transferência bancária', 'Bank transfer instructions')}>
         {[bank.payee, bank.iban, bank.paymentReference].every(value => typeof value === 'string' && value.trim()) ? <>
@@ -381,6 +414,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       </section>}
       {order.fiscalDocumentNo && <p>{t('Fatura-recibo:', 'Invoice-receipt:')} <strong>{order.fiscalDocumentNo}</strong></p>}
       {order.status === 'paid' && order.fiscalStatus === 'review_required' && <p role="status">{t('O pagamento está confirmado. A fatura-recibo está pendente de conferência pela organização; não efetue outro pagamento.', 'Payment is confirmed. The invoice-receipt awaits organiser review; do not make another payment.')}</p>}
+      {order.method === 'stripe_card' && order.status === 'paid' && !['issued', 'review_required'].includes(order.fiscalStatus) && <p role="status">{t('O pagamento está confirmado. A fatura-recibo está em processamento e ficará disponível no My CIRC; não efetue outro pagamento.', 'Payment is confirmed. The invoice-receipt is being processed and will be available in My CIRC; do not make another payment.')}</p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus !== 'issued' && <p>{t('A faturação deste pedido ainda está em processamento. Aguarde a conclusão ou contacte a organização antes de preparar outro complemento.', 'This order invoice is still being processed. Wait for completion or contact the organisers before preparing another supplement.')}</p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus === 'issued' && <button type="button" onClick={newPurchase} disabled={busy}>{t('Preparar nova compra', 'Prepare another purchase')}</button>}
     </div>}

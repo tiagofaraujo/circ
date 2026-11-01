@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 export const RESUMABLE_AUTH_ERRORS = new Set(['toconline-background-session-missing', 'toconline-reauthorize-required']);
 const paymentIdentity = ['id', 'userId', 'eventId', 'registrationId', 'environment', 'provider', 'method', 'amountCents', 'currency',
-  'identifier', 'reference', 'entity', 'transactionId', 'paidAt', 'paymentDate', 'quote', 'fiscalQuote', 'billingSnapshot', 'bankTransfer', 'methodFingerprint', 'issuanceAttemptId'];
+  'identifier', 'reference', 'entity', 'transactionId', 'paidAt', 'paymentDate', 'quote', 'fiscalQuote', 'billingSnapshot', 'bankTransfer', 'methodFingerprint', 'issuanceAttemptId','stripeInstrument'];
 const registrationIdentity = ['userId', 'eventId', 'primaryRegistration', 'isTest', 'testMode'];
 const jobIdentity = ['id', 'userId', 'eventId', 'registrationId', 'environment', 'provider', 'type', 'paymentMethod', 'amountCents',
   'externalReference', 'salesDocument', 'resumeAttemptId', 'issuanceProtocol', 'issuanceAttemptId', 'issuanceStartedAt'];
@@ -24,7 +24,7 @@ function immutableSourcesMatch(current, original) {
 
 export function isUnstartedClaimedPaymentJob(payment, job) {
   return payment?.status === 'paid' && payment.fiscalStatus === 'pending'
-    && (payment.method==='bank_transfer'&&payment.provider==='internal_bank_transfer'||payment.method==='mbway'&&payment.provider==='eupago')
+    && (payment.method==='bank_transfer'&&payment.provider==='internal_bank_transfer'||payment.method==='mbway'&&payment.provider==='eupago'||payment.method==='stripe_card'&&payment.provider==='stripe')
     && payment.environment === 'production' && payment.eventId === 'circ-2027'
     && job?.status === 'pending' && job.issuanceProtocol === 'claimed-v1' && job.provider === 'toconline'
     && job.type === 'invoice_receipt' && job.paymentMethod === payment.method && job.environment === 'production'
@@ -35,9 +35,22 @@ export function isUnstartedClaimedPaymentJob(payment, job) {
 }
 export const isUnstartedClaimedBankJob=(payment,job)=>payment?.method==='bank_transfer'&&isUnstartedClaimedPaymentJob(payment,job);
 
+export function isUnstartedStripeInstrumentJob(payment,job){
+  const absent=(object,key)=>object?.[key]===undefined||object[key]===null;
+  return payment?.method==='stripe_card'&&payment.provider==='stripe'&&payment.status==='paid'&&payment.fiscalStatus==='review_required'
+    &&payment.environment==='production'&&payment.eventId==='circ-2027'&&!payment.registrationArchiveId
+    &&job?.status==='review_required'&&job.errorCode==='stripe-instrument-unconfirmed'&&job.issuanceProtocol==='claimed-v1'
+    &&job.provider==='toconline'&&job.type==='invoice_receipt'&&job.paymentMethod==='stripe_card'&&job.environment==='production'
+    &&job.id===payment.id&&job.userId===payment.userId&&job.registrationId===payment.registrationId&&job.eventId===payment.eventId&&job.amountCents===payment.amountCents
+    &&job.salesDocument===null&&absent(payment,'issuanceAttemptId')&&['issuanceAttemptId','issuanceStartedAt','resumeAttemptId','resumeStartedAt','providerDocumentId','issuedAt'].every(key=>absent(job,key))
+    &&absent(payment,'fiscalDocumentId')&&!job.registrationArchiveId
+    &&payment.stripe?.id===payment.reference&&payment.stripe.status==='complete'&&payment.stripe.paymentStatus==='paid'
+    &&payment.stripe.paymentIntentId===payment.transactionId;
+}
+
 export function canResumeLiveFiscalJob(payment, job) {
   if (payment?.status !== 'paid' || hasId(payment.fiscalDocumentId) || hasId(job?.providerDocumentId) || job?.issuedAt) return false;
-  return isUnstartedClaimedPaymentJob(payment, job) || payment.fiscalStatus === 'pending_authorization'
+  return isUnstartedClaimedPaymentJob(payment, job) || isUnstartedStripeInstrumentJob(payment,job) || payment.fiscalStatus === 'pending_authorization'
     && job?.status === 'pending_authorization' && RESUMABLE_AUTH_ERRORS.has(job.errorCode);
 }
 
