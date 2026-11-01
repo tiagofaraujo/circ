@@ -130,6 +130,7 @@ test('evaluation writes only five scores and the reviewer comment, including a z
       scores: { ...evaluation.scores, quality: 0 },
       comment: 'Methodology needs detail.',
       reviewerUid: 'reviewer',
+      revisionVersion: 0,
       updatedAt: 'server-time',
     },
     updatedAt: 'server-time',
@@ -154,4 +155,48 @@ test('disabled configuration, inactive reviewers and self-assignment do not writ
     expect(tx.set).not.toHaveBeenCalled();
     expect(tx.update).not.toHaveBeenCalled();
   }
+});
+
+
+test('a stale reviewer tab cannot save scores for a corrected version when both evaluations are empty', async () => {
+  const data = baseData();
+  data[workPath(reviewer.email)] = { ...data[workPath(reviewer.email)], revisionVersion: 1, evaluation: null };
+  const tx = mockDatabase(data);
+  await expect(saveScientificEvaluation(reviewer, { submissionId: 'work', revisionVersion: 0, evaluation: null }, evaluation.scores, 'Old basis'))
+    .rejects.toThrow('review/conflict');
+  expect(tx.update).not.toHaveBeenCalled();
+});
+
+test('a returned reviewer starts a new evaluation while the older score remains in history', async () => {
+  const data = baseData();
+  data['submissions/work'] = { ...submission, revisionVersion: 2 };
+  const previousHistory = [{ revisionVersion: 0, evaluation: { ...evaluation, comment: 'First cycle' } }];
+  data[workPath(reviewer.email)] = { ...data[workPath(reviewer.email)], revisionVersion: 1, active: false, evaluationHistory: previousHistory };
+  const tx = mockDatabase(data);
+  await assignScientificReviewers(supervisor, 'work', [reviewer.email]);
+  const written = tx.set.mock.calls.find(([ref]) => ref.path === workPath(reviewer.email))[1];
+  expect(written).toMatchObject({ revisionVersion: 2, active: true, evaluation: null });
+  expect(written.evaluationHistory).toEqual([...previousHistory, { revisionVersion: 1, evaluation }]);
+  expect(JSON.stringify(written)).not.toMatch(/Private author|Private institution|author@example|userId/);
+});
+
+test('same-version reassignment does not append history or discard a current evaluation', async () => {
+  const data = baseData();
+  const history = [{ revisionVersion: 0, evaluation: { ...evaluation, comment: 'Older cycle' } }];
+  data['submissions/work'] = { ...submission, revisionVersion: 1 };
+  data[workPath(reviewer.email)] = { ...data[workPath(reviewer.email)], revisionVersion: 1, evaluation: { ...evaluation, revisionVersion: 1 }, evaluationHistory: history };
+  const tx = mockDatabase(data);
+  await assignScientificReviewers(supervisor, 'work', [reviewer.email]);
+  const written = tx.set.mock.calls.find(([ref]) => ref.path === workPath(reviewer.email))[1];
+  expect(written.evaluationHistory).toEqual(history);
+  expect(written.evaluation).toEqual({ ...evaluation, revisionVersion: 1 });
+});
+
+test('a correction request closes scoring until a corrected version is submitted', async () => {
+  const data = baseData();
+  data[workPath(reviewer.email)] = { ...data[workPath(reviewer.email)], status: 'revisions' };
+  const tx = mockDatabase(data);
+  await expect(saveScientificEvaluation(reviewer, data[workPath(reviewer.email)], evaluation.scores, ''))
+    .rejects.toThrow('review/closed');
+  expect(tx.update).not.toHaveBeenCalled();
 });

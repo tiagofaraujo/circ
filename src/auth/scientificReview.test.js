@@ -4,6 +4,8 @@ import {
   emptyReviewScores,
   parseReviewScores,
   reviewMean,
+  currentReviewEvaluation,
+  reviewVersion,
   reviewTotal,
 } from './scientificReview';
 import { getUserAccess } from './firebaseClient';
@@ -104,4 +106,15 @@ test('the former supervisor is a normal participant unless assigned as a reviewe
   for (const email of ['circ.chuc@gmail.com', 'acbdgomes@gmail.com', 'afsilvacarvalho@gmail.com']) {
     expect(getUserAccess({ email, emailVerified: true }).canManageSubmissions).toBe(true);
   }
+});
+
+
+test('only evaluations for the current content version count towards a mean', () => {
+  const old = { revisionVersion: 1, active: true, evaluation: { revisionVersion: 0, scores: scores(10) } };
+  const current = { revisionVersion: 1, active: true, evaluation: { revisionVersion: 1, scores: scores(6) } };
+  expect(currentReviewEvaluation(old)).toBeNull();
+  expect(currentReviewEvaluation(current)).toBe(current.evaluation);
+  expect(reviewMean([old, current])).toBe(6);
+  expect(reviewVersion({})).toBe(0);
+  expect(anonymousReviewContent({ revisionVersion: 2 }, 'work').revisionVersion).toBe(2);
 });

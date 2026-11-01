@@ -55,8 +55,9 @@ não pertencem à limpeza de inscrições e trabalhos.
   precisam de um percurso próprio antes de aceitar pagamento.
 - A submissão inicial recebe resumos estruturados em texto; não existe carregamento
   do ficheiro final do póster.
-- Depois da submissão, o autor não pode editar o trabalho. Um percurso de reenvio após
-  pedido de correções continua por implementar.
+- O reenvio após pedido de correções está preparado em
+  `SCIENTIFIC_CORRECTIONS_20261101.md`. A ativação depende de publicar as novas regras
+  Firestore e só depois disponibilizar a interface e ativar o endpoint.
 - As listas administrativas têm limites existentes de 500 registos; a lista do autor
   tem limite de 100. A paginação deve anteceder a aproximação a esses volumes.
 

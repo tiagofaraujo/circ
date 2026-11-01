@@ -3,7 +3,9 @@ import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
   emptyReviewScores,
-  reviewableStatuses,
+  scorableStatuses,
+  reviewVersion,
+  currentReviewEvaluation,
   reviewCriteria,
   reviewErrorMessage,
   REVIEW_COMMENT_LIMIT,
@@ -27,8 +29,9 @@ import {
 import '../scientificReview.css';
 
 function AssignedWork({ work, user, en, onDirtyChange }) {
-  const [scores, setScores] = useState(work.evaluation?.scores || emptyReviewScores());
-  const [comment, setComment] = useState(work.evaluation?.comment || '');
+  const evaluation = currentReviewEvaluation(work);
+  const [scores, setScores] = useState(evaluation?.scores || emptyReviewScores());
+  const [comment, setComment] = useState(evaluation?.comment || '');
   const [basis, setBasis] = useState(work);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -36,12 +39,13 @@ function AssignedWork({ work, user, en, onDirtyChange }) {
   const [identity, setIdentity] = useState(null);
   const [identityError, setIdentityError] = useState(false);
   const total = reviewTotal(scores);
-  const locked = !reviewableStatuses.includes(work.status);
+  const staleVersion = reviewVersion(basis) !== reviewVersion(work);
+  const locked = !scorableStatuses.includes(work.status) || staleVersion;
   useReviewDraftGuard(dirty && !locked, onDirtyChange);
   useEffect(() => {
     if (!dirty) {
-      setScores(work.evaluation?.scores || emptyReviewScores());
-      setComment(work.evaluation?.comment || '');
+      setScores(currentReviewEvaluation(work)?.scores || emptyReviewScores());
+      setComment(currentReviewEvaluation(work)?.comment || '');
       setBasis(work);
     }
   }, [work, dirty]);
@@ -69,6 +73,7 @@ function AssignedWork({ work, user, en, onDirtyChange }) {
   }, [work.submissionId, work.status]);
   const save = async (event) => {
     event.preventDefault();
+    if (locked || busy) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -110,6 +115,17 @@ function AssignedWork({ work, user, en, onDirtyChange }) {
         </p>
       )}
       <ReviewAbstract work={work} en={en} />
+      {staleVersion && <div className="review-notice" role="alert">
+        <p>{en
+          ? 'A corrected version arrived. Your unsaved scores belong to the previous version and cannot be saved for this one.'
+          : 'Chegou uma versão corrigida. As pontuações por guardar pertencem à versão anterior e não podem ser guardadas para esta versão.'}</p>
+        <button type="button" className="review-button" onClick={() => {
+          setScores(currentReviewEvaluation(work)?.scores || emptyReviewScores());
+          setComment(currentReviewEvaluation(work)?.comment || '');
+          setBasis(work); setDirty(false); setFeedback(null);
+        }}>{en ? 'Load current version and clear unsaved changes' : 'Carregar versão atual e limpar alterações por guardar'}</button>
+      </div>}
+
       <form className="review-form" onSubmit={save}>
         <header>
           <p className="review-eyebrow">{en ? 'Your evaluation' : 'A sua avaliação'}</p>
@@ -189,16 +205,16 @@ function AssignedWork({ work, user, en, onDirtyChange }) {
         </div>
         {locked ? (
           <p className="review-notice">
-            {en
-              ? 'Evaluation closed. The supervisor can reopen it if needed.'
-              : 'Avaliação encerrada. O superavaliador pode reabri-la, se necessário.'}
+            {work.status === 'revisions'
+              ? (en ? 'The author was asked for corrections. Wait for the corrected version before evaluating.' : 'Foram pedidas correções ao autor. Aguarde a versão corrigida antes de avaliar.')
+              : (en ? 'Evaluation closed. The supervisor can reopen it if needed.' : 'Avaliação encerrada. O superavaliador pode reabri-la, se necessário.')}
           </p>
         ) : (
           <div className="review-form__actions">
             <button
               className="review-button"
               type="submit"
-              disabled={busy || total === null || (!dirty && Boolean(work.evaluation))}
+              disabled={busy || total === null || (!dirty && Boolean(evaluation))}
             >
               {busy
                 ? en
@@ -213,7 +229,7 @@ function AssignedWork({ work, user, en, onDirtyChange }) {
                 ? en
                   ? 'Unsaved changes'
                   : 'Alterações por guardar'
-                : work.evaluation
+                : evaluation
                   ? en
                     ? 'Saved'
                     : 'Guardada'
@@ -295,11 +311,11 @@ export default function ScientificReviewerPage() {
               {en ? 'assigned' : 'atribuídos'}
             </span>
             <span>
-              <strong>{works.filter((w) => w.evaluation).length}</strong>
+              <strong>{works.filter((w) => currentReviewEvaluation(w)).length}</strong>
               {en ? 'evaluated' : 'avaliados'}
             </span>
             <span>
-              <strong>{works.filter((w) => !w.evaluation).length}</strong>
+              <strong>{works.filter((w) => !currentReviewEvaluation(w)).length}</strong>
               {en ? 'to evaluate' : 'por avaliar'}
             </span>
           </div>
@@ -352,7 +368,7 @@ export default function ScientificReviewerPage() {
                     </small>
                     <strong>{work.title}</strong>
                     <span>
-                      {work.evaluation
+                      {currentReviewEvaluation(work)
                         ? en
                           ? 'Evaluated'
                           : 'Avaliado'
@@ -361,7 +377,7 @@ export default function ScientificReviewerPage() {
                           : 'Por avaliar'}{' '}
                       <b>
                         {reviewNumber(
-                          work.evaluation ? reviewTotal(work.evaluation.scores) : null,
+                          currentReviewEvaluation(work) ? reviewTotal(currentReviewEvaluation(work).scores) : null,
                           en,
                         )}{' '}
                         / 50

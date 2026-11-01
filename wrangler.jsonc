@@ -32,6 +32,7 @@
     "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda",
     "LIVE_CHECKOUT_ENABLED": "true",
     "CIRC_OPERATION_MODE": "production",
+    "SCIENTIFIC_CORRECTIONS_ENABLED": "false",
     "TOCONLINE_REDIRECT_URL": "https://circ-coimbra.org/api/fiscal/toconline/callback"
   }
 }

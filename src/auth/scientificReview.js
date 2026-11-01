@@ -16,6 +16,13 @@ export const reviewCriteria = [
 export const MAX_REVIEWERS = 3;
 export const REVIEW_COMMENT_LIMIT = 4000;
 export const reviewableStatuses = ['submitted', 'under_review', 'revisions'];
+export const scorableStatuses = ['submitted', 'under_review'];
+export function reviewVersion(value) {
+  return Number.isSafeInteger(value?.revisionVersion) && value.revisionVersion >= 0 ? value.revisionVersion : 0;
+}
+export function currentReviewEvaluation(work) {
+  return work?.evaluation && reviewVersion(work.evaluation) === reviewVersion(work) ? work.evaluation : null;
+}
 export const reviewStatusLabels = {
   submitted: ['Por avaliar', 'Awaiting review'],
   under_review: ['Em avaliação', 'Under review'],
@@ -65,7 +72,7 @@ export function reviewTotal(input) {
 }
 export function reviewMean(works) {
   const totals = works
-    .filter((w) => w.active && w.evaluation)
+    .filter((w) => w.active && currentReviewEvaluation(w))
     .map((w) => reviewTotal(w.evaluation.scores))
     .filter((t) => t !== null);
   return totals.length ? totals.reduce((sum, n) => sum + n, 0) / totals.length / 5 : null;
@@ -89,6 +96,7 @@ export function anonymousReviewContent(submission, id) {
       : null,
     status: submission.status,
     isTest: submission.isTest === true,
+    revisionVersion: reviewVersion(submission),
   };
 }
 export function acceptedReviewIdentity(submission) {
