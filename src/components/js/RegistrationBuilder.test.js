@@ -14,12 +14,14 @@ jest.mock('./StudentVerification', () => () => <div>Student document form</div>)
 jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => null, CompanyRegistrationGate: ({ children }) => children(null) }));
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
 beforeEach(() => { jest.clearAllMocks(); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); });
-test('public registration offers only the live onsite selection and never creates test registrations', () => {
+test('public registration defaults to onsite and exposes the real catalogue without administrative samples', () => {
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByText('Production checkout')).toBeInTheDocument();
  expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({ eligible: true, selection: { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 } });
  expect(screen.queryByText(/Modo de teste|Criar inscrição de teste|15 de novembro/)).not.toBeInTheDocument();
- expect(screen.getByText(/A compra de cursos, jantar, participação virtual/)).toBeInTheDocument();
+ expect(screen.getByRole('radio', { name: /Congresso virtual/ })).toBeEnabled();
+ expect(screen.getByRole('radio', { name: /Cursos pré-congresso/ })).toBeEnabled();
+ expect(screen.getByRole('checkbox', { name: /Via Verde AVC/ })).toBeEnabled();
 });
 test('student and ULS rates require eligibility even for the administrator', () => {
  useAuth.mockReturnValue({ user: { uid: 'admin', emailVerified: true }, isAdmin: true });

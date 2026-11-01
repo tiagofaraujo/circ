@@ -2,8 +2,8 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, readLivePaymentById, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createEupagoLive } from './eupago-live.mjs';
-import { quotePrimary } from './quote.mjs';
-import { buildLiveOnsiteMultibancoFR } from './toconline-live-payload.mjs';
+import { quotePrimary, quoteSupplementary } from './quote.mjs';
+import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
 import { completeLiveFiscalJob } from './live-fiscal-issue.mjs';
 
@@ -91,32 +91,48 @@ export function createLivePaymentWebhook({
       if(!['paga','pago','transferida'].includes(hint.providerState))return json({error:'reconciliation_pending'},503);
       const paymentDate=lisbonPaymentDate(event.paidAt);if(!paymentDate)return json({error:'invalid_payment_date'},422);
       const registration=await store.registration();
-      if(!registration.data||registration.data.isTest!==false||registration.data.testMode!==false||registration.data.status!=='submitted')return json({error:'registration_mismatch'},422);
-      const ctx=await store.context(payment.quote?.selection?.profile);
-      let expected; let eligibilityChanged=false;
-      try { expected=quotePrimary(payment.quote.selection,{...ctx,emailVerified:true},null,new Date(`${paymentDate.date}T12:00:00Z`)); }
-      catch (error) {
-        if (['checkout/uls-not-verified','checkout/student-not-approved'].includes(error.message)) eligibilityChanged=true;
-        else throw error;
-      }
-      const cutoffAmbiguous=paymentDate.timezoneUnspecified&&['2027-01-31','2027-02-01'].includes(paymentDate.date);
-      if(eligibilityChanged||cutoffAmbiguous||expected.amountCents!==event.amountCents){
+      const original=registration.data;
+      const kind=payment.kind||payment.quote?.kind||'primary';
+      async function review(reason){
         const p={...payment,status:'review_required',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,
-          providerState:hint.providerState,reviewReason:eligibilityChanged?'payment-eligibility-review':cutoffAmbiguous?'payment-timezone-ambiguous':'payment-date-tariff-mismatch',updatedAt:now()};
-        const r={...registration.data,payment:{...registration.data.payment,status:'awaiting_confirmation',reference:event.reference},updatedAt:now()};
+          paymentDate:paymentDate.date,providerState:hint.providerState,reviewReason:reason,updatedAt:now()};
+        if(!original){await store.updatePayment(event.id,p,located.version);return json({received:true,reviewRequired:true});}
+        const r=kind==='primary'&&original.status==='submitted'
+          ?{...original,payment:{...original.payment,status:'awaiting_confirmation',reference:event.reference},updatedAt:now()}
+          :{...original,updatedAt:now()};
         await store.updatePendingProvider({orderId:event.id,payment:p,paymentVersion:located.version,registration:r,registrationVersion:registration.version});
         return json({received:true,reviewRequired:true});
       }
-      const billing={customer:payment.billingSnapshot};
+      if(!original||original.isTest!==false||original.testMode!==false||original.userId!==payment.userId
+        ||original.eventId!=='circ-2027'||original.primaryRegistration!==true)return review('registration-mismatch');
+      if(kind==='primary'?original.status!=='submitted'
+        :kind!=='supplementary'||original.status!=='confirmed'||original.payment?.status!=='paid'
+          ||original.openSupplementaryOrderId!==event.id)return review('registration-state-mismatch');
+      const ctx=await store.context(payment.quote?.selection?.profile);
+      let expected;
+      try{
+        expected=kind==='primary'?quotePrimary(payment.quote.selection,{...ctx,emailVerified:true},null,new Date(`${paymentDate.date}T12:00:00Z`))
+          :quoteSupplementary({morningCourse:payment.quote.selection.morningCourse,afternoonCourse:payment.quote.selection.afternoonCourse,dinnerQuantity:payment.quote.selection.dinnerQuantity},
+            {...ctx,emailVerified:true},{...original,id:store.registrationId},new Date(`${paymentDate.date}T12:00:00Z`));
+      }catch(error){
+        if(['checkout/uls-not-verified','checkout/student-not-approved'].includes(error.message))return review('payment-eligibility-review');
+        if(['checkout/course-already-owned','checkout/paid-registration-required','checkout/invalid-addition'].includes(error.message))return review('supplementary-entitlement-review');
+        throw error;
+      }
+      const cutoffAmbiguous=paymentDate.timezoneUnspecified&&['2027-01-31','2027-02-01'].includes(paymentDate.date);
+      if(cutoffAmbiguous||expected.amountCents!==event.amountCents)return review(cutoffAmbiguous?'payment-timezone-ambiguous':'payment-date-tariff-mismatch');
       let salesDocument;
-      try{salesDocument=buildLiveOnsiteMultibancoFR({orderId:event.id,quote:expected,billing,paymentDate:paymentDate.date});}
-      catch{return json({error:'fiscal_payload_blocked'},503);}
-      const p={...payment,status:'paid',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,paymentDate:paymentDate.date,
-        providerState:hint.providerState,fiscalStatus:'pending',updatedAt:now()};
-      const ent=expected.selection;
-      const r={...registration.data,status:'confirmed',entitlements:{congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
-        payment:{orderId:event.id,status:'paid',amountCents:event.amountCents,currency:'EUR',method:'multibanco',reference:event.reference},updatedAt:now()};
-      const job={id:event.id,eventId:'circ-2027',registrationId:payment.registrationId,userId:payment.userId,type:'invoice_receipt',
+      try{salesDocument=buildLiveMultibancoFR({orderId:event.id,quote:expected,billing:{customer:payment.billingSnapshot},paymentDate:paymentDate.date});}
+      catch{return review('fiscal-payload-blocked');}
+      const p={...payment,kind,status:'paid',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,paymentDate:paymentDate.date,
+        providerState:hint.providerState,fiscalStatus:'pending',fiscalQuote:expected,updatedAt:now()};
+      const ent=expected.selection, owned=original.entitlements||original.selection;
+      const r=kind==='primary'?{...original,status:'confirmed',fiscalPendingOrderId:event.id,
+        entitlements:{congressMode:ent.congressMode==='courses-only'?'':ent.congressMode,morningCourse:ent.morningCourse,afternoonCourse:ent.afternoonCourse,dinnerQuantity:ent.dinnerQuantity},
+        payment:{orderId:event.id,status:'paid',amountCents:event.amountCents,currency:'EUR',method:'multibanco',reference:event.reference},updatedAt:now()}
+        :{...original,fiscalPendingOrderId:event.id,entitlements:{...owned,morningCourse:Boolean(owned.morningCourse||ent.morningCourse),afternoonCourse:Boolean(owned.afternoonCourse||ent.afternoonCourse),dinnerQuantity:Number(owned.dinnerQuantity||0)+ent.dinnerQuantity},
+          paidSupplementaryOrderIds:[...(original.paidSupplementaryOrderIds||[]),event.id],supplementaryPaidAmountCents:Number(original.supplementaryPaidAmountCents||0)+event.amountCents,updatedAt:now()};
+      const job={id:event.id,eventId:'circ-2027',registrationId:payment.registrationId,userId:payment.userId,type:'invoice_receipt',orderKind:kind,
         environment:'production',status:'pending',provider:'toconline',externalReference:salesDocument.external_reference,amountCents:event.amountCents,
         paymentMethod:'multibanco',salesDocument,createdAt:now(),updatedAt:now()};
       await store.confirmPrimaryPaid({orderId:event.id,payment:p,paymentVersion:located.version,registration:r,registrationVersion:registration.version,fiscalJob:job});

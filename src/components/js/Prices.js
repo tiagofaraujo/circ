@@ -29,14 +29,14 @@ function Prices() {
                 <h2 id="prices-title">{en ? 'Registration fees' : 'Taxas de inscrição'}</h2>
                 <p className="prices-opening">
                     {en
-                        ? 'Registration open · In-person congress'
-                        : 'Inscrições abertas · Congresso presencial'}
+                        ? 'Registration open · Congress, courses and dinner'
+                        : 'Inscrições abertas · Congresso, cursos e jantar'}
                 </p>
             </div>
 
             <p className="prices-availability">{en
-                ? 'Online registration is available for the in-person congress, with Multibanco payment. Virtual attendance, courses and dinner bookings will be made available in My CIRC once their booking options open.'
-                : 'A inscrição online está disponível para o congresso presencial, com pagamento por Multibanco. A participação virtual, os cursos e o jantar ficarão disponíveis no My CIRC após a abertura das respetivas opções de compra.'}</p>
+                ? 'Register for the in-person or virtual congress, choose pre-congress courses and book dinner tickets in My CIRC, with Multibanco payment. Courses and dinner tickets can also be added to a paid registration.'
+                : 'Inscreva-se no congresso presencial ou virtual, escolha os cursos pré-congresso e reserve bilhetes de jantar no My CIRC, com pagamento por Multibanco. Também pode acrescentar cursos e jantar a uma inscrição paga.'}</p>
 
             <div className="price-guide" aria-label={en ? 'How the registration price is calculated' : 'Como é calculado o preço da inscrição'}>
                 <article><span>01</span><div><strong>{en ? 'Your profile' : 'O seu perfil'}</strong><p>{en ? 'ULS Coimbra, external delegate or IMR student.' : 'ULS Coimbra, congressista externo ou estudante de IMR.'}</p></div></article>
@@ -116,8 +116,8 @@ function Prices() {
                     <p>
                         <strong>{en ? 'Dinner:' : 'Jantar:'}</strong>{' '}
                         {en
-                            ? 'Published fee: €30 per person. Dinner ticket sales will be made available in My CIRC.'
-                            : 'Preço publicado: 30 € por pessoa. A compra dos bilhetes de jantar será disponibilizada no My CIRC.'}
+                            ? '€30 per person. Choose the number of tickets in My CIRC, with your registration or in an additional order.'
+                            : '30 € por pessoa. Escolha a quantidade no My CIRC, com a inscrição ou num pedido complementar.'}
                     </p>
                     <p>
                         <strong>{en ? 'Pre-Congress Courses:' : 'Cursos Pré-Congresso:'}</strong>{' '}

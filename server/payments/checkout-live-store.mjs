@@ -86,6 +86,7 @@ export function createCheckoutLiveStore({
           { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } },
           { fieldFilter: { field: { fieldPath: 'registrationId' }, op: 'EQUAL', value: { stringValue: registrationId } } },
           { fieldFilter: { field: { fieldPath: 'environment' }, op: 'EQUAL', value: { stringValue: 'production' } } },
+          { fieldFilter: { field: { fieldPath: 'quote.kind' }, op: 'EQUAL', value: { stringValue: 'primary' } } },
         ] } },
         limit: 2,
       } });
@@ -145,6 +146,49 @@ export function createCheckoutLiveStore({
           method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
           body:JSON.stringify({transaction,writes:[
             {update:{name:registrationName,fields:fields(registration)},currentDocument:{exists:false}},
+            {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{exists:false}},
+          ]}), signal:AbortSignal.timeout(10000),
+        });
+        if (!commit.ok) throw new LiveStoreError([409,412].includes(commit.status)?'conflict':'storage_unavailable');
+        const result = await commit.json();
+        return {
+          registrationVersion: result.writeResults?.[0]?.updateTime || null,
+          paymentVersion: result.writeResults?.[1]?.updateTime || null,
+        };
+      } catch (error) {
+        if (transaction) {
+          try { await fetchImpl(`${endpoint}:rollback`, {method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({transaction})}); } catch {}
+        }
+        throw error;
+      }
+    },
+    async createPendingSupplementary({ orderId, registration, registrationVersion, payment, guards = [] }) {
+      if (!registrationVersion || payment.kind !== 'supplementary' || registration.openSupplementaryOrderId !== orderId || !LIVE_ORDER_UUID.test(orderId || '') || registration.eventId !== EVENT || registration.userId !== uid
+        || registration.isTest !== false || registration.testMode !== false
+        || payment.environment !== 'production' || payment.userId !== uid || payment.registrationId !== registrationId) {
+        throw new LiveStoreError('storage_invalid');
+      }
+      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: null }];
+      const accessToken = token;
+      let transaction;
+      try {
+        const rows = await fetchImpl(`${endpoint}:batchGet`, {
+          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+          body:JSON.stringify({ documents: checks.map(g=>g.name), newTransaction:{readWrite:{}} }),
+          signal:AbortSignal.timeout(10000),
+        });
+        if (!rows.ok) throw new LiveStoreError('storage_unavailable');
+        const batch = await rows.json();
+        transaction = batch.find(row=>row.transaction)?.transaction;
+        if (!transaction) throw new LiveStoreError('storage_unavailable');
+        for (const check of checks) {
+          const row=batch.find(x=>x.found?.name===check.name || x.missing===check.name);
+          if (!row || (check.version===null ? row.missing!==check.name : row.found?.updateTime!==check.version)) throw new LiveStoreError('conflict');
+        }
+        const commit = await fetchImpl(`${endpoint}:commit`, {
+          method:'POST', redirect:'manual', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+          body:JSON.stringify({transaction,writes:[
+            {update:{name:registrationName,fields:fields(registration)},currentDocument:{updateTime:registrationVersion}},
             {update:{name:paymentName(orderId),fields:fields(payment)},currentDocument:{exists:false}},
           ]}), signal:AbortSignal.timeout(10000),
         });

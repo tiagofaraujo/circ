@@ -77,7 +77,7 @@ test('admin recovers the existing own production order without browser ID or ena
   await f.call('/orders',pilotOrder(q));
   const response=await f.call('/primary-order',undefined,{...env,LIVE_CHECKOUT_ENABLED:'false'});
   assert.equal(response.status,200); assert.match(response.headers.get('Cache-Control'),/no-store/);
-  assert.deepEqual((await response.json()).order,{id:ID,status:'pending',amountCents:9500,currency:'EUR',method:'multibanco',
+  assert.deepEqual((await response.json()).order,{id:ID,kind:'primary',selection:{...selection,courseAffiliation:'external'},status:'pending',amountCents:9500,currency:'EUR',method:'multibanco',
     reference:'123456789',entity:'12345',paidAt:null,fiscalStatus:null});
   assert.equal(f.providerCalls(),1);
 });
