@@ -1,4 +1,5 @@
 import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
+import RegistrationInvoice from '../RegistrationInvoice';
 import { mriCourseTitle } from '../MriCourseDescription';
 import { strokeCourseTitle } from '../StrokeCourseDescription';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -149,6 +150,7 @@ export function ExistingRegistrationAddOns({ registration, orders, user, en, per
         <div className="registration-summary__total"><span>{registration.voucherId ? (en ? 'Congress covered by voucher' : 'Congresso abrangido pelo voucher') : (en ? 'Original registration amount' : 'Valor da inscrição original')}</span><strong>{formatEuro(Number(registration.voucherId ? registration.payment?.coveredAmountCents || 0 : registration.payment?.amountCents || 0) / 100)}</strong></div>
         {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The billing document belongs to the company purchase. Extras are paid separately.' : 'O documento de faturação pertence à compra da empresa. Os extras são pagos separadamente.'}</p>}
         <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>
+        {registration.isTest === false && !registration.voucherId && <RegistrationInvoice user={user} registration={registration} en={en} />}
         <a className="button button--dark" href="#registration-addon-courses-title">{en ? 'Add courses and dinners' : 'Adicionar cursos e jantares'} ↓</a>
         <Link to="/conta/perfil">{en ? 'Review profile details' : 'Rever dados do perfil'}</Link>
       </section>

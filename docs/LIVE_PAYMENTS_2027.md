@@ -163,3 +163,24 @@ Notificações duplicadas de um pagamento reembolsado são reconhecidas sem reat
 - TOConline: HTTP 200/201 só conta como emissão aceite quando a resposta contém o identificador do documento. Respostas vazias, ilegíveis, sem identificador ou HTTP 202 ficam em `outcome_unknown`; exigem conferência no TOConline antes de qualquer nova tentativa.
 - Callback duplicado não emite uma segunda Fatura-recibo.
 - Estados fiscais distintos: `pending`, `issued`, `pending_authorization`, `review_required`, `outcome_unknown`.
+# Consulta da fatura-recibo no My CIRC (01/11/2026)
+
+O resumo da inscrição real mostra as faturas-recibo emitidas para o titular,
+com o número devolvido pelo TOConline. A subscrição Firestore usa o filtro
+`userId` da sessão e exclui documentos simulados e trabalhos por concluir.
+Inscrições abrangidas por voucher mantêm a faturação na compra da empresa.
+
+`GET /api/checkout/live/orders/:orderId/invoice.pdf` verifica a sessão Firebase
+e a titularidade, ambiente, estado e correspondência do pagamento e documento.
+O identificador TOConline é lido do registo emitido; o cliente não o escolhe.
+A consulta usa a rota oficial `GET /api/url_for_print/:id?filter[type]=Document&filter[copies]=1`
+e descarrega o PDF original. Não chama a rota de criação de documentos.
+
+O servidor aceita apenas HTTPS em `app[0-9]*.toconline.pt/public-file/`,
+valida redirecionamentos, limita o ficheiro a 8 MiB e verifica a assinatura PDF.
+O token OAuth nunca acompanha a descarga do URL assinado nem chega ao navegador.
+Respostas e ficheiros usam `private, no-store`. A leitura funciona com a criação
+de pagamentos desativada e também conserva o acesso à FR original após um
+reembolso registado. Não cria uma nota de crédito nem regulariza reembolsos.
+
+Referência oficial: https://api-docs.toconline.pt/apis/vendas/descarregar-pdf-de-documentos-de-venda

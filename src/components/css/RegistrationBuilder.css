@@ -1162,3 +1162,11 @@
   .registration-builder--addons .registration-summary__total { gap: 12px; }
   .registration-paid-summary { margin-top: 20px; }
 }
+.registration-invoice {
+  margin: 1.5rem 0;
+  padding: 1.25rem 0;
+  border-top: 1px solid #d9dbe4;
+  border-bottom: 1px solid #d9dbe4;
+}
+.registration-invoice h3 { font-size: 1.1rem; }
+.registration-invoice .button { margin: 0; }
