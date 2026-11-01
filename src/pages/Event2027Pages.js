@@ -54,13 +54,18 @@ export function ParticipatePage2027() {
       <PageHero
         eyebrow={en ? 'Attend' : 'Participar'}
         title={en ? 'Registration and submissions' : 'Inscrições e trabalhos'}
-        status={en ? 'Opens 15 November 2026' : 'Abertura a 15 de novembro de 2026'}
+        status={en ? 'Registration and submissions open' : 'Inscrições e submissões abertas'}
         lead={
           en
-            ? 'CIRC 2027 registration fees are available. On 8 April there are two separate Pre-Congress Courses, one in the morning and one in the afternoon, each with its own registration.'
-            : 'Os valores de inscrição do CIRC 2027 já estão disponíveis. No dia 8 de abril realizam-se dois cursos pré-congresso distintos, um de manhã e outro à tarde, cada um com inscrição própria.'
+            ? 'In-person congress registration and scientific submissions are open in My CIRC. Registration payment is available by Multibanco.'
+            : 'As inscrições para o congresso presencial e as submissões científicas estão abertas no My CIRC. O pagamento da inscrição está disponível por Multibanco.'
         }
       />
+
+      <div className="account-form-actions">
+        <Link className="button button--dark" to="/conta/inscricoes">{en ? 'Register for the congress' : 'Inscrever-me no congresso'}</Link>
+        <Link className="button" to="/conta/submissoes">{en ? 'Submit scientific work' : 'Submeter um trabalho'}</Link>
+      </div>
 
       <Prices />
 
@@ -82,8 +87,8 @@ export function ParticipatePage2027() {
           <h2>{en ? 'Choose morning, afternoon or both' : 'Escolha o curso da manhã, o da tarde ou ambos'}</h2>
           <p>
             {en
-              ? 'The published course fee applies per course. Morning and afternoon courses are independent, so participants may register for either one or for both, subject to capacity.'
-              : 'O preço publicado é por curso. Os cursos da manhã e da tarde são independentes, pelo que será possível inscrever-se apenas num deles ou nos dois, consoante a disponibilidade de vagas.'}
+              ? 'The published fee applies per course. Morning and afternoon courses are independent. Their registration options will become available in My CIRC once opened.'
+              : 'O preço publicado é por curso. Os cursos da manhã e da tarde são independentes. A abertura destas opções de inscrição será indicada no My CIRC.'}
           </p>
         </article>
         <article className="info-card info-card--accent">
@@ -92,7 +97,7 @@ export function ParticipatePage2027() {
           <div className="submission-deadline-list">
             <div>
               <span>{en ? 'Opening' : 'Abertura'}</span>
-              <strong>{en ? '15 Nov. 2026' : '15 de nov. de 2026'}</strong>
+              <strong>{en ? '1 Nov. 2026' : '1 de nov. de 2026'}</strong>
             </div>
             <div>
               <span>{en ? 'Abstracts · Free communications' : 'Resumos · Comunicações livres'}</span>
@@ -256,8 +261,8 @@ export function AccountRegistrationsPage2027() {
       <section className="account-hero">
         <div>
           <p className="eyebrow">My CIRC · {en ? 'Registration' : 'Inscrição'}</p>
-          <h1>{en ? 'Build your registration' : 'Construa a sua inscrição'}</h1>
-          <p>{en ? 'Choose each component and see the estimated total immediately.' : 'Escolha cada componente e consulte imediatamente o total estimado.'}</p>
+          <h1>{en ? 'Your registration' : 'A sua inscrição'}</h1>
+          <p>{en ? 'Register for the in-person congress and pay by Multibanco.' : 'Inscreva-se no congresso presencial e pague por Multibanco.'}</p>
         </div>
         <div className="account-hero__mark" aria-hidden="true">
           <span>CIRC</span>
@@ -267,7 +272,7 @@ export function AccountRegistrationsPage2027() {
 
       <section className="account-registration-section">
         <div className="account-registration-alert">
-          <span className="account-status account-status--neutral">{en ? 'Opens 15 November 2026' : 'Abertura a 15 de novembro de 2026'}</span>
+          <span className="account-status">{en ? 'Registration open' : 'Inscrições abertas'}</span>
           <p>{en ? 'Each participant has one primary registration. Courses and dinner tickets can be added later without creating a second registration.' : 'Cada participante terá uma única inscrição principal. Os cursos e bilhetes de jantar poderão ser acrescentados mais tarde, sem criar uma segunda inscrição.'}</p>
         </div>
         <RegistrationBuilder />

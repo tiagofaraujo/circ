@@ -1,626 +1,100 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
 import RegistrationInvoice from '../RegistrationInvoice';
-import { mriCourseTitle } from '../MriCourseDescription';
-import { strokeCourseTitle } from '../StrokeCourseDescription';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import PublicLiveCheckout from '../PublicLiveCheckout';
 import { useAuth } from '../../auth/AuthContext';
-import {
-  saveAdminTestAddOnOrder,
-  saveAdminTestRegistration,
-  subscribeToAdminTestAddOnOrders,
-  subscribeToAdminTestRegistration,
-} from '../../auth/registrationStore';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUlsEligibility } from '../../auth/ulsEligibilityStore';
+import { useStudentVerification } from '../../auth/studentVerificationStore';
 import UlsVerification from './UlsVerification';
 import StudentVerification from './StudentVerification';
-import { useStudentVerification } from '../../auth/studentVerificationStore';
-import {
-  calculateRegistrationTotal,
-  formatEuro,
-  getRegistrationPeriod,
-} from '../../data/registration2027';
+import { CONGRESS_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, getCourseRate, formatEuro, getRegistrationPeriod } from '../../data/registration2027';
 import '../css/RegistrationBuilder.css';
+import { mriCourseTitle } from '../MriCourseDescription';
+import { strokeCourseTitle } from '../StrokeCourseDescription';
 
-function ChoiceCard({ selected, disabled, name, value, onChange, eyebrow, title, text }) {
-  return (
-    <label className={`registration-choice${selected ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}`}>
-      <input
-        type="radio"
-        name={name}
-        value={value}
-        checked={selected}
-        disabled={disabled}
-        onChange={() => onChange(value)}
-      />
-      <span className="registration-choice__check" aria-hidden="true">✓</span>
-      <small>{eyebrow}</small>
-      <strong>{title}</strong>
-      <p>{text}</p>
-    </label>
-  );
+export function ExistingRegistrationAddOns({ registration, user, en = false }) {
+  const selection = registration.selection || {};
+  const entitlements = registration.entitlements || selection;
+  const paid = registration.payment?.status === 'paid';
+  const status = paid ? (en ? 'Paid' : 'Paga') : registration.payment?.status === 'refunded' ? (en ? 'Refund recorded' : 'Reembolso registado') : (en ? 'Under review' : 'Em conferência');
+  const title = selection.congressMode === 'virtual' ? (en ? 'Virtual congress' : 'Congresso virtual') : selection.congressMode === 'onsite' ? 'CIRC 2027 · Presencial' : (en ? 'Pre-congress courses' : 'Cursos pré-congresso');
+  return <div className="registration-builder registration-builder--addons">
+    <section className="registration-summary registration-paid-summary" aria-labelledby="registration-existing-title">
+      <div className="registration-summary__rate"><span>{en ? 'Your registration' : 'A sua inscrição'}</span><strong>{status}</strong></div>
+      <h2 id="registration-existing-title">{en ? 'Registration summary' : 'Resumo da inscrição'}</h2>
+      <p><strong>{registration.participantName}</strong></p>
+      <ul><li><span><strong>{title}</strong><small>9–10 {en ? 'April' : 'de abril'} 2027</small></span></li>
+        {entitlements.morningCourse && <li>{en ? 'Morning course included' : 'Curso da manhã incluído'}</li>}
+        {entitlements.afternoonCourse && <li>{en ? 'Afternoon course included' : 'Curso da tarde incluído'}</li>}
+        {entitlements.dinnerQuantity > 0 && <li>{en ? 'Dinner tickets' : 'Bilhetes de jantar'}: {entitlements.dinnerQuantity}</li>}</ul>
+      <div className="registration-summary__total"><span>{en ? 'Registration amount' : 'Valor da inscrição'}</span><strong>{formatEuro(Number(registration.voucherId ? registration.payment?.coveredAmountCents || 0 : registration.payment?.amountCents || 0) / 100)}</strong></div>
+      {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The invoice belongs to the company purchase.' : 'O documento de faturação pertence à compra da empresa.'}</p>}
+      <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>
+      {!registration.voucherId && <RegistrationInvoice user={user} registration={registration} en={en} />}
+      <p>{en ? 'Registration supplements are not available for purchase yet. Contact the organisers for assistance.' : 'A compra de complementos ainda não está disponível. Contacte a organização para esclarecimentos.'}</p>
+      <Link to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
+    </section>
+  </div>;
 }
 
-function ToggleCard({ checked, disabled, onChange, date, period, title, price, text }) {
-  return (
-    <label className={`registration-toggle${checked ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
-      <span className="registration-toggle__date">{date}<small>{period}</small></span>
-      <span className="registration-toggle__content">
-        <strong>{title}</strong>
-        <small>{text}</small>
-      </span>
-      <span className="registration-toggle__price">{price}</span>
-      <span className="registration-toggle__control" aria-hidden="true"><i /></span>
-    </label>
-  );
-}
-
-function SummaryLine({ label, detail, amount }) {
-  return (
-    <li>
-      <span><strong>{label}</strong>{detail && <small>{detail}</small>}</span>
-      <b>{formatEuro(amount)}</b>
-    </li>
-  );
-}
-
-function registrationModeLabel(mode, en) {
-  if (mode === 'onsite') return en ? 'CIRC 2027 · In person' : 'CIRC 2027 · Presencial';
-  if (mode === 'virtual') return en ? 'CIRC 2027 · Virtual' : 'CIRC 2027 · Virtual';
-  return en ? 'Pre-Congress Courses only' : 'Apenas Cursos Pré-Congresso';
-}
-
-export function ExistingRegistrationAddOns({ registration, orders, user, en, period }) {
-  const primary = registration.selection || {};
-  const entitlements = registration.entitlements || {
-    congressMode: primary.congressMode || '',
-    morningCourse: Boolean(primary.morningCourse),
-    afternoonCourse: Boolean(primary.afternoonCourse),
-    dinnerQuantity: Math.max(0, Number(primary.dinnerQuantity || 0)),
-  };
-  const studentProfile = primary.profile === 'student';
-  const studentVerification = useStudentVerification(user, studentProfile && !registration.isTest);
-  const courseReady = studentProfile
-    ? Boolean(registration.isTest || studentVerification.approved)
-    : Boolean(primary.courseAffiliation);
-  const [morningCourse, setMorningCourse] = useState(false);
-  const [afternoonCourse, setAfternoonCourse] = useState(false);
-  const [dinnerQuantity, setDinnerQuantity] = useState(0);
-  const [orderState, setOrderState] = useState('idle');
-  const [orderError, setOrderError] = useState('');
-
-  useEffect(() => {
-    if (entitlements.morningCourse) setMorningCourse(false);
-    if (entitlements.afternoonCourse) setAfternoonCourse(false);
-  }, [entitlements.afternoonCourse, entitlements.morningCourse]);
-
-  const totals = useMemo(() => calculateRegistrationTotal({
-    profile: primary.profile,
-    courseAffiliation: primary.courseAffiliation,
-    congressMode: '',
-    morningCourse,
-    afternoonCourse,
-    dinnerQuantity,
-    period,
-  }), [afternoonCourse, dinnerQuantity, morningCourse, period, primary.courseAffiliation, primary.profile]);
-  const hasAdditions = Boolean(morningCourse || afternoonCourse || dinnerQuantity > 0);
-  const paymentStatus = registration.payment?.status || 'pending';
-  const paymentLabel = paymentStatus === 'paid'
-    ? (en ? 'Paid' : 'Paga')
-    : (en ? 'Awaiting payment validation' : 'A aguardar validação do pagamento');
-
-  const submitAddOnOrder = async () => {
-    if (!registration.isTest || !hasAdditions || orderState === 'saving') return;
-    setOrderState('saving');
-    setOrderError('');
-    try {
-      await saveAdminTestAddOnOrder(user, { morningCourse, afternoonCourse, dinnerQuantity });
-      setMorningCourse(false);
-      setAfternoonCourse(false);
-      setDinnerQuantity(0);
-      setOrderState('saved');
-    } catch (error) {
-      setOrderState('error');
-      setOrderError(en
-        ? 'The supplementary test order could not be saved. Confirm the Firebase rules for registrationOrders.'
-        : 'Não foi possível guardar o pedido complementar de teste. Confirme as regras do Firebase para registrationOrders.');
-    }
-  };
-
-  return (
-    <div className="registration-builder registration-builder--addons">
-      <div className="registration-builder__progress registration-builder__progress--addons" aria-label={en ? 'Registration and supplements' : 'Inscrição e complementos'}>
-        <span className="is-complete"><b>✓</b>{en ? 'Primary registration' : 'Inscrição principal'}</span>
-        <span className="is-current"><b>2</b>{en ? 'Add supplements' : 'Adicionar complementos'}</span>
-        <span><b>3</b>{en ? 'Separate payment' : 'Pagamento separado'}</span>
-      </div>
-
-      <section className="registration-summary registration-paid-summary" aria-labelledby="registration-existing-title">
-        <div className="registration-summary__rate"><span>{en ? 'Your registration' : 'A sua inscrição'}</span><strong>{registration.isTest ? 'TESTE' : paymentLabel}</strong></div>
-        <h2 id="registration-existing-title">{en ? 'Registration summary' : 'Resumo da inscrição'}</h2>
-        <p><strong>{registration.participantName}</strong></p>
-        <ul>
-          <li><span><strong>{registrationModeLabel(primary.congressMode, en)}</strong><small>{en ? '9–10 April 2027' : '9 e 10 de abril de 2027'}</small></span><b>{en ? 'Included' : 'Incluído'}</b></li>
-          <li><span><strong>{en ? 'MRI post-processing · 8 April, morning' : 'Pós-processamento em RM · 8 de abril, manhã'}</strong></span><b>{entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
-          <li><span><strong>Via Verde AVC · {en ? '8 April, afternoon' : '8 de abril, tarde'}</strong></span><b>{entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : '—'}</b></li>
-          <li><span><strong>{en ? 'Congress dinner' : 'Jantar do congresso'}</strong></span><b>× {entitlements.dinnerQuantity || 0}</b></li>
-        </ul>
-        <div className="registration-summary__total"><span>{registration.voucherId ? (en ? 'Congress covered by voucher' : 'Congresso abrangido pelo voucher') : (en ? 'Original registration amount' : 'Valor da inscrição original')}</span><strong>{formatEuro(Number(registration.voucherId ? registration.payment?.coveredAmountCents || 0 : registration.payment?.amountCents || 0) / 100)}</strong></div>
-        {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The billing document belongs to the company purchase. Extras are paid separately.' : 'O documento de faturação pertence à compra da empresa. Os extras são pagos separadamente.'}</p>}
-        <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>
-        {registration.isTest === false && !registration.voucherId && <RegistrationInvoice user={user} registration={registration} en={en} />}
-        <a className="button button--dark" href="#registration-addon-courses-title">{en ? 'Add courses and dinners' : 'Adicionar cursos e jantares'} ↓</a>
-        <Link to="/conta/perfil">{en ? 'Review profile details' : 'Rever dados do perfil'}</Link>
-      </section>
-
-      <div className="registration-builder__layout">
-        <div className="registration-builder__main">
-          <section className={`registration-step${!courseReady ? ' is-locked' : ''}`} aria-labelledby="registration-addon-courses-title">
-            <div className="registration-step__heading">
-              <span>01</span>
-              <div>
-                <p>{en ? '8 April · Optional supplement' : '8 de abril · Complemento opcional'}</p>
-                <h2 id="registration-addon-courses-title">{en ? 'Add an available course' : 'Acrescente um curso disponível'}</h2>
-              </div>
-            </div>
-            {studentProfile && !courseReady && <p className="registration-step__lock-note">{en ? 'Course selection becomes available after the secretariat approves your document.' : 'A seleção de cursos fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
-            <div className="registration-toggle-list">
-              <ToggleCard
-                checked={Boolean(entitlements.morningCourse || morningCourse)}
-                disabled={!courseReady || Boolean(entitlements.morningCourse)}
-                onChange={setMorningCourse}
-                date="08"
-                period={en ? 'AM' : 'MANHÃ'}
-                title={en ? mriCourseTitle.en : mriCourseTitle.pt}
-                text={entitlements.morningCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
-                price={entitlements.morningCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
-              />
-              <ToggleCard
-                checked={Boolean(entitlements.afternoonCourse || afternoonCourse)}
-                disabled={!courseReady || Boolean(entitlements.afternoonCourse)}
-                onChange={setAfternoonCourse}
-                date="08"
-                period={en ? 'PM' : 'TARDE'}
-                title={en ? strokeCourseTitle.en : strokeCourseTitle.pt}
-                text={entitlements.afternoonCourse ? (en ? 'Already included in your registration.' : 'Já incluído na sua inscrição.') : (en ? 'Available as a supplementary order.' : 'Disponível como pedido complementar.')}
-                price={entitlements.afternoonCourse ? (en ? 'Included' : 'Incluído') : `+ ${formatEuro(totals.courseUnit)}`}
-              />
-            </div>
-          </section>
-
-          <section className="registration-step registration-step--compact" aria-labelledby="registration-addon-dinner-title">
-            <div className="registration-step__heading">
-              <span>02</span>
-              <div>
-                <p>{en ? 'Always available · Any quantity' : 'Sempre disponível · Qualquer quantidade'}</p>
-                <h2 id="registration-addon-dinner-title">{en ? 'Additional dinner tickets' : 'Bilhetes adicionais para o jantar'}</h2>
-              </div>
-            </div>
-            <div className={`registration-dinner-quantity${dinnerQuantity > 0 ? ' is-selected' : ''}`}>
-              <span className="registration-dinner-quantity__copy">
-                <strong>{en ? 'How many tickets would you like to add?' : 'Quantos bilhetes pretende acrescentar?'}</strong>
-                <small>{en ? `${entitlements.dinnerQuantity || 0} ticket(s) already associated · €30 per person.` : `${entitlements.dinnerQuantity || 0} bilhete(s) já associado(s) · 30 € por pessoa.`}</small>
-              </span>
-              <b>{dinnerQuantity > 0 ? formatEuro(totals.dinner) : `${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`}</b>
-              <div className="registration-quantity" role="group" aria-label={en ? 'Additional dinner tickets' : 'Bilhetes de jantar adicionais'}>
-                <button type="button" onClick={() => setDinnerQuantity((current) => Math.max(0, current - 1))} disabled={dinnerQuantity === 0}>−</button>
-                <input type="number" min="0" step="1" inputMode="numeric" value={dinnerQuantity} onChange={(event) => setDinnerQuantity(Math.max(0, Math.floor(Number(event.target.value) || 0)))} aria-label={en ? 'Additional dinner ticket quantity' : 'Quantidade adicional de bilhetes para o jantar'} />
-                <button type="button" onClick={() => setDinnerQuantity((current) => current + 1)}>+</button>
-              </div>
-            </div>
-          </section>
-
-          {orders.length > 0 && (
-            <section className="registration-addon-history" aria-labelledby="registration-addon-history-title">
-              <div><p className="eyebrow">{en ? 'History' : 'Histórico'}</p><h2 id="registration-addon-history-title">{en ? 'Supplementary orders' : 'Pedidos complementares'}</h2></div>
-              <ul>
-                {orders.map((order, index) => (
-                  <li key={order.id}>
-                    <span><strong>#{String(index + 1).padStart(2, '0')}</strong><small>{order.id}</small></span>
-                    <span>{[
-                      order.items?.morningCourse ? (en ? 'Morning course' : 'Curso manhã') : '',
-                      order.items?.afternoonCourse ? (en ? 'Afternoon course' : 'Curso tarde') : '',
-                      Number(order.items?.dinnerQuantity || 0) > 0 ? `${order.items.dinnerQuantity} ${en ? 'dinner ticket(s)' : 'jantar(es)'}` : '',
-                    ].filter(Boolean).join(' · ')}</span>
-                    <b>{formatEuro(Number(order.payment?.amountCents || 0) / 100)}</b>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
-
-        <aside className="registration-summary registration-summary--addons" aria-live="polite">
-          <div className="registration-summary__rate"><span>{en ? 'New supplement' : 'Novo complemento'}</span><strong>{en ? 'Separate order' : 'Pedido separado'}</strong></div>
-          <p className="registration-summary__eyebrow">{en ? 'To be added' : 'A acrescentar'}</p>
-          <h2>{en ? 'Supplement summary' : 'Resumo do complemento'}</h2>
-          <ul>
-            {morningCourse && <SummaryLine label={en ? 'Morning course' : 'Curso da manhã'} detail={en ? 'Added once' : 'Adicionado uma vez'} amount={totals.courseUnit} />}
-            {afternoonCourse && <SummaryLine label={en ? 'Afternoon course' : 'Curso da tarde'} detail={en ? 'Added once' : 'Adicionado uma vez'} amount={totals.courseUnit} />}
-            {totals.dinner > 0 && <SummaryLine label={`${en ? 'Dinner tickets' : 'Bilhetes de jantar'} × ${dinnerQuantity}`} detail={`${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`} amount={totals.dinner} />}
-          </ul>
-          {!hasAdditions && <p className="registration-summary__empty">{en ? 'Select a course or the number of dinner tickets to create a supplementary order.' : 'Selecione um curso ou a quantidade de jantares para criar um pedido complementar.'}</p>}
-          <div className="registration-summary__total"><span>{en ? 'New order total' : 'Total do novo pedido'}</span><strong>{formatEuro(totals.total)}</strong></div>
-          <small className="registration-summary__tax">{en ? 'This does not alter the original payment or invoice.' : 'Não altera o pagamento nem a fatura da inscrição original.'}</small>
-          {registration.isTest ? <div className="registration-summary__test-mode">
-            <span>{en ? 'Administrator test mode' : 'Modo de teste administrativo'}</span>
-            <small>{en ? 'Creates a separate supplementary order linked to the same registration.' : 'Cria um pedido complementar separado, associado à mesma inscrição.'}</small>
-            <button type="button" onClick={submitAddOnOrder} disabled={!hasAdditions || orderState === 'saving'}>{orderState === 'saving' ? (en ? 'Saving…' : 'A guardar…') : (en ? 'Create supplementary test order' : 'Criar pedido complementar de teste')}</button>
-            {orderState === 'saved' && <div className="registration-summary__success" role="status"><strong>{en ? 'Supplementary order saved.' : 'Pedido complementar guardado.'}</strong><Link to="/admin">{en ? 'View primary registration' : 'Ver inscrição principal'} →</Link></div>}
-            {orderError && <p className="registration-summary__error" role="alert">{orderError}</p>}
-          </div> : <p role="status">{en ? 'You can plan your extras here. Supplementary payments are not available yet; this selection is not a reservation and does not change your confirmed registration.' : 'Pode preparar aqui os seus extras. O pagamento de complementos ainda não está disponível; esta seleção não constitui uma reserva nem altera a inscrição confirmada.'}</p>}
-          <Link to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'} <span aria-hidden="true">→</span></Link>
-        </aside>
-      </div>
-    </div>
-  );
-}
-
-function RegistrationBuilder({ paidRegistration }) {
+function ProductionRegistrationBuilder({ registration }) {
+  const { user } = useAuth();
   const { language } = useLanguage();
-  const { user, isAdmin } = useAuth();
-  const ulsEligibility = useUlsEligibility(user);
   const en = language === 'en';
-  const [profile, setProfile] = useState('');
-  const studentVerification = useStudentVerification(user, profile === 'student');
-  const [courseAffiliation, setCourseAffiliation] = useState('');
-  const [congressMode, setCongressMode] = useState('');
-  const [morningCourse, setMorningCourse] = useState(false);
-  const [afternoonCourse, setAfternoonCourse] = useState(false);
-  const [dinnerQuantity, setDinnerQuantity] = useState(0);
-  const [submissionState, setSubmissionState] = useState('idle');
-  const [submissionError, setSubmissionError] = useState('');
-  const [existingRegistration, setExistingRegistration] = useState(null);
-  const [existingOrders, setExistingOrders] = useState([]);
-  const [registrationLookupDone, setRegistrationLookupDone] = useState(!isAdmin);
+  const [chosenProfile, setProfile] = useState('external');
+  const [checkoutLocked, setCheckoutLocked] = useState(false);
+  const profile = registration?.selection?.profile || chosenProfile;
+  const uls = useUlsEligibility(user);
+  const student = useStudentVerification(user, profile === 'student');
   const period = getRegistrationPeriod();
-
-  useEffect(() => {
-    if (!isAdmin || !user) {
-      setRegistrationLookupDone(true);
-      return undefined;
-    }
-
-    setRegistrationLookupDone(false);
-    const unsubscribeRegistration = subscribeToAdminTestRegistration(
-      user,
-      (registration) => { setExistingRegistration(registration); setRegistrationLookupDone(true); },
-      () => { setRegistrationLookupDone(true); setSubmissionError(en ? 'Could not check the existing registration.' : 'Não foi possível verificar a inscrição existente.'); }
-    );
-    const unsubscribeOrders = subscribeToAdminTestAddOnOrders(user, setExistingOrders, () => setExistingOrders([]));
-    return () => { unsubscribeRegistration(); unsubscribeOrders(); };
-  }, [en, isAdmin, user]);
-
-  useEffect(() => {
-    if (profile === 'uls') {
-      setCourseAffiliation('uls');
-    } else if (profile === 'external' || profile === 'student') {
-      setCourseAffiliation('external');
-    } else {
-      setCourseAffiliation('');
-    }
-  }, [profile]);
-
-  useEffect(() => {
-    if (profile === 'student' && !studentVerification.approved && !isAdmin) {
-      setCongressMode('');
-      setMorningCourse(false);
-      setAfternoonCourse(false);
-    }
-  }, [profile, studentVerification.approved, isAdmin]);
-
-  const totals = useMemo(() => calculateRegistrationTotal({
-    profile,
-    courseAffiliation,
-    congressMode,
-    morningCourse,
-    afternoonCourse,
-    dinnerQuantity,
-    period,
-  }), [afternoonCourse, congressMode, courseAffiliation, dinnerQuantity, morningCourse, period, profile]);
-
-  const profileLabels = {
-    uls: en ? 'ULS Coimbra delegate' : 'Congressista da ULS Coimbra',
-    external: en ? 'External delegate' : 'Congressista externo',
-    student: en ? 'IMR student' : 'Estudante de IMR',
-  };
-  const hasSelection = Boolean(congressMode || morningCourse || afternoonCourse || dinnerQuantity);
-  const completeExperience = congressMode === 'onsite' && morningCourse && afternoonCourse;
-  // Administrative simulations remain explicitly marked as tests and never request payment.
-  const profileReady = Boolean(profile
-    && (profile !== 'uls' || ulsEligibility.verified || isAdmin)
-    && (profile !== 'student' || studentVerification.approved || isAdmin));
-  const coursesReady = Boolean(profileReady && courseAffiliation);
-  const hasCourse = morningCourse || afternoonCourse;
-  const testSelectionReady = Boolean(
-    profileReady
-    && congressMode
-    && (congressMode !== 'courses-only' || hasCourse)
-    && (!hasCourse || courseAffiliation)
-  );
-
-  const submitTestRegistration = async () => {
-    if (!isAdmin || !testSelectionReady || submissionState === 'saving') return;
-
-    setSubmissionState('saving');
-    setSubmissionError('');
-    try {
-      await saveAdminTestRegistration(user, {
-        profile,
-        courseAffiliation,
-        congressMode,
-        morningCourse,
-        afternoonCourse,
-        dinnerQuantity,
-        period,
-        total: totals.total,
-      });
-      setSubmissionState('saved');
-    } catch (error) {
-      setSubmissionState('error');
-      setSubmissionError(error?.message === 'registrations/already-exists'
-        ? (en ? 'A primary registration already exists for this participant.' : 'Este participante já possui uma inscrição principal.')
-        : (en ? 'The test registration could not be saved. Check the Firebase rules.' : 'Não foi possível guardar a inscrição de teste. Confirme as regras do Firebase.'));
-    }
-  };
-
-  if (isAdmin && !registrationLookupDone) {
-    return <div className="registration-builder-loading" role="status">{en ? 'Checking your registration…' : 'A verificar a sua inscrição…'}</div>;
+  const ready = user.emailVerified === true && (profile === 'external' || (profile === 'uls' && uls.verified) || (profile === 'student' && student.approved));
+  const selection = { profile, congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+  if (registration?.isTest === true || registration?.testMode === true) return <p role="alert">{en ? 'An existing registration needs organiser review before another payment can be created.' : 'Existe uma inscrição que necessita de conferência pela organização antes de criar outro pagamento.'}</p>;
+  if (registration && (registration.payment?.status === 'paid' || ['cancelled', 'refunded'].includes(registration.payment?.status) || registration.status === 'cancelled')) {
+    return <ExistingRegistrationAddOns registration={registration} user={user} en={en} />;
   }
-
-  if (paidRegistration) {
-    return <ExistingRegistrationAddOns registration={paidRegistration} orders={[]} user={user} en={en} period={period} />;
-  }
-
-  if (isAdmin && existingRegistration) {
-    return <ExistingRegistrationAddOns registration={existingRegistration} orders={existingOrders} user={user} en={en} period={period} />;
-  }
-
-  return (
-    <div className="registration-builder">
-      <div className="registration-builder__progress" aria-label={en ? 'Registration structure' : 'Estrutura da inscrição'}>
-        <span className={profile ? 'is-complete' : 'is-current'}><b>1</b>{en ? 'Profile' : 'Perfil'}</span>
-        <span className={congressMode ? 'is-complete' : profile ? 'is-current' : ''}><b>2</b>{en ? 'Congress' : 'Congresso'}</span>
-        <span className={hasSelection ? 'is-complete' : ''}><b>3</b>{en ? 'Extras' : 'Complementos'}</span>
-        <span><b>4</b>{en ? 'Summary' : 'Resumo'}</span>
+  return <div className="registration-builder">
+    <div className="registration-builder__layout">
+      <div className="registration-builder__main">
+        <section className="registration-step" aria-labelledby="registration-profile-title">
+          <h2 id="registration-profile-title">{en ? 'Your registration profile' : 'O seu perfil de inscrição'}</h2>
+          <fieldset disabled={Boolean(registration) || checkoutLocked}><legend>{en ? 'Attendee category' : 'Categoria de participante'}</legend><div className="registration-choice-grid registration-choice-grid--three">
+            {[['external', en ? 'External attendee' : 'Congressista externo'], ['uls', 'ULS Coimbra'], ['student', en ? 'IMR student' : 'Estudante de IMR']].map(([value, label]) => <label className={`registration-choice${profile === value ? ' is-selected' : ''}${registration || checkoutLocked ? ' is-disabled' : ''}`} key={value}>
+              <input type="radio" name="registration-profile" value={value} checked={profile === value} onChange={() => setProfile(value)} />
+              <span className="registration-choice__check" aria-hidden="true">✓</span><strong>{label}</strong><span>{formatEuro(CONGRESS_RATES[value][period])}</span>
+            </label>)}
+          </div></fieldset>
+          {!registration && profile === 'uls' && <UlsVerification user={user} eligibility={uls} en={en} />}
+          {!registration && profile === 'student' && <StudentVerification user={user} verification={student} en={en} />}
+        </section>
+        <section className="registration-step"><h2>{en ? 'Onsite congress' : 'Congresso presencial'}</h2><p>9–10 {en ? 'April' : 'de abril'} 2027 · Convento São Francisco · Coimbra</p>
+          <p>{en ? 'This registration covers the onsite congress. Courses, dinner, virtual participation and other payment methods are not available for purchase yet.' : 'Esta inscrição abrange o congresso presencial. A compra de cursos, jantar, participação virtual e outros meios de pagamento ainda não está disponível.'}</p>
+          <fieldset disabled className="registration-unavailable-options"><legend>{en ? 'Other participation options — not available for purchase yet' : 'Outras opções de participação — compra ainda indisponível'}</legend>
+            <label><input type="radio" name="unavailable-mode" /> {en ? 'Virtual congress' : 'Congresso virtual'} · {formatEuro(VIRTUAL_CONGRESS_RATE)}</label>
+            <label><input type="radio" name="unavailable-mode" /> {en ? 'Pre-congress courses only' : 'Apenas cursos pré-congresso'}</label>
+            <label><input type="checkbox" /> {mriCourseTitle[en ? 'en' : 'pt']} · {formatEuro(getCourseRate(profile, profile === 'uls' ? 'uls' : 'external'))}</label>
+            <label><input type="checkbox" /> {strokeCourseTitle[en ? 'en' : 'pt']} · {formatEuro(getCourseRate(profile, profile === 'uls' ? 'uls' : 'external'))}</label>
+            <label><input type="checkbox" /> {en ? 'Congress dinner' : 'Jantar do congresso'} · {formatEuro(DINNER_RATE)} / {en ? 'person' : 'pessoa'}</label>
+          </fieldset>
+        </section>
       </div>
-
-      <div className="registration-builder__layout">
-        <div className="registration-builder__main">
-          <section className="registration-step" aria-labelledby="registration-profile-title">
-            <div className="registration-step__heading">
-              <span>01</span>
-              <div>
-                <p>{en ? 'Participant profile' : 'Perfil do participante'}</p>
-                <h2 id="registration-profile-title">{en ? 'Which rate applies to you?' : 'Que tarifa se aplica a si?'}</h2>
-              </div>
-            </div>
-            <div className="registration-choice-grid registration-choice-grid--three">
-              <ChoiceCard
-                name="participant-profile"
-                value="uls"
-                selected={profile === 'uls'}
-                onChange={setProfile}
-                eyebrow="ULS Coimbra"
-                title={en ? 'Delegate' : 'Congressista'}
-                text={en ? 'Eligible professionals. Institutional MEC validation required.' : 'Profissionais elegíveis. Requer validação institucional do MEC.'}
-              />
-              <ChoiceCard
-                name="participant-profile"
-                value="external"
-                selected={profile === 'external'}
-                onChange={setProfile}
-                eyebrow={en ? 'Other institutions' : 'Outras instituições'}
-                title={en ? 'External delegate' : 'Congressista externo'}
-                text={en ? 'Professionals from other organisations.' : 'Profissionais de outras entidades.'}
-              />
-              <ChoiceCard
-                name="participant-profile"
-                value="student"
-                selected={profile === 'student'}
-                onChange={setProfile}
-                eyebrow={en ? 'Student rate' : 'Tarifa de estudante'}
-                title={en ? 'IMR student' : 'Estudante de IMR'}
-                text={en ? 'Enrolment document subject to approval.' : 'Comprovativo de matrícula sujeito a aprovação.'}
-              />
-            </div>
-          </section>
-
-          {profile === 'uls' && <UlsVerification key={user?.uid || 'guest'} user={user} eligibility={ulsEligibility} en={en} />}
-          {profile === 'student' && <StudentVerification key={user?.uid || 'guest'} user={user} verification={studentVerification} en={en} />}
-
-          <section className={`registration-step${!profileReady ? ' is-locked' : ''}`} aria-labelledby="registration-congress-title">
-            <div className="registration-step__heading">
-              <span>02</span>
-              <div>
-                <p>{en ? '9–10 April' : '9–10 de abril'}</p>
-                <h2 id="registration-congress-title">{en ? 'How will you attend the congress?' : 'Como pretende participar no congresso?'}</h2>
-              </div>
-            </div>
-            {!profile && <p className="registration-step__lock-note">{en ? 'Select your profile first.' : 'Selecione primeiro o seu perfil.'}</p>}
-            {profile === 'uls' && !profileReady && <p className="registration-step__lock-note">{en ? 'Validate your employee number above to continue in the ULS Coimbra category.' : 'Valide o MEC acima para continuar na categoria ULS Coimbra.'}</p>}
-            {profile === 'student' && !profileReady && <p className="registration-step__lock-note">{en ? 'Student participation becomes available after the secretariat approves your document.' : 'A participação como estudante fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
-            <div className="registration-choice-grid registration-choice-grid--three">
-              <ChoiceCard
-                name="congress-mode"
-                value="onsite"
-                selected={congressMode === 'onsite'}
-                disabled={!profileReady}
-                onChange={setCongressMode}
-                eyebrow={en ? 'Coimbra · In person' : 'Coimbra · Presencial'}
-                title="CIRC 2027"
-                text={en ? 'Two days at Convento São Francisco.' : 'Dois dias no Convento São Francisco.'}
-              />
-              <ChoiceCard
-                name="congress-mode"
-                value="virtual"
-                selected={congressMode === 'virtual'}
-                disabled={!profileReady}
-                onChange={setCongressMode}
-                eyebrow={en ? 'Online access' : 'Acesso online'}
-                title={en ? 'Virtual congress' : 'Congresso virtual'}
-                text={en ? 'Remote participation at a single rate.' : 'Participação à distância com preço único.'}
-              />
-              <ChoiceCard
-                name="congress-mode"
-                value="courses-only"
-                selected={congressMode === 'courses-only'}
-                disabled={!profileReady}
-                onChange={setCongressMode}
-                eyebrow={en ? '8 April only' : 'Apenas 8 de abril'}
-                title={en ? 'Courses only' : 'Apenas cursos'}
-                text={en ? 'Without registration for the congress.' : 'Sem inscrição no Congresso Internacional.'}
-              />
-            </div>
-          </section>
-
-          <section className={`registration-step${!coursesReady ? ' is-locked' : ''}`} aria-labelledby="registration-courses-title">
-            <div className="registration-step__heading">
-              <span>03</span>
-              <div>
-                <p>{en ? '8 April · Optional' : '8 de abril · Opcional'}</p>
-                <h2 id="registration-courses-title">
-                  {en ? 'Add one or both courses' : 'Acrescente um ou os dois cursos'}
-                </h2>
-              </div>
-            </div>
-            {profile === 'student' && !coursesReady && <p className="registration-step__lock-note">{en ? 'Course selection becomes available after the secretariat approves your document.' : 'A seleção de cursos fica disponível após aprovação do comprovativo pelo secretariado.'}</p>}
-            <div className="registration-course-note">
-              <span>{en ? 'Price per course' : 'Preço por curso'}</span>
-              <strong>{coursesReady ? formatEuro(totals.courseUnit) : '—'}</strong>
-              <p>{en ? 'Morning and afternoon are charged independently.' : 'Os cursos da manhã e da tarde são pagos separadamente.'}</p>
-            </div>
-            <div className="registration-toggle-list">
-              <ToggleCard
-                checked={morningCourse}
-                disabled={!coursesReady}
-                onChange={setMorningCourse}
-                date="08"
-                period={en ? 'AM' : 'MANHÃ'}
-                title={en ? mriCourseTitle.en : mriCourseTitle.pt}
-                text={en ? '09:00–13:00 · Practical demonstrations and clinical cases.' : '09:00–13:00 · Demonstrações práticas e casos clínicos.'}
-                price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
-              />
-              <ToggleCard
-                checked={afternoonCourse}
-                disabled={!coursesReady}
-                onChange={setAfternoonCourse}
-                date="08"
-                period={en ? 'PM' : 'TARDE'}
-                title={en ? strokeCourseTitle.en : strokeCourseTitle.pt}
-                text={en ? '14:00–18:00 · From diagnosis to treatment decisions.' : '14:00–18:00 · Do diagnóstico à decisão terapêutica.'}
-                price={coursesReady ? `+ ${formatEuro(totals.courseUnit)}` : '—'}
-              />
-            </div>
-          </section>
-
-          <section className="registration-step registration-step--compact" aria-labelledby="registration-dinner-title">
-            <div className="registration-step__heading">
-              <span>04</span>
-              <div>
-                <p>{en ? 'Social programme · Optional' : 'Programa social · Opcional'}</p>
-                <h2 id="registration-dinner-title">{en ? 'Congress dinner' : 'Jantar do congresso'}</h2>
-              </div>
-            </div>
-            <div className={`registration-dinner-quantity${dinnerQuantity > 0 ? ' is-selected' : ''}`}>
-              <span className="registration-dinner-quantity__copy">
-                <strong>{en ? 'Dinner tickets' : 'Bilhetes para o jantar'}</strong>
-                <small>{en ? 'Available with every registration category · €30 per person.' : 'Disponível em todas as modalidades · 30 € por pessoa.'}</small>
-              </span>
-              <b>{dinnerQuantity > 0 ? formatEuro(totals.dinner) : `${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`}</b>
-              <div className="registration-quantity" role="group" aria-label={en ? 'Number of dinner tickets' : 'Número de bilhetes para o jantar'}>
-                <button
-                  type="button"
-                  onClick={() => setDinnerQuantity((current) => Math.max(0, current - 1))}
-                  disabled={dinnerQuantity === 0}
-                  aria-label={en ? 'Remove one dinner ticket' : 'Remover um bilhete de jantar'}
-                >−</button>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  inputMode="numeric"
-                  value={dinnerQuantity}
-                  onChange={(event) => setDinnerQuantity(Math.max(0, Math.floor(Number(event.target.value) || 0)))}
-                  aria-label={en ? 'Dinner ticket quantity' : 'Quantidade de bilhetes para o jantar'}
-                />
-                <button
-                  type="button"
-                  onClick={() => setDinnerQuantity((current) => current + 1)}
-                  aria-label={en ? 'Add one dinner ticket' : 'Adicionar um bilhete de jantar'}
-                >+</button>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <aside className="registration-summary" aria-live="polite">
-          <div className="registration-summary__rate">
-            <span>{period === 'early' ? (en ? 'Early rate' : 'Tarifa antecipada') : (en ? 'Standard rate' : 'Tarifa regular')}</span>
-            <strong>{period === 'early' ? (en ? 'Until 31 Jan 2027' : 'Até 31 de jan. de 2027') : (en ? 'From 1 Feb 2027' : 'Desde 1 de fev. de 2027')}</strong>
-          </div>
-          <p className="registration-summary__eyebrow">{en ? 'Your selection' : 'A sua seleção'}</p>
-          <h2>{completeExperience ? (en ? 'Complete experience' : 'Experiência completa') : (en ? 'Registration summary' : 'Resumo da inscrição')}</h2>
-          {profile && <p className="registration-summary__profile">{profileLabels[profile]}</p>}
-
-          <ul>
-            {totals.congress > 0 && (
-              <SummaryLine
-                label={congressMode === 'virtual' ? (en ? 'Virtual congress' : 'Congresso virtual') : 'CIRC 2027'}
-                detail={congressMode === 'onsite' ? (en ? '9–10 April · In person' : '9–10 de abril · Presencial') : (en ? '9–10 April · Online' : '9–10 de abril · Online')}
-                amount={totals.congress}
-              />
-            )}
-            {morningCourse && <SummaryLine label={en ? 'Morning course' : 'Curso da manhã'} detail={en ? '8 April' : '8 de abril'} amount={totals.courseUnit} />}
-            {afternoonCourse && <SummaryLine label={en ? 'Afternoon course' : 'Curso da tarde'} detail={en ? '8 April' : '8 de abril'} amount={totals.courseUnit} />}
-            {totals.dinner > 0 && (
-              <SummaryLine
-                label={`${en ? 'Congress dinner' : 'Jantar do congresso'} × ${totals.dinnerQuantity}`}
-                detail={`${formatEuro(30)} / ${en ? 'person' : 'pessoa'}`}
-                amount={totals.dinner}
-              />
-            )}
-          </ul>
-
-          {!hasSelection && <p className="registration-summary__empty">{en ? 'Choose your participation options to calculate the total.' : 'Escolha as opções de participação para calcular o total.'}</p>}
-
-          <div className="registration-summary__total">
-            <span>{en ? 'Estimated total' : 'Total estimado'}</span>
-            <strong>{formatEuro(totals.total)}</strong>
-          </div>
-          <small className="registration-summary__tax">{en ? 'Final price confirmed before payment.' : 'Preço final confirmado antes do pagamento.'}</small>
-
-          <CompanyVoucher eligible={profile === 'external' && congressMode === 'onsite' && !morningCourse && !afternoonCourse && dinnerQuantity === 0} />
-          {isAdmin ? (
-            <div className="registration-summary__test-mode">
-              <span>{en ? 'Administrator test mode' : 'Modo de teste administrativo'}</span>
-              <small>{en ? 'Creates a test record. No payment will be requested.' : 'Cria um registo identificado como teste. Não será solicitado qualquer pagamento.'}</small>
-              <button type="button" onClick={submitTestRegistration} disabled={!testSelectionReady || submissionState === 'saving'}>
-                {submissionState === 'saving'
-                  ? (en ? 'Saving test…' : 'A guardar teste…')
-                  : (en ? 'Create test registration' : 'Criar inscrição de teste')}
-              </button>
-              {!testSelectionReady && <small className="registration-summary__test-hint">{en ? 'Complete the required choices above.' : 'Complete as escolhas obrigatórias acima.'}</small>}
-              {submissionState === 'saved' && (
-                <div className="registration-summary__success" role="status">
-                  <strong>{en ? 'Test registration saved.' : 'Inscrição de teste guardada.'}</strong>
-                  <Link to="/admin">{en ? 'View in admin panel' : 'Ver no painel de administração'} →</Link>
-                </div>
-              )}
-              {submissionError && <p className="registration-summary__error" role="alert">{submissionError}</p>}
-            </div>
-          ) : (
-            <button type="button" disabled>{en ? 'Registration opens 15 November' : 'Inscrições abrem a 15 de novembro'}</button>
-          )}
-          <Link to="/conta/perfil">{en ? 'Review profile details' : 'Rever dados do perfil'} <span aria-hidden="true">→</span></Link>
-        </aside>
-      </div>
+      <aside className="registration-summary">
+        <div className="registration-summary__rate"><span>{en ? 'Current tariff' : 'Tarifa atual'}</span><strong>{period === 'early' ? (en ? 'Until 31 January 2027' : 'Até 31 de janeiro de 2027') : (en ? 'From 1 February 2027' : 'Desde 1 de fevereiro de 2027')}</strong></div>
+        <h2>{registration ? (en ? 'Your pending registration' : 'A sua inscrição pendente') : (en ? 'Registration summary' : 'Resumo da inscrição')}</h2>
+        <p>CIRC 2027 · {en ? 'Onsite congress' : 'Congresso presencial'}</p>
+        <div className="registration-summary__total"><span>{en ? 'Current amount' : 'Valor atual'}</span><strong>{formatEuro(CONGRESS_RATES[profile]?.[period] || 0)}</strong></div>
+        <p>{en ? 'The applicable tariff is based on the payment date. Creating a reference does not reserve the tariff.' : 'A tarifa aplicável depende da data de pagamento. A criação da referência não reserva a tarifa.'}</p>
+        {!user.emailVerified && <p role="alert">{en ? 'Verify your account email before creating a payment.' : 'Confirme o email da sua conta antes de criar um pagamento.'}</p>}
+        {!ready && user.emailVerified && <p role="status">{en ? 'Complete the eligibility check for this category before continuing.' : 'Conclua a validação da categoria selecionada antes de continuar.'}</p>}
+        {!registration && !checkoutLocked && <CompanyVoucher eligible={profile === 'external'} />}
+        <PublicLiveCheckout key={user.uid} user={user} selection={selection} eligible={ready} registration={registration} en={en} onLock={setCheckoutLocked} />
+      </aside>
     </div>
-  );
+  </div>;
 }
 
-export default function CompanyAwareRegistrationBuilder() {
-  return <CompanyRegistrationGate>{(registration) => <RegistrationBuilder paidRegistration={registration} />}</CompanyRegistrationGate>;
+export default function RegistrationBuilder() {
+  return <CompanyRegistrationGate>{registration => <ProductionRegistrationBuilder registration={registration} />}</CompanyRegistrationGate>;
 }

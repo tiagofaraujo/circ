@@ -1,3 +1,4 @@
+import { RESUMABLE_AUTH_ERRORS } from './live-fiscal-issue.mjs';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createEupagoLive } from './eupago-live.mjs';
@@ -48,7 +49,7 @@ export function createCheckoutLiveApi({
         checks:Object.fromEntries(required.map(name=>[name,typeof env[name]==='string'&&env[name].trim().length>0])),
         channelMatchesExpected:env.EUPAGO_LIVE_CHANNEL==='CIRC 2027',externalValidationPerformed:false});
     }
-    const configured=Boolean(creationEnabled()&&(!privatePilot||isAdmin)&&env.EUPAGO_LIVE_API_KEY?.trim()&&env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT);
+    const configured=Boolean(isLivePilotConfigured(env,Date.parse(now()))&&(!privatePilot||isAdmin));
     if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({
       enabled:configured,environment:'production',publicOpen:!privatePilot&&openForPublic(now()),pilotAvailable:isAdmin&&configured,
       methods:configured?['multibanco']:[],registrationOpenDate:REGISTRATION_OPEN_DATE,
@@ -56,7 +57,6 @@ export function createCheckoutLiveApi({
     const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
     const readingOrder=request.method==='GET'&&orderMatch&&LIVE_ORDER_UUID.test(orderMatch[1]);
     const recoveringOrder=request.method==='GET'&&url.pathname===`${PREFIX}/primary-order`;
-    if(recoveringOrder&&!isAdmin)return reply({error:'admin-required'},403);
     if(!configured&&!readingOrder&&!recoveringOrder)return reply({error:'live-checkout-not-configured'},503);
     // Recovery is an interactive admin read: use the already verified Firebase
     // session and existing Firestore rules, without expanding service-account IAM.
@@ -70,7 +70,9 @@ export function createCheckoutLiveApi({
           primary:registration.primaryRegistration===true,real:registration.isTest===false&&registration.testMode===false};
         const registrationFailures=Object.keys(registrationChecks).filter(key=>!registrationChecks[key]);
         if(registrationFailures.length)return reply({error:'order-recovery-mismatch',failedChecks:registrationFailures},409);
-        const located=await store.primaryPayment();
+        const savedId=registration.payment?.orderId;
+        const direct=LIVE_ORDER_UUID.test(savedId||'')?await store.payment(savedId):null;
+        const located=direct?.data?{id:savedId,...direct}:await store.primaryPayment();
         if(!located?.data)return reply({error:'not-found'},404);
         const payment=located.data;
         const paymentChecks={identifier:LIVE_ORDER_UUID.test(located.id)&&payment.id===located.id,
@@ -86,8 +88,15 @@ export function createCheckoutLiveApi({
       }
       if(readingOrder){
         const payment=await store.payment(orderMatch[1]);
-        if(!payment.data||payment.data.userId!==claims.sub||payment.data.environment!=='production')return reply({error:'not-found'},404);
-        return reply({order:publicOrder(orderMatch[1],payment.data)});
+        if(!payment.data||(!isAdmin&&payment.data.userId!==claims.sub)||payment.data.environment!=='production')return reply({error:'not-found'},404);
+        let eligibility={};
+        if(isAdmin&&payment.data.status==='paid'&&payment.data.fiscalStatus==='pending_authorization'){
+          const job=(await store.document(orderMatch[1]))?.data;
+          eligibility={canResumeFiscal:Boolean(job?.status==='pending_authorization'&&RESUMABLE_AUTH_ERRORS.has(job.errorCode)
+            &&job.userId===payment.data.userId&&job.registrationId===payment.data.registrationId&&job.environment==='production'
+            &&!job.providerDocumentId&&!job.issuedAt)};
+        }
+        return reply({order:{...publicOrder(orderMatch[1],payment.data),...eligibility}});
       }
       if(url.pathname===`${PREFIX}/quote`&&request.method==='POST'){
         const data=await body(request);exact(data,['selection','pilotAcknowledged']);
@@ -100,7 +109,12 @@ export function createCheckoutLiveApi({
         const ctx=await store.context(selection.profile);
         const quote=quotePrimary(selection,{...ctx,emailVerified:true},null,new Date(now()));
         if(privatePilot&&quote.amountCents!==9500)fail('live-scope-not-enabled',409);
-        return reply({quote,stamp:stamp(quote)});
+        const profile=await store.profile();
+        const billing=billingCustomerFromProfile(profile.data);
+        if(!billing.ok)fail('billing-customer-unconfirmed',409);
+        const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
+        if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
+        return reply({quote,stamp:stamp(quote),billing:billing.customer,billingStamp:stamp(billing.customer)});
       }
       if(url.pathname===`${PREFIX}/orders`&&request.method==='POST'){
         const data=await body(request);exact(data,['id','selection','stamp','method','pilotAcknowledged','billingStamp','pilotConfirmation']);
@@ -114,7 +128,7 @@ export function createCheckoutLiveApi({
         if(previousPayment.data){
           const previous=previousPayment.data;
           if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method
-            ||stamp(previous.quote)!==data.stamp||(pilot&&stamp(previous.billingSnapshot)!==data.billingStamp))fail('idempotency-conflict',409);
+            ||stamp(previous.quote)!==data.stamp||((pilot||!privatePilot)&&stamp(previous.billingSnapshot)!==data.billingStamp))fail('idempotency-conflict',409);
           return reply({order:publicOrder(data.id,previous)},200);
         }
         if(selection.congressMode!=='onsite'||selection.morningCourse!==false||selection.afternoonCourse!==false||selection.dinnerQuantity!==0)fail('live-scope-not-enabled',409);
@@ -126,7 +140,7 @@ export function createCheckoutLiveApi({
         const profile=await store.profile();
         const billing=billingCustomerFromProfile(profile.data);
         if(!billing.ok)fail('billing-customer-unconfirmed',409);
-        if(pilot&&stamp(billing.customer)!==data.billingStamp)fail('billing-preview-changed',409);
+        if((pilot||!privatePilot)&&stamp(billing.customer)!==data.billingStamp)fail('billing-preview-changed',409);
         const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
         if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
         const createdAt=now();
@@ -137,7 +151,7 @@ export function createCheckoutLiveApi({
           selection:{...quote.selection,dinner:false,dinnerQuantity:0,ratePeriod:quote.ratePeriod},
           entitlements:{congressMode:'',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
           addOnOrderCount:0,documentCount:0,
-          payment:{status:'pending',amountCents:quote.amountCents,currency:'EUR',method:'multibanco',reference:''},
+          payment:{orderId:data.id,status:'pending',amountCents:quote.amountCents,currency:'EUR',method:'multibanco',reference:''},
           createdAt,updatedAt:createdAt,
         };
         const identifier=`circ_live_${data.id.replaceAll('-','')}`;
@@ -168,8 +182,8 @@ export function createCheckoutLiveApi({
       }
       return reply({error:'not-found'},404);
     }catch(error){
-      const code=error.code||error.message||'service-unavailable';
-      const status=Number(error.status)||(['registration-exists','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict'].includes(code)?409:code==='registration-not-open'?403:503);
+      const code=error.code||(typeof error.message==='string'?error.message.replace(/^checkout\//,''):'service-unavailable');
+      const status=Number(error.status)||(['registration-exists','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict'].includes(code)?409:['registration-not-open','uls-not-verified','student-not-approved','sign-in-required'].includes(code)?403:503);
       return reply({error:code},status);
     }
   };

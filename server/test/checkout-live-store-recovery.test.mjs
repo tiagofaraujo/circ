@@ -14,6 +14,7 @@ test('recovery queries only the authenticated primary registration, reads at mos
   assert.equal(requests.length,1); assert.match(requests[0].url,/\/documents:runQuery$/);
   assert.deepEqual(JSON.parse(requests[0].options.body),{structuredQuery:{from:[{collectionId:'payments'}],
     where:{compositeFilter:{op:'AND',filters:[
+      {fieldFilter:{field:{fieldPath:'userId'},op:'EQUAL',value:{stringValue:'admin'}}},
       {fieldFilter:{field:{fieldPath:'registrationId'},op:'EQUAL',value:{stringValue:'circ-2027-admin'}}},
       {fieldFilter:{field:{fieldPath:'environment'},op:'EQUAL',value:{stringValue:'production'}}},
     ]}},limit:2}});

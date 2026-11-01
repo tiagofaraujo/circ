@@ -126,6 +126,31 @@ service cloud.firestore {
         );
     }
 
+    function hasValidProductionSubmissionContent() {
+      let data = request.resource.data;
+      return data.type in ['oral', 'poster']
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 240
+        && data.authors is string && data.authors.size() >= 2 && data.authors.size() <= 3000
+        && data.affiliation is string && data.affiliation.size() <= 500;
+    }
+
+    function productionSubmissionDeadlineOpen() {
+      // Deadlines are inclusive in Europe/Lisbon. Both cutoffs fall in winter,
+      // when mainland Portugal uses UTC. Drafts remain available to their owner.
+      return request.resource.data.status == 'draft'
+        || (request.resource.data.type == 'oral' && request.time < timestamp.date(2027, 1, 16))
+        || (request.resource.data.type == 'poster' && request.time < timestamp.date(2027, 3, 1));
+    }
+
+    function hasValidProductionSubmissionIdentity() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['type', 'title', 'authors', 'affiliation', 'abstractSections', 'abstract', 'status',
+          'eventId', 'code', 'userId', 'contactName', 'contactEmail', 'isTest', 'createdAt', 'updatedAt', 'submittedAt'])
+        && data.code is string && data.code.matches('^CIRC27-[A-Z0-9]{8}$')
+        && data.contactName is string
+        && data.contactEmail == request.auth.token.email;
+    }
+
     function isValidAuthorSubmissionUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'type',
@@ -848,11 +873,14 @@ service cloud.firestore {
           && hasValidInitialSubmissionTimestamps()
         )
         || (
-          signedIn()
+          hasVerifiedEmail()
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.eventId == 'circ-2027'
           && request.resource.data.get('isTest', false) == false
           && request.resource.data.status in ['draft', 'submitted']
+          && hasValidProductionSubmissionIdentity()
+          && hasValidProductionSubmissionContent()
+          && productionSubmissionDeadlineOpen()
           && hasValidAbstractSections()
           && hasValidInitialSubmissionTimestamps()
         );
@@ -875,12 +903,15 @@ service cloud.firestore {
           && request.resource.data.review.updatedBy.email == request.auth.token.email
         )
         || (
-          signedIn()
+          hasVerifiedEmail()
           && resource.data.userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
+          && resource.data.get('archived', false) == false
           && resource.data.status == 'draft'
           && request.resource.data.status in ['draft', 'submitted']
           && isValidAuthorSubmissionUpdate()
+          && (resource.data.get('isTest', false) == true
+            || (hasValidProductionSubmissionContent() && productionSubmissionDeadlineOpen()))
         );
       allow delete: if reviewDeletionSafe(submissionId) && (isAdmin()
         || (
@@ -889,8 +920,9 @@ service cloud.firestore {
           && resource.data.get('isTest', false) == true
         )
         || (
-          signedIn()
+          hasVerifiedEmail()
           && resource.data.userId == request.auth.uid
+          && resource.data.get('archived', false) == false
           && resource.data.get('isTest', false) == false
           && resource.data.status == 'draft'
         ));
@@ -931,18 +963,8 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    function isRegistrationSandboxTester() {
-      return hasVerifiedEmail()
-        && request.auth.token.email.lower() == 'araujotiagofc@gmail.com';
-    }
-
-    function ownRegistrationSandboxSetting(settingId) {
-      return isRegistrationSandboxTester()
-        && settingId.matches('^circ-checkout-sandbox-' + request.auth.uid + '-[A-Fa-f0-9-]+$');
-    }
-
     match /settings/{settingId} {
-      allow read, write: if isAdmin() || ownRegistrationSandboxSetting(settingId);
+      allow read, write: if isAdmin();
     }
 
     match /{document=**} {

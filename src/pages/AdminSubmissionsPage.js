@@ -132,7 +132,7 @@ function exportSubmissions(items) {
 }
 
 export default function AdminSubmissionsPage() {
-  const { user, access } = useAuth();
+  const { user } = useAuth();
   const reviewConfig = useScientificReviewConfig();
   const saveSubmissionDecision = reviewConfig.enabled ? updateScientificDecision : updateSubmissionReview;
   const [submissions, setSubmissions] = useState([]);
@@ -276,9 +276,7 @@ export default function AdminSubmissionsPage() {
         <div className="admin-session admin-session--quiet">
           <span>Comissão e gestão</span>
           <strong>{user?.email}</strong>
-          {access?.canTestSubmissions && (
-            <Link className="admin-test-link" to="/conta/submissoes">Criar submissão de teste →</Link>
-          )}
+          <Link className="admin-test-link" to="/conta/submissoes">Centro de submissões →</Link>
         </div>
       </header>
 
@@ -339,7 +337,7 @@ export default function AdminSubmissionsPage() {
                   <div className="admin-submission__summary">
                     <div className="admin-submission__identity">
                       <div>
-                        {submission.isTest && <span className="admin-test-badge">TESTE</span>}
+
                         <small>{submission.code || submission.id}</small>
                         <span>{typeLabels[submission.type] || submission.type || 'Sem tipologia'}</span>
                       </div>

@@ -23,7 +23,7 @@ export function subscribeToRegistrations(onData, onError) {
     .limit(500)
     .onSnapshot(
       (snapshot) => {
-        onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+        onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter(item => item.isTest !== true && item.archived !== true));
       },
       onError
     );

@@ -1,4 +1,4 @@
-export const REGISTRATION_OPEN_DATE = '2026-11-15';
+export const REGISTRATION_OPEN_DATE = '2026-11-01';
 export const EARLY_RATE_END = '2027-01-31T23:59:59Z';
 
 export const CONGRESS_RATES = {
