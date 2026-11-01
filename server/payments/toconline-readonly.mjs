@@ -205,18 +205,44 @@ async function refreshSession(session, env, nowMs) {
   };
 }
 
-async function validSession(request, env, nowMs) {
+async function validSession(request, env, nowMs, serverSessionStore) {
   const cfg = configuration(env);
   if (!cfg.configured) fail('toconline-not-configured');
   const encrypted = parseCookies(request)[TOKEN_COOKIE];
   let session = decryptSession(encrypted, cfg.sessionKey);
   if (!session) fail('toconline-not-connected', 401);
+  if (session.refreshExpiresAt <= nowMs) fail('toconline-reauthorize-required', 401);
   let refreshed = false;
-  if (session.expiresAt <= nowMs + 90_000) {
-    session = await refreshSession(session, env, nowMs);
-    refreshed = true;
+  let backgroundRefreshExpiresAt = null;
+  if (env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT) {
+    // The browser cookie is still required and retains its own lifetime. The
+    // encrypted server session is the current source of OAuth credentials, so
+    // an older tab cannot rotate an obsolete refresh token after background use.
+    let saved;
+    try { saved = await serverSessionStore.load(env); } catch { fail('toconline-background-session-unavailable', 503); }
+    if (!saved?.session) fail('toconline-background-session-missing', 503);
+    if (saved.session.refreshExpiresAt <= nowMs) fail('toconline-reauthorize-required', 401);
+    refreshed = session.accessToken !== saved.session.accessToken || session.expiresAt !== saved.session.expiresAt
+      || session.refreshToken !== saved.session.refreshToken;
+    backgroundRefreshExpiresAt = saved.session.refreshExpiresAt;
+    session = { ...saved.session, refreshExpiresAt: session.refreshExpiresAt };
   }
-  return { session, refreshed, cfg };
+  let current = { session, refreshed, cfg, backgroundRefreshExpiresAt, serverSessionStore };
+  if (session.expiresAt <= nowMs + 90_000) {
+    current = await refreshCurrentSession(current, env, nowMs);
+  }
+  return current;
+}
+
+async function refreshCurrentSession(current, env, nowMs) {
+  const session = await refreshSession(current.session, env, nowMs);
+  if (current.backgroundRefreshExpiresAt !== null) {
+    // Persist the rotated credentials before the first commercial GET. Do not
+    // fall back to the stale cookie if durable storage is unavailable.
+    try { await current.serverSessionStore.save(env, { ...session, refreshExpiresAt: current.backgroundRefreshExpiresAt }); }
+    catch { fail('toconline-background-session-unavailable', 503); }
+  }
+  return { ...current, session, refreshed: true };
 }
 
 async function providerGet(apiBase, accessToken, resource) {
@@ -355,14 +381,16 @@ async function readResources(session, cfg) {
 }
 
 
-export async function withToconlineSession(request, env, nowMs, operation) {
-  let current = await validSession(request, env, nowMs);
+export async function withToconlineSession(request, env, nowMs, operation, {
+  serverSessionStore = createToconlineServerSessionStore(),
+} = {}) {
+  let current = await validSession(request, env, nowMs, serverSessionStore);
   let value;
   try {
     value = await operation(current.cfg.apiUrl, current.session.accessToken);
   } catch (error) {
     if (error?.code !== 'toconline-api-unauthorized') throw error;
-    current = { ...current, session: await refreshSession(current.session, env, nowMs), refreshed: true };
+    current = await refreshCurrentSession(current, env, nowMs);
     value = await operation(current.cfg.apiUrl, current.session.accessToken);
   }
   return {
@@ -514,24 +542,15 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
 
       if (url.pathname === `${PREFIX}/resources`) {
         if (request.method !== 'GET') return json({ error: 'method-not-allowed' }, 405);
-        let current = await validSession(request, env, now());
-        let resources;
-        try {
-          resources = await readResources(current.session, current.cfg);
-        } catch (error) {
-          if (error.code !== 'toconline-api-unauthorized') throw error;
-          current = { ...current, session: await refreshSession(current.session, env, now()), refreshed: true };
-          resources = await readResources(current.session, current.cfg);
-        }
-        const headers = current.refreshed
-          ? { 'Set-Cookie': cookie(TOKEN_COOKIE, encryptSession(current.session, cfg.sessionKey), { maxAge: SESSION_TTL_SECONDS }) }
-          : {};
+        const result = await withToconlineSession(request, env, now(),
+          (apiUrl, accessToken) => readResources({ accessToken }, { apiUrl }), { serverSessionStore });
+        const headers = result.setCookie ? { 'Set-Cookie': result.setCookie } : {};
         return json({
           provider: 'toconline',
           mode: 'read-only',
           commercialWritesEnabled: false,
           fetchedAt: new Date(now()).toISOString(),
-          resources,
+          resources: result.value,
         }, 200, headers);
       }
 
