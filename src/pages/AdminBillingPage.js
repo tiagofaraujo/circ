@@ -88,9 +88,10 @@ export default function AdminBillingPage() {
   }
 
   const callbackError = new URLSearchParams(search).get('toconline') === 'error';
-  const missing = Object.entries(payments?.checks || {}).filter(([, present]) => present !== true).map(([name]) => name);
+  const paymentChecks = Object.entries(payments?.checks || {}).filter(([name]) => !name.startsWith('STRIPE_'));
+  const missing = paymentChecks.filter(([, present]) => present !== true).map(([name]) => name);
   const paymentsReady = payments?.liveCheckoutEnabled === true && !payments.privatePilot
-    && payments.channelMatchesExpected === true && Object.keys(payments.checks || {}).length > 0 && missing.length === 0;
+    && payments.channelMatchesExpected === true && paymentChecks.length > 0 && missing.length === 0;
 
   return <main className="admin-page admin-billing">
     <AdminModuleNav />
