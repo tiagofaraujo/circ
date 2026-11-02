@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AdminBillingPage from './AdminBillingPage';
 jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ isAdmin: true, user: { uid: 'admin', getIdToken: async () => 'firebase-session' }, access: { canManageRegistrations: true } }) }));
@@ -65,4 +65,44 @@ test('Stripe refresh reuses administrator authentication without touching TOConl
     method: 'GET', headers: { Authorization: 'Bearer firebase-session' },
   }));
   expect(screen.getByText('Ligação ativa neste navegador')).toBeInTheDocument();
+});
+test.each([
+  ['STRIPE_LIVE_SECRET_KEY', 'apiKeyPresent'],
+  ['STRIPE_LIVE_WEBHOOK_SECRET', 'webhookKeyPresent'],
+])('missing optional %s does not disable the other configured payment methods or validate Stripe', async (setting, stripeField) => {
+  const read = fetch.getMockImplementation();
+  fetch.mockImplementation((url, options) => url.endsWith('/diagnostics')
+    ? Promise.resolve(response({ liveCheckoutEnabled: true, privatePilot: false, channelMatchesExpected: true,
+      checks: { FIREBASE_PROJECT_ID: true, EUPAGO_LIVE_API_KEY: true, STRIPE_LIVE_SECRET_KEY: true, STRIPE_LIVE_WEBHOOK_SECRET: true, [setting]: false },
+      stripe: { ...stripe, ready: false, [stripeField]: false } }))
+    : read(url, options));
+  show(); await screen.findByText('7 registos');
+  const payments = screen.getByRole('region', { name: 'Pagamentos' });
+  expect(within(payments).getByText('Receção de pagamentos ativa')).toBeInTheDocument();
+  expect(within(payments).queryByText('Checkout público indisponível')).not.toBeInTheDocument();
+  expect(within(payments).queryByText(setting)).not.toBeInTheDocument();
+  expect(await screen.findByText('Configuração Stripe incompleta')).toBeInTheDocument();
+  expect(screen.queryByText('Configuração técnica presente')).not.toBeInTheDocument();
+  expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+test('a complete Stripe setup does not hide a missing required EuPago setting', async () => {
+  const read = fetch.getMockImplementation();
+  fetch.mockImplementation((url, options) => url.endsWith('/diagnostics')
+    ? Promise.resolve(response({ liveCheckoutEnabled: true, privatePilot: false, channelMatchesExpected: true,
+      checks: { FIREBASE_PROJECT_ID: true, EUPAGO_LIVE_API_KEY: false, STRIPE_LIVE_SECRET_KEY: true, STRIPE_LIVE_WEBHOOK_SECRET: true }, stripe }))
+    : read(url, options));
+  show(); await screen.findByText('7 registos');
+  const payments = screen.getByRole('region', { name: 'Pagamentos' });
+  expect(within(payments).getByText('Checkout público indisponível')).toBeInTheDocument();
+  expect(within(payments).getByText('EUPAGO_LIVE_API_KEY')).toBeInTheDocument();
+  expect(await screen.findByText('Configuração técnica presente')).toBeInTheDocument();
+});
+test('Stripe-only checks cannot substitute for the required payment configuration', async () => {
+  const read = fetch.getMockImplementation();
+  fetch.mockImplementation((url, options) => url.endsWith('/diagnostics')
+    ? Promise.resolve(response({ liveCheckoutEnabled: true, privatePilot: false, channelMatchesExpected: true,
+      checks: { STRIPE_LIVE_SECRET_KEY: true, STRIPE_LIVE_WEBHOOK_SECRET: true }, stripe }))
+    : read(url, options));
+  show(); await screen.findByText('7 registos');
+  expect(within(screen.getByRole('region', { name: 'Pagamentos' })).getByText('Checkout público indisponível')).toBeInTheDocument();
 });
