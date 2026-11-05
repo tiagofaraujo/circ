@@ -81,11 +81,15 @@ pagamentos, claim fiscal e diagnóstico administrativo.
 
 A consulta autenticada à Stripe em 5 de novembro de 2026 confirmou a conta da
 Associação Hemisfério Disciplinado apta a receber pagamentos, sem requisitos
-pendentes. Cartão e Apple Pay estavam ativos; Google Pay estava desligado.
+pendentes. Cartão, Apple Pay e Google Pay estão ativos e disponíveis na configuração
+de pagamentos. A ativação de Google Pay foi confirmada novamente por GET nesta revisão.
 O destino live de notificações CIRC estava ativo, com a versão e os quatro
 eventos esperados. Esta leitura não confirma os Secrets guardados no Worker
 nem a entrega de eventos; não foi encontrada uma Checkout Session live CIRC
-na consulta das sessões existentes. A abertura pública Stripe continua pendente
+na consulta das sessões existentes (zero sessões live devolvidas em 5 de novembro).
+A última leitura das configurações Cloudflare confirmou que ainda faltavam
+`STRIPE_LIVE_SECRET_KEY` e `STRIPE_LIVE_WEBHOOK_SECRET`; esta revisão não criou
+nem guardou credenciais. A abertura pública Stripe continua pendente
 da configuração e da validação real descritas no documento próprio.
 
 ## Publicação

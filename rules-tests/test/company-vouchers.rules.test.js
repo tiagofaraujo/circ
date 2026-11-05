@@ -31,7 +31,7 @@ async function activate() {
   b.set(doc(db, 'companyVouchers', code), voucher()); b.set(doc(db, 'companyVouchers', second), voucher(1));
   await b.commit();
 }
-before(async () => { env = await initializeTestEnvironment({ projectId: 'demo-circ-companies', firestore: { rules: fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8') } }); });
+before(async () => { env = await initializeTestEnvironment({ projectId: 'demo-circ-companies', firestore: { rules: fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8').replace('timestamp.date(2026, 11, 15)', 'timestamp.date(2000, 11, 15)') } }); });
 after(async () => env.cleanup());
 beforeEach(async () => { await env.clearFirestore(); await env.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore(); await setDoc(doc(db, 'settings', 'circ-2027-company-vouchers'), { enabled: true });

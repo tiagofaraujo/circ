@@ -12,7 +12,7 @@ import {
   hasCompleteAbstractSections,
   normalizeAbstractSections,
 } from '../auth/submissionAbstract';
-import { isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
+import { isSubmissionOpeningReached, isSubmissionTypeOpen, SUBMISSION_LIMITS, SUBMISSION_OPEN_DATE } from '../data/submissions2027';
 import { exportSubmissionPdf } from '../auth/submissionPdf';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
@@ -24,6 +24,12 @@ const content = {
     lead: 'Um espaço pensado para preparar, submeter e acompanhar o seu trabalho científico com clareza, do primeiro título à decisão final.',
     status: 'Submissões abertas',
     statusText: 'Prepare o resumo, guarde um rascunho ou submeta o trabalho para avaliação científica.',
+    upcomingStatus: 'Submissões a partir de 15 de novembro',
+    upcomingText: 'A criação de rascunhos e a submissão de trabalhos abrem a 15 de novembro de 2026, às 00h00 de Lisboa.',
+    upcomingValue: 'Abre a 15 de novembro',
+    closedStatus: 'Prazos de submissão encerrados',
+    closedText: 'Pode consultar os seus trabalhos e acompanhar a avaliação nesta página.',
+    closedValue: 'Encerrado',
     deskEyebrow: 'Preparar o seu trabalho',
     deskTitle: 'O seu próximo trabalho começa aqui.',
     deskText: 'Estruture o resumo, reúna os autores e acompanhe o estado do seu trabalho nesta página.',
@@ -118,6 +124,12 @@ const content = {
     lead: 'A space designed to prepare, submit and follow your scientific work clearly, from the first title to the final decision.',
     status: 'Submissions open',
     statusText: 'Prepare an abstract, save a draft or submit your work for scientific review.',
+    upcomingStatus: 'Submissions open on 15 November',
+    upcomingText: 'Draft creation and scientific submissions open on 15 November 2026 at 00:00 Lisbon time.',
+    upcomingValue: 'Opens on 15 November',
+    closedStatus: 'Submission deadlines have passed',
+    closedText: 'You can view your submissions and follow their review on this page.',
+    closedValue: 'Closed',
     deskEyebrow: 'Your editorial desk',
     deskTitle: 'Your next work starts here.',
     deskText: 'Structure your abstract, bring authors together and track the status of your work here.',
@@ -325,7 +337,7 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const canSaveDraft = Boolean(form.title.trim().length >= 3 && form.authors.trim().length >= 2);
+  const canSaveDraft = Boolean(isSubmissionOpeningReached() && form.title.trim().length >= 3 && form.authors.trim().length >= 2);
   const canSubmit = canSaveDraft && hasCompleteAbstractSections(form) && isSubmissionTypeOpen(form.type);
   const abstractFields = [
     ['introduction', t.introductionLabel, t.introductionPlaceholder, 4],
@@ -435,12 +447,33 @@ export default function ScientificSubmissionsPage() {
   const { language } = useLanguage();
   const { user } = useAuth();
   const t = content[language === 'en' ? 'en' : 'pt'];
-  const canSubmitWork = user?.emailVerified === true;
+  const [clock, setClock] = useState(() => new Date());
+  const openingReached = isSubmissionOpeningReached(clock);
+  const anyTypeOpen = isSubmissionTypeOpen('oral', clock) || isSubmissionTypeOpen('poster', clock);
+  const canSubmitWork = user?.emailVerified === true && openingReached;
+  const status = !openingReached ? t.upcomingStatus : anyTypeOpen ? t.status : t.closedStatus;
+  const statusText = !openingReached ? t.upcomingText : anyTypeOpen ? t.statusText : t.closedText;
+  const openValue = !openingReached ? t.upcomingValue : anyTypeOpen ? t.openValue : t.closedValue;
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [ownSubmissions, setOwnSubmissions] = useState([]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const refresh = () => setClock(new Date());
+    const interval = window.setInterval(refresh, 60000);
+    const untilOpening = new Date(`${SUBMISSION_OPEN_DATE}T00:00:00Z`).getTime() - Date.now();
+    const timer = untilOpening > 0 && untilOpening < 2147483647
+      ? window.setTimeout(refresh, untilOpening)
+      : null;
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(interval);
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -452,12 +485,13 @@ export default function ScientificSubmissionsPage() {
   }, [language, user]);
 
   const openNewSubmission = () => {
+    if (!canSubmitWork || !isSubmissionOpeningReached()) return;
     setEditingSubmission(null);
     setComposerOpen(true);
   };
 
   const editSubmission = (submission) => {
-    if (submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft') return;
+    if (!canSubmitWork || !isSubmissionOpeningReached() || submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft') return;
     setEditingSubmission(submission);
     setComposerOpen(true);
     window.setTimeout(() => {
@@ -529,16 +563,16 @@ export default function ScientificSubmissionsPage() {
           <h1>{t.title}</h1>
           <p>{t.lead}</p>
         </div>
-        <aside className="submissions-hero__status" aria-label={t.status}>
+        <aside className="submissions-hero__status" aria-label={status}>
           <span className="submissions-status-dot" aria-hidden="true" />
           <div>
-            <strong>{t.status}</strong>
-            <p>{t.statusText}</p>
+            <strong>{status}</strong>
+            <p>{statusText}</p>
           </div>
         </aside>
       </section>
 
-      {!canSubmitWork && <p role="alert">{language === 'en' ? 'Verify your email address in your profile before creating or submitting work.' : 'Confirme o endereço de email no perfil antes de criar ou submeter um trabalho.'} <Link to="/conta/perfil">{t.profile}</Link></p>}
+      {user?.emailVerified !== true && <p role="alert">{language === 'en' ? 'Verify your email address in your profile before creating or submitting work.' : 'Confirme o endereço de email no perfil antes de criar ou submeter um trabalho.'} <Link to="/conta/perfil">{t.profile}</Link></p>}
       {notice && <div className="submissions-test-notice" role="status">{notice}</div>}
       {error && <div className="submissions-test-notice" role="alert">{error}</div>}
 
@@ -553,13 +587,13 @@ export default function ScientificSubmissionsPage() {
         </div>
         <div className="submissions-desk__meta">
           <dl>
-            <div><dt>{t.openLabel}</dt><dd>{t.openValue}</dd></div>
+            <div><dt>{t.openLabel}</dt><dd>{openValue}</dd></div>
             <div><dt>{t.oralDeadlineLabel}</dt><dd>{t.oralDeadlineValue}</dd></div>
             <div><dt>{t.posterDeadlineLabel}</dt><dd>{t.posterDeadlineValue}</dd></div>
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
           <button type="button" disabled={!canSubmitWork} onClick={openNewSubmission} aria-describedby="submissions-new-hint">{t.newWork}<span>＋</span></button>
-          <small id="submissions-new-hint">{t.newWorkHint}</small>
+          <small id="submissions-new-hint">{openingReached ? t.newWorkHint : t.upcomingText}</small>
         </div>
       </section>
 

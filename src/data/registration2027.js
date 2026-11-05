@@ -1,5 +1,13 @@
-export const REGISTRATION_OPEN_DATE = '2026-11-01';
+export const REGISTRATION_OPEN_DATE = '2026-11-15';
+// Mainland Portugal uses UTC on this date. The timestamp is shared by the
+// server gate and public interface; a browser clock cannot authorize payment.
+export const REGISTRATION_OPEN_AT = '2026-11-15T00:00:00Z';
 export const EARLY_RATE_END = '2027-01-31T23:59:59Z';
+
+export function isRegistrationOpen(referenceDate = new Date()) {
+  const value = referenceDate instanceof Date ? referenceDate.getTime() : Date.parse(referenceDate);
+  return Number.isFinite(value) && value >= Date.parse(REGISTRATION_OPEN_AT);
+}
 
 export const CONGRESS_RATES = {
   uls: { early: 55, regular: 90 },

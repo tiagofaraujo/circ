@@ -8,7 +8,7 @@ import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { livePaymentMethods, liveBankTransferAccount, MBWAY_APPROVAL_WINDOW_MS } from './live-payment-methods.mjs';
 import { quotePrimary, quoteSupplementary } from './quote.mjs';
-import { REGISTRATION_OPEN_DATE } from '../../src/data/registration2027.js';
+import { REGISTRATION_OPEN_DATE, REGISTRATION_OPEN_AT, isRegistrationOpen } from '../../src/data/registration2027.js';
 import { isClosedUnpaidMbway, canReplaceUnpaidPrimary, holdUnconfirmedMbwayClosure } from './live-mbway-lifecycle.mjs';
 import { liveDataStamp as stamp, isLivePilotConfigured, isLiveCheckoutEnabled, isPrivatePilotWindow, livePilotDeadline, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
 
@@ -17,7 +17,6 @@ const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Contro
 const fail=(code,status=400,details={})=>{throw Object.assign(new Error(code),{code,status,details});};
 const exact=(o,keys)=>{if(!o||typeof o!=='object'||Array.isArray(o)||Object.keys(o).some(k=>!keys.includes(k)))fail('invalid-request');};
 async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type')||''))fail('invalid-request');try{return await request.json();}catch{fail('invalid-request');}}
-const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
 const orderKind=p=>p.kind||p.quote?.kind||'primary';
 const historical=p=>Boolean(p?.registrationArchiveId);
@@ -47,7 +46,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
     if(claims.email_verified!==true)return reply({error:'verified-email-required'},403);
     if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return reply({error:'invalid-origin'},403);
     const isAdmin=String(claims.email||'').toLowerCase()===ADMIN, privatePilot=isPrivatePilotWindow(env);
-    const creationEnabled=()=>isLiveCheckoutEnabled(env,Date.parse(now()));
+    const creationEnabled=()=>isRegistrationOpen(now())&&isLiveCheckoutEnabled(env,Date.parse(now()));
     if(url.pathname===`${PREFIX}/diagnostics`&&request.method==='GET'){
       if(!isAdmin)return reply({error:'admin-required'},403);
       const required=['FIREBASE_PROJECT_ID','FIREBASE_PAYMENTS_SERVICE_ACCOUNT','EUPAGO_LIVE_API_KEY','EUPAGO_LIVE_WEBHOOK_KEY','EUPAGO_LIVE_CHANNEL','TOCONLINE_OAUTH_CLIENT_ID','TOCONLINE_OAUTH_CLIENT_SECRET','TOCONLINE_OAUTH_URL','TOCONLINE_API_URL','TOCONLINE_SESSION_KEY'];
@@ -58,8 +57,12 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
     const eupagoReady=isLivePilotConfigured(env,Date.parse(now()));
     const commonReady=creationEnabled()&&['FIREBASE_PROJECT_ID','FIREBASE_PAYMENTS_SERVICE_ACCOUNT','TOCONLINE_OAUTH_CLIENT_ID','TOCONLINE_OAUTH_CLIENT_SECRET','TOCONLINE_OAUTH_URL','TOCONLINE_API_URL','TOCONLINE_SESSION_KEY'].every(key=>typeof env[key]==='string'&&env[key].trim());
     const methods=privatePilot?['multibanco']:livePaymentMethods(env,{isAdmin,emailVerified:claims.email_verified,email:claims.email}).filter(method=>method==='stripe_card'||method==='bank_transfer'?commonReady:eupagoReady);
-    const configured=Boolean(privatePilot?eupagoReady&&isAdmin:commonReady&&methods.length);
-    if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({enabled:configured,environment:'production',publicOpen:!privatePilot&&openForPublic(now()),pilotAvailable:isAdmin&&configured,methods:configured?methods:[],registrationOpenDate:REGISTRATION_OPEN_DATE});
+    const configured=Boolean(isRegistrationOpen(now())&&(privatePilot?eupagoReady&&isAdmin:commonReady&&methods.length));
+    if(url.pathname===`${PREFIX}/config`&&request.method==='GET')return reply({enabled:configured,environment:'production',publicOpen:!privatePilot&&isRegistrationOpen(now()),pilotAvailable:isAdmin&&configured,methods:configured?methods:[],registrationOpenDate:REGISTRATION_OPEN_DATE,registrationOpenAt:REGISTRATION_OPEN_AT});
+    const newCheckout=request.method==='POST'&&[`${PREFIX}/quote`,`${PREFIX}/orders`,`${PREFIX}/supplementary/quote`,`${PREFIX}/supplementary/orders`].includes(url.pathname);
+    // This gate also covers administrators and the legacy private pilot. Reads
+    // and confirmation of existing payments continue independently below.
+    if(newCheckout&&!isRegistrationOpen(now())&&isLiveCheckoutEnabled(env,Date.parse(now())))return reply({error:'registration-not-open',registrationOpenDate:REGISTRATION_OPEN_DATE,registrationOpenAt:REGISTRATION_OPEN_AT},403);
     const orderMatch=url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)$/);
     const readingOrder=request.method==='GET'&&orderMatch&&LIVE_ORDER_UUID.test(orderMatch[1]);
     const recoveringPrimary=request.method==='GET'&&url.pathname===`${PREFIX}/primary-order`;
@@ -174,7 +177,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       if(!quoting&&!creating)return reply({error:'not-found'},404);
       const data=await body(request);
       exact(data,quoting?['selection','pilotAcknowledged']:['id','selection','stamp','method','phone','replacesOrderId','pilotAcknowledged','billingStamp','pilotConfirmation']);
-      if((privatePilot||!openForPublic(now()))&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
+      if(privatePilot&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
       const pilot=isAdmin&&data.pilotAcknowledged===true;
       if(creating&&(!LIVE_ORDER_UUID.test(data.id||'')||!['multibanco','mbway','bank_transfer','stripe_card'].includes(data.method)
         ||(data.method==='mbway'?(typeof data.phone!=='string'||!/^9\d{8}$/.test(data.phone)):data.phone!==undefined)

@@ -14,6 +14,7 @@ export function companyError(error) {
   return ({
     'company/invalid-code': 'Código inválido, cancelado ou já utilizado por outra conta.',
     'company/closed': 'A utilização de códigos ainda não está ativa.',
+    'company/registration-not-open': 'As inscrições com voucher abrem a 15 de novembro de 2026, às 00h00 de Lisboa.',
     'company/existing': 'Já existe uma inscrição nesta conta. Contacte a organização.',
     'company/profile': 'Guarde o nome completo no perfil antes de continuar.',
     'company/auth': 'Entre na sua conta e confirme o email.',

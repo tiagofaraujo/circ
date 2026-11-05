@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import Prices from '../components/js/Prices';
 import RegistrationBuilder from '../components/js/RegistrationBuilder';
 import { useLanguage } from '../context/LanguageContext';
+import { isRegistrationOpen } from '../data/registration2027';
 import '../courses2027.css';
 import '../account.css';
 import '../recoveredContent.css';
@@ -48,17 +49,18 @@ export { default as ProgramPage2027 } from './ProvisionalProgramme';
 export function ParticipatePage2027() {
   const { language } = useLanguage();
   const en = language === 'en';
+  const registrationOpen = isRegistrationOpen();
 
   return (
     <main className="page">
       <PageHero
         eyebrow={en ? 'Attend' : 'Participar'}
         title={en ? 'Registration and submissions' : 'Inscrições e trabalhos'}
-        status={en ? 'Registration and submissions open' : 'Inscrições e submissões abertas'}
+        status={registrationOpen ? (en ? 'Registration and submissions open' : 'Inscrições e submissões abertas') : (en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026')}
         lead={
           en
-            ? 'Register for the in-person or virtual congress, courses and dinner, and submit scientific work in My CIRC. Choose from the available payment methods at checkout.'
-            : 'Inscreva-se no congresso presencial ou virtual, nos cursos e no jantar, e submeta trabalhos científicos no My CIRC. Escolha entre os meios de pagamento disponíveis no momento da compra.'
+            ? (registrationOpen ? 'Register for the in-person or virtual congress, courses and dinner, and submit scientific work in My CIRC. Choose from the available payment methods at checkout.' : 'Registration, payments and scientific submissions open on 15 November 2026 at 00:00 Lisbon time. You can create your My CIRC account and complete your profile now.')
+            : (registrationOpen ? 'Inscreva-se no congresso presencial ou virtual, nos cursos e no jantar, e submeta trabalhos científicos no My CIRC. Escolha entre os meios de pagamento disponíveis no momento da compra.' : 'As inscrições, os pagamentos e as submissões científicas abrem a 15 de novembro de 2026, às 00h00 de Lisboa. Já pode criar a conta My CIRC e completar o perfil.')
         }
       />
 
@@ -97,7 +99,7 @@ export function ParticipatePage2027() {
           <div className="submission-deadline-list">
             <div>
               <span>{en ? 'Opening' : 'Abertura'}</span>
-              <strong>{en ? '1 Nov. 2026' : '1 de nov. de 2026'}</strong>
+              <strong>{en ? '15 Nov. 2026' : '15 de nov. de 2026'}</strong>
             </div>
             <div>
               <span>{en ? 'Abstracts · Free communications' : 'Resumos · Comunicações livres'}</span>
@@ -255,6 +257,7 @@ export function EventRegulationPage2027() {
 export function AccountRegistrationsPage2027() {
   const { language } = useLanguage();
   const en = language === 'en';
+  const registrationOpen = isRegistrationOpen();
 
   return (
     <main className="account-page">
@@ -272,8 +275,8 @@ export function AccountRegistrationsPage2027() {
 
       <section className="account-registration-section">
         <div className="account-registration-alert">
-          <span className="account-status">{en ? 'Registration open' : 'Inscrições abertas'}</span>
-          <p>{en ? 'Each participant has one primary registration. After payment, you can add courses and dinner tickets without creating a second registration.' : 'Cada participante tem uma única inscrição principal. Depois do pagamento, pode acrescentar cursos e bilhetes de jantar sem criar uma segunda inscrição.'}</p>
+          <span className="account-status">{registrationOpen ? (en ? 'Registration open' : 'Inscrições abertas') : (en ? 'Opens 15 November 2026' : 'Abre a 15 de novembro de 2026')}</span>
+          <p>{registrationOpen ? (en ? 'Each participant has one primary registration. After payment, you can add courses and dinner tickets without creating a second registration.' : 'Cada participante tem uma única inscrição principal. Depois do pagamento, pode acrescentar cursos e bilhetes de jantar sem criar uma segunda inscrição.') : (en ? 'Payments open at 00:00 Lisbon time. You can complete your billing profile now. Existing registrations and payment confirmations remain available.' : 'Os pagamentos abrem às 00h00 de Lisboa. Já pode completar os dados de faturação no perfil. As inscrições existentes e as confirmações de pagamento continuam disponíveis.')}</p>
         </div>
         <RegistrationBuilder />
         <div className="account-form-actions"><Link className="text-link" to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link></div>

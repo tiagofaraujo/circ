@@ -23,7 +23,7 @@ const env = {
 const primary = { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
 const extras = { morningCourse: true, afternoonCourse: false, dinnerQuantity: 1 };
 const clone = value => structuredClone(value);
-function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-01T12:00:00Z', configuration = env } = {}) {
+function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env } = {}) {
   const payments = new Map(), jobs = new Map(), sessions = new Map();
   let registration = null, registrationVersion = 0, currentTime = clock, instrumentStatus = 200, creationFailure = false;
   const httpCalls = [], fiscalCalls = [];

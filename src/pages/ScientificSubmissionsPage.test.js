@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ScientificSubmissionsPage from './ScientificSubmissionsPage';
 import { useAuth } from '../auth/AuthContext';
@@ -14,9 +14,29 @@ const form = { type: 'oral', title: 'Trabalho científico', authors: 'Autora', a
 } };
 function show() { render(<MemoryRouter><ScientificSubmissionsPage /></MemoryRouter>); }
 beforeEach(() => {
+  jest.useFakeTimers().setSystemTime(new Date('2026-11-15T12:00:00Z'));
   jest.clearAllMocks(); useAuth.mockReturnValue({ user, access: {} });
   subscribeToUserSubmissions.mockImplementation((_uid, next) => { next([]); return () => {}; });
   saveSubmission.mockResolvedValue('new-id'); updateSubmissionDraft.mockResolvedValue('existing-id');
+});
+afterEach(() => jest.useRealTimers());
+test('creation and editing stay closed before launch while existing work remains readable', () => {
+  jest.setSystemTime(new Date('2026-11-14T23:59:59Z'));
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => { next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]); return () => {}; });
+  show();
+  expect(screen.getByText('Submissões a partir de 15 de novembro')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Novo trabalho/ })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: /Editar rascunho/ })).not.toBeInTheDocument();
+  expect(screen.getByText(form.title)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
+  expect(saveSubmission).not.toHaveBeenCalled();
+});
+test('the composer opens automatically at midnight in Lisbon without reloading the page', () => {
+  jest.setSystemTime(new Date('2026-11-14T23:59:59Z'));
+  show(); expect(screen.getByRole('button', { name: /Novo trabalho/ })).toBeDisabled();
+  act(() => jest.advanceTimersByTime(1000));
+  expect(screen.getByRole('button', { name: /Novo trabalho/ })).toBeEnabled();
+  expect(screen.getByText('Submissões abertas')).toBeInTheDocument();
 });
 test('a normal participant sees an open production composer without administrative testing copy', () => {
   show(); expect(screen.getByText('Submissões abertas')).toBeInTheDocument();

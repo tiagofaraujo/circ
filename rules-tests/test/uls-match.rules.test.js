@@ -65,7 +65,7 @@ before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: {
-      rules: fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8'),
+      rules: fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8').replace('timestamp.date(2026, 11, 15)', 'timestamp.date(2000, 11, 15)'),
     },
   });
 });

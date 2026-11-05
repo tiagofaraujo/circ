@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import '../css/Prices.css';
 import { useLanguage } from '../../context/LanguageContext';
-import { COURSE_RATES, CONGRESS_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, formatEuro } from '../../data/registration2027';
+import { COURSE_RATES, CONGRESS_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, formatEuro, isRegistrationOpen } from '../../data/registration2027';
 import FiscalPriceNote from '../FiscalPriceNote';
 
 function PriceValue({ amount, note }) {
@@ -18,6 +18,7 @@ function PriceValue({ amount, note }) {
 function Prices() {
     const { language } = useLanguage();
     const en = language === 'en';
+    const registrationOpen = isRegistrationOpen();
     const singlePrice = en ? 'Single price' : 'Preço único';
     const perCourse = en ? 'Price per course' : 'Preço por curso';
     const perPerson = en ? 'Price per person' : 'Preço por pessoa';
@@ -28,9 +29,9 @@ function Prices() {
                 <p className="prices-kicker">CIRC 2027</p>
                 <h2 id="prices-title">{en ? 'Registration fees' : 'Taxas de inscrição'}</h2>
                 <p className="prices-opening">
-                    {en
-                        ? 'Registration open · Congress, courses and dinner'
-                        : 'Inscrições abertas · Congresso, cursos e jantar'}
+                    {registrationOpen
+                        ? (en ? 'Registration open · Congress, courses and dinner' : 'Inscrições abertas · Congresso, cursos e jantar')
+                        : (en ? 'Opens 15 November 2026 · 00:00 Lisbon time' : 'Abertura a 15 de novembro de 2026 · 00h00 de Lisboa')}
                 </p>
             </div>
 
