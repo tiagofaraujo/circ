@@ -44,6 +44,7 @@ import AdminTransfersPage from './pages/AdminTransfersPage';
 import AdminProductionCleanupPage from './pages/AdminProductionCleanupPage';
 import AdminStudentsPage from './pages/AdminStudentsPage';
 import ScientificSubmissionsPage from './pages/ScientificSubmissionsPage';
+import ScientificRegulationPage2027 from './pages/ScientificRegulationPage2027';
 import ScientificReviewerPage from './pages/ScientificReviewerPage';
 import ScientificReviewManagementPage from './pages/ScientificReviewManagementPage';
 import MyCircHome from './pages/MyCircHome';
@@ -117,6 +118,7 @@ function App() {
             <Route path="/cookies" element={<CookiesPolicyPage />} />
             <Route path="/termos" element={<TermsOfUsePage />} />
             <Route path="/regulamento" element={<EventRegulationPage2027 />} />
+            <Route path="/regulamento/submissoes" element={<ScientificRegulationPage2027 />} />
 
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registar" element={<RegisterWithPhotoPage />} />

@@ -582,6 +582,7 @@ export default function ScientificSubmissionsPage() {
             <p className="eyebrow">{t.deskEyebrow}</p>
             <h2>{t.deskTitle}</h2>
             <p>{t.deskText}</p>
+            <p><Link className="text-link" to="/regulamento/submissoes">{language === 'en' ? 'Read the scientific submissions regulations' : 'Consultar o regulamento dos trabalhos científicos'}</Link></p>
           </div>
           <DocumentMark />
         </div>

@@ -67,6 +67,7 @@ export function ParticipatePage2027() {
       <div className="account-form-actions">
         <Link className="button button--dark" to="/conta/inscricoes">{en ? 'Register for the congress' : 'Inscrever-me no congresso'}</Link>
         <Link className="button" to="/conta/submissoes">{en ? 'Submit scientific work' : 'Submeter um trabalho'}</Link>
+        <Link className="button button--outline" to="/regulamento/submissoes">{en ? 'Scientific submissions regulations' : 'Regulamento dos trabalhos científicos'}</Link>
       </div>
 
       <Prices />
@@ -208,6 +209,8 @@ export function EventRegulationPage2027() {
           ? 'The final contractual regulation will be published before registrations open. Participants will be able to review the final version before completing a paid registration.'
           : 'O regulamento contratual final será publicado antes da abertura das inscrições. Os participantes poderão consultar a versão final antes de concluir uma inscrição paga.'}
       </div>
+
+      <p><Link className="text-link" to="/regulamento/submissoes">{en ? 'Read the scientific submissions regulations' : 'Consultar o regulamento dos trabalhos científicos'}</Link></p>
 
       <LegalSection title={en ? '1. Registration' : '1. Inscrição'}>
         <ul>

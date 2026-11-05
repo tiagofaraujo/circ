@@ -78,6 +78,7 @@ function Footer() {
           <p className="footer-label">{en ? 'Archive & legal' : 'Arquivo e informação legal'}</p>
           <Link to="/2025">CIRC 2025</Link>
           <Link to="/regulamento">{en ? 'Event Regulation' : 'Regulamento do Evento'}</Link>
+          <Link to="/regulamento/submissoes">{en ? 'Scientific submissions regulations' : 'Regulamento dos trabalhos científicos'}</Link>
           <Link to="/privacidade">{en ? 'Privacy Policy' : 'Política de Privacidade'}</Link>
           <Link to="/cookies">{en ? 'Cookie Policy' : 'Política de Cookies'}</Link>
           <Link to="/termos">{en ? 'Terms of Use' : 'Termos de Utilização'}</Link>
