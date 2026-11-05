@@ -6,18 +6,13 @@
   "lang": "pt-PT",
   "icons": [
     {
-      "src": "/circ-app-icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
+      "src": "/circ-icon-20261105-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/my-circ-icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "/my-circ-icon-512.png",
+      "src": "/circ-icon-20261105-512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"

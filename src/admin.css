@@ -13,9 +13,13 @@
 .admin-registration-list-heading .eyebrow { margin: 0 0 7px; font-size: .68rem; }
 .admin-registration-list-heading h2 { color: var(--ink); font-size: 1.65rem; letter-spacing: -.03em; margin: 0; }
 .admin-registration-list-heading > p { max-width: 350px; color: var(--ink-soft); font-size: .8rem; line-height: 1.6; margin: 0; }
+.admin-registration-report-access { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.admin-registration-report-access p { margin: 0; color: var(--ink-soft); font-size: .85rem; line-height: 1.6; }
+.admin-registration-report-access .admin-export { flex-shrink: 0; }
 @media (max-width: 680px) {
   .admin-registration-list-heading { display: block; }
   .admin-registration-list-heading > p { margin-top: 10px; }
+  .admin-registration-report-access { flex-direction: column; align-items: stretch; }
 }
 
 .admin-header {

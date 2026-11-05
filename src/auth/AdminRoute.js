@@ -4,13 +4,14 @@ import { useAuth } from './AuthContext';
 
 const permissionFields = {
   registrations: 'canManageRegistrations',
+  registrationReports: 'canViewRegistrations',
   submissions: 'canManageSubmissions',
   reviews: 'canReviewSubmissions',
   secretariat: 'canUseSecretariat',
 };
 
 function firstAllowedPath(access) {
-  if (access?.canManageRegistrations) return '/admin';
+  if (access?.canViewRegistrations || access?.canManageRegistrations) return '/admin';
   if (access?.canManageSubmissions) return '/admin/submissoes';
   if (access?.canUseSecretariat) return '/admin/secretariado';
   if (access?.canReviewSubmissions) return '/conta/revisoes';

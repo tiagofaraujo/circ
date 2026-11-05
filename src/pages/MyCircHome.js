@@ -56,7 +56,7 @@ export default function MyCircHome() {
   const name = (profile?.profile?.name || user.displayName || '').trim().split(/\s+/)[0];
   const completion = profile?.completion?.percentage;
   const modules = [
-    access?.canManageRegistrations && ['/admin', 'users', 'Gestão de inscrições', 'Registration management'],
+    (access?.canViewRegistrations || access?.canManageRegistrations) && ['/admin', 'users', 'Gestão de inscrições', 'Registration management'],
     access?.canManageRegistrations && ['/admin/faturacao', 'file-invoice-dollar', 'Faturação', 'Invoicing'],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management'],
     access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor'],
