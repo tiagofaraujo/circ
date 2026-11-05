@@ -1,5 +1,5 @@
 import React, { act } from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PublicLiveCheckout from './PublicLiveCheckout';
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -10,11 +10,13 @@ const preview = { quote: { amountCents: 9500, currency: 'EUR' }, stamp: 'a'.repe
 const response = (data, ok = true, status = ok ? 200 : 503) => ({ ok, status, json: async () => data });
 function show(props = {}) { return render(<MemoryRouter><PublicLiveCheckout user={user} selection={selection} eligible {...props} /></MemoryRouter>); }
 const transport = jest.fn();
-let configuration;
+let configuration, billingReadiness;
 beforeEach(() => {
  localStorage.clear(); transport.mockReset();
  configuration = { enabled:true, environment:'production', methods:['multibanco'] };
- global.fetch = jest.fn((url, options) => url === '/api/checkout/live/config' ? Promise.resolve(response(configuration)) : transport(url, options));
+ billingReadiness = { ready:true, issues:[] };
+ global.fetch = jest.fn((url, options) => url === '/api/checkout/live/config' ? Promise.resolve(response(configuration))
+  : url === '/api/checkout/live/billing-readiness' ? Promise.resolve(response(billingReadiness)) : transport(url, options));
  Object.defineProperty(window, 'crypto', { configurable:true, value:{ randomUUID:() => ID } });
 });
 test('reviews server billing and requires acknowledgement before exactly one real-order request', async () => {
@@ -131,7 +133,7 @@ test('a different catalogue selection invalidates the frozen preview and acknowl
 test('creation locks the catalogue before waiting for an authentication token',async()=>{
  let release;
  const token = new Promise(resolve=>{release=resolve;});
- const account={uid:user.uid,getIdToken:jest.fn().mockResolvedValueOnce('session').mockResolvedValueOnce('session').mockImplementationOnce(()=>token)};
+ const account={uid:user.uid,getIdToken:jest.fn().mockResolvedValueOnce('session').mockResolvedValueOnce('session').mockResolvedValueOnce('session').mockImplementationOnce(()=>token)};
  transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({order}));
  const onLock=jest.fn(); show({user:account,onLock});
  await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
@@ -748,4 +750,116 @@ test('a historical Stripe order still requires the explicit archive marker and a
  expect(transport.mock.calls[1][0]).toBe('/api/checkout/live/primary-order');
  expect(screen.queryByRole('link',{name:'Pagar na Stripe'})).not.toBeInTheDocument();
  expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('missing fiscal minima block review with field-specific guidance before any payment request',async()=>{
+ billingReadiness={ready:false,issues:['profile-incomplete','billing-tax-number-invalid','billing-address-required','billing-postcode-invalid','billing-city-required','billing-country-unmapped']};
+ show();const notice=await screen.findByRole('region',{name:'Dados obrigatórios para faturação'});
+ await within(notice).findByText(/NIF: indique um número/);
+ expect(within(notice).getByText(/Nome completo: preencha entre 5 e 200/)).toBeInTheDocument();
+ expect(within(notice).getByText(/Morada de faturação: preencha/)).toBeInTheDocument();
+ expect(within(notice).getByText(/Código postal: utilize o formato 0000-000/)).toBeInTheDocument();
+ expect(within(notice).getByText(/Localidade de faturação: preencha/)).toBeInTheDocument();
+ expect(within(notice).getByText(/País de faturação: nesta fase é aceite Portugal/)).toBeInTheDocument();
+ expect(within(notice).getByRole('link',{name:'Completar dados obrigatórios no Perfil'})).toHaveAttribute('href','/conta/perfil#faturacao');
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(transport).not.toHaveBeenCalled();
+ expect(fetch).toHaveBeenCalledWith('/api/checkout/live/billing-readiness',expect.objectContaining({method:'GET',headers:{Authorization:'Bearer session'}}));
+});
+test('a complete optional profile score cannot override invalid required billing details',async()=>{
+ localStorage.setItem('circ_demo_account',JSON.stringify({profileCompletionPercentage:100}));
+ billingReadiness={ready:false,issues:['billing-tax-number-is-seller']};show();
+ await screen.findByText(/NIF: use o número do adquirente/);
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
+});
+test.each([{ready:'true',issues:[]},{ready:true,issues:['billing-address-required']}])('an invalid or inconsistent billing readiness response fails closed (%j)',async readiness=>{
+ billingReadiness=readiness;show();
+ expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível confirmar os dados de faturação');
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
+});
+test('a failed billing check permits a read-only refresh without automatically preparing payment',async()=>{
+ const original=fetch.getMockImplementation();let unavailable=true;
+ fetch.mockImplementation((url,options)=>url.endsWith('/billing-readiness')&&unavailable?Promise.reject(new Error('offline')):original(url,options));
+ show();await screen.findByRole('alert');unavailable=false;
+ fireEvent.click(screen.getByRole('button',{name:'Atualizar dados de faturação'}));await ready();
+ expect(screen.queryByRole('region',{name:'Dados obrigatórios para faturação'})).not.toBeInTheDocument();
+ expect(transport).not.toHaveBeenCalled();expect(fetch.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('returning from Profile invalidates the previous preview and consent before rechecking billing',async()=>{
+ transport.mockResolvedValueOnce(response(preview));show();await ready();await reviewAndAcknowledge();
+ expect(screen.getByRole('button',{name:'Gerar referência Multibanco'})).toBeEnabled();
+ billingReadiness={ready:false,issues:['billing-tax-number-invalid']};fireEvent(window,new Event('focus'));
+ await screen.findByText(/NIF: indique um número/);
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ billingReadiness={ready:true,issues:[]};fireEvent(window,new Event('focus'));await ready();
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.filter(([url])=>url.endsWith('/orders'))).toHaveLength(0);
+});
+test('an old account billing response cannot unlock the new account checkout',async()=>{
+ const original=fetch.getMockImplementation();let release,reads=0;
+ fetch.mockImplementation((url,options)=>url.endsWith('/billing-readiness')
+  ? ++reads===1?new Promise(resolve=>{release=()=>resolve(response({ready:true,issues:[]}));}):Promise.resolve(response({ready:false,issues:['billing-city-required']}))
+  :original(url,options));
+ const view=show();await waitFor(()=>expect(reads).toBe(1));
+ view.rerender(<MemoryRouter><PublicLiveCheckout user={{...user,uid:'another-account'}} selection={selection} eligible/></MemoryRouter>);
+ await screen.findByText(/Localidade de faturação: preencha/);await act(async()=>release());
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
+});
+test('missing current profile details never hide an existing payment with its frozen billing snapshot',async()=>{
+ billingReadiness={ready:false,issues:['billing-address-required']};transport.mockResolvedValueOnce(response({order}));
+ show({registration:{id:'registration',payment:{orderId:ID}},eligible:false});
+ await screen.findByText('123456789',{selector:'dd'});
+ expect(screen.queryByRole('region',{name:'Dados obrigatórios para faturação'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+});
+test('a billing rejection before order creation clears only that candidate and requires corrected fiscal details',async()=>{
+ transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({error:'billing-customer-unconfirmed',issues:['billing-postcode-invalid']},false,409));
+ show();await ready();await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ await screen.findByText(/Código postal: utilize o formato 0000-000/);
+ expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+});
+test('unknown readiness codes produce safe guidance instead of exposing raw server values',async()=>{
+ billingReadiness={ready:false,issues:['untrusted-private-server-detail']};show();
+ await screen.findByText('Reveja e guarde os dados de faturação no Perfil.');
+ expect(screen.queryByText('untrusted-private-server-detail')).not.toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+});
+test.each([['capacity-full',409],['capacity-unavailable',503],['capacity-review-required',409]])('a precreation %s never strands the new UUID or creates another payment',async(error,status)=>{
+ const onCapacityRefresh=jest.fn();transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({error,unavailable:['onsite']},false,status));
+ show({onCapacityRefresh});await ready();await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ await screen.findByRole('alert');expect(onCapacityRefresh).toHaveBeenCalledTimes(1);
+ expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ expect(transport.mock.calls.filter(([url,options])=>url.endsWith('/orders')&&options.method==='POST')).toHaveLength(1);
+});
+test('a capacity refusal identifies the finite choices and refreshes availability without creating an order',async()=>{
+ const onCapacityRefresh=jest.fn();transport.mockResolvedValueOnce(response({error:'capacity-full',unavailable:['morningCourse','afternoonCourse']},false,409));
+ show({onCapacityRefresh});await ready();fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Curso da manhã · Curso da tarde');
+ expect(onCapacityRefresh).toHaveBeenCalledTimes(1);expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+});
+test('a received payment held for capacity review remains paid and cannot be cleared for another supplement',async()=>{
+ localStorage.setItem('circ-production-order:user',PRIMARY_ID);
+ transport.mockResolvedValueOnce(response({order:{...secondaryOrder,status:'paid',fiscalStatus:'issued',capacityStatus:'review_required',capacityUnavailable:['afternoonCourse']}}));
+ showSupplement();await screen.findByText(/O pagamento foi recebido/);
+ expect(screen.getByText('Pagamento confirmado')).toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Preparar nova compra'})).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-supplementary-order:user')).toBe(ID);
+ expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
+});
+test('capacity refreshes once when the existing order becomes paid rather than on every receipt update',async()=>{
+ jest.useFakeTimers();
+ try{
+  const onCapacityRefresh=jest.fn();localStorage.setItem('circ-production-order:user',ID);
+  transport.mockResolvedValueOnce(response({order})).mockResolvedValueOnce(response({order:{...order,status:'paid',fiscalStatus:'pending'}}))
+   .mockResolvedValueOnce(response({order:{...order,status:'paid',fiscalStatus:'issued',fiscalDocumentNo:'FR CIRC2027/paid'}}));
+  show({onCapacityRefresh});await screen.findByText('A aguardar pagamento');expect(onCapacityRefresh).not.toHaveBeenCalled();
+  await act(async()=>{jest.advanceTimersByTime(5000);});await screen.findByText('Pagamento confirmado');
+  expect(onCapacityRefresh).toHaveBeenCalledTimes(1);
+  await act(async()=>{jest.advanceTimersByTime(5000);});await screen.findByText('FR CIRC2027/paid');
+  expect(onCapacityRefresh).toHaveBeenCalledTimes(1);
+  expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
+ }finally{jest.useRealTimers();}
 });

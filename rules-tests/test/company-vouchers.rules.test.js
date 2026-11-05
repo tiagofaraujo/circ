@@ -3,7 +3,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const { before, after, beforeEach, test } = require('node:test');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, getDoc, getDocs, collection, updateDoc, writeBatch, serverTimestamp, runTransaction } = require('firebase/firestore');
+const { doc, setDoc, getDoc, getDocs, collection, updateDoc, writeBatch, serverTimestamp, runTransaction, deleteField } = require('firebase/firestore');
 let env;
 const code = 'a'.repeat(32), second = 'b'.repeat(32);
 const dbFor = (uid = 'alice', verified = true) => env.authenticatedContext(uid, { email: uid === 'admin' ? 'circ.chuc@gmail.com' : `${uid}@example.test`, email_verified: verified }).firestore();
@@ -37,8 +37,16 @@ beforeEach(async () => { await env.clearFirestore(); await env.withSecurityRules
   const db = ctx.firestore(); await setDoc(doc(db, 'settings', 'circ-2027-company-vouchers'), { enabled: true });
   for (const uid of ['alice', 'bob']) await setDoc(doc(db, 'users', uid), { name: 'Pessoa Teste' });
 }); });
-test('paid purchase creates codes and atomic redemption grants only external onsite', async () => {
-  await activate(); await assertSucceeds(redeem(dbFor()));
+async function serverRedeem(uid = 'alice', id = code) {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore(), b = writeBatch(db);
+    b.set(doc(db, 'registrations', `circ-2027-${uid}`), registration(uid, id));
+    b.update(doc(db, 'companyVouchers', id), consumed(uid)); await b.commit();
+  });
+}
+test('paid purchase issues codes but only the capacity-checked server may redeem them', async () => {
+  await activate(); await assertFails(redeem(dbFor())); await assertFails(redeem(dbFor('admin'), 'admin'));
+  await serverRedeem();
   const r = (await getDoc(doc(dbFor(), 'registrations', 'circ-2027-alice'))).data();
   assert.equal(r.payment.amountCents, 0); assert.equal(r.payment.coveredAmountCents, 9500);
   await assertFails(redeem(dbFor('bob'), 'bob')); await assertFails(redeem(dbFor(), 'alice', second));
@@ -85,10 +93,10 @@ test('cancelled codes stay cancelled; redeemed codes cannot be reset', async () 
   await assertSucceeds(updateDoc(doc(db, 'companyVouchers', code), { status: 'cancelled', updatedAt: serverTimestamp() }));
   await assertFails(redeem(dbFor()));
   await assertFails(updateDoc(doc(db, 'companyVouchers', code), { status: 'available' }));
-  await redeem(dbFor(), 'alice', second);
+  await serverRedeem('alice', second);
   await assertFails(updateDoc(doc(db, 'companyVouchers', second), { status: 'available', updatedAt: serverTimestamp() }));
 });
-test('two simultaneous claims allow exactly one registration', async () => {
+test('parallel client claims cannot bypass server capacity checks', async () => {
   await activate();
   const claim = (uid) => { const db = dbFor(uid); return runTransaction(db, async (tx) => {
     const v = doc(db, 'companyVouchers', code);
@@ -96,5 +104,100 @@ test('two simultaneous claims allow exactly one registration', async () => {
     tx.set(doc(db, 'registrations', `circ-2027-${uid}`), registration(uid)); tx.update(v, consumed(uid));
   }); };
   const results = await Promise.allSettled([claim('alice'), claim('bob')]);
-  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
+  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 0);
+});
+
+test('administrators cannot create real paid, confirmed or already admitted registrations directly', async () => {
+  const db = dbFor('admin');
+  const base = { ...registration(), status: 'submitted', payment: { status: 'pending', amountCents: 9500 }, entitlements: {} };
+  await assertSucceeds(setDoc(doc(db, 'registrations', 'pending'), base));
+  const variants = [
+    { status: 'confirmed' }, { payment: { ...base.payment, status: 'paid' } },
+    { entitlements: { congressMode: 'onsite' } }, { entitlements: { congressMode: 'virtual' } },
+    { entitlements: { morningCourse: true } }, { entitlements: { afternoonCourse: true } },
+    { entitlements: { dinnerQuantity: 1 } },
+  ];
+  for (let i = 0; i < variants.length; i++) await assertFails(setDoc(doc(db, 'registrations', `blocked-${i}`), { ...base, ...variants[i] }));
+  // Explicit administrative simulations retain their existing permissions.
+  await assertSucceeds(setDoc(doc(db, 'registrations', 'test'), { ...registration(), isTest: true, testMode: true }));
+  await assertFails(setDoc(doc(dbFor(), 'registrations', 'test-owner'), { ...registration(), isTest: true, testMode: true }));
+});
+
+test('real registration updates cannot grant paid rights, change mode or bypass guards by changing test flags', async () => {
+  const db = dbFor('admin');
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'registrations', 'pending'), {
+      ...registration(), status: 'submitted', payment: { status: 'pending', amountCents: 9500 }, entitlements: {},
+    });
+    await setDoc(doc(ctx.firestore(), 'registrations', 'paid'), registration());
+    await setDoc(doc(ctx.firestore(), 'registrations', 'simulation'), { ...registration(), isTest: true, testMode: true });
+  });
+  for (const change of [{ status: 'confirmed' }, { 'payment.status': 'paid' }, { 'entitlements.congressMode': 'onsite' },
+    { 'entitlements.morningCourse': true }, { 'entitlements.afternoonCourse': true }, { 'entitlements.dinnerQuantity': 1 },
+    { isTest: true }, { isTest: true, testMode: true }, { eventId: 'other' }, { userId: 'bob' }, { primaryRegistration: false }]) {
+    await assertFails(updateDoc(doc(db, 'registrations', 'pending'), change));
+  }
+  for (const change of [{ 'entitlements.congressMode': 'virtual' }, { 'entitlements.morningCourse': true },
+    { isTest: true, testMode: true }, { status: 'cancelled', isTest: true }, { testMode: true }]) {
+    await assertFails(updateDoc(doc(db, 'registrations', 'paid'), change));
+  }
+  await assertFails(updateDoc(doc(db, 'registrations', 'simulation'), { isTest: false, testMode: false }));
+  await assertSucceeds(updateDoc(doc(db, 'registrations', 'pending'), { internalNotes: 'Conferência administrativa', updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(doc(db, 'registrations', 'paid'), {
+    status: 'cancelled', 'payment.status': 'refunded', entitlements: { congressMode: '', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 }, updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'paid'), { status: 'confirmed', 'payment.status': 'paid', 'entitlements.congressMode': 'onsite' }));
+});
+
+test('capacity review holds and the shared transaction lock cannot be modified by a client administrator', async () => {
+  const db = dbFor('admin');
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'settings', 'circ-2027-paid-capacity-v1'), { eventId: 'circ-2027', revision: 7 });
+    await setDoc(doc(ctx.firestore(), 'registrations', 'held'), { ...registration(), status: 'submitted', entitlements: {},
+      capacityReviewOrderId: 'payment-order', capacityUnavailable: ['onsite'] });
+  });
+  await assertFails(setDoc(doc(db, 'settings', 'circ-2027-paid-capacity-v1'), { eventId: 'circ-2027', revision: 0 }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'held'), { capacityReviewOrderId: null }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'held'), { capacityUnavailable: [] }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'held'), { status: 'confirmed', 'entitlements.congressMode': 'onsite' }));
+  await assertSucceeds(updateDoc(doc(db, 'registrations', 'held'), { internalNotes: 'Organização contactada', 'payment.status': 'refunded', status: 'cancelled' }));
+  await assertSucceeds(setDoc(doc(db, 'settings', 'unrelated-admin-setting'), { enabled: true }));
+});
+
+test('removing rights or changing a legacy selection cannot introduce a new fallback admission', async () => {
+  const db = dbFor('admin');
+  await env.withSecurityRulesDisabled(async ctx => {
+    const explicit = { ...registration(), entitlements: {} };
+    await setDoc(doc(ctx.firestore(), 'registrations', 'explicit'), explicit);
+    const legacy = { ...registration(), selection: { profile: 'external', congressMode: 'virtual', morningCourse: false, afternoonCourse: false } };
+    delete legacy.entitlements;
+    await setDoc(doc(ctx.firestore(), 'registrations', 'legacy'), legacy);
+    const missingFlags = { ...registration() }; delete missingFlags.testMode;
+    await setDoc(doc(ctx.firestore(), 'registrations', 'missing-flags'), missingFlags);
+  });
+  await assertFails(updateDoc(doc(db, 'registrations', 'explicit'), { entitlements: deleteField() }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'explicit'), { entitlements: null, 'selection.congressMode': 'onsite' }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'legacy'), { 'selection.congressMode': 'onsite' }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'legacy'), { 'selection.morningCourse': true }));
+  await assertSucceeds(updateDoc(doc(db, 'registrations', 'legacy'), { internalNotes: 'Sem alteração dos direitos' }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'missing-flags'), { testMode: false }));
+});
+
+test('archive markers and canonical registration identity cannot hide or reintroduce paid places', async () => {
+  const db = dbFor('admin');
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), 'registrations', 'active'), registration());
+    await setDoc(doc(ctx.firestore(), 'registrations', 'archived'), { ...registration(), registrationArchiveId: 'archive', registrationArchivedAt: '2026-11-05T12:00:00Z' });
+    const missingKey = { ...registration() }; delete missingKey.registrationKey;
+    await setDoc(doc(ctx.firestore(), 'registrations', 'missing-key'), missingKey);
+    await setDoc(doc(ctx.firestore(), 'registrations', 'null-key'), { ...registration(), registrationKey: null });
+  });
+  for (const change of [{ registrationArchiveId: 'archive' }, { registrationArchivedAt: serverTimestamp() },
+    { registrationKey: 'circ-2027:other' }, { registrationKey: deleteField() }]) {
+    await assertFails(updateDoc(doc(db, 'registrations', 'active'), change));
+  }
+  await assertFails(updateDoc(doc(db, 'registrations', 'archived'), { registrationArchiveId: deleteField(), registrationArchivedAt: deleteField() }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'missing-key'), { registrationKey: null }));
+  await assertFails(updateDoc(doc(db, 'registrations', 'null-key'), { registrationKey: deleteField() }));
+  await assertSucceeds(updateDoc(doc(db, 'registrations', 'archived'), { internalNotes: 'Arquivo mantido' }));
 });

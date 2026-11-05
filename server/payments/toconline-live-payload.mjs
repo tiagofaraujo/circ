@@ -1,6 +1,7 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE } from '../../src/data/registration2027.js';
 import { LIVE_FISCAL_PAYMENT_MECHANISMS } from './live-payment-methods.mjs';
+import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
 const EVENT = 'circ-2027';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -11,7 +12,6 @@ const META = Object.freeze({
   'course-afternoon': ['CIRC27-CURSO-T', 'CIRC 2027 — Curso pré-congresso tarde'],
   dinner: ['CIRC27-JANTAR', 'CIRC 2027 — Jantar do congresso'],
 });
-const customerFields = ['customer_business_name', 'customer_tax_registration_number', 'customer_address_detail', 'customer_postcode', 'customer_city', 'customer_country'];
 const fail = (code = 'unsupported-order') => { throw new Error(`live-fiscal/${code}`); };
 
 function validateSource(quote) {
@@ -57,11 +57,7 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
   const date = new Date(`${paymentDate}T00:00:00Z`);
   if (!UUID.test(orderId || '') || !/^20\d{2}-\d{2}-\d{2}$/.test(paymentDate || '')
     || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== paymentDate
-    || !billing?.customer || Array.isArray(billing.customer) || typeof billing.customer !== 'object'
-    || billing.customer.customer_country !== 'PT' || !billing.customer.customer_business_name
-    || !billing.customer.customer_tax_registration_number
-    || Object.keys(billing.customer).some(key => !customerFields.includes(key))
-    || Object.values(billing.customer).some(value => typeof value !== 'string')) fail();
+    || !validateBillingCustomerSnapshot(billing?.customer).ok) fail();
   if (policy.series?.documentType !== 'FR' || !Number.isSafeInteger(policy.series.id) || policy.series.id <= 0
     || policy.exemption?.code !== 'M07' || !Number.isSafeInteger(policy.exemption.id)) fail('policy-invalid');
   const lines = quote.lines.map(source => {

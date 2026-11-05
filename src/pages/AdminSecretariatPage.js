@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { subscribeToRegistrations } from '../auth/adminStore';
+import { admissionEntitlements, canAttendEventDay, canReceiveCredential } from '../auth/secretariatEligibility';
 import {
   attendanceKey,
   updateCredentialDelivery,
@@ -25,23 +26,12 @@ const paymentLabels = {
   cancelled: 'Pagamento cancelado',
 };
 
-function congressMode(registration) {
-  return registration.entitlements?.congressMode || registration.selection?.congressMode || '';
-}
-
-function eligibleForDay(registration, eventDay) {
-  if (registration.status === 'cancelled') return false;
-  if (eventDay === '2027-04-08') {
-    return Boolean(registration.entitlements?.morningCourse || registration.entitlements?.afternoonCourse);
-  }
-  return congressMode(registration) === 'onsite';
-}
-
 function participationLabel(registration, eventDay) {
+  const entitlements = admissionEntitlements(registration);
   if (eventDay === '2027-04-08') {
     return [
-      registration.entitlements?.morningCourse ? 'Curso manhã' : '',
-      registration.entitlements?.afternoonCourse ? 'Curso tarde' : '',
+      entitlements.morningCourse ? 'Curso manhã' : '',
+      entitlements.afternoonCourse ? 'Curso tarde' : '',
     ].filter(Boolean).join(' · ') || 'Sem curso associado';
   }
   return 'Congresso presencial';
@@ -75,7 +65,14 @@ export default function AdminSecretariatPage() {
     }
   ), []);
 
-  const eligibleRegistrations = useMemo(() => registrations.filter((item) => eligibleForDay(item, eventDay)), [eventDay, registrations]);
+  const eligibleRegistrations = useMemo(() => registrations.filter((item) => canAttendEventDay(item, eventDay)), [eventDay, registrations]);
+
+  const restrictedRegistrations = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return registrations.filter(item => !canAttendEventDay(item, eventDay)
+      && (item.capacityReviewOrderId || item.attendance?.[attendanceKey(eventDay)]?.checkedIn || item.credential?.delivered)
+      && (!needle || `${item.id} ${item.participantName || ''} ${item.participantEmail || ''} ${item.registrationType || ''}`.toLowerCase().includes(needle)));
+  }, [registrations, eventDay, query]);
 
   const visibleRegistrations = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -109,13 +106,13 @@ export default function AdminSecretariatPage() {
     return [
       {
         label: 'Curso da manhã',
-        total: eligibleRegistrations.filter((item) => item.entitlements?.morningCourse).length,
-        checked: eligibleRegistrations.filter((item) => item.entitlements?.morningCourse && item.attendance?.[attendanceKey(eventDay)]?.checkedIn).length,
+        total: eligibleRegistrations.filter((item) => admissionEntitlements(item).morningCourse).length,
+        checked: eligibleRegistrations.filter((item) => admissionEntitlements(item).morningCourse && item.attendance?.[attendanceKey(eventDay)]?.checkedIn).length,
       },
       {
         label: 'Curso da tarde',
-        total: eligibleRegistrations.filter((item) => item.entitlements?.afternoonCourse).length,
-        checked: eligibleRegistrations.filter((item) => item.entitlements?.afternoonCourse && item.attendance?.[attendanceKey(eventDay)]?.checkedIn).length,
+        total: eligibleRegistrations.filter((item) => admissionEntitlements(item).afternoonCourse).length,
+        checked: eligibleRegistrations.filter((item) => admissionEntitlements(item).afternoonCourse && item.attendance?.[attendanceKey(eventDay)]?.checkedIn).length,
       },
     ];
   }, [eligibleRegistrations, eventDay]);
@@ -133,6 +130,7 @@ export default function AdminSecretariatPage() {
 
   const toggleCheckIn = async (registration) => {
     const checkedIn = !registration.attendance?.[attendanceKey(eventDay)]?.checkedIn;
+    if (checkedIn && !canAttendEventDay(registration, eventDay)) return;
     setSavingKey(`${registration.id}:checkin`);
     setError('');
     try {
@@ -146,6 +144,7 @@ export default function AdminSecretariatPage() {
 
   const toggleCredential = async (registration) => {
     const delivered = !registration.credential?.delivered;
+    if (delivered && !canReceiveCredential(registration)) return;
     setSavingKey(`${registration.id}:credential`);
     setError('');
     try {
@@ -239,6 +238,16 @@ export default function AdminSecretariatPage() {
         </div>
 
         {error && <div className="admin-alert" role="alert">{error}</div>}
+        {!loading && restrictedRegistrations.length > 0 && <section className="admin-alert" aria-label="Inscrições que exigem conferência">
+          <h2>Inscrições que exigem conferência</h2>
+          {restrictedRegistrations.map(registration => <article key={registration.id} aria-label={registration.participantName || registration.id}>
+            <p><strong>{registration.participantName || 'Participante sem nome'}</strong> · {registration.participantEmail || '—'} · {registration.id}</p>
+            <p>{registration.capacityReviewOrderId ? 'Pagamento recebido, mas a vaga aguarda conferência pela organização. Não conceder novas entradas ou credenciais para os lugares pendentes.' : 'Esta inscrição não permite novas entradas neste dia. Os registos existentes podem ser anulados.'}</p>
+            <Link to="/admin">Abrir gestão de inscrições</Link>
+            {registration.attendance?.[attendanceKey(eventDay)]?.checkedIn && <button type="button" disabled={Boolean(savingKey)} onClick={() => toggleCheckIn(registration)}>Anular check-in de {registration.participantName || registration.id}</button>}
+            {registration.credential?.delivered && <button type="button" disabled={Boolean(savingKey)} onClick={() => toggleCredential(registration)}>Anular entrega da credencial de {registration.participantName || registration.id}</button>}
+          </article>)}
+        </section>}
         {loading && <div className="admin-empty">A preparar o secretariado…</div>}
         {!loading && !error && !visibleRegistrations.length && (
           <div className="admin-empty">
@@ -270,17 +279,18 @@ export default function AdminSecretariatPage() {
                   </div>
                   <div className="secretariat-participant__participation">
                     <span>{participationLabel(registration, eventDay)}</span>
-                    <small>{registration.registrationType || 'CIRC 2027'}</small>
+                    <small>CIRC 2027</small>
+                    {registration.capacityReviewOrderId && <small role="status">Vaga adicional em conferência. Apenas as participações já confirmadas permitem entrada.</small>}
                   </div>
                   <div className="secretariat-participant__payment">
                     <span className={`secretariat-badge secretariat-badge--${paymentStatus}`}>{paymentLabels[paymentStatus] || paymentStatus}</span>
                     <small>{registration.status === 'confirmed' ? 'Inscrição confirmada' : 'Inscrição por confirmar'}</small>
                   </div>
-                  <button type="button" className={`secretariat-credential${credentialDelivered ? ' is-delivered' : ''}`} onClick={() => toggleCredential(registration)} disabled={credentialSaving || checkInSaving}>
+                  <button type="button" className={`secretariat-credential${credentialDelivered ? ' is-delivered' : ''}`} onClick={() => toggleCredential(registration)} disabled={credentialSaving || checkInSaving || (!credentialDelivered && !canReceiveCredential(registration))}>
                     <span>{credentialDelivered ? 'Entregue' : 'Por entregar'}</span>
                     <small>{credentialSaving ? 'A guardar…' : 'Credencial'}</small>
                   </button>
-                  <button type="button" className={`secretariat-checkin${checkedIn ? ' is-complete' : ''}`} onClick={() => toggleCheckIn(registration)} disabled={checkInSaving || credentialSaving}>
+                  <button type="button" className={`secretariat-checkin${checkedIn ? ' is-complete' : ''}`} onClick={() => toggleCheckIn(registration)} disabled={checkInSaving || credentialSaving || (!checkedIn && !canAttendEventDay(registration, eventDay))}>
                     <span>{checkInSaving ? 'A guardar…' : checkedIn ? 'Check-in concluído' : 'Fazer check-in'}</span>
                     <small>{checkedIn ? `${formatTime(attendance.checkedInAt)} · ${attendance.checkedInBy?.email || ''}` : 'Registar presença'}</small>
                   </button>

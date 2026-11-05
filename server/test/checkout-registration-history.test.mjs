@@ -51,6 +51,7 @@ function fixture({ claims = identity, canonical = null } = {}) {
   };
   const store = {
     registrationId,
+    capacity:async()=>({limits:{onsite:400,morningCourse:170,afternoonCourse:170},paid:{onsite:0,morningCourse:0,afternoonCourse:0},remaining:{onsite:400,morningCourse:170,afternoonCourse:170}}),
     registration: async () => ({ data: clone(registration), version: registration ? String(registrationVersion) : null }),
     payment: async id => snapshot(payments, id), document: async id => snapshot(documents, id),
     // Deliberately expose the archived shadow to verify that recovery never

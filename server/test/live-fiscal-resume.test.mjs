@@ -13,7 +13,8 @@ function fixture({error=null,failIssuedSave=false,waitForIssue=false,ownerId='ad
     {uid:'admin',emailVerified:true},null,new Date('2026-11-01T12:00:00Z'));
   quote.selection.profile=profile; quote.selection.courseAffiliation=profile==='uls'?'uls':'external';
   quote.amountCents=amountCents; quote.lines[0].unitAmountCents=amountCents; quote.lines[0].amountCents=amountCents;
-  const billing={customer_business_name:'Pessoa Teste',customer_tax_registration_number:'203821432',customer_country:'PT'};
+  const billing={customer_business_name:'Pessoa Teste',customer_tax_registration_number:'203821432',
+    customer_address_detail:'Rua do Exemplo 1',customer_postcode:'3000-001',customer_city:'Coimbra',customer_country:'PT'};
   const bank=method==='bank_transfer', creditKey='a'.repeat(64);
   let credit=bank?{kind:'bank-credit-live',environment:'production',eventId:'circ-2027',orderId:ID,decisionId:ID,requestHash:'test-request-hash',creditReference:'STATEMENT/2026/1',creditKey,bookingDate:'2026-11-01',amountCents,currency:'EUR'}:null;
   let payment={id:ID,userId:ownerId,eventId:'circ-2027',registrationId:`circ-2027-${ownerId}`,environment:'production',provider:bank?'internal_bank_transfer':'eupago',method,

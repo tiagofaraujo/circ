@@ -10,9 +10,12 @@ const env={FIREBASE_PROJECT_ID:'circ-coimbra',LIVE_CHECKOUT_ENABLED:'true',EUPAG
 const claims={sub:'admin',email:'circ.chuc@gmail.com',email_verified:true};
 const selection={profile:'external',congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0};
 const profile={name:'Pessoa Teste',taxNumber:'203821432',billingAddress:'Rua Teste 1',billingPostalCode:'3030-471',billingCity:'Coimbra',billingCountry:'Portugal'};
+const capacityLimits={onsite:400,morningCourse:170,afternoonCourse:170};
+const capacityFor=(paid={})=>({limits:{...capacityLimits},paid:{onsite:0,morningCourse:0,afternoonCourse:0,...paid},
+  remaining:Object.fromEntries(Object.entries(capacityLimits).map(([key,limit])=>[key,Math.max(0,limit-(paid[key]||0))]))});
 
 function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={},onCreate}={}){
-  let registration=null,payment=null,providerCalls=0;
+  let registration=null,payment=null,providerCalls=0,currentCapacity=capacityFor(),capacityError=null,reservationError=null,reservations=0;
   const currentProfile=structuredClone(profile);
   const store={
     registrationId:`circ-2027-${identity.sub}`,
@@ -21,7 +24,8 @@ function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={},onCreat
     primaryPayment:async()=>payment?{id:ID,data:structuredClone(payment),version:'p2'}:null,
     context:async()=>({uid:identity.sub,emailVerified:true,guards:[],...context}),
     profile:async()=>({data:currentProfile,version:'u1'}),
-    createPendingPrimary:async({registration:r,payment:p})=>{registration=structuredClone(r);payment=structuredClone(p);return{registrationVersion:'r1',paymentVersion:'p1'};},
+    capacity:async()=>{if(capacityError)throw capacityError;return structuredClone(currentCapacity);},
+    createPendingPrimary:async({registration:r,payment:p})=>{reservations++;if(reservationError)throw reservationError;registration=structuredClone(r);payment=structuredClone(p);return{registrationVersion:'r1',paymentVersion:'p1'};},
     updatePendingProvider:async({registration:r,payment:p})=>{registration=structuredClone(r);payment=structuredClone(p);return{registrationVersion:'r2',paymentVersion:'p2'};},
     updatePayment:async(id,p)=>{payment=structuredClone(p);return{data:payment,version:'p2'};},
   };
@@ -37,8 +41,87 @@ function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={},onCreat
   return{call:(path,body,configuration=env)=>api(req(path,body),configuration),
     preview:async(configuration=env,selected='external')=>await(await previewApi(req('/pilot-preview',{profile:selected}),configuration)).json(),
     setDate:value=>{date=value;},
+    setCapacity:paid=>{currentCapacity=capacityFor(paid);},setCapacityError:error=>{capacityError=error;},
+    setReservationError:error=>{reservationError=error;},reservations:()=>reservations,
     profile:()=>currentProfile,providerCalls:()=>providerCalls,payment:()=>payment,registration:()=>registration};
 }
+
+test('billing readiness is an authenticated read of required personal and fiscal fields even without configured payment providers',async()=>{
+  const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true}});
+  const disabled={FIREBASE_PROJECT_ID:env.FIREBASE_PROJECT_ID,LIVE_CHECKOUT_ENABLED:'false'};
+  const response=await f.call('/billing-readiness',undefined,disabled);assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{ready:true,issues:[]});assert.match(response.headers.get('Cache-Control'),/no-store/);
+  assert.equal(f.providerCalls(),0);assert.equal(f.reservations(),0);assert.equal(f.registration(),null);
+  f.profile().name='Ana';f.profile().billingName='Entidade de Faturação';delete f.profile().billingCity;
+  const invalid=await f.call('/billing-readiness',undefined,disabled);assert.equal(invalid.status,200);
+  const data=await invalid.json();assert.equal(data.ready,false);assert.deepEqual(data.issues,['billing-city-required','profile-name-required']);
+  assert.ok(!JSON.stringify(data).includes('Entidade'));assert.equal(f.providerCalls(),0);assert.equal(f.reservations(),0);
+  const unverified=fixture({identity:{...claims,email_verified:false}});
+  assert.equal((await unverified.call('/billing-readiness',undefined,disabled)).status,403);
+});
+
+test('minimum field readiness agrees with quote admission and never creates a payment for incomplete billing',async()=>{
+  for(const [field,value,issue] of [['name','Ana','profile-name-required'],['taxNumber','203821431','billing-tax-number-invalid'],
+    ['billingAddress','','billing-address-required'],['billingPostalCode','3000','billing-postcode-invalid'],
+    ['billingCity','','billing-city-required'],['billingCountry','','billing-country-unmapped']]){
+    const f=fixture({date:'2026-11-01T12:00:00Z'});f.profile()[field]=value;
+    const readiness=await(await f.call('/billing-readiness')).json();assert.equal(readiness.ready,false);assert.ok(readiness.issues.includes(issue));
+    const response=await f.call('/quote',{selection});assert.equal(response.status,409);
+    assert.equal((await response.json()).error,field==='name'?'profile-incomplete':'billing-customer-unconfirmed');
+    assert.equal(f.providerCalls(),0);assert.equal(f.reservations(),0);assert.equal(f.registration(),null);
+  }
+});
+
+test('capacity summary exposes paid totals and vacancies independently of payment-provider activation',async()=>{
+  const f=fixture();f.setCapacity({onsite:400,morningCourse:170,afternoonCourse:169});
+  const response=await f.call('/capacity',undefined,{FIREBASE_PROJECT_ID:env.FIREBASE_PROJECT_ID,LIVE_CHECKOUT_ENABLED:'false'});
+  assert.equal(response.status,200);assert.deepEqual(await response.json(),capacityFor({onsite:400,morningCourse:170,afternoonCourse:169}));
+  assert.equal(f.providerCalls(),0);assert.equal(f.reservations(),0);
+});
+
+test('finite selection capacity matrix blocks full options before any payment request while virtual remains unlimited',async()=>{
+  for(const [selected,paid,status,unavailable] of [
+    [selection,{onsite:400},409,['onsite']],
+    [{...selection,congressMode:'virtual'},{onsite:400,morningCourse:170,afternoonCourse:170},200,[]],
+    [{...selection,congressMode:'virtual',morningCourse:true},{morningCourse:170},409,['morningCourse']],
+    [{...selection,congressMode:'courses-only',morningCourse:true},{morningCourse:170},409,['morningCourse']],
+    [{...selection,congressMode:'courses-only',afternoonCourse:true},{afternoonCourse:170},409,['afternoonCourse']],
+    [{...selection,morningCourse:true,afternoonCourse:true},{onsite:400,morningCourse:170,afternoonCourse:170},409,['onsite','morningCourse','afternoonCourse']],
+    [{...selection,morningCourse:true,afternoonCourse:true},{onsite:399,morningCourse:169,afternoonCourse:169},200,[]],
+  ]){
+    const f=fixture({date:'2026-11-01T12:00:00Z'});f.setCapacity(paid);
+    const response=await f.call('/quote',{selection:selected});assert.equal(response.status,status);
+    const result=await response.json();if(status===409){assert.equal(result.error,'capacity-full');assert.deepEqual(result.unavailable,unavailable);}
+    else assert.equal(result.quote.selection.congressMode,selected.congressMode);
+    assert.equal(f.providerCalls(),0);assert.equal(f.reservations(),0);assert.equal(f.registration(),null);
+  }
+});
+
+test('capacity changes after a quote or at atomic reservation cannot create a provider payment',async()=>{
+  for(const atomic of [false,true]){
+    const f=fixture({date:'2026-11-01T12:00:00Z'}),q=await(await f.call('/quote',{selection})).json();
+    if(atomic)f.setReservationError(Object.assign(new Error('capacity-full'),{code:'capacity-full',unavailable:['onsite']}));
+    else f.setCapacity({onsite:400});
+    const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
+    assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:'capacity-full',unavailable:['onsite']});
+    assert.equal(f.providerCalls(),0);assert.equal(f.registration(),null);assert.equal(f.payment(),null);assert.equal(f.reservations(),atomic?1:0);
+  }
+});
+
+test('an existing payment remains recoverable and idempotent when capacity becomes full or unavailable',async()=>{
+  for(const paid of [false,true]){
+    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+    const q=await(await f.call('/quote',{selection})).json(),input={id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'};
+    assert.equal((await f.call('/orders',input)).status,201);
+    if(paid){Object.assign(f.payment(),{status:'paid',paidAt:'2026-11-01T12:01:00Z',transactionId:'paid-proof'});f.registration().status='confirmed';f.registration().payment.status='paid';}
+    f.setCapacity({onsite:400});assert.equal((await f.call('/orders',input)).status,200);f.setCapacityError(new Error('capacity unavailable'));
+    for(const path of ['/primary-order',`/orders/${ID}`]){
+      const response=await f.call(path,undefined,{...env,LIVE_CHECKOUT_ENABLED:'false'});assert.equal(response.status,200);
+      const order=(await response.json()).order;assert.equal(order.id,ID);assert.equal(order.status,paid?'paid':'pending');
+    }
+    assert.equal(f.providerCalls(),1);assert.equal(f.reservations(),1);
+  }
+});
 
 test('real bank transfer creates recoverable frozen instructions without contacting EuPago',async()=>{
   const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});

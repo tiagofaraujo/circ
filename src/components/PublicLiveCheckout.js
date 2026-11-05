@@ -20,7 +20,19 @@ const canRetryOrder = order => order?.method === 'mbway' && ['expired', 'cancell
 const retryConflicts = new Set(['registration-exists', 'replacement-required', 'idempotency-conflict', 'replacement-check-unavailable', 'replacement-not-closed']);
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
-  'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable']);
+  'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable', 'capacity-full', 'capacity-unavailable', 'capacity-review-required']);
+const billingIssueMessages = {
+  'profile-incomplete': ['Nome completo: preencha entre 5 e 200 caracteres.', 'Full name: enter 5 to 200 characters.'],
+  'billing-name-required': ['Nome de faturação: indique até 180 caracteres; pode usar o nome do participante.', 'Billing name: enter up to 180 characters; you can use the participant name.'],
+  'billing-tax-number-invalid': ['NIF: indique um número de contribuinte português válido com 9 algarismos.', 'Tax number: enter a valid nine-digit Portuguese tax number.'],
+  'billing-tax-number-is-seller': ['NIF: use o número do adquirente, não o da organização.', 'Tax number: use the buyer tax number rather than the organiser tax number.'],
+  'billing-address-required': ['Morada de faturação: preencha até 250 caracteres.', 'Billing address: enter up to 250 characters.'],
+  'billing-postcode-invalid': ['Código postal: utilize o formato 0000-000.', 'Postcode: use the format 0000-000.'],
+  'billing-city-required': ['Localidade de faturação: preencha até 100 caracteres.', 'Billing city: enter up to 100 characters.'],
+  'billing-country-unmapped': ['País de faturação: nesta fase é aceite Portugal (PT). Para outro país, contacte a organização.', 'Billing country: Portugal (PT) is currently supported. For another country, contact the organisers.'],
+  'billing-customer-fields-invalid': ['Reveja e guarde os dados de faturação no Perfil.', 'Review and save billing details in your Profile.'],
+};
+const capacityNames = { onsite:['Congresso presencial', 'Onsite congress'], morningCourse:['Curso da manhã', 'Morning course'], afternoonCourse:['Curso da tarde', 'Afternoon course'] };
 const states = { pending: ['A aguardar pagamento', 'Awaiting payment'], creating: ['Pedido em processamento', 'Order processing'],
   creation_unknown: ['Pedido por confirmar', 'Order needs checking'], creation_failed: ['Criação recusada — contacte a organização', 'Creation rejected — contact the organisers'],
   paid: ['Pagamento confirmado', 'Payment confirmed'], review_required: ['Pagamento em conferência pela organização', 'Payment under organiser review'],
@@ -40,9 +52,12 @@ const messages = {
   'payment-method-unavailable': ['Este meio de pagamento não está disponível. Atualize a página para consultar as opções atuais.', 'This payment method is unavailable. Refresh the page to see the current options.'],
   'replacement-check-unavailable': ['Não foi criado um novo pagamento. Não foi possível confirmar o encerramento do pedido anterior. Consulte o estado deste pedido antes de tentar novamente.', 'No new payment was created. Closure of the previous request could not be confirmed. Check this order status before trying again.'],
   'replacement-not-closed': ['Não foi criado um novo pagamento. O pedido anterior está em conferência; aguarde a organização antes de efetuar outro pagamento.', 'No new payment was created. The previous request is under review; wait for the organisers before making another payment.'],
+  'capacity-full': ['A lotação da opção selecionada foi atingida. Atualize a lotação e escolha uma opção disponível.', 'The selected option is full. Refresh capacity and choose an available option.'],
+  'capacity-unavailable': ['Não foi possível confirmar a lotação. Atualize a disponibilidade antes de preparar o pagamento.', 'Capacity could not be confirmed. Refresh availability before preparing payment.'],
+  'capacity-review-required': ['Um pagamento recebido aguarda conferência da organização sobre a vaga. Não efetue outro pagamento.', 'A received payment awaits organiser review of its place. Do not make another payment.'],
 };
 
-export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, onLock = () => {}, onNewPurchase = () => {} }) {
+export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, onLock = () => {}, onNewPurchase = () => {}, onCapacityRefresh = () => {} }) {
   const supplementary = kind === 'supplementary';
   const key = supplementary ? `circ-production-supplementary-order:${user.uid}` : `circ-production-order:${user.uid}`;
   const path = name => supplementary ? `/supplementary/${name}` : `/${name}`;
@@ -60,6 +75,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [phone, setPhone] = useState('');
   const [configBusy, setConfigBusy] = useState(true);
   const [configFailed, setConfigFailed] = useState(false);
+  const [billing, setBilling] = useState({ status:'loading', issues:[] });
+  const billingRead = useRef(0), billingGate = useRef(false);
+  const capacityPaidOrder = useRef('');
   const [copyMessage, setCopyMessage] = useState('');
   const [bankNote, setBankNote] = useState('');
   const [bankDeclared, setBankDeclared] = useState(false);
@@ -76,6 +94,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}`;
   const paymentReady = methods.includes(method) && (method !== 'mbway' || Boolean(phoneValue));
   const creationBlocked = !supplementary && Boolean(registration) && !retrySource;
+  const billingReady = billing.status === 'ready';
   currentSelection.current = paymentKey;
 
   async function request(path, body, signal, existingToken) {
@@ -85,8 +104,41 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const result = await response.json();
-    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: result.error, status: response.status, order: result.order });
+    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: result.error, status: response.status, order: result.order, issues:result.issues, unavailable:result.unavailable });
     return result;
+  }
+  async function readBilling(signal = abort.current?.signal) {
+    const read = ++billingRead.current;
+    billingGate.current = false; setBilling({ status:'loading', issues:[] }); setPreview(null); setConfirmed(false);
+    try {
+      const result = await request('/billing-readiness', undefined, signal);
+      if (typeof result.ready !== 'boolean' || !Array.isArray(result.issues)
+        || result.issues.some(issue => typeof issue !== 'string') || (result.ready && result.issues.length)) throw new Error('invalid-billing-readiness');
+      if (active.current && !signal?.aborted && read === billingRead.current) {
+        billingGate.current = result.ready;
+        setBilling({ status:result.ready ? 'ready' : 'incomplete', issues:[...new Set(result.issues)] });
+      }
+    } catch (issue) {
+      if (active.current && !signal?.aborted && read === billingRead.current) setBilling({ status:'error', issues:[], code:issue.code });
+    }
+  }
+  function preparationError(issue) {
+    if (['billing-customer-unconfirmed', 'profile-incomplete'].includes(issue.code)) {
+      billingGate.current = false;
+      setBilling({ status:'incomplete', issues:Array.isArray(issue.issues) && issue.issues.every(code => typeof code === 'string') && issue.issues.length
+        ? [...new Set(issue.issues)] : [issue.code === 'profile-incomplete' ? 'profile-incomplete' : 'billing-customer-fields-invalid'] });
+    }
+    if (['capacity-full', 'capacity-unavailable', 'capacity-review-required'].includes(issue.code)) {
+      refreshCapacity();
+    }
+  }
+  function refreshCapacity() {
+    try { Promise.resolve(onCapacityRefresh()).catch(() => {}); } catch { /* A refresh cannot alter the payment result. */ }
+  }
+  function preparationMessage(issue, fallback) {
+    const message = messages[issue.code]?.[en ? 1 : 0] || fallback;
+    const unavailable = Array.isArray(issue.unavailable) ? [...new Set(issue.unavailable)].filter(key => capacityNames[key]) : [];
+    return unavailable.length ? `${message} ${unavailable.map(key => capacityNames[key][en ? 1 : 0]).join(' · ')}.` : message;
   }
   function validateOrder(value, expectedId = null) {
     if (!value || !UUID.test(value.id || '') || value.currency !== 'EUR' || !Number.isSafeInteger(value.amountCents) || value.amountCents <= 0
@@ -99,6 +151,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (value.historicalRegistration === true) throw new Error('historical-order');
     setOrder(value); setId(value.id); setRetrySource(''); onLock(true);
     try { localStorage.setItem(key, value.id); } catch { /* An existing server order remains recoverable. */ }
+    if (value.status === 'paid' && capacityPaidOrder.current !== value.id) {
+      capacityPaidOrder.current = value.id; refreshCapacity();
+    }
   }
   async function resolveExistingOrder(value, expectedId = null, signal) {
     const seen = new Set();
@@ -176,10 +231,20 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     }
     recover();
     configuration();
+    readBilling(controller.signal);
     return () => { active.current = false; controller.abort(); };
     // Recover again when the subscription points to a different active order.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, registration?.id, registration?.payment?.orderId]);
+  useEffect(() => {
+    const refreshBilling = () => { if (!id && !working.current) readBilling(); };
+    const becameVisible = () => { if (document.visibilityState === 'visible') refreshBilling(); };
+    window.addEventListener('focus', refreshBilling);
+    document.addEventListener('visibilitychange', becameVisible);
+    return () => { window.removeEventListener('focus', refreshBilling); document.removeEventListener('visibilitychange', becameVisible); };
+    // Returning from Profile always requires a fresh billing review.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, id]);
   useEffect(() => { setPreview(null); setConfirmed(false); }, [paymentKey]);
 
   async function recoverSupplement(value) {
@@ -193,7 +258,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   }
 
   async function review() {
-    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady) return;
+    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !billingGate.current) return;
     working.current = true; setBusy(true); setError(''); setPreview(null); setConfirmed(false);
     try {
       const result = await request(path('quote'), { selection });
@@ -202,13 +267,14 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         || (supplementary && result.quote.kind !== 'supplementary')) throw new Error('invalid-preview');
       if (active.current && currentSelection.current === paymentKey) setPreview({ ...result, paymentKey });
     } catch (issue) {
+      if (active.current) preparationError(issue);
       if (active.current && supplementary && issue.code === 'supplementary-order-exists') await recoverSupplement(issue.order);
-      else if (active.current) setError(messages[issue.code]?.[en ? 1 : 0] || t('Não foi possível preparar o pagamento. Atualize a página ou contacte a organização.', 'Could not prepare payment. Refresh the page or contact the organisers.'));
+      else if (active.current) setError(preparationMessage(issue, t('Não foi possível preparar o pagamento. Atualize a página ou contacte a organização.', 'Could not prepare payment. Refresh the page or contact the organisers.')));
     }
     finally { working.current = false; if (active.current) setBusy(false); }
   }
   async function create() {
-    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !confirmed || !preview || preview.paymentKey !== paymentKey) return;
+    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !billingGate.current || !confirmed || !preview || preview.paymentKey !== paymentKey) return;
     working.current = true; setBusy(true); setError(''); onLock(true);
     let orderId = '', sent = false;
     try {
@@ -227,6 +293,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
+      preparationError(issue);
       if (issue.code === 'historical-order' && issue.order?.historicalRegistration === true) {
         setPreview(null); setConfirmed(false);
         try {
@@ -255,7 +322,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       } else if (!sent || rejectedBeforeCreation.has(issue.code)) {
         if (orderId) try { localStorage.removeItem(key); } catch {}
         setId(''); onLock(false); setPreview(null); setConfirmed(false);
-        setError(messages[issue.code]?.[en ? 1 : 0] || t('O pagamento não foi criado. Reveja os dados antes de continuar.', 'Payment was not created. Review your details before continuing.'));
+        setError(preparationMessage(issue, t('O pagamento não foi criado. Reveja os dados antes de continuar.', 'Payment was not created. Review your details before continuing.')));
       } else setError(t('O pedido pode já existir. Consulte o estado abaixo e não gere outro pagamento.', 'The order may already exist. Check its status below and do not generate another payment.'));
     } finally { working.current = false; if (active.current) setBusy(false); }
   }
@@ -280,7 +347,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   }, [id, order?.status, order?.fiscalStatus]);
 
   function newPurchase() {
-    if (!supplementary || order?.status !== 'paid' || order.fiscalStatus !== 'issued' || working.current) return;
+    if (!supplementary || order?.status !== 'paid' || order.fiscalStatus !== 'issued' || order.capacityStatus === 'review_required' || working.current) return;
     try { localStorage.removeItem(key); } catch { setError(t('Não foi possível preparar outra compra neste navegador.', 'Could not prepare another purchase in this browser.')); return; }
     setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError('');
     setPhone(''); setBankNote(''); setBankDeclared(false); setCopyMessage(''); setBankReportNeedsRefresh(false); bankReport.current = null;
@@ -348,6 +415,14 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>
     {historicalWaiting && <p role="status">{t('A inscrição anterior foi arquivada. Aguarde a atualização da inscrição antes de continuar; os pagamentos e documentos anteriores foram preservados.', 'The previous registration was archived. Wait for the registration update before continuing; earlier payments and documents were preserved.')}</p>}
     {!id && !creationBlocked && <>
+      {!billingReady && <section className="registration-billing-required" aria-label={t('Dados obrigatórios para faturação', 'Required billing details')}>
+        {billing.status === 'loading' ? <p role="status">{t('A confirmar os dados mínimos para emissão da fatura-recibo…', 'Checking the minimum invoice-receipt details…')}</p>
+          : billing.status === 'error' ? <p role="alert">{messages[billing.code]?.[en ? 1 : 0] || t('Não foi possível confirmar os dados de faturação. Atualize esta consulta antes de preparar o pagamento.', 'Billing details could not be confirmed. Refresh this check before preparing payment.')}</p>
+            : <><p>{t('Antes de preparar o pagamento, complete e guarde no Perfil os dados necessários para emitir a fatura-recibo:', 'Before preparing payment, complete and save the details needed for the invoice-receipt in your Profile:')}</p>
+              <ul>{(billing.issues.length ? billing.issues : ['billing-customer-fields-invalid']).map(issue => <li key={issue}>{(billingIssueMessages[issue] || billingIssueMessages['billing-customer-fields-invalid'])[en ? 1 : 0]}</li>)}</ul></>}
+        <Link to="/conta/perfil#faturacao">{t('Completar dados obrigatórios no Perfil', 'Complete required Profile details')}</Link>
+        <button type="button" disabled={billing.status === 'loading' || busy} onClick={() => { if (!working.current) readBilling(); }}>{t('Atualizar dados de faturação', 'Refresh billing details')}</button>
+      </section>}
       {retrySource && <p role="status">{t('Está a preparar uma nova tentativa para um pedido encerrado sem pagamento. Reveja o valor, os dados de faturação e o número MB WAY antes de confirmar.', 'You are preparing another attempt for an order closed without payment. Review the amount, billing details and MB WAY number before confirming.')}</p>}
       {methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
         {methods.map(value => <label key={value}><input type="radio" name={`payment-method-${kind}`} value={value} checked={method === value} onChange={() => setMethod(value)} />{methodNames[value][en ? 1 : 0]}</label>)}
@@ -361,8 +436,8 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
         : method === 'bank_transfer'
           ? t('Após a organização conferir o crédito na conta, o pagamento e a inscrição são confirmados automaticamente. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Once the organisers verify the credited amount, payment and registration are confirmed automatically. The invoice-receipt will be available in My CIRC once issued.')
-          : t('A inscrição é confirmada automaticamente após o pagamento. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Registration is confirmed automatically after payment. The invoice-receipt will be available in My CIRC once issued.')}</p>
-      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !paymentReady} onClick={review}>{busy || configBusy ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
+          : t('A inscrição é confirmada após o pagamento e a verificação da lotação aplicável. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Registration is confirmed after payment and the applicable capacity check. The invoice-receipt will be available in My CIRC once issued.')}</p>
+      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !paymentReady || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
       {customer && <div className="registration-invoice">
         <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(preview.quote.amountCents)}</strong></p>
         <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
@@ -370,7 +445,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
           <dt>{t('Código postal e localidade', 'Postcode and city')}</dt><dd>{customer.customer_postcode} · {customer.customer_city}</dd><dt>{t('País', 'Country')}</dt><dd>{customer.customer_country}</dd></dl>
         <p>{t('Meio de pagamento', 'Payment method')}: <strong>{methodLabel}</strong>{method === 'mbway' ? ` · +351 ${phoneValue}` : ''}</p>
         <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} /> {t('Conferi o valor, os dados de faturação e o meio de pagamento e pretendo criar este pedido.', 'I reviewed the amount, billing details and payment method and want to create this order.')}</label>
-        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !paymentReady}>{method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : method === 'stripe_card' ? t('Preparar pagamento na Stripe', 'Prepare Stripe payment') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
+        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !paymentReady || !billingReady}>{method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : method === 'stripe_card' ? t('Preparar pagamento na Stripe', 'Prepare Stripe payment') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
       </div>}
     </>}
     {id && <>
@@ -381,6 +456,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     {order && <div className="registration-invoice">
       <p role="status"><strong>{states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
       <p>{t('Valor:', 'Amount:')} {money(order.amountCents)}</p>
+      {order.status === 'paid' && order.capacityStatus === 'review_required' && <p role="status">{t('O pagamento foi recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não efetue outro pagamento.', 'Payment was received. The registration or place awaits organiser review because of capacity. Do not make another payment.')}</p>}
       {order.status === 'pending' && order.method === 'multibanco' && <dl><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference}</dd></dl>}
       {order.status === 'pending' && order.method === 'mbway' && <div>
         <p>{t('Confirme este pedido na aplicação MB WAY. A confirmação do pagamento será recebida automaticamente.', 'Confirm this request in the MB WAY app. Payment confirmation will be received automatically.')}</p>
@@ -416,7 +492,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       {order.status === 'paid' && order.fiscalStatus === 'review_required' && <p role="status">{t('O pagamento está confirmado. A fatura-recibo está pendente de conferência pela organização; não efetue outro pagamento.', 'Payment is confirmed. The invoice-receipt awaits organiser review; do not make another payment.')}</p>}
       {order.method === 'stripe_card' && order.status === 'paid' && !['issued', 'review_required'].includes(order.fiscalStatus) && <p role="status">{t('O pagamento está confirmado. A fatura-recibo está em processamento e ficará disponível no My CIRC; não efetue outro pagamento.', 'Payment is confirmed. The invoice-receipt is being processed and will be available in My CIRC; do not make another payment.')}</p>}
       {supplementary && order.status === 'paid' && order.fiscalStatus !== 'issued' && <p>{t('A faturação deste pedido ainda está em processamento. Aguarde a conclusão ou contacte a organização antes de preparar outro complemento.', 'This order invoice is still being processed. Wait for completion or contact the organisers before preparing another supplement.')}</p>}
-      {supplementary && order.status === 'paid' && order.fiscalStatus === 'issued' && <button type="button" onClick={newPurchase} disabled={busy}>{t('Preparar nova compra', 'Prepare another purchase')}</button>}
+      {supplementary && order.status === 'paid' && order.fiscalStatus === 'issued' && order.capacityStatus !== 'review_required' && <button type="button" onClick={newPurchase} disabled={busy}>{t('Preparar nova compra', 'Prepare another purchase')}</button>}
     </div>}
     {error && <p role="alert">{error}</p>}
     <Link to="/conta/perfil">{t('Rever dados de faturação no perfil', 'Review billing profile')}</Link>

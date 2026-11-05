@@ -1,4 +1,5 @@
 import { getFirebaseFirestore } from './firebaseClient';
+import { canAttendEventDay, canReceiveCredential } from './secretariatEligibility';
 import { isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
 import {
   abstractSectionsToText,
@@ -189,63 +190,73 @@ export async function updateSubmissionReview(user, submission, status, decisionN
 export async function updateParticipantCheckIn(user, registration, eventDay, checkedIn) {
   if (!user) throw new Error('secretariat/auth-required');
   if (!['2027-04-08', '2027-04-09', '2027-04-10'].includes(eventDay)) throw new Error('secretariat/invalid-day');
+  if (typeof registration?.id !== 'string' || !registration.id.trim() || registration.id.includes('/')) throw new Error('secretariat/invalid-registration');
 
   const db = dbOrThrow();
   const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
   const changedBy = actor(user);
   const dayKey = attendanceKey(eventDay);
-  const previous = registration.attendance?.[dayKey] || null;
-  const batch = db.batch();
-
-  batch.update(db.collection('registrations').doc(registration.id), {
-    [`attendance.${dayKey}`]: {
+  const registrationRef = db.collection('registrations').doc(registration.id);
+  const auditRef = db.collection('auditLogs').doc();
+  await db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(registrationRef);
+    if (!snapshot.exists) throw new Error('secretariat/registration-not-found');
+    const current = { ...snapshot.data(), id: registration.id };
+    if (checkedIn && !canAttendEventDay(current, eventDay)) throw new Error('secretariat/admission-not-allowed');
+    const previous = current.attendance?.[dayKey] || null;
+    transaction.update(registrationRef, {
+      [`attendance.${dayKey}`]: {
+        eventDay,
+        checkedIn: Boolean(checkedIn),
+        checkedInAt: timestamp,
+        checkedInBy: changedBy,
+      },
+      updatedAt: timestamp,
+    });
+    transaction.set(auditRef, {
+      action: checkedIn ? 'attendance.checkin.completed' : 'attendance.checkin.reverted',
+      eventId: current.eventId || 'circ-2027',
+      registrationId: registration.id,
       eventDay,
-      checkedIn: Boolean(checkedIn),
-      checkedInAt: timestamp,
-      checkedInBy: changedBy,
-    },
-    updatedAt: timestamp,
+      before: previous,
+      after: { checkedIn: Boolean(checkedIn) },
+      actor: changedBy,
+      createdAt: timestamp,
+    });
   });
-  batch.set(db.collection('auditLogs').doc(), {
-    action: checkedIn ? 'attendance.checkin.completed' : 'attendance.checkin.reverted',
-    eventId: registration.eventId || 'circ-2027',
-    registrationId: registration.id,
-    eventDay,
-    before: previous,
-    after: { checkedIn: Boolean(checkedIn) },
-    actor: changedBy,
-    createdAt: timestamp,
-  });
-
-  await batch.commit();
 }
 
 export async function updateCredentialDelivery(user, registration, delivered) {
   if (!user) throw new Error('secretariat/auth-required');
+  if (typeof registration?.id !== 'string' || !registration.id.trim() || registration.id.includes('/')) throw new Error('secretariat/invalid-registration');
 
   const db = dbOrThrow();
   const timestamp = window.firebase.firestore.FieldValue.serverTimestamp();
   const changedBy = actor(user);
-  const previous = registration.credential || null;
-  const batch = db.batch();
-
-  batch.update(db.collection('registrations').doc(registration.id), {
-    credential: {
-      delivered: Boolean(delivered),
-      deliveredAt: timestamp,
-      deliveredBy: changedBy,
-    },
-    updatedAt: timestamp,
+  const registrationRef = db.collection('registrations').doc(registration.id);
+  const auditRef = db.collection('auditLogs').doc();
+  await db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(registrationRef);
+    if (!snapshot.exists) throw new Error('secretariat/registration-not-found');
+    const current = { ...snapshot.data(), id: registration.id };
+    if (delivered && !canReceiveCredential(current)) throw new Error('secretariat/admission-not-allowed');
+    const previous = current.credential || null;
+    transaction.update(registrationRef, {
+      credential: {
+        delivered: Boolean(delivered),
+        deliveredAt: timestamp,
+        deliveredBy: changedBy,
+      },
+      updatedAt: timestamp,
+    });
+    transaction.set(auditRef, {
+      action: delivered ? 'credential.delivered' : 'credential.delivery.reverted',
+      eventId: current.eventId || 'circ-2027',
+      registrationId: registration.id,
+      before: previous,
+      after: { delivered: Boolean(delivered) },
+      actor: changedBy,
+      createdAt: timestamp,
+    });
   });
-  batch.set(db.collection('auditLogs').doc(), {
-    action: delivered ? 'credential.delivered' : 'credential.delivery.reverted',
-    eventId: registration.eventId || 'circ-2027',
-    registrationId: registration.id,
-    before: previous,
-    after: { delivered: Boolean(delivered) },
-    actor: changedBy,
-    createdAt: timestamp,
-  });
-
-  await batch.commit();
 }

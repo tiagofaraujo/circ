@@ -263,9 +263,12 @@ async function prepareRevokedRegistration({ deleteProfile = false } = {}) {
   const adminDb = userDb(ADMIN.uid, ADMIN.email);
   const registrationRef = doc(adminDb, 'registrations', REGISTRATION_ID);
 
-  // Create through the actual rules while the match is active.
-  await assertSucceeds(setDoc(registrationRef, registrationData()));
+  // An administrator may prepare an eligible pending selection. Paid admission
+  // now belongs to the server transaction, represented by the privileged seed.
+  await assertSucceeds(setDoc(registrationRef, { ...registrationData(), status: 'submitted', entitlements: {},
+    payment: { ...registrationData().payment, status: 'pending' } }));
   await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'registrations', REGISTRATION_ID), registrationData());
     await updateDoc(doc(context.firestore(), 'ulsRoster', MEC), { active: false });
   });
   if (deleteProfile) await assertSucceeds(deleteDoc(doc(participantDb, 'users', 'pilot')));

@@ -608,17 +608,6 @@ service cloud.firestore {
         && d.status == 'available' && d.redeemedBy == null && d.registrationId == null && d.redeemedAt == null
         && d.createdAt == request.time && d.updatedAt == request.time;
     }
-    function validCompanyRedemption(code) {
-      let d = request.resource.data;
-      let regId = 'circ-2027-' + request.auth.uid;
-      return hasVerifiedEmail() && companyCodesEnabled()
-        && resource.data.status == 'available'
-        && d.diff(resource.data).affectedKeys().hasOnly(['status', 'redeemedBy', 'registrationId', 'redeemedAt', 'updatedAt'])
-        && d.status == 'redeemed' && d.redeemedBy == request.auth.uid && d.registrationId == regId
-        && d.redeemedAt == request.time && d.updatedAt == request.time
-        && !exists(/databases/$(database)/documents/registrations/$(regId))
-        && getAfter(/databases/$(database)/documents/registrations/$(regId)).data.voucherId == code;
-    }
     match /companyVouchers/{code} {
       // 128-bit random bearer code; no enumeration and no company billing data.
       allow get: if isAdmin() || (hasVerifiedEmail() && companyCodesEnabled()
@@ -626,49 +615,58 @@ service cloud.firestore {
           || resource.data.status == 'available' || resource.data.redeemedBy == request.auth.uid));
       allow list: if isAdmin();
       allow create: if isAdmin() && validCompanyVoucherCreate(code);
-      allow update: if (isAdmin() && resource.data.status == 'available' && request.resource.data.status == 'cancelled'
+      // Redemption and its capacity check are committed by the server identity.
+      allow update: if isAdmin() && resource.data.status == 'available' && request.resource.data.status == 'cancelled'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-        && request.resource.data.updatedAt == request.time) || validCompanyRedemption(code);
-    }
-    function validCompanyRegistration(regId) {
-      let d = request.resource.data;
-      let v = get(/databases/$(database)/documents/companyVouchers/$(d.voucherId)).data;
-      let used = getAfter(/databases/$(database)/documents/companyVouchers/$(d.voucherId)).data;
-      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-      return hasVerifiedEmail() && companyCodesEnabled() && regId == 'circ-2027-' + request.auth.uid
-        && d.keys().hasOnly(['eventId', 'userId', 'registrationKey', 'primaryRegistration', 'participantName', 'participantEmail',
-          'registrationType', 'status', 'isTest', 'testMode', 'selection', 'entitlements', 'payment', 'voucherId',
-          'companyPurchaseId', 'addOnOrderCount', 'documentCount', 'createdAt', 'updatedAt'])
-        && d.eventId == 'circ-2027' && d.userId == request.auth.uid
-        && d.registrationKey == 'circ-2027:' + request.auth.uid && d.primaryRegistration == true
-        && d.participantName == profile.name && d.participantName is string && d.participantName.trim().size() >= 5 && d.participantName.size() <= 200
-        && d.participantEmail == request.auth.token.email && d.registrationType == 'CIRC 2027 · Presencial'
-        && d.status == 'confirmed' && d.isTest == false && d.testMode == false
-        && d.selection == {'profile': 'external', 'courseAffiliation': 'external', 'congressMode': 'onsite', 'morningCourse': false,
-          'afternoonCourse': false, 'dinner': false, 'dinnerQuantity': 0, 'ratePeriod': 'company'}
-        && d.entitlements == {'congressMode': 'onsite', 'morningCourse': false, 'afternoonCourse': false, 'dinnerQuantity': 0}
-        && d.payment == {'status': 'paid', 'amountCents': 0, 'coveredAmountCents': v.unitAmountCents, 'currency': 'EUR',
-          'method': 'company_voucher', 'reference': v.purchaseId, 'payer': v.companyName}
-        && d.companyPurchaseId == v.purchaseId && d.addOnOrderCount == 0 && d.documentCount == 0
-        && d.createdAt == request.time && d.updatedAt == request.time
-        && v.eventId == 'circ-2027' && v.status == 'available' && used.status == 'redeemed'
-        && used.redeemedBy == request.auth.uid && used.registrationId == regId && used.redeemedAt == request.time;
+        && request.resource.data.updatedAt == request.time;
     }
     match /settings/circ-2027-company-vouchers {
       allow get: if hasVerifiedEmail();
     }
 
+    function realCircRegistration(data) {
+      return data.get('eventId', '') == 'circ-2027' && data.get('isTest', false) != true;
+    }
+    function noClientAdmissionCreate(data) {
+      let rights = data.get('entitlements', {});
+      return !realCircRegistration(data) || (
+        data.get('status', '') != 'confirmed' && data.get('payment', {}).get('status', '') != 'paid'
+        && rights.get('congressMode', '') == '' && rights.get('morningCourse', false) == false
+        && rights.get('afternoonCourse', false) == false && rights.get('dinnerQuantity', 0) == 0
+      );
+    }
+    function effectiveAdmissionRights(data) {
+      return data.get('entitlements', null) == null ? data.get('selection', {}) : data.entitlements;
+    }
+    function noClientAdmissionIncrease(data) {
+      let previous = resource.data;
+      let before = effectiveAdmissionRights(previous);
+      let after = effectiveAdmissionRights(data);
+      let changed = data.diff(previous).affectedKeys();
+      return !(realCircRegistration(previous) || realCircRegistration(data)) || (
+        !changed.hasAny(['eventId', 'userId', 'registrationKey', 'primaryRegistration', 'isTest', 'testMode',
+          'registrationArchiveId', 'registrationArchivedAt', 'capacityReviewOrderId', 'capacityUnavailable'])
+        && (previous.get('entitlements', null) == null || data.get('entitlements', null) != null)
+        && (data.get('status', '') != 'confirmed' || previous.get('status', '') == 'confirmed')
+        && (data.get('payment', {}).get('status', '') != 'paid' || previous.get('payment', {}).get('status', '') == 'paid')
+        && after.get('congressMode', '') in ['', before.get('congressMode', '')]
+        && after.get('morningCourse', false) in [false, before.get('morningCourse', false)]
+        && after.get('afternoonCourse', false) in [false, before.get('afternoonCourse', false)]
+        && after.get('dinnerQuantity', 0) >= 0 && after.get('dinnerQuantity', 0) <= before.get('dinnerQuantity', 0)
+      );
+    }
+
     match /registrations/{registrationId} {
       allow get: if hasVerifiedEmail() && registrationId == "circ-2027-" + request.auth.uid;
-      allow create: if validCompanyRegistration(registrationId);
       allow read: if isAdmin()
         || canUseSecretariat()
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data)
-        && hasValidStudentRegistration(request.resource.data);
+        && hasValidStudentRegistration(request.resource.data) && noClientAdmissionCreate(request.resource.data);
       allow delete: if isAdmin();
       allow update: if (
         isAdmin()
+        && noClientAdmissionIncrease(request.resource.data)
         && canUpdateStudentRegistration(request.resource.data)
         && (
           hasValidUlsRegistration(request.resource.data)
@@ -964,7 +962,9 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      // The shared admission transaction owns this lock, including its revision.
+      allow write: if isAdmin() && settingId != 'circ-2027-paid-capacity-v1';
     }
 
     match /{document=**} {
