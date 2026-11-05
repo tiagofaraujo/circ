@@ -12,6 +12,10 @@ const SANDBOX_PREFIXES = [
 ];
 const SANDBOX_KINDS = new Set(['checkout-test', 'gateway-test', 'bank-proof-test', 'bank-credit-test']);
 
+// Dates, names, email addresses and unpaid status do not prove a test record.
+// An explicit marker is required before anything leaves an active collection.
+const explicitTest = data => data?.isTest === true || data?.testMode === true || data?.environment === 'sandbox';
+
 function fail(code) { throw new Error(`cleanup/${code}`); }
 function database(user) {
   if (!isAdminUser(user)) fail('admin-required');
@@ -78,9 +82,13 @@ function realIssued(document) {
     || (document.status === 'issued' && document.isTest !== true && document.testMode !== true)
     || (document.providerDocumentId && document.status !== 'simulated-issued');
 }
+function realFinancialItem(item) {
+  return (item.path.startsWith('payments/') && item.data.environment === 'production')
+    || (item.path.startsWith('registrationOrders/') && item.data.environment === 'production')
+    || (item.path.startsWith('documents/') && realIssued(item.data));
+}
 function protectsRegistration(registration, related) {
-  if (related.some(item => item.path.startsWith('payments/') && item.data.environment === 'production' && Number(item.data.amountCents) > 0)) return true;
-  if (related.some(item => item.path.startsWith('documents/') && realIssued(item.data))) return true;
+  if (related.some(realFinancialItem)) return true;
   const test = registration.isTest === true || registration.testMode === true;
   if (!test && related.some(item => item.path.startsWith('payments/')
     && ['paid', 'refunded'].includes(item.data.status) && Number(item.data.amountCents) > 0
@@ -110,12 +118,19 @@ export async function prepareProductionCleanup(user, { cutoff = Date.now() } = {
       protectedItems.push({ type: 'registration', id: registration.id, reason: 'financial-record' });
       return;
     }
+    if (!explicitTest(registration.data)) {
+      protectedItems.push({ type: 'registration', id: registration.id, reason: 'not-confirmed-test' });
+      return;
+    }
     if (newerThan(registration.data, cutoff) || related.some(item => newerThan(item.data, cutoff))) {
       recent.push({ type: 'registration', id: registration.id }); return;
     }
     groups.push({ type: 'registration', id: registration.id, sources: [registration, ...related] });
   });
   await Promise.all(submissions.map(async submission => {
+    if (!explicitTest(submission.data)) {
+      protectedItems.push({ type: 'submission', id: submission.id, reason: 'not-confirmed-test' }); return;
+    }
     const assignment = assignments.find(item => item.id === submission.id);
     if (newerThan(submission.data, cutoff)) { recent.push({ type: 'submission', id: submission.id }); return; }
     let reviewBackup = null;
@@ -140,8 +155,7 @@ export async function prepareProductionCleanup(user, { cutoff = Date.now() } = {
   }));
   relatedItems.forEach(item => {
     if (claimed.has(item.path) || item.data.eventId !== EVENT) return;
-    const explicitTest = item.data.isTest === true || item.data.testMode === true || item.data.environment === 'sandbox';
-    if (!explicitTest || realIssued(item.data)) return;
+    if (!explicitTest(item.data) || realFinancialItem(item)) return;
     if (newerThan(item.data, cutoff)) { recent.push({ type: 'related', id: item.id }); return; }
     groups.push({ type: 'related', id: item.path, sources: [item] });
   });
@@ -176,7 +190,7 @@ export async function archiveProductionCleanup(user, plan, onProgress = () => {}
   const archiveId = `${ARCHIVE_PREFIX}${manifest.id}`;
   const manifestRef = db.collection('settings').doc(archiveId);
   await manifestRef.set({ kind: 'production-cleanup-archive', eventId: EVENT, cutoff: new Date(plan.cutoff).toISOString(),
-    createdAt: timestamp(), createdBy: actor(user), groupCount: plan.groups.length, completedGroups: 0, status: 'running' });
+    selection: 'explicit-test-only', createdAt: timestamp(), createdBy: actor(user), groupCount: plan.groups.length, completedGroups: 0, status: 'running' });
   let completed = 0;
   try {
     for (const [index, group] of plan.groups.entries()) {
@@ -200,6 +214,7 @@ export async function archiveProductionCleanup(user, plan, onProgress = () => {}
           const identity = await tx.get(identityRef);
           if (config.data()?.enabled !== true) fail('review-linked');
           if (source.data()?.eventId !== EVENT || source.data()?.status === 'draft') fail('review-linked');
+          if (!explicitTest(source.data())) fail('not-confirmed-test');
           if (!source.exists || signature(source.data()) !== group.sources[0].signature
             || !assignment.exists || signature(assignment.data()) !== group.reviewBackup.assignment.signature
             || works.some((work, i) => signature(work.exists ? work.data() : null) !== group.reviewBackup.works[i].signature)
@@ -248,9 +263,8 @@ export async function archiveProductionCleanup(user, plan, onProgress = () => {}
           if (snapshot.exists) identity = { ref: identityRef, data: snapshot.data() };
         }
         const currentSources = group.sources.map((source, i) => ({ ...source, data: snapshots[i].data() }));
-        if (currentSources.some(source =>
-          (source.path.startsWith('payments/') && source.data.environment === 'production' && Number(source.data.amountCents) > 0)
-          || (source.path.startsWith('documents/') && realIssued(source.data)))) fail('financial-record');
+        if (currentSources.some(realFinancialItem)) fail('financial-record');
+        if (group.type !== 'sandbox' && !explicitTest(currentSources[0].data)) fail('not-confirmed-test');
         if (group.type === 'registration' && protectsRegistration(currentSources[0].data, currentSources.slice(1))) fail('financial-record');
         if (group.type === 'sandbox' && !sandboxRecord(group.sources[0].id, currentSources[0].data)) fail('invalid-plan');
         const sources = currentSources.map(source => ({ path: source.path, data: source.data }));

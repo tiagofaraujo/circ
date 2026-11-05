@@ -4,7 +4,7 @@ import { createCompanyVoucherLiveApi } from '../payments/company-voucher-live.mj
 
 const code = 'a'.repeat(32), second = 'b'.repeat(32);
 const env = { FIREBASE_PROJECT_ID: 'circ-test' };
-const time = '2026-11-05T12:34:56.000Z';
+const time = '2026-11-15T12:34:56.000Z';
 const copy = value => structuredClone(value);
 function request(body = { code }, options = {}) {
   const method = options.method || 'POST';
@@ -12,7 +12,7 @@ function request(body = { code }, options = {}) {
     headers: { Origin: 'https://circ.test', Authorization: 'Bearer session-token', 'Content-Type': 'application/json', ...options.headers },
     ...(method === 'POST' ? { body: typeof body === 'string' ? body : JSON.stringify(body) } : {}) });
 }
-function fixture({ claims = {}, commitError = null, lostAck = false } = {}) {
+function fixture({ claims = {}, commitError = null, lostAck = false, date = time } = {}) {
   const data = {
     config: { enabled: true }, profile: { name: 'Pessoa Participante' }, registration: null,
     voucher: { eventId: 'circ-2027', purchaseId: 'purchase', index: 0, companyName: 'Empresa Exemplo', unitAmountCents: 9500,
@@ -37,8 +37,8 @@ function fixture({ claims = {}, commitError = null, lostAck = false } = {}) {
   const tokenProvider = async () => 'service-identity';
   const api = createCompanyVoucherLiveApi({ verify, tokenProvider, storeFactory: args => {
     assert.equal(args.uid, claims.sub || 'alice'); assert.equal(args.token, 'service-identity'); return store;
-  }, now: () => time });
-  return { api, data, store, reads, writes, commits: () => commits };
+  }, now: () => date });
+  return { api, data, store, reads, writes, commits: () => commits, setDate: value => { date = value; } };
 }
 
 test('paid company voucher creates only covered onsite rights with no personal fiscal data or separate charge', async () => {
@@ -53,6 +53,15 @@ test('paid company voucher creates only covered onsite rights with no personal f
   assert.equal(r.participantName, f.data.profile.name); assert.equal(r.participantEmail, 'alice@example.test');
   assert.equal(f.data.voucher.redeemedBy, 'alice'); assert.equal(f.data.voucher.redeemedAt, time);
   assert.deepEqual(f.writes[0].guards.map(g => g.name), ['documents/config', 'documents/profile', 'documents/purchase']);
+});
+
+test('voucher redemption respects the exact opening boundary and an existing redemption remains recoverable before opening', async () => {
+  const f=fixture({date:'2026-11-14T23:59:59.999Z'});
+  const closed=await f.api(request(),env);assert.equal(closed.status,403);assert.equal((await closed.json()).error,'company/registration-not-open');
+  assert.equal(f.commits(),0);assert.equal(f.data.voucher.status,'available');
+  f.setDate('2026-11-15T00:00:00Z');assert.equal((await f.api(request(),env)).status,200);assert.equal(f.commits(),1);
+  f.setDate('2026-11-14T23:59:59.999Z');
+  const existing=await f.api(request(),env);assert.equal(existing.status,200);assert.equal((await existing.json()).duplicate,true);assert.equal(f.commits(),1);
 });
 
 test('an acknowledged or lost acknowledgement retry does not consume another seat even after redemption closes', async () => {

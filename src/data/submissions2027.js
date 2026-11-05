@@ -1,3 +1,4 @@
+export const SUBMISSION_OPEN_DATE = '2026-11-15';
 export const SUBMISSION_DEADLINES = { oral: '2027-01-15', poster: '2027-02-28' };
 export const SUBMISSION_LIMITS = {
   title: 240, authors: 3000, affiliation: 500,
@@ -9,6 +10,11 @@ export function submissionDateInLisbon(now = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+export function isSubmissionOpeningReached(now = new Date()) {
+  return submissionDateInLisbon(now) >= SUBMISSION_OPEN_DATE;
+}
+
 export function isSubmissionTypeOpen(type, now = new Date()) {
-  return Boolean(SUBMISSION_DEADLINES[type] && submissionDateInLisbon(now) <= SUBMISSION_DEADLINES[type]);
+  const date = submissionDateInLisbon(now);
+  return Boolean(SUBMISSION_DEADLINES[type] && date >= SUBMISSION_OPEN_DATE && date <= SUBMISSION_DEADLINES[type]);
 }

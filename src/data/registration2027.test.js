@@ -1,4 +1,14 @@
-import { calculateRegistrationTotal, getCourseRate } from './registration2027';
+import { calculateRegistrationTotal, getCourseRate, isRegistrationOpen, REGISTRATION_OPEN_AT } from './registration2027';
+
+test('registration opens exactly at midnight in Lisbon on 15 November, using an absolute timestamp', () => {
+  expect(REGISTRATION_OPEN_AT).toBe('2026-11-15T00:00:00Z');
+  expect(isRegistrationOpen(new Date('2026-11-14T23:59:59.999Z'))).toBe(false);
+  expect(isRegistrationOpen('2026-11-15T00:00:00Z')).toBe(true);
+  expect(isRegistrationOpen('2026-11-14T23:30:00-01:00')).toBe(true);
+  expect(isRegistrationOpen('2026-11-15T00:30:00+01:00')).toBe(false);
+  expect(isRegistrationOpen('invalid')).toBe(false);
+  expect(isRegistrationOpen(new Date('invalid'))).toBe(false);
+});
 
 test.each([
   [true, false, 1, 35],

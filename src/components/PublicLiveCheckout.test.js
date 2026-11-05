@@ -19,6 +19,21 @@ beforeEach(() => {
   : url === '/api/checkout/live/billing-readiness' ? Promise.resolve(response(billingReadiness)) : transport(url, options));
  Object.defineProperty(window, 'crypto', { configurable:true, value:{ randomUUID:() => ID } });
 });
+test('scheduled opening shows the date, blocks new payment and refreshes configuration at midnight', async () => {
+ jest.useFakeTimers().setSystemTime(new Date('2026-11-14T23:59:58Z'));
+ configuration={enabled:false,environment:'production',publicOpen:false,methods:[],registrationOpenAt:'2026-11-15T00:00:00Z'};
+ const view=show();
+ try {
+  expect(await screen.findByText('Os pagamentos abrem a 15 de novembro de 2026, às 00h00 de Lisboa.')).toHaveAttribute('role','status');
+  expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+  expect(transport).not.toHaveBeenCalled();
+  configuration={...configuration,enabled:true,publicOpen:true,methods:['multibanco']};
+  await act(async()=>{jest.advanceTimersByTime(2025);});
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
+  expect(screen.queryByText('Os pagamentos abrem a 15 de novembro de 2026, às 00h00 de Lisboa.')).not.toBeInTheDocument();
+  expect(transport).not.toHaveBeenCalled();
+ } finally { view.unmount();jest.useRealTimers(); }
+});
 test('reviews server billing and requires acknowledgement before exactly one real-order request', async () => {
  transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({ order }));
  show(); await waitFor(() => expect(screen.getByRole('button', { name: 'Rever valor e faturação' })).toBeEnabled());

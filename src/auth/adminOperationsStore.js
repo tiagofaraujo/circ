@@ -1,6 +1,6 @@
 import { getFirebaseFirestore } from './firebaseClient';
 import { canAttendEventDay, canReceiveCredential } from './secretariatEligibility';
-import { isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
+import { isSubmissionOpeningReached, isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
 import {
   abstractSectionsToText,
   hasCompleteAbstractSections,
@@ -87,6 +87,7 @@ export function subscribeToUserSubmissions(userId, onData, onError) {
 function submissionInput(user, form, status) {
   if (!user?.uid) throw new Error('submissions/auth-required');
   if (user.emailVerified !== true) throw new Error('submissions/verified-email-required');
+  if (!isSubmissionOpeningReached()) throw new Error('submissions/not-open');
   if (!['draft', 'submitted'].includes(status) || !['oral', 'poster'].includes(form?.type)) throw new Error('submissions/invalid-input');
   const fields = Object.fromEntries(['title', 'authors', 'affiliation'].map(key => [key, String(form[key] || '').trim()]));
   if (fields.title.length < 3 || fields.authors.length < 2) throw new Error('submissions/invalid-input');
@@ -141,6 +142,7 @@ export function submissionErrorMessage(error, language = 'pt') {
   const en = language === 'en';
   const messages = {
     'submissions/verified-email-required': ['Confirme primeiro o seu endereço de email no perfil.', 'Verify your email address in your profile first.'],
+    'submissions/not-open': ['As submissões abrem a 15 de novembro de 2026, às 00h00 de Lisboa.', 'Submissions open on 15 November 2026 at 00:00 Lisbon time.'],
     'submissions/incomplete-abstract': ['Preencha todas as secções do resumo antes de submeter.', 'Complete every abstract section before submitting.'],
     'submissions/field-too-long': ['Um dos campos excede o limite de caracteres permitido.', 'A field exceeds the permitted character limit.'],
     'submissions/invalid-input': ['Verifique a tipologia, o título e os autores do trabalho.', 'Check the submission type, title and authors.'],

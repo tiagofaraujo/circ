@@ -45,6 +45,7 @@ const messages = {
   'uls-not-verified': ['Valide primeiro a sua elegibilidade ULS Coimbra.', 'Verify ULS Coimbra eligibility first.'],
   'student-not-approved': ['Aguarde a aprovação da sua condição de estudante.', 'Wait for student eligibility approval.'],
   'registration-exists': ['Já existe uma inscrição nesta conta. Atualize a página para consultar o pagamento.', 'This account already has a registration. Refresh this page to view its payment.'],
+  'registration-not-open': ['Os pagamentos abrem a 15 de novembro de 2026, às 00h00 de Lisboa.', 'Payments open on 15 November 2026 at 00:00 Lisbon time.'],
   'live-checkout-not-configured': ['Os pagamentos estão temporariamente indisponíveis. Tente mais tarde ou contacte a organização.', 'Payments are temporarily unavailable. Try later or contact the organisers.'],
   'course-already-owned': ['Um dos cursos já está incluído na inscrição. Atualize a página antes de preparar outra compra.', 'One of these courses is already included in your registration. Refresh the page before preparing another purchase.'],
   'paid-registration-required': ['A compra de complementos exige uma inscrição confirmada e paga.', 'Supplement purchases require a confirmed, paid registration.'],
@@ -75,6 +76,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [phone, setPhone] = useState('');
   const [configBusy, setConfigBusy] = useState(true);
   const [configFailed, setConfigFailed] = useState(false);
+  const [scheduledOpening, setScheduledOpening] = useState(false);
   const [billing, setBilling] = useState({ status:'loading', issues:[] });
   const billingRead = useRef(0), billingGate = useRef(false);
   const capacityPaidOrder = useRef('');
@@ -190,6 +192,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   useEffect(() => {
     active.current = true;
     const controller = new AbortController(); abort.current = controller;
+    let openingRefresh;
     async function configuration() {
       setConfigBusy(true); setConfigFailed(false);
       try {
@@ -197,8 +200,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         if (typeof result.enabled !== 'boolean' || !Array.isArray(result.methods)
           || result.environment !== 'production') throw new Error('invalid-config');
         if (active.current && !controller.signal.aborted) {
+          const opensAt = Date.parse(result.registrationOpenAt || '');
+          const waiting = Number.isFinite(opensAt) && opensAt > Date.now();
+          setScheduledOpening(waiting);
           const available = result.enabled ? knownMethods.filter(value => result.methods.includes(value)) : [];
           setMethods(available); setMethod(current => available.includes(current) ? current : available[0] || '');
+          if (waiting) openingRefresh = window.setTimeout(configuration, Math.min(opensAt - Date.now() + 25, 2147483647));
         }
       } catch {
         if (active.current && !controller.signal.aborted) { setMethods([]); setConfigFailed(true); }
@@ -232,7 +239,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     recover();
     configuration();
     readBilling(controller.signal);
-    return () => { active.current = false; controller.abort(); };
+    return () => { active.current = false; controller.abort(); window.clearTimeout(openingRefresh); };
     // Recover again when the subscription points to a different active order.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, registration?.id, registration?.payment?.orderId]);
@@ -432,7 +439,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <small>{t('Número português com 9 algarismos. Pode incluir +351. Receberá o pedido na aplicação MB WAY.', 'A nine-digit Portuguese number, optionally with +351. The request will arrive in the MB WAY app.')}</small>
       </label>}
       {method === 'stripe_card' && methods.includes('stripe_card') && <p>{t('O pagamento é concluído no checkout seguro da Stripe. Os cartões e as carteiras digitais disponíveis são apresentados aí, de acordo com a conta e o dispositivo.', 'Payment is completed in secure Stripe Checkout. Available cards and digital wallets are shown there according to the account and device.')}</p>}
-      {!configBusy && methods.length === 0 && <p role="alert">{configFailed ? t('Não foi possível consultar os meios de pagamento. Atualize a página antes de criar um pedido.', 'Payment methods could not be loaded. Refresh this page before creating an order.') : t('Os pagamentos estão temporariamente indisponíveis.', 'Payments are temporarily unavailable.')}</p>}
+      {!configBusy && methods.length === 0 && <p role={scheduledOpening && !configFailed ? 'status' : 'alert'}>{configFailed ? t('Não foi possível consultar os meios de pagamento. Atualize a página antes de criar um pedido.', 'Payment methods could not be loaded. Refresh this page before creating an order.') : scheduledOpening ? messages['registration-not-open'][en ? 1 : 0] : t('Os pagamentos estão temporariamente indisponíveis.', 'Payments are temporarily unavailable.')}</p>}
       <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
         : method === 'bank_transfer'
           ? t('Após a organização conferir o crédito na conta, o pagamento e a inscrição são confirmados automaticamente. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Once the organisers verify the credited amount, payment and registration are confirmed automatically. The invoice-receipt will be available in My CIRC once issued.')

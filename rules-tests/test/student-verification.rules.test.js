@@ -61,7 +61,7 @@ const registration = (overrides = {}) => ({ userId: UID, eventId: EVENT, isTest:
   selection: { profile: 'student', congressMode: 'onsite' }, entitlements: {}, status: 'submitted',
   payment: { status: 'pending', amountCents: 6000 }, ...overrides });
 
-before(async () => { env = await initializeTestEnvironment({ projectId: 'demo-circ-students', firestore: { rules: fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8') } }); });
+before(async () => { env = await initializeTestEnvironment({ projectId: 'demo-circ-students', firestore: { rules: fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8').replace('timestamp.date(2026, 11, 15)', 'timestamp.date(2000, 11, 15)') } }); });
 afterEach(async () => env.clearFirestore());
 after(async () => env.cleanup());
 

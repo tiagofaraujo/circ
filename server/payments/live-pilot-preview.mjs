@@ -3,6 +3,7 @@ import { createCheckoutLiveStore } from './checkout-live-store.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { quotePrimary } from './quote.mjs';
 import { liveDataStamp, isLivePilotConfigured, isPrivatePilotWindow } from './live-pilot-contract.mjs';
+import { isRegistrationOpen } from '../../src/data/registration2027.js';
 
 const PATH = '/api/checkout/live/pilot-preview';
 const ADMIN = 'circ.chuc@gmail.com';
@@ -54,7 +55,7 @@ export function createLivePilotPreviewApi({ verify,
       if (name.length < 5 || name.length > 200) return reply({ error: 'profile-incomplete' }, 409);
       return reply({ previewOnly: true, paymentCreated: false, fiscalDocumentIssued: false,
         preparedAt, quote, billing: billing.customer, stamp: liveDataStamp(quote),
-        billingStamp: liveDataStamp(billing.customer), creationEnabled: isLivePilotConfigured(env, Date.parse(preparedAt))
+        billingStamp: liveDataStamp(billing.customer), creationEnabled: isRegistrationOpen(preparedAt) && isLivePilotConfigured(env, Date.parse(preparedAt))
           && (!isPrivatePilotWindow(env) || quote.amountCents === 9500) });
     } catch (error) {
       const safe = new Set(['checkout/uls-not-verified', 'checkout/student-not-approved']);

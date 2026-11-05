@@ -80,7 +80,7 @@ function fixture({ claims = identity, canonical = null } = {}) {
     providerFactory: () => ({ createPayment: async payment => {
       creates++; assert.equal(payment.method, 'mbway'); assert.equal(payment.phone, '911111111');
       return { reference: '800000001', entity: null };
-    } }), now: () => '2026-11-01T12:00:00Z' });
+    } }), now: () => '2026-11-15T12:00:00Z' });
   const pdf = createLiveInvoicePdfApi({ verify: async () => claims, storeFactory: () => store,
     fiscalClient: { downloadSalesDocumentPdf: async (_env, providerId) => {
       pdfReads++; assert.equal(providerId, 321); return new TextEncoder().encode('%PDF-existing-original');

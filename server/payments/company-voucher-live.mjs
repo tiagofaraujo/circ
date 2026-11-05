@@ -1,5 +1,6 @@
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore } from './checkout-live-store.mjs';
+import { isRegistrationOpen } from '../../src/data/registration2027.js';
 
 const EVENT = 'circ-2027';
 const PATH = '/api/checkout/live/company-voucher/redeem';
@@ -89,6 +90,7 @@ export function createCompanyVoucherLiveApi({ verify, tokenProvider = createPaym
         if (ownRedemption(existing.data, voucher, code, claims.sub, registrationId)) return reply({ registrationId, duplicate: true });
         fail('company/existing', 409);
       }
+      if (!isRegistrationOpen(now())) fail('company/registration-not-open', 403);
       if (config?.data?.enabled !== true) fail('company/closed', 409);
       if (voucher.status !== 'available' || voucher.redeemedBy !== null || voucher.registrationId !== null || voucher.redeemedAt !== null) fail('company/invalid-code');
       const rawName = profile?.data?.name;

@@ -14,7 +14,7 @@ const capacityLimits={onsite:400,morningCourse:170,afternoonCourse:170};
 const capacityFor=(paid={})=>({limits:{...capacityLimits},paid:{onsite:0,morningCourse:0,afternoonCourse:0,...paid},
   remaining:Object.fromEntries(Object.entries(capacityLimits).map(([key,limit])=>[key,Math.max(0,limit-(paid[key]||0))]))});
 
-function fixture({identity=claims,date='2026-10-23T20:00:00Z',context={},onCreate}={}){
+function fixture({identity=claims,date='2026-11-15T12:00:00Z',context={},onCreate}={}){
   let registration=null,payment=null,providerCalls=0,currentCapacity=capacityFor(),capacityError=null,reservationError=null,reservations=0;
   const currentProfile=structuredClone(profile);
   const store={
@@ -64,7 +64,7 @@ test('minimum field readiness agrees with quote admission and never creates a pa
   for(const [field,value,issue] of [['name','Ana','profile-name-required'],['taxNumber','203821431','billing-tax-number-invalid'],
     ['billingAddress','','billing-address-required'],['billingPostalCode','3000','billing-postcode-invalid'],
     ['billingCity','','billing-city-required'],['billingCountry','','billing-country-unmapped']]){
-    const f=fixture({date:'2026-11-01T12:00:00Z'});f.profile()[field]=value;
+    const f=fixture({date:'2026-11-15T12:00:00Z'});f.profile()[field]=value;
     const readiness=await(await f.call('/billing-readiness')).json();assert.equal(readiness.ready,false);assert.ok(readiness.issues.includes(issue));
     const response=await f.call('/quote',{selection});assert.equal(response.status,409);
     assert.equal((await response.json()).error,field==='name'?'profile-incomplete':'billing-customer-unconfirmed');
@@ -89,7 +89,7 @@ test('finite selection capacity matrix blocks full options before any payment re
     [{...selection,morningCourse:true,afternoonCourse:true},{onsite:400,morningCourse:170,afternoonCourse:170},409,['onsite','morningCourse','afternoonCourse']],
     [{...selection,morningCourse:true,afternoonCourse:true},{onsite:399,morningCourse:169,afternoonCourse:169},200,[]],
   ]){
-    const f=fixture({date:'2026-11-01T12:00:00Z'});f.setCapacity(paid);
+    const f=fixture({date:'2026-11-15T12:00:00Z'});f.setCapacity(paid);
     const response=await f.call('/quote',{selection:selected});assert.equal(response.status,status);
     const result=await response.json();if(status===409){assert.equal(result.error,'capacity-full');assert.deepEqual(result.unavailable,unavailable);}
     else assert.equal(result.quote.selection.congressMode,selected.congressMode);
@@ -99,7 +99,7 @@ test('finite selection capacity matrix blocks full options before any payment re
 
 test('capacity changes after a quote or at atomic reservation cannot create a provider payment',async()=>{
   for(const atomic of [false,true]){
-    const f=fixture({date:'2026-11-01T12:00:00Z'}),q=await(await f.call('/quote',{selection})).json();
+    const f=fixture({date:'2026-11-15T12:00:00Z'}),q=await(await f.call('/quote',{selection})).json();
     if(atomic)f.setReservationError(Object.assign(new Error('capacity-full'),{code:'capacity-full',unavailable:['onsite']}));
     else f.setCapacity({onsite:400});
     const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
@@ -110,10 +110,10 @@ test('capacity changes after a quote or at atomic reservation cannot create a pr
 
 test('an existing payment remains recoverable and idempotent when capacity becomes full or unavailable',async()=>{
   for(const paid of [false,true]){
-    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
     const q=await(await f.call('/quote',{selection})).json(),input={id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'};
     assert.equal((await f.call('/orders',input)).status,201);
-    if(paid){Object.assign(f.payment(),{status:'paid',paidAt:'2026-11-01T12:01:00Z',transactionId:'paid-proof'});f.registration().status='confirmed';f.registration().payment.status='paid';}
+    if(paid){Object.assign(f.payment(),{status:'paid',paidAt:'2026-11-15T12:01:00Z',transactionId:'paid-proof'});f.registration().status='confirmed';f.registration().payment.status='paid';}
     f.setCapacity({onsite:400});assert.equal((await f.call('/orders',input)).status,200);f.setCapacityError(new Error('capacity unavailable'));
     for(const path of ['/primary-order',`/orders/${ID}`]){
       const response=await f.call(path,undefined,{...env,LIVE_CHECKOUT_ENABLED:'false'});assert.equal(response.status,200);
@@ -124,7 +124,7 @@ test('an existing payment remains recoverable and idempotent when capacity becom
 });
 
 test('real bank transfer creates recoverable frozen instructions without contacting EuPago',async()=>{
-  const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+  const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
   const configuration={...env,LIVE_BANK_TRANSFER_ENABLED:'true'};
   const config=await(await f.call('/config',undefined,configuration)).json();
   assert.deepEqual(config.methods,['multibanco','bank_transfer']);
@@ -149,7 +149,7 @@ test('bank activation is explicit and an unconfirmed MB WAY fiscal mapping canno
     ['bank_transfer',{},env],
     ['mbway',{phone:'911111111'},{...env,LIVE_MBWAY_ENABLED:'true',TOCONLINE_MBWAY_PAYMENT_MECHANISM:'MB'}],
   ]){
-    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
     const q=await(await f.call('/quote',{selection},configuration)).json();
     const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method,...extra},configuration);
     assert.equal(response.status,409);assert.equal((await response.json()).error,'payment-method-unavailable');
@@ -160,7 +160,7 @@ test('bank activation is explicit and an unconfirmed MB WAY fiscal mapping canno
 
 test('method-specific telephone fields are rejected before reservation',async()=>{
   for(const fields of [{method:'mbway'},{method:'mbway',phone:'+351911111111'},{method:'mbway',phone:'811111111'},{method:'multibanco',phone:'911111111'},{method:'bank_transfer',phone:'911111111'}]){
-    const f=fixture({date:'2026-11-01T12:00:00Z'});const q=await(await f.call('/quote',{selection})).json();
+    const f=fixture({date:'2026-11-15T12:00:00Z'});const q=await(await f.call('/quote',{selection})).json();
     const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,...fields},{...env,LIVE_BANK_TRANSFER_ENABLED:'true'});
     assert.equal(response.status,400);assert.equal(f.providerCalls(),0);assert.equal(f.registration(),null);
   }
@@ -168,7 +168,7 @@ test('method-specific telephone fields are rejected before reservation',async()=
 
 test('a paid callback overtaking a failed creation response cannot be rolled back to creation_unknown',async()=>{
   let f;
-  f=fixture({date:'2026-11-01T12:00:00Z',onCreate:async()=>{
+  f=fixture({date:'2026-11-15T12:00:00Z',onCreate:async()=>{
     Object.assign(f.payment(),{status:'paid',transactionId:'777',reference:'123456789',fiscalStatus:'issued'});
     f.registration().status='confirmed';
     throw Object.assign(new Error('transport'),{uncertain:true});
@@ -289,15 +289,46 @@ test('turning checkout off blocks creation but still allows an owner to recover 
   assert.equal((await f.call(`/orders/${ID}`,undefined,disabled)).status,200); // verified administrator may inspect another owner
 });
 
-test('public checkout opens on 1 November and requires reviewed billing without pilot fields',async()=>{
+test('public checkout opens on 15 November and requires reviewed billing without pilot fields',async()=>{
   const identity={sub:'user1',email:'participant@example.test',email_verified:true};
-  const early=fixture({identity});
+  const early=fixture({identity,date:'2026-11-14T23:59:59.999Z'});
   assert.equal((await early.call('/quote',{selection,pilotAcknowledged:true})).status,403);
   assert.equal(early.providerCalls(),0);
-  const opened=fixture({identity,date:'2026-11-01T12:00:00Z'});
+  const opened=fixture({identity,date:'2026-11-15T12:00:00Z'});
   const q=await(await opened.call('/quote',{selection})).json();
   assert.equal((await opened.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,201);
   assert.equal(opened.providerCalls(),1);
+});
+
+test('opening gate rejects every new primary and supplementary method before storage, including admin pilot acknowledgements',async()=>{
+  for(const identity of [claims,{sub:'participant',email:'participant@example.test',email_verified:true}]){
+    for(const privatePilot of [false,true]){
+      const configuration={...env,...(privatePilot?{LIVE_PILOT_UNTIL:'2026-11-16T12:00:00Z'}:{})};
+      const api=createCheckoutLiveApi({verify:async()=>identity,now:()=> '2026-11-14T23:59:59.999Z',
+        tokenProvider:()=>assert.fail('closed checkout must not request service access'),storeFactory:()=>assert.fail('closed checkout must not open storage'),
+        providerFactory:()=>assert.fail('closed checkout must not contact EuPago'),stripeFactory:()=>assert.fail('closed checkout must not contact Stripe')});
+      for(const kind of ['','/supplementary'])for(const method of ['multibanco','mbway','bank_transfer','stripe_card'])for(const action of ['quote','orders']){
+        const response=await api(new Request(`https://circ.local/api/checkout/live${kind}/${action}`,{method:'POST',headers:{Authorization:'Bearer token',Origin:'https://circ.local','Content-Type':'application/json'},
+          body:JSON.stringify({id:ID,selection,method,pilotAcknowledged:true,pilotConfirmation:'CRIAR REFERENCIA REAL'})}),configuration);
+        assert.equal(response.status,403);assert.equal((await response.json()).error,'registration-not-open');
+      }
+      const config=await(await api(new Request('https://circ.local/api/checkout/live/config',{headers:{Authorization:'Bearer token'}}),configuration)).json();
+      assert.equal(config.enabled,false);assert.equal(config.publicOpen,false);assert.equal(config.pilotAvailable,false);assert.deepEqual(config.methods,[]);
+      assert.equal(config.registrationOpenAt,'2026-11-15T00:00:00Z');
+    }
+  }
+});
+
+test('public creation opens at the exact boundary and existing payment reads stay available before opening',async()=>{
+  const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T00:00:00Z'});
+  const q=await(await f.call('/quote',{selection})).json();
+  assert.equal((await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,201);
+  assert.equal(f.providerCalls(),1);
+  f.setDate('2026-11-14T23:59:59.999Z');
+  const read=await f.call(`/orders/${ID}`);assert.equal(read.status,200);assert.equal((await read.json()).order.id,ID);
+  assert.equal((await f.call('/primary-order')).status,200);
+  assert.equal((await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,403);
+  assert.equal(f.providerCalls(),1);assert.equal(f.reservations(),1);
 });
 
 test('same UUID with changed quote is rejected as idempotency conflict',async()=>{
@@ -411,7 +442,7 @@ test('temporary authorization cannot create references at other legitimate serve
 });
 
 test('public owner recovers its persisted order with checkout closed and no administrative privilege',async()=>{
- const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+ const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
  const q=await(await f.call('/quote',{selection})).json();
  assert.equal((await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'})).status,201);
  assert.equal(f.registration().payment.orderId,ID);
@@ -420,14 +451,14 @@ test('public owner recovers its persisted order with checkout closed and no admi
 });
 
 test('public billing must match the reviewed snapshot before any provider request',async()=>{
- const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+ const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
  const q=await(await f.call('/quote',{selection})).json(); f.profile().billingAddress='Alterada';
  const r=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
  assert.equal(r.status,409); assert.equal((await r.json()).error,'billing-preview-changed'); assert.equal(f.providerCalls(),0);
 });
 
 test('public activation requires callback and fiscal settings, not only the payment key',async()=>{
- const f=fixture({date:'2026-11-01T12:00:00Z'});
+ const f=fixture({date:'2026-11-15T12:00:00Z'});
  for(const key of ['EUPAGO_LIVE_WEBHOOK_KEY','TOCONLINE_SESSION_KEY','TOCONLINE_OAUTH_CLIENT_SECRET']){
   const r=await f.call('/config',undefined,{...env,[key]:''}); const config=await r.json(); assert.equal(config.enabled,false); assert.deepEqual(config.methods,[]);
  }
@@ -435,7 +466,7 @@ test('public activation requires callback and fiscal settings, not only the paym
 
 test('a validated ULS attendee can obtain the existing catalogue rate in the public flow',async()=>{
  const uid='uls-attendee', nameKey='pessoa nome', mec='1234';
- const f=fixture({identity:{sub:uid,email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z',context:{
+ const f=fixture({identity:{sub:uid,email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z',context:{
   uls:{userId:uid,eventId:'circ-2027',status:'matched',method:'mec-name-match',mec,nameKey},
   claim:{userId:uid,eventId:'circ-2027',method:'mec-name-match',mec,nameKey},roster:{active:true,eventId:'circ-2027',nameKey},
  }});
@@ -447,7 +478,7 @@ test('a validated ULS attendee can obtain the existing catalogue rate in the pub
 });
 
 test('an ordinary owner cannot inspect another participant payment',async()=>{
- const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-01T12:00:00Z'});
+ const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
  const q=await(await f.call('/quote',{selection})).json();
  await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
  f.payment().userId='another-participant';

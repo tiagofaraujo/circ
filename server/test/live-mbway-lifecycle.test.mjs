@@ -127,12 +127,12 @@ function fixture({ supplementary = false, providerState = 'pendente', billingBlo
   const registrationId = `circ-2027-${uid}`;
   const context = { uid, emailVerified: true, guards: [] };
   const db = memoryFirestore();
-  let clock = '2026-11-01T12:10:00Z';
+  let clock = '2026-11-15T12:10:00Z';
   const providerStates = new Map([['700000001', providerState]]);
   const providerCalls = [];
   const fiscalCalls = [];
   let inspectHook = null;
-  const primaryQuote = quotePrimary(selection, context, null, new Date('2026-11-01T12:00:00Z'));
+  const primaryQuote = quotePrimary(selection, context, null, new Date('2026-11-15T12:00:00Z'));
   const registration = { eventId: 'circ-2027', userId: uid, registrationKey: `circ-2027:${uid}`, primaryRegistration: true,
     participantName: 'Participante Exemplo', participantEmail: identity.email, registrationType: 'CIRC 2027 · Presencial',
     isTest: false, testMode: false, status: supplementary ? 'confirmed' : 'submitted', selection: primaryQuote.selection,
@@ -142,16 +142,16 @@ function fixture({ supplementary = false, providerState = 'pendente', billingBlo
       amountCents: primaryQuote.amountCents, currency: 'EUR' },
     documentCount: supplementary ? 1 : 0, addOnOrderCount: supplementary ? 1 : 0,
     ...(supplementary ? { openSupplementaryOrderId: oldId, paidSupplementaryOrderIds: [] } : {}),
-    createdAt: '2026-11-01T12:00:00Z', updatedAt: '2026-11-01T12:00:00Z',
+    createdAt: '2026-11-15T12:00:00Z', updatedAt: '2026-11-15T12:00:00Z',
   };
-  const quote = supplementary ? quoteSupplementary(extras, context, { ...registration, id: registrationId }, new Date('2026-11-01T12:00:00Z')) : primaryQuote;
+  const quote = supplementary ? quoteSupplementary(extras, context, { ...registration, id: registrationId }, new Date('2026-11-15T12:00:00Z')) : primaryQuote;
   const payment = { id: oldId, kind: quote.kind, eventId: 'circ-2027', registrationId, userId: uid,
     environment: 'production', provider: 'eupago', method: 'mbway', status: 'pending',
     amountCents: quote.amountCents, currency: 'EUR', identifier: `circ_live_${oldId.replaceAll('-', '')}`,
     reference: '700000001', entity: null, transactionId: null, paidAt: null, quote,
     billingSnapshot: billingBlocked ? { ...billing, customer_tax_registration_number: '' } : billing,
     methodFingerprint: liveDataStamp({ method: 'mbway', phone: '911111111' }),
-    createdAt: '2026-11-01T12:00:00Z', updatedAt: '2026-11-01T12:00:00Z', expiresAt: '2026-11-01T12:04:00Z' };
+    createdAt: '2026-11-15T12:00:00Z', updatedAt: '2026-11-15T12:00:00Z', expiresAt: '2026-11-15T12:04:00Z' };
   db.put(`registrations/${registrationId}`, registration);
   db.put(`payments/${oldId}`, payment);
   db.put(`users/${uid}`, { name: 'Participante Exemplo', taxNumber: '203821432', billingAddress: 'Rua Exemplo 1',
@@ -201,7 +201,7 @@ function fixture({ supplementary = false, providerState = 'pendente', billingBlo
     const q = await qResponse.json();
     return call(`${prefix}/orders`, { id, replacesOrderId: oldId, selection: supplementary ? extras : selection, method: 'multibanco', stamp: q.stamp, billingStamp: q.billingStamp });
   }
-  const callback = async ({ id = oldId, method = 'MW:PT', signatureValid = true, amountCents, date = '2026-11-01T12:02:00Z' } = {}) => {
+  const callback = async ({ id = oldId, method = 'MW:PT', signatureValid = true, amountCents, date = '2026-11-15T12:02:00Z' } = {}) => {
     const p = db.get(`payments/${id}`);
     const text = JSON.stringify({ channel: { name: 'CIRC 2027' }, transaction: { identifier: p.identifier, method,
       reference: p.reference, ...(p.entity ? { entity: p.entity } : {}), trid: '7001', status: 'Paid',
@@ -234,8 +234,8 @@ test('admin validation creates a real-mode MB WAY order through the PSP adapter 
   assert.doesNotMatch(JSON.stringify(order), /911111111|methodFingerprint/);
   assert.doesNotMatch(JSON.stringify(f.payment()), /911111111/);
   assert.equal((await f.call('/orders', request)).status, 200); assert.equal(f.providerCalls.length, 1);
-  f.setState('paga', order.reference); f.setClock('2026-11-01T12:12:00Z');
-  const paid = await Promise.all([f.callback({ date: '2026-11-01T12:11:00Z' }), f.callback({ date: '2026-11-01T12:11:00Z' })]);
+  f.setState('paga', order.reference); f.setClock('2026-11-15T12:12:00Z');
+  const paid = await Promise.all([f.callback({ date: '2026-11-15T12:11:00Z' }), f.callback({ date: '2026-11-15T12:11:00Z' })]);
   assert.ok(paid.some(response => response.status === 200));
   assert.ok(paid.every(response => [200, 503].includes(response.status)));
   assert.equal(f.payment().status, 'paid'); assert.equal(f.payment().fiscalStatus, 'issued');
@@ -243,7 +243,7 @@ test('admin validation creates a real-mode MB WAY order through the PSP adapter 
   assert.equal(f.fiscalCalls.length, 1); assert.equal(f.fiscalCalls[0].payment_mechanism, 'OU');
   assert.match(f.fiscalCalls[0].notes, /MB\s?WAY/i);
   assert.equal(f.job().status, 'issued');
-  const repeated = await f.callback({ date: '2026-11-01T12:11:00Z' });
+  const repeated = await f.callback({ date: '2026-11-15T12:11:00Z' });
   assert.equal(repeated.status, 200); assert.equal((await repeated.json()).duplicate, true);
   assert.equal(f.fiscalCalls.length, 1); assert.equal(f.registration().documentCount, 1);
 });
@@ -364,7 +364,7 @@ test('late signed payment on a closed old order is retained for review without o
   assert.equal((await f.reconcile()).status, 200); assert.equal((await f.replace()).status, 201);
   const before = f.registration(); const currentPayment = f.payment(nextId);
   f.setState('paga');
-  const response = await f.callback({ date: '2026-11-01T12:11:00Z' });
+  const response = await f.callback({ date: '2026-11-15T12:11:00Z' });
   assert.equal(response.status, 200, await response.clone().text());
   assert.equal((await response.json()).reviewRequired, true);
   assert.equal(f.payment().status, 'review_required'); assert.equal(f.payment().transactionId, '7001');
@@ -410,7 +410,7 @@ test('a paid MB WAY course basket whose student approval was revoked stays in el
   const studentQuote = quotePrimary({ ...selection, profile: 'student', morningCourse: true }, {
     uid, emailVerified: true, profileName: 'Participante Exemplo', student: { userId: uid, eventId: 'circ-2027',
       academicYear: '2026/2027', status: 'approved', profileName: 'Participante Exemplo' },
-  }, null, new Date('2026-11-01T12:00:00Z'));
+  }, null, new Date('2026-11-15T12:00:00Z'));
   f.db.put(`payments/${oldId}`, { ...f.payment(), quote: studentQuote, amountCents: studentQuote.amountCents });
   const registration = f.registration();
   f.db.put(`registrations/${registrationId}`, { ...registration, selection: studentQuote.selection,
@@ -504,7 +504,7 @@ test('concurrent payment evidence arriving during the replacement lookup invalid
     const registration = f.registration();
     f.onInspect(payment => {
       f.db.put(`payments/${oldId}`, { ...payment, status: 'review_required', retryAllowed: false,
-        transactionId: '9001', paidAt: '2026-11-01T12:11:00Z', reviewReason: 'concurrent-paid-evidence' });
+        transactionId: '9001', paidAt: '2026-11-15T12:11:00Z', reviewReason: 'concurrent-paid-evidence' });
     });
     const response = await f.replace(); assert.equal(response.status, 409, await response.clone().text());
     assert.equal(f.payment().transactionId, '9001'); assert.equal(f.payment().status, 'review_required');

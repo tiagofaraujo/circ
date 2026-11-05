@@ -30,16 +30,16 @@ function fixture(){
  };
  const providerFactory=()=>({createPayment:async()=>{creates++;return{reference:String(123456780+creates),entity:'12345'};},inspectReference:async()=>({providerState:'paga'})});
  const fiscalClient={issueFinalizedSalesDocument:async()=>{issues++;if(fiscalError)throw fiscalError;return{providerDocumentId:String(900+issues),providerDocumentNo:`FR CIRC2027/${issues}`};}};
- const api=createCheckoutLiveApi({verify:async()=>({sub:uid,email:'participant@example.test',email_verified:true}),tokenProvider:async()=>'fake-service',storeFactory:()=>store,providerFactory,now:()=> '2026-11-01T12:00:00Z'});
- const webhook=createLivePaymentWebhook({tokenProvider:async()=>'fake-service',storeFactory:()=>store,paymentLookup:async({orderId})=>snapshot(payments,orderId),providerFactory,fiscalClient,now:()=> '2026-11-01T12:05:00Z'});
- const resume=createLiveFiscalResumeApi({verify:async()=>admin,tokenProvider:async()=>'fake-service',storeFactory:()=>store,paymentLookup:async({orderId})=>snapshot(payments,orderId),fiscalClient,now:()=> '2026-11-01T12:06:00Z'});
+ const api=createCheckoutLiveApi({verify:async()=>({sub:uid,email:'participant@example.test',email_verified:true}),tokenProvider:async()=>'fake-service',storeFactory:()=>store,providerFactory,now:()=> '2026-11-15T12:00:00Z'});
+ const webhook=createLivePaymentWebhook({tokenProvider:async()=>'fake-service',storeFactory:()=>store,paymentLookup:async({orderId})=>snapshot(payments,orderId),providerFactory,fiscalClient,now:()=> '2026-11-15T12:05:00Z'});
+ const resume=createLiveFiscalResumeApi({verify:async()=>admin,tokenProvider:async()=>'fake-service',storeFactory:()=>store,paymentLookup:async({orderId})=>snapshot(payments,orderId),fiscalClient,now:()=> '2026-11-15T12:06:00Z'});
  const request=(path,data)=>new Request(`https://circ.test/api/checkout/live${path}`,{method:data===undefined?'GET':'POST',headers:{Authorization:'Bearer fake-user',Origin:'https://circ.test',...(data===undefined?{}:{'Content-Type':'application/json'})},...(data===undefined?{}:{body:JSON.stringify(data)})});
  const call=(path,data)=>api(request(path,data),env);
  async function create(id,selection,kind='primary'){
   const prefix=kind==='primary'?'':'/supplementary';const qResponse=await call(`${prefix}/quote`,{selection});assert.equal(qResponse.status,200);const q=await qResponse.json();
   return call(`${prefix}/orders`,{id,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
  }
- async function pay(id,date='2026-11-01T12:04:00Z'){const p=payments.get(id).data;const body=JSON.stringify({channel:{name:'CIRC 2027'},transactions:{identifier:p.identifier,method:'Multibanco',entity:p.entity,reference:p.reference,trid:id===ids[0]?'1001':'1002',amount:{value:p.amountCents/100,currency:'EUR'},date,status:'Paid'}});
+ async function pay(id,date='2026-11-15T12:04:00Z'){const p=payments.get(id).data;const body=JSON.stringify({channel:{name:'CIRC 2027'},transactions:{identifier:p.identifier,method:'Multibanco',entity:p.entity,reference:p.reference,trid:id===ids[0]?'1001':'1002',amount:{value:p.amountCents/100,currency:'EUR'},date,status:'Paid'}});
   return webhook(new Request('https://circ.test/api/payments/live/notifications',{method:'POST',headers:{'Content-Type':'application/json','X-Signature':createHmac('sha256',env.EUPAGO_LIVE_WEBHOOK_KEY).update(body).digest('base64')},body}),env);}
  return{call,create,pay,resume:id=>resume(request(`/orders/${id}/fiscal-resume`,{confirmation:'RETOMAR FATURACAO AUTORIZADA'}),env),state:()=>({registration,payments,jobs,creates,issues}),setFiscalError:value=>{fiscalError=value;}};
 }

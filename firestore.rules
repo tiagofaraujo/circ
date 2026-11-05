@@ -134,6 +134,12 @@ service cloud.firestore {
         && data.affiliation is string && data.affiliation.size() <= 500;
     }
 
+    function officialOpeningReached() {
+      // Midnight in mainland Portugal is UTC on 15 November 2026.
+      // Also closes draft creation and author edits before the official launch.
+      return request.time >= timestamp.date(2026, 11, 15);
+    }
+
     function productionSubmissionDeadlineOpen() {
       // Deadlines are inclusive in Europe/Lisbon. Both cutoffs fall in winter,
       // when mainland Portugal uses UTC. Drafts remain available to their owner.
@@ -661,7 +667,7 @@ service cloud.firestore {
       allow read: if isAdmin()
         || canUseSecretariat()
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin() && hasValidUlsRegistration(request.resource.data)
+      allow create: if officialOpeningReached() && isAdmin() && hasValidUlsRegistration(request.resource.data)
         && hasValidStudentRegistration(request.resource.data) && noClientAdmissionCreate(request.resource.data);
       allow delete: if isAdmin();
       allow update: if (
@@ -681,14 +687,17 @@ service cloud.firestore {
 
     match /registrationOrders/{orderId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update: if isAdmin() && hasValidUlsOrder(request.resource.data)
+      allow create: if officialOpeningReached() && isAdmin() && hasValidUlsOrder(request.resource.data)
+        && hasValidStudentOrder(request.resource.data);
+      allow update: if isAdmin() && hasValidUlsOrder(request.resource.data)
         && hasValidStudentOrder(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow create: if officialOpeningReached() && isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /documents/{documentId} {
@@ -860,16 +869,9 @@ service cloud.firestore {
           && resource.data.status != 'draft'
         )
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin()
-        || (
-          canTestSubmissions()
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.eventId == 'circ-2027'
-          && request.resource.data.get('isTest', false) == true
-          && request.resource.data.status in ['draft', 'submitted']
-          && hasValidAbstractSections()
-          && hasValidInitialSubmissionTimestamps()
-        )
+      // Only the owner administrator can restore a historical archived record.
+      // Designated testers no longer have a test-creation exception.
+      allow create: if officialOpeningReached() && (isAdmin()
         || (
           hasVerifiedEmail()
           && request.resource.data.userId == request.auth.uid
@@ -881,8 +883,11 @@ service cloud.firestore {
           && productionSubmissionDeadlineOpen()
           && hasValidAbstractSections()
           && hasValidInitialSubmissionTimestamps()
-        );
-      allow update: if (isAdmin() && reviewDecisionSynced(submissionId))
+        ));
+      allow update: if (officialOpeningReached()
+          || (resource.data.status != 'draft'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'review', 'updatedAt'])))
+        && ((isAdmin() && reviewDecisionSynced(submissionId))
         || (
           canManageSubmissions()
           && reviewDecisionSynced(submissionId)
@@ -905,12 +910,13 @@ service cloud.firestore {
           && resource.data.userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
           && resource.data.get('archived', false) == false
+          && resource.data.get('isTest', false) == false
+          && resource.data.get('testMode', false) == false
           && resource.data.status == 'draft'
           && request.resource.data.status in ['draft', 'submitted']
           && isValidAuthorSubmissionUpdate()
-          && (resource.data.get('isTest', false) == true
-            || (hasValidProductionSubmissionContent() && productionSubmissionDeadlineOpen()))
-        );
+          && hasValidProductionSubmissionContent() && productionSubmissionDeadlineOpen()
+        ));
       allow delete: if reviewDeletionSafe(submissionId) && (isAdmin()
         || (
           canTestSubmissions()

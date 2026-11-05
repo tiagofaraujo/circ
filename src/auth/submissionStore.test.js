@@ -6,7 +6,7 @@ const sections = { introduction: 'Contexto', objective: 'Objetivo', methods: 'M�
 const form = { type: 'oral', title: 'Trabalho científico', authors: 'Autora Exemplo', affiliation: 'Instituição', abstractSections: sections };
 let ref, db, current, tx;
 beforeEach(() => {
-  jest.useFakeTimers().setSystemTime(new Date('2026-11-01T12:00:00Z'));
+  jest.useFakeTimers().setSystemTime(new Date('2026-11-15T12:00:00Z'));
   window.firebase = { firestore: { FieldValue: { serverTimestamp: () => 'SERVER_TIME' } } };
   current = { userId: user.uid, eventId: 'circ-2027', status: 'draft', isTest: false, updatedAt: 1000, submittedAt: null };
   ref = { id: 'abcdefgh1234', set: jest.fn(async () => {}) };
@@ -25,6 +25,19 @@ test('drafts can be incomplete, but submission needs every abstract section', as
   await saveSubmission(user, { ...form, abstractSections: {} }, 'draft');
   expect(ref.set.mock.calls[0][0].submittedAt).toBeNull();
   await expect(saveSubmission(user, { ...form, abstractSections: {} }, 'submitted')).rejects.toThrow('submissions/incomplete-abstract');
+});
+test('drafts, definitive submissions and draft edits stay closed until the official opening, including admin authors', async () => {
+  jest.setSystemTime(new Date('2026-11-14T23:59:59.999Z'));
+  for (const identity of [user, { ...user, email: 'circ.chuc@gmail.com' }]) {
+    await expect(saveSubmission(identity, form, 'draft')).rejects.toThrow('submissions/not-open');
+    await expect(saveSubmission(identity, form, 'submitted')).rejects.toThrow('submissions/not-open');
+    await expect(updateSubmissionDraft(identity, { id: ref.id, ...current }, form, 'submitted')).rejects.toThrow('submissions/not-open');
+  }
+  expect(ref.set).not.toHaveBeenCalled(); expect(tx.update).not.toHaveBeenCalled();
+  jest.setSystemTime(new Date('2026-11-15T00:00:00.000Z'));
+  await saveSubmission(user, form, 'draft');
+  await saveSubmission(user, form, 'submitted');
+  expect(ref.set).toHaveBeenCalledTimes(2);
 });
 test('unverified identities, unsupported types and oversized content are rejected before writing', async () => {
   await expect(saveSubmission({ ...user, emailVerified: false }, form, 'draft')).rejects.toThrow('verified-email-required');

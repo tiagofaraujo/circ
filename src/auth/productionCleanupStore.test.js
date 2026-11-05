@@ -65,13 +65,52 @@ test('inventory includes drafts and tests but preserves real paid and pending fi
   });
   getFirebaseFirestore.mockReturnValue(f.db);
   const plan = await prepareProductionCleanup(user);
-  expect(plan.eligible).toEqual({ registrations: 2, submissions: 1, sandbox: 1, related: 0 });
+  expect(plan.eligible).toEqual({ registrations: 1, submissions: 1, sandbox: 1, related: 0 });
   expect(plan.protectedItems).toEqual(expect.arrayContaining([
     { type: 'registration', id: 'real', reason: 'financial-record' },
     { type: 'registration', id: 'pending', reason: 'financial-record' },
     { type: 'submission', id: 'review', reason: 'review-linked' },
+    { type: 'registration', id: 'legacy-zero', reason: 'not-confirmed-test' },
   ]));
   expect(plan.groups.flatMap(group => group.sources.map(source => source.path))).not.toContain('settings/circ-toconline-server-session');
+});
+
+test('old unpaid participants and real drafts stay active even when their name or ID mentions a test', async () => {
+  const f = fakeDatabase({
+    'registrations/test-in-name': registration({ isTest: false, participantName: 'Teste Silva', payment: { status: 'pending', amountCents: 9500 } }),
+    'submissions/test-in-title': submission({ isTest: false, title: 'Teste de diagnóstico', status: 'draft' }),
+    'submissions/string-marker': submission({ isTest: 'true', title: 'Sem confirmação' }),
+    'submissions/confirmed-test': submission(),
+  });
+  getFirebaseFirestore.mockReturnValue(f.db);
+  const plan = await prepareProductionCleanup(user);
+  expect(plan.groups.map(group => group.id)).toEqual(['confirmed-test']);
+  expect(plan.protectedItems.filter(item => item.reason === 'not-confirmed-test')).toHaveLength(3);
+  await archiveProductionCleanup(user, plan);
+  expect(f.data.has('registrations/test-in-name')).toBe(true);
+  expect(f.data.has('submissions/test-in-title')).toBe(true);
+  expect(f.data.has('submissions/string-marker')).toBe(true);
+});
+
+test('the current inventory includes explicitly marked November tests and keeps live orders protected', async () => {
+  jest.setSystemTime(new Date('2026-11-05T14:00:00Z'));
+  const f = fakeDatabase({
+    'registrations/november-test': registration({ createdAt: '2026-11-04T10:00:00Z', payment: { status: 'pending', amountCents: 9500 } }),
+    'registrations/live-reference': registration({ payment: { status: 'pending', amountCents: 9500 } }),
+    'registrationOrders/live-reference': { eventId: EVENT, registrationId: 'live-reference', environment: 'production', amountCents: 9500, status: 'pending' },
+    'registrations/live-zero': registration({ payment: { status: 'pending', amountCents: 0 } }),
+    'payments/live-zero': { eventId: EVENT, registrationId: 'live-zero', environment: 'production', amountCents: 0, status: 'pending' },
+    'submissions/sandbox': submission({ isTest: false, environment: 'sandbox', createdAt: '2026-11-03T12:00:00Z' }),
+  });
+  getFirebaseFirestore.mockReturnValue(f.db);
+  const plan = await prepareProductionCleanup(user);
+  expect(plan.groups.map(group => group.id).sort()).toEqual(['november-test', 'sandbox']);
+  expect(plan.protectedItems).toContainEqual({ type: 'registration', id: 'live-reference', reason: 'financial-record' });
+  expect(plan.protectedItems).toContainEqual({ type: 'registration', id: 'live-zero', reason: 'financial-record' });
+  const result = await archiveProductionCleanup(user, plan);
+  expect(f.data.get(`settings/${result.archiveId}`).selection).toBe('explicit-test-only');
+  expect(f.data.has('registrationOrders/live-reference')).toBe(true);
+  expect(f.data.has('payments/live-zero')).toBe(true);
 });
 
 test('archive removes active test data with original copies and can restore it without changing profiles', async () => {
