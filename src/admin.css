@@ -4,6 +4,20 @@
   padding: 150px 48px 90px;
 }
 
+.admin-registration-page .admin-header { align-items: center; gap: 28px; padding-bottom: 28px; }
+.admin-registration-page .admin-header h1 { font-size: clamp(2.1rem, 4vw, 3.4rem); line-height: 1.1; letter-spacing: -.045em; }
+.admin-registration-page .admin-header > div:first-child > p:last-child { margin-top: 12px; max-width: 580px; }
+.admin-registration-page .admin-session { min-width: 240px; padding: 20px; border-radius: 16px; }
+.admin-registration-page .admin-workspace { padding-top: 36px; scroll-margin-top: 110px; }
+.admin-registration-list-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 22px; }
+.admin-registration-list-heading .eyebrow { margin: 0 0 7px; font-size: .68rem; }
+.admin-registration-list-heading h2 { color: var(--ink); font-size: 1.65rem; letter-spacing: -.03em; margin: 0; }
+.admin-registration-list-heading > p { max-width: 350px; color: var(--ink-soft); font-size: .8rem; line-height: 1.6; margin: 0; }
+@media (max-width: 680px) {
+  .admin-registration-list-heading { display: block; }
+  .admin-registration-list-heading > p { margin-top: 10px; }
+}
+
 .admin-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

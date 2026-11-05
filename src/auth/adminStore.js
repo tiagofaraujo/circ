@@ -19,14 +19,42 @@ export function subscribeToRegistrations(onData, onError) {
 
   return db.collection('registrations')
     .where('eventId', '==', 'circ-2027')
-    .orderBy('createdAt', 'desc')
-    .limit(500)
     .onSnapshot(
       (snapshot) => {
-        onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter(item => item.isTest !== true && item.archived !== true));
+        // No limit: statistics must include all registrations, including older
+        // records without createdAt (which an ordered query would omit).
+        onData(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }))
+          .filter(item => item.isTest !== true && item.testMode !== true && item.archived !== true
+            && !item.registrationArchiveId && !item.registrationArchivedAt)
+          .sort((a, b) => registrationTimestamp(b.createdAt) - registrationTimestamp(a.createdAt)
+            || a.id.localeCompare(b.id)));
       },
       onError
     );
+}
+
+function registrationTimestamp(value) {
+  if (typeof value?.toMillis === 'function') return value.toMillis();
+  if (typeof value?.seconds === 'number') return value.seconds * 1000;
+  const result = typeof value === 'string' ? Date.parse(value) : 0;
+  return Number.isFinite(result) ? result : 0;
+}
+
+/** Owner-admin only, matching the existing registrations management permission. */
+export function subscribeToRegistrationPayments(onData, onError) {
+  let db;
+  try {
+    db = dbOrThrow();
+  } catch (error) {
+    onError(error);
+    return () => {};
+  }
+  return db.collection('payments').where('eventId', '==', 'circ-2027').onSnapshot(
+    snapshot => onData(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))
+      .filter(item => item.environment === 'production' && item.isTest !== true && item.testMode !== true
+        && item.archived !== true && !item.registrationArchiveId && !item.registrationArchivedAt)),
+    onError
+  );
 }
 
 export function subscribeToRegistrationNotes(onData, onError) {
