@@ -92,6 +92,7 @@ test('the former supervisor is a normal participant unless assigned as a reviewe
   expect(getUserAccess(user)).toEqual({
     isAdmin: false,
     canManageRegistrations: false,
+    canViewRegistrations: false,
     canManageSubmissions: false,
     canReviewSubmissions: false,
     canTestSubmissions: false,

@@ -17,6 +17,7 @@ import { createToconlineDraftAcceptanceApi } from './payments/toconline-draft-ac
 import { createBankTransferLiveApi } from './payments/bank-transfer-live.mjs';
 import { createRegistrationReleaseApi } from './payments/registration-release.mjs';
 import { createCompanyVoucherLiveApi } from './payments/company-voucher-live.mjs';
+import { createRegistrationReportsApi } from './payments/registration-reports.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
@@ -68,6 +69,7 @@ export function createWorker(verify = verifyFirebaseToken) {
   const bankTransferLive = createBankTransferLiveApi({ verify });
   const registrationRelease = createRegistrationReleaseApi({ verify });
   const companyVoucherLive = createCompanyVoucherLiveApi({ verify });
+  const registrationReports = createRegistrationReportsApi({ verify });
   return {
     async fetch(request, env) {
       const { pathname } = new URL(request.url);
@@ -106,6 +108,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (registrationReleaseResponse) return registrationReleaseResponse;
       const companyVoucherResponse = await companyVoucherLive(request, env);
       if (companyVoucherResponse) return companyVoucherResponse;
+      const registrationReportResponse = await registrationReports(request, env);
+      if (registrationReportResponse) return registrationReportResponse;
       const liveCheckoutResponse = await liveCheckout(request, env);
       if (liveCheckoutResponse) return liveCheckoutResponse;
       const checkoutResponse = await sandboxCheckout(request, env);

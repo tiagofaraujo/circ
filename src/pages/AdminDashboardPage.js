@@ -9,6 +9,7 @@ import {
   updateRegistrationNote,
 } from '../auth/adminStore';
 import { subscribeToUserStats } from '../auth/presenceStore';
+import { useRegistrationReport } from '../auth/registrationReport';
 import AdminModuleNav from '../components/AdminModuleNav';
 import RegistrationRefund from '../components/RegistrationRefund';
 import RegistrationFiscalStatus from '../components/RegistrationFiscalStatus';
@@ -46,8 +47,8 @@ function csvCell(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
-function exportRegistrations(registrations, registrationNotes) {
-  const header = ['ID', 'Nome', 'Email', 'Tipo', 'Estado da inscrição', 'Estado do pagamento', 'Valor principal', 'Moeda', 'Referência', 'Curso manhã', 'Curso tarde', 'Jantares totais', 'Pedidos complementares', 'Observações'];
+function exportRegistrations(registrations, registrationNotes, includeNotes) {
+  const header = ['ID', 'Nome', 'Email', 'Tipo', 'Estado da inscrição', 'Estado do pagamento', 'Valor principal', 'Moeda', 'Referência', 'Curso manhã', 'Curso tarde', 'Jantares totais', 'Pedidos complementares', ...(includeNotes ? ['Observações'] : [])];
   const rows = registrations.map((item) => [
     item.id,
     item.participantName,
@@ -62,7 +63,7 @@ function exportRegistrations(registrations, registrationNotes) {
     item.entitlements?.afternoonCourse ? 'Sim' : 'Não',
     Number(item.entitlements?.dinnerQuantity || 0),
     Number(item.addOnOrderCount || 0),
-    registrationNotes[item.id] || '',
+    ...(includeNotes ? [registrationNotes[item.id] || ''] : []),
   ]);
   const csv = `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(';')).join('\n')}`;
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -74,17 +75,20 @@ function exportRegistrations(registrations, registrationNotes) {
 }
 
 export default function AdminDashboardPage() {
-  const { user, signOut } = useAuth();
+  const { user, access, signOut } = useAuth();
+  const canManage = access?.canManageRegistrations === true;
+  const canView = access?.canViewRegistrations === true || canManage;
+  const report = useRegistrationReport(user, canView && !canManage);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [registrations, setRegistrations] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(true);
-  const [paymentsError, setPaymentsError] = useState('');
-  const [registrationError, setRegistrationError] = useState('');
+  const [adminRegistrations, setRegistrations] = useState([]);
+  const [adminPayments, setPayments] = useState([]);
+  const [adminPaymentsLoading, setPaymentsLoading] = useState(true);
+  const [adminPaymentsError, setPaymentsError] = useState('');
+  const [adminRegistrationError, setRegistrationError] = useState('');
   const [query, setQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const [adminLoading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState('');
   const [registrationNotes, setRegistrationNotes] = useState({});
@@ -93,7 +97,17 @@ export default function AdminDashboardPage() {
   const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
   const [releaseMessage, setReleaseMessage] = useState('');
 
-  useEffect(() => subscribeToRegistrations(
+  const registrations = canManage ? adminRegistrations : report.registrations;
+  const payments = canManage ? adminPayments : report.payments;
+  const loading = canManage ? adminLoading : report.loading;
+  const registrationError = canManage ? adminRegistrationError : report.error;
+  const paymentsLoading = canManage ? adminPaymentsLoading : report.loading;
+  const paymentsError = canManage ? adminPaymentsError : report.error;
+
+  useEffect(() => {
+    setRegistrations([]); setLoading(true); setRegistrationError('');
+    if (!canManage) return undefined;
+    return subscribeToRegistrations(
     (items) => {
       setRegistrations(items);
       setLoading(false);
@@ -103,9 +117,13 @@ export default function AdminDashboardPage() {
       setLoading(false);
       setRegistrationError('Não foi possível carregar as inscrições. Tente novamente dentro de instantes.');
     }
-  ), []);
+    );
+  }, [canManage, user?.uid]);
 
-  useEffect(() => subscribeToRegistrationPayments(
+  useEffect(() => {
+    setPayments([]); setPaymentsLoading(true); setPaymentsError('');
+    if (!canManage) return undefined;
+    return subscribeToRegistrationPayments(
     (items) => {
       setPayments(items);
       setPaymentsLoading(false);
@@ -115,29 +133,38 @@ export default function AdminDashboardPage() {
       setPaymentsLoading(false);
       setPaymentsError('Não foi possível atualizar os pagamentos. As estatísticas ficam disponíveis quando a ligação for restabelecida.');
     }
-  ), []);
+    );
+  }, [canManage, user?.uid]);
 
-  useEffect(() => subscribeToRegistrationNotes(
+  useEffect(() => {
+    setRegistrationNotes({}); setNoteDrafts({}); setError(''); setReleaseMessage('');
+    if (!canManage) return undefined;
+    return subscribeToRegistrationNotes(
     setRegistrationNotes,
     () => setError('Não foi possível carregar as observações administrativas.')
-  ), []);
+    );
+  }, [canManage, user?.uid]);
 
-  useEffect(() => subscribeToUserStats(
+  useEffect(() => {
+    setUserStats({ total: null, online: null });
+    if (!canManage) return undefined;
+    return subscribeToUserStats(
     (stats) => {
       setUserStats(stats);
       setUserStatsUnavailable(false);
     },
     () => setUserStatsUnavailable(true)
-  ), []);
+    );
+  }, [canManage, user?.uid]);
 
   const visibleRegistrations = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return registrations.filter((item) => {
       const matchesPayment = paymentFilter === 'all' || (item.payment?.status || 'pending') === paymentFilter;
-      const haystack = `${item.id} ${item.participantName || ''} ${item.participantEmail || ''} ${item.registrationType || ''} ${registrationNotes[item.id] || ''}`.toLowerCase();
+      const haystack = `${item.id} ${item.participantName || ''} ${item.participantEmail || ''} ${item.registrationType || ''} ${canManage ? registrationNotes[item.id] || '' : ''}`.toLowerCase();
       return matchesPayment && (!needle || haystack.includes(needle));
     });
-  }, [paymentFilter, query, registrationNotes, registrations]);
+  }, [paymentFilter, query, registrationNotes, registrations, canManage]);
 
   const dashboardView = searchParams.get('painel') === 'perfis' ? 'perfis' : 'geral';
   const changeDashboardView = (view) => {
@@ -153,6 +180,7 @@ export default function AdminDashboardPage() {
   };
 
   const saveRegistrationNote = async (registration) => {
+    if (!canManage) return;
     const previousNote = String(registrationNotes[registration.id] || '').trim();
     const nextNote = String(noteDrafts[registration.id] ?? previousNote).trim();
     if (nextNote === previousNote) return;
@@ -188,7 +216,7 @@ export default function AdminDashboardPage() {
           <p>Participação, vagas e perfis dos congressistas num só lugar.</p>
         </div>
         <div className="admin-session">
-          <span>Administrador verificado</span>
+          <span>{canManage ? 'Administrador verificado' : 'Consulta autorizada'}</span>
           <strong>{user?.email}</strong>
           <Link className="admin-test-link" to="/conta/inscricoes">Consultar inscrições →</Link>
           <button type="button" onClick={handleSignOut}>Terminar sessão</button>
@@ -197,7 +225,7 @@ export default function AdminDashboardPage() {
 
       <AdminModuleNav />
 
-      <section className="admin-user-summary" aria-label="Utilização do My CIRC">
+      {canManage && <section className="admin-user-summary" aria-label="Utilização do My CIRC">
         <div className="admin-user-summary__intro">
           <span>My CIRC</span>
           <small>Utilização da área reservada</small>
@@ -213,7 +241,12 @@ export default function AdminDashboardPage() {
         <small className="admin-user-summary__note">
           {userStatsUnavailable ? 'Atividade temporariamente indisponível' : 'Atividade nos últimos 2 minutos'}
         </small>
-      </section>
+      </section>}
+
+      {!canManage && <div className="admin-registration-report-access">
+        <p>Acesso de consulta às inscrições e estatísticas. Os dados são atualizados automaticamente a cada minuto.</p>
+        <button type="button" className="admin-export" onClick={report.refresh} disabled={report.refreshing}>{report.refreshing ? 'A atualizar…' : 'Atualizar dados'}</button>
+      </div>}
 
       <RegistrationAnalytics
         registrations={registrations}
@@ -243,13 +276,13 @@ export default function AdminDashboardPage() {
               {paymentStatuses.map((status) => <option key={status} value={status}>{paymentLabels[status]}</option>)}
             </select>
           </label>
-          <button type="button" className="admin-export" onClick={() => exportRegistrations(visibleRegistrations, registrationNotes)} disabled={!visibleRegistrations.length}>Exportar CSV</button>
+          <button type="button" className="admin-export" onClick={() => exportRegistrations(visibleRegistrations, registrationNotes, canManage)} disabled={!visibleRegistrations.length}>Exportar CSV</button>
         </div>
 
         <p className="admin-status-help">Os estados são atualizados pelo pagamento confirmado. Nas transferências, a validação do crédito confirma o pagamento e a inscrição. Os reembolsos já efetuados têm um registo administrativo próprio.</p>
-        {error && <div className="admin-alert" role="alert">{error}</div>}
+        {canManage && error && <div className="admin-alert" role="alert">{error}</div>}
         {registrationError && <div className="admin-alert" role="alert">{registrationError}</div>}
-        {releaseMessage && <p role="status">{releaseMessage}</p>}
+        {canManage && releaseMessage && <p role="status">{releaseMessage}</p>}
         {loading && <div className="admin-empty">A carregar inscrições…</div>}
         {!loading && !registrationError && !visibleRegistrations.length && (
           <div className="admin-empty">
@@ -261,7 +294,7 @@ export default function AdminDashboardPage() {
         {!loading && visibleRegistrations.length > 0 && (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Participante</th><th>Inscrição</th><th>Pagamento</th><th>Valor</th><th>Atualização</th><th className="admin-notes-heading">Observações</th></tr></thead>
+              <thead><tr><th>Participante</th><th>Inscrição</th><th>Pagamento</th><th>Valor</th><th>Atualização</th>{canManage && <th className="admin-notes-heading">Observações</th>}</tr></thead>
               <tbody>
                 {visibleRegistrations.map((item) => {
                   const savedNote = registrationNotes[item.id] || '';
@@ -292,19 +325,19 @@ export default function AdminDashboardPage() {
                         {registrationLabels[item.status || 'draft'] || 'Requer conferência'}
                       </span>
                       {item.payment?.status === 'paid' && item.status !== 'confirmed' && <small>Estados por conferir — registo histórico</small>}
-                      {String(item.participantEmail || '').trim().toLowerCase() === 'araujotiagofc@gmail.com' && <RegistrationRelease registration={item} onReleased={() => setReleaseMessage('A inscrição de araujotiagofc@gmail.com foi libertada para nova inscrição. Os pagamentos e documentos anteriores foram preservados.')} />}
+                      {canManage && String(item.participantEmail || '').trim().toLowerCase() === 'araujotiagofc@gmail.com' && <RegistrationRelease registration={item} onReleased={() => setReleaseMessage('A inscrição de araujotiagofc@gmail.com foi libertada para nova inscrição. Os pagamentos e documentos anteriores foram preservados.')} />}
                     </td>
                     <td>
                       <span className={`admin-state admin-status--${item.payment?.status || 'pending'}`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>
                         {paymentLabels[item.payment?.status || 'pending'] || 'Requer conferência'}
                       </span>
                       <small>{item.payment?.method || 'Método não indicado'}</small>
-                      <RegistrationRefund user={user} registration={item} />
-                      <RegistrationFiscalStatus registration={item} />
+                      {canManage && <RegistrationRefund user={user} registration={item} />}
+                      {canManage && <RegistrationFiscalStatus registration={item} />}
                     </td>
                     <td><strong>{formatMoney(item.payment?.amountCents, item.payment?.currency)}</strong><small>{item.payment?.reference || 'Sem referência'}</small></td>
                     <td><span>{formatDate(item.updatedAt || item.createdAt)}</span><small>{Number(item.documentCount || 0)} documento(s)</small></td>
-                    <td className="admin-notes-cell">
+                    {canManage && <td className="admin-notes-cell">
                       <label className="admin-note-field">
                         <span className="sr-only">Observações sobre {item.participantName || item.participantEmail}</span>
                         <textarea
@@ -323,7 +356,7 @@ export default function AdminDashboardPage() {
                         </button>
 
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                   );
                 })}

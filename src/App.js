@@ -167,7 +167,7 @@ function App() {
             <Route
               path="/admin"
               element={
-                <AdminRoute permission="registrations">
+                <AdminRoute permission="registrationReports">
                   <AdminDashboardPage />
                 </AdminRoute>
               }
