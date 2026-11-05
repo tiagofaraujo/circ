@@ -229,6 +229,78 @@ test('only an administrator can resume an unstarted instrument-review invoice af
   assert.equal((await f.resume()).status, 409); assert.equal(f.fiscalCalls.length, 1); assert.equal(f.registration().documentCount, 1);
 });
 
+async function paidStripeOrderOnCapacityHold() {
+  const f = fixture();
+  const settle = f.store.confirmPrimaryPaid;
+  f.store.confirmPrimaryPaid = input => {
+    const previous = f.registration();
+    const capacityUnavailable = ['onsite'];
+    return settle({ ...input,
+      payment: { ...input.payment, capacityStatus: 'review_required', capacityUnavailable },
+      registration: { ...input.registration, status: previous.status, entitlements: previous.entitlements,
+        capacityReviewOrderId: input.orderId, capacityUnavailable },
+    });
+  };
+  await f.create(); f.setInstrumentStatus(403); f.markPaid();
+  assert.equal((await f.notify()).status, 200);
+  f.setInstrumentStatus(200);
+  return f;
+}
+
+test('a Stripe receipt can resume after payment during a capacity hold without confirming the place', async () => {
+  const f = await paidStripeOrderOnCapacityHold();
+  const held = f.registration();
+  assert.equal(held.status, 'submitted');
+  assert.equal(held.payment.status, 'paid');
+  assert.equal(f.job(ids[0]).status, 'review_required');
+
+  const response = await f.resume();
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal((await response.json()).order.fiscalStatus, 'issued');
+  assert.equal(f.registration().status, held.status);
+  assert.deepEqual(f.registration().entitlements, held.entitlements);
+  assert.deepEqual(f.registration().payment, held.payment);
+  assert.equal(f.registration().capacityReviewOrderId, ids[0]);
+  assert.equal(f.registration().documentCount, 1);
+  assert.equal(f.payment(ids[0]).capacityStatus, 'review_required');
+  assert.equal(f.fiscalCalls[0].payment_mechanism, 'CC');
+  assert.equal((await f.resume()).status, 409);
+  assert.equal(f.fiscalCalls.length, 1);
+  assert.equal(f.httpCalls.filter(call => call.method === 'POST').length, 1);
+});
+
+test('a submitted registration cannot resume fiscal issuance without the linked paid capacity hold', async () => {
+  for (const mismatch of [
+    f => f.patchPayment(ids[0], { capacityStatus: null }),
+    f => f.patchRegistration({ capacityReviewOrderId: ids[1] }),
+    f => f.patchRegistration({ fiscalPendingOrderId: null }),
+    f => f.patchRegistration({ payment: { ...f.registration().payment, orderId: ids[1] } }),
+    f => f.patchRegistration({ payment: { ...f.registration().payment, status: 'pending' } }),
+  ]) {
+    const f = await paidStripeOrderOnCapacityHold();
+    mismatch(f);
+    const response = await f.resume();
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error, 'fiscal-job-mismatch');
+    assert.equal(f.job(ids[0]).status, 'review_required');
+    assert.equal(f.fiscalCalls.length, 0);
+  }
+});
+
+test('fiscal resume rechecks the linked capacity hold after claiming the job', async () => {
+  const f = await paidStripeOrderOnCapacityHold();
+  const finalize = f.store.finalizeFiscalResult;
+  f.store.finalizeFiscalResult = async input => {
+    await finalize(input);
+    f.patchRegistration({ capacityReviewOrderId: ids[1] });
+  };
+  const response = await f.resume();
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error, 'fiscal-resume-conflict');
+  assert.equal(f.job(ids[0]).status, 'issuing');
+  assert.equal(f.fiscalCalls.length, 0);
+});
+
 test('card wallets retain their safe classification and choose the actual card funding for fiscal payment code', async () => {
   for (const [wallet, funding, mechanism] of [['apple_pay', 'credit', 'CC'], ['google_pay', 'debit', 'DC']]) {
     const f = fixture({ wallet, funding }); await f.create(); f.markPaid();
