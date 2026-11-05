@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createCheckoutLiveApi } from '../payments/checkout-live.mjs';
 import { createLiveInvoicePdfApi } from '../payments/live-invoice-pdf.mjs';
 import { liveDataStamp } from '../payments/live-pilot-contract.mjs';
@@ -175,4 +176,37 @@ test('the MB WAY validation allowlist requires a verified exact email and never 
   assert.ok(livePaymentMethods(env, { isAdmin: false, emailVerified: true, email: ' ARAUJOTIAGOFC@GMAIL.COM ' }).includes('mbway'));
   assert.ok(!livePaymentMethods(env, { isAdmin: false, emailVerified: false, email: identity.email }).includes('mbway'));
   assert.ok(!livePaymentMethods(env, { isAdmin: false, emailVerified: true, email: `other+${identity.email}` }).includes('mbway'));
+});
+
+test('the published launch configuration allows a verified ordinary participant to use MB WAY while Stripe remains restricted', async () => {
+  // Exercise the deployed flags through the real checkout API, with synthetic
+  // credentials and providers only. Configuration reads never create payments.
+  const published = JSON.parse(readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8')).vars;
+  const production = { ...env, ...published,
+    STRIPE_LIVE_SECRET_KEY: 'rk_live_synthetic12345678', STRIPE_LIVE_WEBHOOK_SECRET: 'whsec_synthetic12345678' };
+  const participant = fixture({ claims: { ...identity, email: 'ordinary@example.test' } });
+  const config = await participant.call('/config', undefined, production);
+  assert.equal(config.status, 200);
+  const result = await config.json();
+  assert.equal(result.enabled, true);
+  assert.equal(result.publicOpen, true);
+  assert.deepEqual(result.methods, ['multibanco', 'mbway', 'bank_transfer']);
+  assert.equal(participant.state().creates, 0);
+
+  const created = await participant.call('/orders', await participant.newRequest(), production);
+  assert.equal(created.status, 201, await created.clone().text());
+  assert.equal((await created.json()).order.method, 'mbway');
+  assert.equal(participant.state().creates, 1);
+  assert.equal(participant.state().registration.payment.status, 'pending');
+
+  const stripe = fixture({ claims: { ...identity, email: 'ordinary@example.test' } });
+  const request = { ...await stripe.newRequest(), method: 'stripe_card' }; delete request.phone;
+  const refused = await stripe.call('/orders', request, production);
+  assert.equal(refused.status, 409);
+  assert.equal((await refused.json()).error, 'payment-method-unavailable');
+  assert.equal(stripe.state().creates, 0);
+
+  const unverified = fixture({ claims: { ...identity, email_verified: false } });
+  assert.equal((await unverified.call('/config', undefined, production)).status, 403);
+  assert.equal(unverified.state().creates, 0);
 });
