@@ -33,7 +33,7 @@
     "LIVE_CHECKOUT_ENABLED": "true",
     "LIVE_BANK_TRANSFER_ENABLED": "true",
     "LIVE_MBWAY_ENABLED": "true",
-    "LIVE_MBWAY_VALIDATION_ONLY": "true",
+    "LIVE_MBWAY_VALIDATION_ONLY": "false",
     "LIVE_MBWAY_VALIDATION_EMAILS": "araujotiagofc@gmail.com",
     "LIVE_STRIPE_ENABLED": "true",
     "LIVE_STRIPE_VALIDATION_ONLY": "true",

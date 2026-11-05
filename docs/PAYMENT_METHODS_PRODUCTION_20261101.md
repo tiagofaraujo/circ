@@ -1,4 +1,7 @@
-# CIRC 2027 — validação dos meios de pagamento, 1 de novembro de 2026
+# CIRC 2027 — meios de pagamento em produção
+
+Atualizado em 5 de novembro de 2026. A confirmação de funcionamento real indicada
+abaixo foi dada pelo organizador; esta atualização não realiza outra cobrança.
 
 ## Evidência e resultado
 
@@ -6,7 +9,7 @@
 | --- | --- | --- |
 | Multibanco | Pagamento real de 95 € e FR CIRC2027/1 confirmados | Mantido; regressões verificadas |
 | Transferência bancária | Pagamento e emissão de recibo reais confirmados pelo organizador | Conferência administrativa, atualização automática e FR em produção |
-| MB WAY | Pagamento real confirmado pelo organizador em 01/11/2026 | Confirmação do pagamento registada; relato não identifica a FR. Validação permanece limitada a contas autorizadas |
+| MB WAY | Pagamento real confirmado pelo organizador | Abertura a participantes com email verificado; deixa de estar limitado à conta de validação. O relato não identifica a FR/PDF MB WAY |
 | Visa/Mastercard | Implementação e ensaios Stripe sandbox; sem pagamento real documentado | Percurso live preparado, dependente de credenciais e webhook de produção e de validação real |
 | Apple Pay/Google Pay | Preparação Stripe sandbox; sem aceitação real documentada | Carteiras sobre cartão no novo Hosted Checkout, sujeitas à elegibilidade e configuração da conta |
 
@@ -59,6 +62,9 @@ TOConline. Multibanco usa MB; transferência usa TR. A continuação descrita em
 `MBWAY_PRODUCTION_VALIDATION_20261101.md` usa OU como categoria genérica para uma
 validação controlada, explicitando a inferência e a ausência de aceitação prévia
 comprovada no endpoint de vendas. MB WAY via EuPago fica identificado nas notas.
+O pagamento MB WAY real foi entretanto confirmado pelo organizador. A abertura
+pública do método não altera o mapeamento OU nem constitui confirmação de uma
+FR/PDF MB WAY real: essa evidência continua por identificar.
 
 O adaptador MB WAY valida o telefone português, congela a respetiva impressão no
 pedido, apresenta o prazo indicado e reconcilia o callback com o pedido guardado.
@@ -71,20 +77,38 @@ usa a APIkey do canal, mas o prestador exige adesão contratual adicional aprova
 A existência da chave do canal CIRC não demonstra essa aprovação. A continuação
 `STRIPE_PRODUCTION_20261101.md` descreve o novo percurso Stripe live separado,
 com cartões e carteiras, credenciais próprias, assinatura e reconciliação de
-pagamentos, claim fiscal e diagnóstico administrativo. A conta do prestador
-ainda não foi inspecionada nesta revisão.
+pagamentos, claim fiscal e diagnóstico administrativo.
+
+A consulta autenticada à Stripe em 5 de novembro de 2026 confirmou a conta da
+Associação Hemisfério Disciplinado apta a receber pagamentos, sem requisitos
+pendentes. Cartão e Apple Pay estavam ativos; Google Pay estava desligado.
+O destino live de notificações CIRC estava ativo, com a versão e os quatro
+eventos esperados. Esta leitura não confirma os Secrets guardados no Worker
+nem a entrega de eventos; não foi encontrada uma Checkout Session live CIRC
+na consulta das sessões existentes. A abertura pública Stripe continua pendente
+da configuração e da validação real descritas no documento próprio.
 
 ## Publicação
 
 `LIVE_BANK_TRANSFER_ENABLED=true` ativa as instruções bancárias reais, mantendo
-as configurações sandbox isoladas. A continuação MB WAY usa
-`LIVE_MBWAY_ENABLED=true` com `LIVE_MBWAY_VALIDATION_ONLY=true`: a administração
-e a conta incluída na allowlist podem validar o método antes da abertura pública.
-Stripe usa gates e allowlist próprios; sem configurações live válidas não é
+as configurações sandbox isoladas. Após a confirmação do pagamento real pelo
+organizador, MB WAY usa `LIVE_MBWAY_ENABLED=true` com
+`LIVE_MBWAY_VALIDATION_ONLY=false`: fica disponível para os participantes com
+email verificado, sem depender da allowlist de validação. A conta de validação
+não ganha permissões administrativas. As verificações de faturação, elegibilidade,
+tarifa, lotação e a confirmação financeira pelo servidor mantêm-se obrigatórias.
+Stripe conserva `LIVE_STRIPE_VALIDATION_ONLY=true`, com gates e allowlist próprios;
+sem configurações live válidas não é
 anunciado no checkout. A integração Stripe requer os dois Secrets de produção
 descritos no respetivo documento.
 `/api/checkout/live/config` é a fonte dos meios apresentados ao participante;
 os meios indisponíveis não são anunciados como operacionais.
+
+A regressão da abertura MB WAY carrega as variáveis publicadas em `wrangler.jsonc`
+e exercita a API de checkout com credenciais e prestadores simulados: um
+participante verificado fora da allowlist pode criar o pedido MB WAY; um email
+não verificado é recusado; Stripe continua indisponível para essa conta. Não
+foram criados pagamentos ou documentos reais por estes testes.
 
 Os percursos bancários anteriores não dependem de novas regras Firestore ou segredos.
 Os testes usam prestadores simulados, sem aceder à conta bancária ou criar documentos.
