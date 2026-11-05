@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
   paymentStatuses,
   subscribeToRegistrationNotes,
+  subscribeToRegistrationPayments,
   subscribeToRegistrations,
   updateRegistrationNote,
 } from '../auth/adminStore';
@@ -12,6 +13,7 @@ import AdminModuleNav from '../components/AdminModuleNav';
 import RegistrationRefund from '../components/RegistrationRefund';
 import RegistrationFiscalStatus from '../components/RegistrationFiscalStatus';
 import RegistrationRelease from '../components/RegistrationRelease';
+import RegistrationAnalytics from '../components/RegistrationAnalytics';
 import '../admin.css';
 import '../adminOperations.css';
 
@@ -74,7 +76,12 @@ function exportRegistrations(registrations, registrationNotes) {
 export default function AdminDashboardPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [registrations, setRegistrations] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [paymentsError, setPaymentsError] = useState('');
+  const [registrationError, setRegistrationError] = useState('');
   const [query, setQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -90,13 +97,23 @@ export default function AdminDashboardPage() {
     (items) => {
       setRegistrations(items);
       setLoading(false);
-      setError('');
+      setRegistrationError('');
     },
     (subscriptionError) => {
       setLoading(false);
-      setError(subscriptionError?.code === 'failed-precondition'
-        ? 'O índice Firestore das inscrições ainda não foi publicado.'
-        : 'Não foi possível carregar as inscrições. Confirme a configuração e as regras do Firebase.');
+      setRegistrationError('Não foi possível carregar as inscrições. Tente novamente dentro de instantes.');
+    }
+  ), []);
+
+  useEffect(() => subscribeToRegistrationPayments(
+    (items) => {
+      setPayments(items);
+      setPaymentsLoading(false);
+      setPaymentsError('');
+    },
+    () => {
+      setPaymentsLoading(false);
+      setPaymentsError('Não foi possível atualizar os pagamentos. As estatísticas ficam disponíveis quando a ligação for restabelecida.');
     }
   ), []);
 
@@ -122,12 +139,14 @@ export default function AdminDashboardPage() {
     });
   }, [paymentFilter, query, registrationNotes, registrations]);
 
-  const counts = useMemo(() => ({
-    total: registrations.length,
-    paid: registrations.filter((item) => item.payment?.status === 'paid').length,
-    pending: registrations.filter((item) => !item.payment?.status || ['pending', 'awaiting_confirmation'].includes(item.payment.status)).length,
-    confirmed: registrations.filter((item) => item.status === 'confirmed').length,
-  }), [registrations]);
+  const dashboardView = searchParams.get('painel') === 'perfis' ? 'perfis' : 'geral';
+  const changeDashboardView = (view) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('painel', view);
+      return next;
+    }, { preventScrollReset: true });
+  };
 
   const changeNoteDraft = (registrationId, value) => {
     setNoteDrafts((current) => ({ ...current, [registrationId]: value }));
@@ -161,12 +180,12 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <main className="admin-page">
+    <main className="admin-page admin-registration-page">
       <header className="admin-header">
         <div>
           <p className="eyebrow">CIRC 2027 · Administração</p>
-          <h1>Inscrições e pagamentos</h1>
-          <p>Área reservada para acompanhamento operacional do congresso.</p>
+          <h1>Gestão de inscrições</h1>
+          <p>Participação, vagas e perfis dos congressistas num só lugar.</p>
         </div>
         <div className="admin-session">
           <span>Administrador verificado</span>
@@ -196,14 +215,22 @@ export default function AdminDashboardPage() {
         </small>
       </section>
 
-      <section className="admin-metrics" aria-label="Resumo">
-        <article><span>Total</span><strong>{counts.total}</strong><small>inscrições</small></article>
-        <article><span>Pagas</span><strong>{counts.paid}</strong><small>confirmadas financeiramente</small></article>
-        <article><span>Pendentes</span><strong>{counts.pending}</strong><small>a aguardar validação</small></article>
-        <article><span>Confirmadas</span><strong>{counts.confirmed}</strong><small>participação confirmada</small></article>
-      </section>
+      <RegistrationAnalytics
+        registrations={registrations}
+        payments={payments}
+        loading={loading}
+        error={registrationError}
+        paymentsLoading={paymentsLoading}
+        paymentsError={paymentsError}
+        view={dashboardView}
+        onViewChange={changeDashboardView}
+      />
 
-      <section className="admin-workspace">
+      <section className="admin-workspace" id="lista-inscricoes" aria-labelledby="registration-list-heading">
+        <div className="admin-registration-list-heading">
+          <div><p className="eyebrow">Acompanhamento individual</p><h2 id="registration-list-heading">Lista de inscrições</h2></div>
+          <p>Os filtros abaixo aplicam-se apenas à lista. Os painéis mostram o congresso completo.</p>
+        </div>
         <div className="admin-toolbar">
           <label>
             <span>Pesquisar</span>
@@ -221,12 +248,13 @@ export default function AdminDashboardPage() {
 
         <p className="admin-status-help">Os estados são atualizados pelo pagamento confirmado. Nas transferências, a validação do crédito confirma o pagamento e a inscrição. Os reembolsos já efetuados têm um registo administrativo próprio.</p>
         {error && <div className="admin-alert" role="alert">{error}</div>}
+        {registrationError && <div className="admin-alert" role="alert">{registrationError}</div>}
         {releaseMessage && <p role="status">{releaseMessage}</p>}
         {loading && <div className="admin-empty">A carregar inscrições…</div>}
-        {!loading && !error && !visibleRegistrations.length && (
+        {!loading && !registrationError && !visibleRegistrations.length && (
           <div className="admin-empty">
-            <strong>Ainda não existem inscrições para apresentar.</strong>
-            <p>A área fica pronta para receber os registos do CIRC 2027 quando o formulário de inscrição for ativado.</p>
+            <strong>{registrations.length ? 'Nenhuma inscrição corresponde à pesquisa.' : 'Ainda não existem inscrições para apresentar.'}</strong>
+            <p>{registrations.length ? 'Altere a pesquisa ou o estado do pagamento para consultar outros participantes.' : 'As novas inscrições aparecem aqui automaticamente.'}</p>
           </div>
         )}
 
