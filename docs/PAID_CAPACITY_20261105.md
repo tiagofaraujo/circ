@@ -19,6 +19,8 @@ A criação do pedido e a confirmação do pagamento revalidam a disponibilidade
 
 Uma referência anteriormente criada pode ser paga quando a lotação já esgotou. Nesse caso, o pagamento e a fatura-recibo permanecem no circuito financeiro, os direitos anteriores são preservados e os novos lugares ficam em conferência, sem admissão acima da lotação. Os ecrãs indicam que não deve ser feito outro pagamento. A organização trata a alternativa ou o reembolso; não há devolução automática.
 
+O secretariado usa os direitos efetivos confirmados, respeitando também um mapa de direitos explicitamente vazio. Antes de registar uma presença ou entregar uma credencial, a transação relê a inscrição atual. Uma compra adicional em conferência preserva a entrada nos eventos anteriormente pagos, sem conceder o novo curso; uma inscrição principal sem lugar confirmado não permite nova entrada nem entrega de credencial. As reversões de registos operacionais continuam disponíveis.
+
 ## Publicação das regras
 
 Esta versão encaminha o resgate de vouchers pelo servidor. As regras Firestore bloqueiam o antigo resgate direto, novas admissões pagas e aumentos de direitos pelo cliente, incluindo pela conta de administração. Mantêm as leituras, notas, presenças, cancelamentos e registo de reembolsos previstos.
