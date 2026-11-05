@@ -16,6 +16,26 @@ const reply = (body, status = 200) => Response.json(body, { status, headers: {
 const publicOrder = (id, payment, fiscalStatus) => ({ id, status: payment.status, amountCents: payment.amountCents,
   currency: payment.currency, method: payment.method, entity: payment.entity, reference: payment.reference, fiscalStatus });
 
+function matchesPaidRegistration(registration, payment, orderId, kind) {
+  const ledger = registration?.payment;
+  if (payment.status !== 'paid' || payment.registrationArchiveId
+    || registration?.eventId !== 'circ-2027' || registration.userId !== payment.userId || registration.primaryRegistration !== true
+    || registration.isTest !== false || registration.testMode !== false || ledger?.status !== 'paid' || ledger.currency !== 'EUR'
+    || (registration.fiscalPendingOrderId && registration.fiscalPendingOrderId !== orderId)
+    || registration.selection?.profile !== (payment.fiscalQuote || payment.quote)?.selection?.profile) return false;
+
+  const heldPrimary = kind === 'primary' && registration.status === 'submitted'
+    && payment.capacityStatus === 'review_required' && registration.capacityReviewOrderId === orderId
+    && registration.fiscalPendingOrderId === orderId && ledger.orderId === orderId;
+  if (registration.status !== 'confirmed' && !heldPrimary) return false;
+
+  if (kind === 'primary') return Number(registration.documentCount || 0) === 0
+    && ledger.amountCents === payment.amountCents && ledger.reference === payment.reference && ledger.method === payment.method
+    && (!ledger.orderId || ledger.orderId === orderId);
+  return registration.openSupplementaryOrderId === orderId
+    && Array.isArray(registration.paidSupplementaryOrderIds) && registration.paidSupplementaryOrderIds.includes(orderId);
+}
+
 export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymentsServiceTokenProvider(),
   storeFactory = createCheckoutLiveStore, paymentLookup = readLivePaymentById, fiscalClient = createToconlineLiveClient(), stripeFactory=createStripeLive, now = () => new Date().toISOString(),
 } = {}) {
@@ -56,11 +76,7 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
         || !['multibanco','mbway','bank_transfer','stripe_card'].includes(p.method) || p.provider !== (isTransfer?'internal_bank_transfer':isStripe?'stripe':'eupago') || (!Number.isSafeInteger(p.amountCents) || p.amountCents <= 0 || p.amountCents > 9999900) || p.currency !== 'EUR'
         || !p.paidAt || !p.transactionId || !['external','uls','student'].includes(p.quote?.selection?.profile)
         || fiscalQuote?.amountCents !== p.amountCents || fiscalQuote.kind !== kind || !['primary','supplementary'].includes(kind) || p.identifier !== `circ_live_${id.replaceAll('-', '')}`
-        || r?.eventId !== 'circ-2027' || r.userId !== ownerId || r.primaryRegistration !== true
-        || r.isTest !== false || r.testMode !== false || r.status !== 'confirmed' || r.payment?.status !== 'paid'
-        || r.payment.currency !== 'EUR' || (r.fiscalPendingOrderId && r.fiscalPendingOrderId !== id)
-        || (kind==='primary' ? Number(r.documentCount||0)!==0 || r.payment.amountCents!==p.amountCents || r.payment.reference!==p.reference || r.payment.method!==p.method || (r.payment.orderId&&r.payment.orderId!==id)
-          : r.openSupplementaryOrderId!==id || !Array.isArray(r.paidSupplementaryOrderIds) || !r.paidSupplementaryOrderIds.includes(id))
+        || !matchesPaidRegistration(r, p, id, kind)
         || j.id !== id || j.userId !== ownerId || j.registrationId !== store.registrationId || j.eventId !== 'circ-2027'
         || j.environment !== 'production' || j.provider !== 'toconline' || j.type !== 'invoice_receipt'
         || j.amountCents !== p.amountCents || j.paymentMethod !== p.method) return reply({ error: 'fiscal-job-mismatch' }, 409);
@@ -80,8 +96,7 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
       const date = new Date(`${p.paymentDate}T12:00:00Z`);
       if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== p.paymentDate) return reply({ error: 'fiscal-job-mismatch' }, 409);
       const period = getRegistrationPeriod(date);
-      if (fiscalQuote.ratePeriod !== period || r.selection?.profile !== fiscalQuote.selection?.profile
-        || (j.orderKind && j.orderKind !== kind)) return reply({ error: 'fiscal-job-mismatch' }, 409);
+      if (fiscalQuote.ratePeriod !== period || (j.orderKind && j.orderKind !== kind)) return reply({ error: 'fiscal-job-mismatch' }, 409);
       let expected;
       let instrument=p.stripeInstrument;
       if(instrumentRecovery){
@@ -101,7 +116,7 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
       const preparedJob=instrumentRecovery?{...job,data:{...j,salesDocument:expected,status:'pending',errorCode:null}}:job;
       const claimed = await claimLiveFiscalJob({ store, orderId:id, payment:preparedPayment, registration, job:preparedJob, now, attemptId,
         jobUpdates:{ resumeAttemptId:attemptId,resumeStartedAt:now(),resumedBy:{uid:claims.sub,email:claims.email} } });
-      if(claimed.registration.data?.status!=='confirmed')return reply({error:'fiscal-resume-conflict'},409);
+      if (!matchesPaidRegistration(claimed.registration.data, claimed.payment.data, id, kind)) return reply({ error: 'fiscal-resume-conflict' }, 409);
       const fiscalStatus = await completeLiveFiscalJob({ store, orderId: id, payment: claimed.payment,
         registration: claimed.registration, job: claimed.job, issuanceAttemptId:claimed.issuanceAttemptId, fiscalClient, env, now });
       return reply({ order: publicOrder(id, p, fiscalStatus) });
