@@ -154,6 +154,9 @@ export default function ParticipantProfileFirebasePage() {
       </nav>
 
       <section className="account-form-section participant-form-section">
+        <p id="profile-payment-requirements">{isEnglish
+          ? 'Fields marked * are required before payment and invoice issuance: full name, Portuguese tax number and billing address, postal code, city and country. You can save a partially completed profile and finish it later. The overall profile completion percentage includes other personal and professional details; it does not determine payment eligibility.'
+          : 'Os campos assinalados com * são necessários antes do pagamento e da emissão da fatura: nome completo, NIF português, morada, código postal, localidade e país de faturação. Pode guardar o perfil parcialmente preenchido e completá-lo mais tarde. A percentagem de conclusão global inclui outros dados pessoais e profissionais; não é o critério para poder pagar.'}</p>
         {loading ? <p>{isEnglish ? 'Loading profile…' : 'A carregar perfil…'}</p> : (
           <form className="account-profile-form" onSubmit={handleSubmit}>
             <div className="profile-avatar-note">
@@ -188,16 +191,22 @@ export default function ParticipantProfileFirebasePage() {
             </div>
             <div className="account-form-grid">
               <label>
-                <span>{isEnglish ? 'Full name' : 'Nome completo'}</span>
+                <span id="profile-name-label">{isEnglish ? 'Full name *' : 'Nome completo *'}</span>
                 <input
                   name="name"
                   autoComplete="name"
+                  aria-labelledby="profile-name-label"
+                  aria-describedby="profile-name-help"
+                  aria-required="true"
+                  minLength="5"
+                  maxLength="200"
                   value={form.name || ''}
                   onChange={updateField}
                   readOnly={ulsNameLocked}
                   aria-readonly={ulsNameLocked}
                   required
                 />
+                <small id="profile-name-help">{isEnglish ? 'Use your full personal name, between 5 and 200 characters.' : 'Indique o nome pessoal completo, entre 5 e 200 caracteres.'}</small>
                 {ulsNameLocked && <small>{ulsEligibility.verified
                   ? (isEnglish
                     ? 'Locked after the ULS Coimbra match. Contact the secretariat if a correction is needed.'
@@ -217,7 +226,7 @@ export default function ParticipantProfileFirebasePage() {
               <label><span>Email</span><input name="email" type="email" value={form.email || ''} readOnly aria-readonly="true" /><small>{isEnglish ? 'The account email is managed in authentication.' : 'O email da conta é gerido pela autenticação.'}</small></label>
               <label><span>{isEnglish ? 'Date of birth' : 'Data de nascimento'}</span><input name="dateOfBirth" type="date" value={form.dateOfBirth || ''} onChange={updateField} /></label>
               <label><span>{isEnglish ? 'Gender' : 'Sexo / género'}</span><select name="gender" value={form.gender || ''} onChange={updateField}>{genderOptions.map(([value, pt, en]) => <option key={value || 'empty'} value={value}>{isEnglish ? en : pt}</option>)}</select></label>
-              <label><span>{isEnglish ? 'Tax identification number / VAT' : 'N.º de contribuinte / NIF'}</span><input name="taxNumber" inputMode="numeric" value={form.taxNumber || ''} onChange={updateField} /></label>
+              <label><span id="profile-tax-number-label">{isEnglish ? 'Portuguese tax number / NIF *' : 'N.º de contribuinte / NIF português *'}</span><input name="taxNumber" inputMode="numeric" aria-labelledby="profile-tax-number-label" aria-describedby="profile-tax-number-help" aria-required="true" value={form.taxNumber || ''} onChange={updateField} placeholder="000000000" /><small id="profile-tax-number-help">{isEnglish ? 'Portuguese NIF with 9 digits. The server validates the number before payment.' : 'NIF português com 9 dígitos. O número é validado pelo servidor antes do pagamento.'}</small></label>
               <label><span>{isEnglish ? 'Mobile phone' : 'Telemóvel'}</span><input name="mobile" type="tel" autoComplete="tel" value={form.mobile || ''} onChange={updateField} placeholder="+351 9xx xxx xxx" /></label>
               <label><span>{isEnglish ? 'Country of residence' : 'País de residência'}</span><input name="country" autoComplete="country-name" value={form.country || ''} onChange={updateField} /></label>
             </div>
@@ -229,13 +238,13 @@ export default function ParticipantProfileFirebasePage() {
               {showPortugueseRadiographerId && <label className="account-form-grid__wide"><span>{isEnglish ? 'Professional licence number' : 'N.º de cédula profissional'}</span><input name="professionalId" value={form.professionalId || ''} onChange={updateField} /></label>}
             </div>
 
-            <div className="profile-section-heading profile-section-heading--spaced"><p className="eyebrow">03</p><h2>{isEnglish ? 'Billing address' : 'Morada de faturação'}</h2></div>
+            <div id="faturacao" className="profile-section-heading profile-section-heading--spaced"><p className="eyebrow">03</p><h2>{isEnglish ? 'Billing address' : 'Morada de faturação'}</h2></div>
             <div className="account-form-grid">
-              <label className="account-form-grid__wide"><span>{isEnglish ? 'Billing name / entity' : 'Nome / entidade para faturação'}</span><input name="billingName" autoComplete="organization" value={form.billingName || ''} onChange={updateField} placeholder={form.name || ''} /><small>{isEnglish ? 'Leave blank to use the participant name. Use the legal name when the invoice is for an organisation.' : 'Se ficar vazio, será usado o nome do participante. Para faturação a uma entidade, indique a denominação legal.'}</small></label>
-              <label className="account-form-grid__wide"><span>{isEnglish ? 'Address' : 'Morada'}</span><textarea name="billingAddress" rows="3" autoComplete="street-address" value={form.billingAddress || ''} onChange={updateField} /></label>
-              <label><span>{isEnglish ? 'Postal code' : 'Código postal'}</span><input name="billingPostalCode" autoComplete="postal-code" value={form.billingPostalCode || ''} onChange={updateField} /></label>
-              <label><span>{isEnglish ? 'City' : 'Localidade'}</span><input name="billingCity" autoComplete="address-level2" value={form.billingCity || ''} onChange={updateField} /></label>
-              <label className="account-form-grid__wide"><span>{isEnglish ? 'Billing country' : 'País de faturação'}</span><input name="billingCountry" autoComplete="country-name" value={form.billingCountry || ''} onChange={updateField} /></label>
+              <label className="account-form-grid__wide"><span>{isEnglish ? 'Billing name / entity (optional)' : 'Nome / entidade para faturação (opcional)'}</span><input name="billingName" autoComplete="organization" maxLength="180" value={form.billingName || ''} onChange={updateField} placeholder={form.name || ''} /><small>{isEnglish ? 'Leave blank to use the participant name. Use the legal name when the invoice is for an organisation. Up to 180 characters.' : 'Se ficar vazio, será usado o nome do participante. Para faturação a uma entidade, indique a denominação legal. Até 180 caracteres.'}</small></label>
+              <label className="account-form-grid__wide"><span>{isEnglish ? 'Address *' : 'Morada *'}</span><textarea name="billingAddress" rows="3" autoComplete="street-address" aria-required="true" maxLength="250" value={form.billingAddress || ''} onChange={updateField} /></label>
+              <label><span id="profile-postal-code-label">{isEnglish ? 'Postal code *' : 'Código postal *'}</span><input name="billingPostalCode" autoComplete="postal-code" aria-labelledby="profile-postal-code-label" aria-describedby="profile-postal-code-help" aria-required="true" value={form.billingPostalCode || ''} onChange={updateField} placeholder="0000-000" /><small id="profile-postal-code-help">{isEnglish ? 'Portuguese format: 0000-000, including the hyphen.' : 'Formato português: 0000-000, incluindo o hífen.'}</small></label>
+              <label><span>{isEnglish ? 'City *' : 'Localidade *'}</span><input name="billingCity" autoComplete="address-level2" aria-required="true" maxLength="100" value={form.billingCity || ''} onChange={updateField} /></label>
+              <label className="account-form-grid__wide"><span id="profile-billing-country-label">{isEnglish ? 'Billing country *' : 'País de faturação *'}</span><input name="billingCountry" autoComplete="country-name" aria-labelledby="profile-billing-country-label" aria-describedby="profile-billing-country-help" aria-required="true" value={form.billingCountry || ''} onChange={updateField} /><small id="profile-billing-country-help">{isEnglish ? 'For payment, enter Portugal or PT. Billing is currently available for Portugal.' : 'Para pagar, indique Portugal ou PT. A faturação está disponível para Portugal nesta fase.'}</small></label>
             </div>
 
             <div className="account-form-actions">

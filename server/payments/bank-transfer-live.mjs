@@ -8,6 +8,7 @@ import { publicLiveOrder } from './checkout-live.mjs';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { proposedBankAccount } from './bank-transfer-account.mjs';
 import { quotePrimary, quoteSupplementary } from './quote.mjs';
+import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
 const EVENT = 'circ-2027', ADMIN = 'circ.chuc@gmail.com', PREFIX = '/api/checkout/live';
 const headers = { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store', Vary: 'Authorization', 'X-Content-Type-Options': 'nosniff' };
@@ -181,6 +182,8 @@ export function createBankTransferLiveApi({ verify, tokenProvider = createPaymen
       } catch { fail('bank-transfer-source-mismatch', 409); }
       if (expected.amountCents !== decision.amountCents) fail('bank-transfer-tariff-mismatch', 409,
         { expectedAmountCents: expected.amountCents, receivedAmountCents: decision.amountCents, bookingDate: decision.bookingDate });
+      const billing = validateBillingCustomerSnapshot(p.billingSnapshot);
+      if (!billing.ok) fail('billing-customer-unconfirmed', 409, { issues: billing.issues });
       let billingAccount;
       try { billingAccount = await fiscalClient.resolveBillingBankAccount(env, proposedBankAccount.iban); }
       catch { fail('fiscal-bank-account-unconfirmed', 503); }

@@ -4,10 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import RegistrationBuilder from './RegistrationBuilder';
 import PublicLiveCheckout from '../PublicLiveCheckout';
+import { useRegistrationCapacity } from '../../auth/registrationCapacity';
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
 jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: () => ({ verified: false }) }));
 jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: () => ({ approved: true }) }));
+jest.mock('../../auth/registrationCapacity', () => ({ useRegistrationCapacity: jest.fn() }));
+jest.mock('../RegistrationInvoice', () => () => <div>Registration invoice</div>);
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
 jest.mock('./StudentVerification', () => () => <div>Student verification</div>);
 let mockRegistration = null;
@@ -15,9 +18,37 @@ jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => null, C
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
 const show = () => render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
 const checkout = () => PublicLiveCheckout.mock.calls.at(-1)[0];
+const capacity = { status: 'ready', limits: { onsite: 400, morningCourse: 170, afternoonCourse: 170 }, remaining: { onsite: 10, morningCourse: 10, afternoonCourse: 10 }, refresh: jest.fn() };
 beforeEach(() => {
  jest.clearAllMocks(); mockRegistration = null; PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>);
+ useRegistrationCapacity.mockReturnValue(capacity);
  useAuth.mockReturnValue({ user: { uid: 'participant', emailVerified: true }, isAdmin: false });
+});
+test('a selected course that fills up can be removed without changing the remaining catalogue', () => {
+ const { rerender } = show();
+ fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
+ fireEvent.click(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }));
+ useRegistrationCapacity.mockReturnValue({ ...capacity, remaining: { ...capacity.remaining, morningCourse: 0 } });
+ rerender(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
+ expect(morning).toBeChecked(); expect(morning).toBeEnabled(); expect(checkout().eligible).toBe(false);
+ fireEvent.click(morning);
+ expect(morning).not.toBeChecked(); expect(morning).toBeDisabled();
+ expect(checkout()).toMatchObject({ eligible: true, selection: { congressMode: 'virtual', morningCourse: false } });
+});
+test('an unavailable capacity read does not unmount recovery of an existing pending payment', () => {
+ mockRegistration = { id: 'pending-registration', isTest: false, status: 'submitted', selection: { profile: 'external', congressMode: 'onsite' }, payment: { status: 'pending' } };
+ useRegistrationCapacity.mockReturnValue({ ...capacity, status: 'error', remaining: null });
+ show();
+ expect(screen.getByText('Production checkout')).toBeInTheDocument();
+ expect(checkout()).toMatchObject({ registration: mockRegistration, eligible: false });
+});
+test('a paid registration disables the primary capacity hook while its supplements own the read', () => {
+ mockRegistration = { id: 'paid-registration', isTest: false, status: 'confirmed', selection: { profile: 'external', congressMode: 'onsite' }, payment: { status: 'paid', amountCents: 9500 } };
+ show();
+ expect(useRegistrationCapacity.mock.calls.some(([, enabled]) => enabled === false)).toBe(true);
+ expect(useRegistrationCapacity.mock.calls.some(([, enabled]) => enabled !== false)).toBe(true);
+ expect(checkout().kind).toBe('supplementary');
 });
 test('students can buy one or both courses and courses-only requires at least one selection', () => {
  show(); fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ })); fireEvent.click(screen.getByRole('radio', { name: /Cursos pré-congresso/ }));

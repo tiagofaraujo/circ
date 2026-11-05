@@ -214,14 +214,15 @@ test('a changed profile name invalidates the student rate', async () => {
   await updateDoc(doc(dbFor(), 'users', UID), { name: 'Outro Nome Completo' });
   await assertFails(setDoc(doc(dbFor('admin'), 'registrations', 'registration-a'), registration()));
 });
-test('approved students may register for morning, afternoon or both courses with any congress mode', async () => {
+test('approved students may save course selections but capacity admission remains server-only', async () => {
   await seed({ status: 'approved' }); const db = dbFor('admin');
   for (const congressMode of ['onsite', 'virtual', 'courses-only']) {
     for (const courses of [{ morningCourse: true }, { afternoonCourse: true }, { morningCourse: true, afternoonCourse: true }]) {
       await assertSucceeds(setDoc(doc(db, 'registrations', 'registration-a'), registration({
         selection: { profile: 'student', courseAffiliation: 'external', congressMode, ...courses },
-        entitlements: { congressMode, ...courses },
+        entitlements: {},
       })));
+      await assertFails(updateDoc(doc(db, 'registrations', 'registration-a'), { entitlements: { congressMode, ...courses } }));
     }
   }
 });

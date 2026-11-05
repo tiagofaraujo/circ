@@ -3,6 +3,7 @@ import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs
 import { createCheckoutLiveStore, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createEupagoLive } from './eupago-live.mjs';
 import { createStripeLive,stripeLiveConfiguration,safeLiveCheckoutUrl,STRIPE_LIVE_SESSION_ID } from './stripe-live.mjs';
+import { capacityDecision, selectionFootprint } from './paid-capacity.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { livePaymentMethods, liveBankTransferAccount, MBWAY_APPROVAL_WINDOW_MS } from './live-payment-methods.mjs';
@@ -13,7 +14,7 @@ import { liveDataStamp as stamp, isLivePilotConfigured, isLiveCheckoutEnabled, i
 
 const PREFIX='/api/checkout/live', ADMIN='circ.chuc@gmail.com', EVENT='circ-2027';
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','CDN-Cache-Control':'no-store',Vary:'Authorization','X-Content-Type-Options':'nosniff'}});
-const fail=(code,status=400)=>{throw Object.assign(new Error(code),{code,status});};
+const fail=(code,status=400,details={})=>{throw Object.assign(new Error(code),{code,status,details});};
 const exact=(o,keys)=>{if(!o||typeof o!=='object'||Array.isArray(o)||Object.keys(o).some(k=>!keys.includes(k)))fail('invalid-request');};
 async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type')||''))fail('invalid-request');try{return await request.json();}catch{fail('invalid-request');}}
 const openForPublic=now=>now.slice(0,10)>=REGISTRATION_OPEN_DATE;
@@ -24,6 +25,7 @@ const paymentProvider=method=>method==='bank_transfer'?'internal_bank_transfer':
 export const publicLiveOrder=(id,p,{canRetry=false}={})=>({id,kind:orderKind(p),selection:p.quote?.selection||null,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
   reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,
   ...(historical(p)?{historicalRegistration:true}:{}),
+  ...(p.capacityStatus==='review_required'?{capacityStatus:'review_required',capacityUnavailable:p.capacityUnavailable||[]}:{}),
   ...(p.method==='stripe_card'?{stripe:{id:p.reference||null,url:safeLiveCheckoutUrl(p.stripe?.url,p.reference),expiresAt:p.stripe?.expiresAt||null,
     status:p.stripe?.status||null,paymentStatus:p.stripe?.paymentStatus||null},expiresAt:Number.isSafeInteger(p.stripe?.expiresAt)?new Date(p.stripe.expiresAt*1000).toISOString():null,canRetry:false}:{}),
   ...(p.method==='mbway'?{expiresAt:p.expiresAt||null,canRetry:Boolean(!historical(p)&&canRetry&&isClosedUnpaidMbway(p)),...(p.replacementOrderId?{replacementOrderId:p.replacementOrderId}:{})}:{}),
@@ -64,10 +66,19 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
     const recoveringSupplement=request.method==='GET'&&url.pathname===`${PREFIX}/supplementary-order`;
     const reconcileMatch=request.method==='POST'&&url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)\/mbway-reconcile$/);
     const stripeReconcile=request.method==='POST'&&url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)\/stripe-reconcile$/);
-    if(!configured&&!readingOrder&&!recoveringPrimary&&!recoveringSupplement&&!reconcileMatch&&!stripeReconcile)return reply({error:'live-checkout-not-configured'},503);
+    const billingReading=request.method==='GET'&&url.pathname===`${PREFIX}/billing-readiness`;
+    const capacityReading=request.method==='GET'&&url.pathname===`${PREFIX}/capacity`;
+    if(!configured&&!billingReading&&!capacityReading&&!readingOrder&&!recoveringPrimary&&!recoveringSupplement&&!reconcileMatch&&!stripeReconcile)return reply({error:'live-checkout-not-configured'},503);
     let storeToken;try{storeToken=(recoveringPrimary||recoveringSupplement)?token:await tokenProvider(env);}catch{return reply({error:'payments-service-unavailable'},503);}
     let store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:storeToken});
     try{
+      if(billingReading){
+        const profile=await store.profile(),billing=billingCustomerFromProfile(profile.data);
+        const name=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
+        const issues=[...billing.issues,...(name.length<5||name.length>200?['profile-name-required']:[])];
+        return reply({ready:issues.length===0,issues});
+      }
+      if(capacityReading)return reply(await store.capacity());
       if(stripeReconcile){
         const id=stripeReconcile[1];if(!LIVE_ORDER_UUID.test(id))fail('invalid-request');
         const input=await body(request);exact(input,[]);
@@ -182,6 +193,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         if(!methods.includes(data.method))fail('payment-method-unavailable',409);
       }
       const existing=await store.registration(), r=existing.data;
+      if(r?.capacityReviewOrderId)fail('capacity-review-required',409);
       let replacement=null;
       if(kind==='primary'&&r){
         const previous=LIVE_ORDER_UUID.test(r.payment?.orderId||'')?await store.payment(r.payment.orderId):null;
@@ -212,10 +224,15 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now())):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
       if(privatePilot&&(kind!=='primary'||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
       const profile=await store.profile(), billing=billingCustomerFromProfile(profile.data);
-      if(!billing.ok)fail('billing-customer-unconfirmed',409);
+      if(!billing.ok)fail('billing-customer-unconfirmed',409,{issues:billing.issues});
+      context.guards.push(profile);
       const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
       if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
       buildLiveMultibancoFR({orderId:creating?data.id:'11111111-1111-4111-8111-111111111111',quote,billing,paymentDate:now().slice(0,10)});
+      if(Object.values(selectionFootprint(quote.selection)).some(value=>value>0)){
+        const available=await store.capacity(),decision=capacityDecision(available,{selection:quote.selection});
+        if(!decision.allocated)fail('capacity-full',409,{unavailable:decision.unavailable});
+      }
       if(quoting)return reply({quote,stamp:stamp(quote),billing:billing.customer,billingStamp:stamp(billing.customer)});
       if(data.stamp!==stamp(quote))fail('quote-changed',409);
       if(stamp(billing.customer)!==data.billingStamp)fail('billing-preview-changed',409);
@@ -267,7 +284,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       }
       return reply({order:publicLiveOrder(data.id,p)},201);
     }catch(error){const code=error.code||(typeof error.message==='string'?error.message.replace(/^checkout\//,''):'service-unavailable');
-      const conflict=['registration-exists','paid-registration-required','invalid-addition','course-already-owned','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict','fiscal-pending','conflict'].includes(code);
-      return reply({error:code},Number(error.status)||(conflict?409:['registration-not-open','uls-not-verified','student-not-approved','sign-in-required'].includes(code)?403:503));}
+      const conflict=['registration-exists','paid-registration-required','invalid-addition','course-already-owned','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict','fiscal-pending','capacity-full','capacity-review-required','conflict'].includes(code);
+      return reply({error:code,...(error.details||{}),...(error.unavailable?{unavailable:error.unavailable}:{})},Number(error.status)||(conflict?409:['registration-not-open','uls-not-verified','student-not-approved','sign-in-required'].includes(code)?403:503));}
   };
 }

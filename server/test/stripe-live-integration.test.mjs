@@ -35,6 +35,7 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
   const sameReg = version => registration && String(registrationVersion) === version;
   const store = {
     registrationId,
+    capacity:async()=>({limits:{onsite:400,morningCourse:170,afternoonCourse:170},paid:{onsite:0,morningCourse:0,afternoonCourse:0},remaining:{onsite:400,morningCourse:170,afternoonCourse:170}}),
     registration: async () => ({ data: clone(registration), version: registration ? String(registrationVersion) : null }),
     payment: async id => snapshot(payments, id), document: async id => snapshot(jobs, id),
     primaryPayment: async () => {

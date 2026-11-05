@@ -236,6 +236,25 @@ test('credit date cannot precede the order creation day in Lisbon',async()=>{
  expect(screen.getByText(/anterior/i)).toBeVisible();
  expect(screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'})).toBeDisabled(); expect(posts()).toHaveLength(0);
 });
+test('invalid frozen billing is explained without claiming the current profile can replace this order snapshot',async()=>{
+ fetch.mockImplementation(async(_,options)=>options.method==='GET'?response({orders:[order]}):response({error:'billing-customer-unconfirmed',issues:['billing-tax-number-invalid']},false,409));
+ show();await openReview();fill();fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Os dados de faturação guardados neste pedido estão incompletos ou inválidos');
+ expect(screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'})).toBeDisabled();
+ expect(screen.queryByText('Pagamento confirmado. Este pedido não permite uma nova validação.')).not.toBeInTheDocument();
+ expect(posts()).toHaveLength(1);
+});
+test('a received bank payment held for capacity review is visibly paid with its place pending and no further approval',async()=>{
+ fetch.mockImplementation(async(_,options)=>options.method==='GET'?response({orders:[order]}):response({order:{...order,status:'paid',capacityStatus:'review_required',capacityUnavailable:['onsite'],bankTransfer:{...order.bankTransfer,status:'confirmed',revision:3}}}));
+ show();await openReview();fill();fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Validar crédito e confirmar pagamento'}));
+ await screen.findByText('O pagamento foi recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não valide outro pagamento para este pedido.');
+ expect(screen.queryByRole('button',{name:'Validar crédito e confirmar pagamento'})).not.toBeInTheDocument();
+ fireEvent.change(screen.getByLabelText('Mostrar'),{target:{value:'all'}});
+ expect(screen.getByText('Pago · vaga em conferência')).toBeInTheDocument();
+ expect(posts()).toHaveLength(1);
+});
 
 test('future credit dates and invalid statement references explain the disabled approval without sending a payment request',async()=>{
  show(); await openReview();

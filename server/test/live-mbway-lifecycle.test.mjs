@@ -88,6 +88,18 @@ function memoryFirestore() {
       if (rows.length) rows[0].transaction = 'memory-transaction';
       return Response.json(rows);
     }
+    if (url.pathname.endsWith(':runQuery')) {
+      const query=body.structuredQuery;
+      assert.deepEqual(query.from,[{collectionId:'registrations'}]);
+      assert.equal(query.where.fieldFilter.field.fieldPath,'payment.status');
+      assert.equal(query.where.fieldFilter.value.stringValue,'paid');
+      if(body.transaction)assert.equal(body.transaction,'memory-transaction');
+      const after=query.startAt?.values?.[0]?.referenceValue;
+      const rows=[...documents.values()].filter(doc=>doc.name.startsWith(`${root}/registrations/`)
+        &&decode({mapValue:{fields:doc.fields}}).payment?.status==='paid'&&(!after||doc.name>after))
+        .sort((a,b)=>a.name.localeCompare(b.name)).slice(0,query.limit);
+      return Response.json(rows.map(document=>({document:structuredClone(document)})));
+    }
     if (url.pathname.endsWith(':rollback')) return Response.json({});
     if (url.pathname.endsWith(':commit')) {
       // Validate every precondition before applying any of the writes.

@@ -120,6 +120,37 @@ test('supplement approval adds only the purchased entitlements and preserves the
   assert.equal(state.job.orderKind, 'supplementary');
 });
 
+test('invalid frozen billing blocks primary and supplemental bank approval before bank lookup, credit claim or fiscal writes', async () => {
+  const mutations=[
+    customer=>{delete customer.customer_address_detail;},customer=>{delete customer.customer_postcode;},customer=>{delete customer.customer_city;},
+    customer=>{customer.customer_business_name=' ';},customer=>{customer.customer_tax_registration_number='203821431';},
+    customer=>{customer.customer_tax_registration_number='517072262';},customer=>{customer.customer_address_detail='';},
+    customer=>{customer.customer_postcode='3000';},customer=>{customer.customer_city='';},customer=>{customer.customer_country='ES';},
+  ];
+  for(const supplementary of [false,true])for(const mutate of mutations){
+    const f=fixture({supplementary}),customer=structuredClone(billing);mutate(customer);f.changePayment({billingSnapshot:customer});
+    const before=structuredClone(f.state());
+    const response=await f.api(request('review',approve({amountCents:supplementary?6500:9500})),env);
+    assert.equal(response.status,409);const result=await response.json();
+    assert.equal(result.error,'billing-customer-unconfirmed');assert.ok(result.issues.length>0);
+    assert.doesNotMatch(JSON.stringify(result),/Participante Exemplo|Rua Exemplo|123456789/);
+    assert.deepEqual(f.state(),before);assert.equal(f.state().resolutions,0);assert.equal(f.state().commits,0);assert.equal(f.state().issues,0);
+    assert.equal(f.state().credit,null);assert.equal(f.state().job,null);
+  }
+});
+
+test('approval uses the original valid billing snapshot without looking up or substituting current profile billing', async () => {
+  const f=fixture(),original=structuredClone(f.state().payment.billingSnapshot);
+  f.store.profile=async()=>assert.fail('frozen billing must not be replaced with current profile data');
+  const issue=f.fiscalClient.issueFinalizedSalesDocument;
+  f.fiscalClient.issueFinalizedSalesDocument=async(env,payload)=>{
+    assert.deepEqual(Object.fromEntries(Object.keys(original).map(key=>[key,payload[key]])),original);
+    return issue(env,payload);
+  };
+  assert.equal((await f.api(request(),env)).status,200);
+  assert.deepEqual(f.state().payment.billingSnapshot,original);assert.equal(f.state().issues,1);
+});
+
 test('stale review, reused credit, invalid date/amount and unconfirmed bank account never mark paid', async () => {
   const cases = [
     [approve({ expectedRevision: 1 }), 409], [approve({ bookingDate: '2026-11-02' }), 400],

@@ -8,7 +8,8 @@ function fixture(stale=false){
  const calls=[];
  const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'fake-service',fetchImpl:async(url,options)=>{
   const body=options.body?JSON.parse(options.body):null;calls.push({url,options,body});
-  if(url.endsWith(':batchGet'))return Response.json([{transaction:'transaction-1',found:{name:`${root}/registrations/circ-2027-participant`,updateTime:stale?'newer-version':'r1'}},{missing:`${root}/payments/${id}`}]);
+  if(url.endsWith(':batchGet'))return Response.json(body.documents.map((name,index)=>({...(index===0?{transaction:'transaction-1'}:{}),
+    ...(name===`${root}/registrations/circ-2027-participant`?{found:{name,updateTime:stale?'newer-version':'r1'}}:{missing:name})})));
   if(url.endsWith(':commit'))return Response.json({writeResults:[{updateTime:'r2'},{updateTime:'p1'}]});
   if(url.endsWith(':rollback'))return Response.json({});
   throw new Error('unexpected request');
@@ -19,11 +20,13 @@ test('supplementary reservation conditionally updates the existing registration 
  const f=fixture();const result=await f.store.createPendingSupplementary({orderId:id,registration,registrationVersion:'r1',payment});
  assert.deepEqual(result,{registrationVersion:'r2',paymentVersion:'p1'});
  const commit=f.calls.find(call=>call.url.endsWith(':commit'));
- assert.equal(commit.body.transaction,'transaction-1');assert.equal(commit.body.writes.length,2);
+ assert.equal(commit.body.transaction,'transaction-1');assert.equal(commit.body.writes.length,3);
  assert.deepEqual(commit.body.writes[0].currentDocument,{updateTime:'r1'});
  assert.deepEqual(commit.body.writes[1].currentDocument,{exists:false});
  assert.equal(commit.body.writes[0].update.fields.openSupplementaryOrderId.stringValue,id);
  assert.equal(commit.body.writes[1].update.fields.kind.stringValue,'supplementary');
+ assert.equal(commit.body.writes[2].update.name,`${root}/settings/circ-2027-paid-capacity-v1`);
+ assert.deepEqual(commit.body.writes[2].currentDocument,{exists:false});
 });
 test('a concurrent registration change aborts reservation before any commit',async()=>{
  const f=fixture(true);await assert.rejects(f.store.createPendingSupplementary({orderId:id,registration,registrationVersion:'r1',payment}),error=>error.code==='conflict');

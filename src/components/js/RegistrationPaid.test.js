@@ -3,16 +3,19 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ExistingRegistrationAddOns } from './RegistrationBuilder';
 import PublicLiveCheckout from '../PublicLiveCheckout';
+import { useRegistrationCapacity } from '../../auth/registrationCapacity';
 jest.mock('../RegistrationInvoice', () => () => <div>Issued invoice</div>);
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Supplement checkout</div>));
 jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: () => ({verified:false}) }));
 jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: () => ({approved:true}) }));
+jest.mock('../../auth/registrationCapacity', () => ({ useRegistrationCapacity: jest.fn() }));
 const registration = { id:'circ-2027-user', participantName:'Participante', voucherId:'voucher', isTest:false, status:'confirmed',
  selection:{profile:'external',congressMode:'onsite'}, entitlements:{morningCourse:true,afternoonCourse:false,dinnerQuantity:2},
  payment:{status:'paid',amountCents:0,coveredAmountCents:9500,payer:'Empresa'} };
 const user = {uid:'user',emailVerified:true};
 const show = (value=registration) => render(<MemoryRouter><ExistingRegistrationAddOns registration={value} user={user} en={false} /></MemoryRouter>);
-beforeEach(()=>{jest.clearAllMocks();PublicLiveCheckout.mockImplementation(()=><div>Supplement checkout</div>);});
+const capacity = { status: 'ready', limits: { onsite: 400, morningCourse: 170, afternoonCourse: 170 }, remaining: { onsite: 10, morningCourse: 10, afternoonCourse: 10 }, refresh: jest.fn() };
+beforeEach(()=>{jest.clearAllMocks();useRegistrationCapacity.mockReturnValue(capacity);PublicLiveCheckout.mockImplementation(()=><div>Supplement checkout</div>);});
 test('paid voucher entitlements prevent duplicate courses and supplements have their own checkout',()=>{
  show(); expect(screen.getByRole('heading',{name:'Resumo da inscrição'})).toBeInTheDocument();
  expect(screen.getByRole('checkbox',{name:/Pós-processamento em ressonância magnética/})).toBeChecked();
@@ -49,4 +52,21 @@ test('a paid MB WAY registration remains visibly paid while its receipt awaits t
  expect(screen.getByText(/A fatura-recibo está pendente de conclusão pela organização/)).toBeInTheDocument();
  expect(screen.queryByText('Em conferência')).not.toBeInTheDocument();
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
+});
+test('owned courses consume no additional places while dinner remains available when all capacities are full',()=>{
+ useRegistrationCapacity.mockReturnValue({...capacity,remaining:{onsite:0,morningCourse:0,afternoonCourse:0}});
+ show();
+ expect(screen.getByRole('checkbox',{name:/Pós-processamento em ressonância magnética/})).toBeChecked();
+ expect(screen.getByRole('checkbox',{name:/Via Verde AVC/})).toBeDisabled();
+ fireEvent.change(screen.getByRole('spinbutton'),{target:{value:'1'}});
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({eligible:true,selection:{morningCourse:false,afternoonCourse:false,dinnerQuantity:1}});
+});
+test('capacity review preserves the received payment and prevents another purchase without claiming selected entitlements',()=>{
+ show({...registration,entitlements:undefined,capacityReviewOrderId:'review-order',selection:{...registration.selection,morningCourse:true},payment:{status:'paid',amountCents:9500}});
+ expect(screen.getByText('Pagamento recebido · Vaga em conferência')).toBeInTheDocument();
+ expect(screen.getByText(/a vaga ou inscrição aguarda conferência pela organização.*Não efetue outro pagamento/)).toBeInTheDocument();
+ expect(screen.queryByText('Curso da manhã incluído')).not.toBeInTheDocument();
+ expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+ expect(screen.queryByRole('heading',{name:'Adicionar cursos ou bilhetes de jantar'})).not.toBeInTheDocument();
+ expect(PublicLiveCheckout).not.toHaveBeenCalled();
 });

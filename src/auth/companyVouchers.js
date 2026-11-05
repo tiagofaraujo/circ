@@ -19,6 +19,8 @@ export function companyError(error) {
     'company/auth': 'Entre na sua conta e confirme o email.',
     'company/details': 'Verifique os dados da empresa, a quantidade e o preço por inscrição.',
     'company/conflict': 'O registo foi alterado. Atualize a lista antes de continuar.',
+    'company/capacity-full': 'A lotação está esgotada. O voucher não foi utilizado. Contacte a organização.',
+    'company/unavailable': 'Não foi possível confirmar o resgate no servidor. Tente novamente com o mesmo código.',
     'company/transfer': 'Indique a referência da transferência confirmada.',
     'permission-denied': 'Acesso recusado. Confirme a conta e a ativação das regras no Firebase.',
     'unavailable': 'Sem ligação ao servidor. A operação não foi confirmada; tente novamente.',
@@ -115,36 +117,20 @@ export async function loadCompanyVouchers(purchase) {
   }));
 }
 export async function redeemCompanyVoucher(value) {
-  const { user, db, stamp } = context();
+  const user = getFirebaseAuth()?.currentUser;
+  if (!user?.emailVerified || !user.getIdToken) throw new Error('company/auth');
   const code = normalizeVoucher(value);
-  const ref = db.collection('companyVouchers').doc(code);
-  const registrationId = companyRegistrationId(user.uid);
-  const reg = db.collection('registrations').doc(registrationId);
-  await db.runTransaction(async (tx) => {
-    const config = await tx.get(db.collection('settings').doc(COMPANY_CONFIG));
-    if (config.data()?.enabled !== true) throw new Error('company/closed');
-    const existing = await tx.get(reg);
-    if (existing.exists) {
-      if (existing.data().voucherId === code) return; // Retry after a lost response is idempotent.
-      throw new Error('company/existing');
-    }
-    const s = await tx.get(ref);
-    const v = s.data();
-    if (!v || v.status !== 'available') throw new Error('company/invalid-code');
-    const profile = await tx.get(db.collection('users').doc(user.uid));
-    const name = profile.data()?.name;
-    if (typeof name !== 'string' || name.trim().length < 5 || name.length > 200) throw new Error('company/profile');
-    tx.set(reg, { eventId: 'circ-2027', userId: user.uid, registrationKey: `circ-2027:${user.uid}`,
-      primaryRegistration: true, participantName: name, participantEmail: user.email,
-      registrationType: 'CIRC 2027 · Presencial', status: 'confirmed', isTest: false, testMode: false,
-      selection: { profile: 'external', courseAffiliation: 'external', congressMode: 'onsite', morningCourse: false,
-        afternoonCourse: false, dinner: false, dinnerQuantity: 0, ratePeriod: 'company' },
-      entitlements: { congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 },
-      payment: { status: 'paid', amountCents: 0, coveredAmountCents: v.unitAmountCents, currency: 'EUR',
-        method: 'company_voucher', reference: v.purchaseId, payer: v.companyName },
-      voucherId: code, companyPurchaseId: v.purchaseId, addOnOrderCount: 0, documentCount: 0,
-      createdAt: stamp(), updatedAt: stamp() });
-    tx.update(ref, { status: 'redeemed', redeemedBy: user.uid, registrationId, redeemedAt: stamp(), updatedAt: stamp() });
-  });
-  return registrationId;
+  let response;
+  try {
+    const token = await user.getIdToken();
+    response = await fetch('/api/checkout/live/company-voucher/redeem', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ code }),
+    });
+  } catch { throw new Error('company/unavailable'); }
+  let result;
+  try { result = await response.json(); } catch { throw new Error('company/unavailable'); }
+  if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : 'company/unavailable');
+  if (result?.registrationId !== companyRegistrationId(user.uid) || typeof result.duplicate !== 'boolean') throw new Error('company/unavailable');
+  return result.registrationId;
 }

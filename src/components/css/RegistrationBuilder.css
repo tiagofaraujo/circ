@@ -1201,3 +1201,18 @@
 .registration-purchase-option--quantity { justify-content: space-between; }
 .registration-purchase-option--quantity input { width: 5.5rem; min-width: 4rem; padding: .5rem; }
 .registration-purchase-options[disabled] { opacity: .75; }
+.registration-purchase-option.is-unavailable { color: var(--ink-soft, #53576d); background: #f3f2f5; }
+.registration-capacity { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; background: #f6f6fb; }
+.registration-capacity h3 { margin: 0 0 .75rem; color: var(--blue, #2b2bb4); font-size: 1rem; }
+.registration-capacity dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; margin: 0; }
+.registration-capacity dt { font-weight: 650; }
+.registration-capacity dd { margin: .25rem 0 0; }
+.registration-capacity p { margin: .75rem 0; font-size: .85rem; line-height: 1.6; }
+.registration-capacity button { padding: .6rem .85rem; border: 1px solid var(--blue, #2b2bb4); border-radius: .3rem; color: var(--blue, #2b2bb4); background: #fff; font: inherit; cursor: pointer; }
+.registration-capacity button:disabled { opacity: .6; cursor: wait; }
+.registration-capacity button:focus-visible { outline: 3px solid var(--coral, #e55041); outline-offset: 3px; }
+.registration-billing-required { display: grid; gap: .75rem; margin: 1.25rem 0; padding: 1.1rem; border: 1px solid var(--line, #d9dbe4); border-left: 3px solid var(--blue, #2b2bb4); border-radius: .4rem; background: #f6f6fb; }
+.registration-billing-required h3, .registration-billing-required p, .registration-billing-required ul { margin: 0; }
+.registration-billing-required p, .registration-billing-required li { font-size: .9rem; line-height: 1.6; }
+.registration-billing-required ul { padding-left: 1.2rem; }
+.registration-billing-required a, .registration-billing-required button { justify-self: start; }

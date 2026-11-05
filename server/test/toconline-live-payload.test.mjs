@@ -97,6 +97,35 @@ test('invalid dates, foreign billing and billing fields capable of overriding do
   }
 });
 
+test('every production payment method rejects incomplete or invalid frozen billing before building an FR',()=>{
+  const mutations=[
+    customer=>{delete customer.customer_address_detail;},customer=>{delete customer.customer_postcode;},customer=>{delete customer.customer_city;},
+    customer=>{customer.customer_business_name='   ';},customer=>{customer.customer_tax_registration_number='203821431';},
+    customer=>{customer.customer_tax_registration_number='517072262';},customer=>{customer.customer_tax_registration_number=203821432;},
+    customer=>{customer.customer_address_detail='';},customer=>{customer.customer_address_detail='Rua\u0000Um';},
+    customer=>{customer.customer_address_detail='a'.repeat(251);},customer=>{customer.customer_postcode='3030';},
+    customer=>{customer.customer_city='';},customer=>{customer.customer_city='c'.repeat(101);},
+    customer=>{customer.customer_country='Portugal';},customer=>{customer.payment_mechanism='OTHER';},
+  ];
+  for(const [method,extra] of [['multibanco',{}],['mbway',{}],['bank_transfer',{bankAccountId:2}],['stripe_card',{cardFunding:'credit'}]]){
+    for(const change of mutations){
+      const customer=structuredClone(billing.customer);change(customer);
+      assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing:{customer},paymentDate:'2026-11-15',method,...extra}),/live-fiscal\/unsupported-order/);
+    }
+  }
+});
+
+test('a valid frozen billing snapshot is copied byte-for-byte for every payment mechanism without mutation',()=>{
+  const customer=Object.freeze({...billing.customer,customer_business_name:'João D’Ávila & Filhos, Lda.',customer_address_detail:'Praça da Sé, n.º 10 — Loja A'});
+  const before=JSON.stringify(customer);
+  for(const [method,extra,mechanism] of [['multibanco',{},'MB'],['mbway',{},'OU'],['bank_transfer',{bankAccountId:2},'TR'],
+    ['stripe_card',{cardFunding:'credit'},'CC'],['stripe_card',{cardFunding:'debit'},'DC']]){
+    const result=buildLivePaymentFR({orderId:ID,quote,billing:{customer},paymentDate:'2026-11-15',method,...extra});
+    assert.deepEqual(Object.fromEntries(Object.keys(customer).map(key=>[key,result[key]])),customer);
+    assert.equal(result.payment_mechanism,mechanism);assert.equal(JSON.stringify(customer),before);
+  }
+});
+
 test('bank transfer FR uses documented TR only with a validated company billing account',()=>{
   const input={orderId:ID,quote:primary({morningCourse:true}),billing,paymentDate:'2026-11-15',method:'bank_transfer'};
   const result=buildLivePaymentFR({...input,bankAccountId:7});

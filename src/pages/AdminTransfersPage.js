@@ -197,7 +197,9 @@ function AdminTransfersQueue({ user, language }) {
       current.state = 'success'; current.mustRefresh = false;
       if (!alive.current) return;
       setOrders(previous => previous.map(order => order.id === result.order.id ? { ...order, ...result.order } : order));
-      setMessage(t('Crédito validado e pagamento confirmado. A inscrição foi atualizada; a faturação segue o estado do pedido.', 'Bank credit validated and payment confirmed. Registration was updated; invoicing follows the order status.'));
+      setMessage(result.order.capacityStatus === 'review_required'
+        ? t('Crédito validado e pagamento recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não valide outro pagamento para este pedido.', 'Bank credit validated and payment received. The registration or place awaits organiser review because of capacity. Do not validate another payment for this order.')
+        : t('Crédito validado e pagamento confirmado. A inscrição foi atualizada; a faturação segue o estado do pedido.', 'Bank credit validated and payment confirmed. Registration was updated; invoicing follows the order status.'));
     } catch (issue) {
       if (!alive.current) return;
       if (sent && current) {
@@ -209,6 +211,8 @@ function AdminTransfersQueue({ user, language }) {
         ? t('Este movimento bancário já está associado a outro pagamento.', 'This bank entry is already associated with another payment.')
         : issue.code === 'bank-transfer-tariff-mismatch'
           ? t('O montante creditado não corresponde à tarifa da data indicada. Confira o valor recebido e regularize a diferença antes da confirmação.', 'The credited amount does not match the tariff for that date. Check the actual amount received and resolve the difference before confirmation.')
+          : issue.code === 'billing-customer-unconfirmed'
+            ? t('Os dados de faturação guardados neste pedido estão incompletos ou inválidos. Confira este pedido antes de validar o crédito.', 'The billing details saved with this order are incomplete or invalid. Review this order before validating the bank credit.')
           : t('A validação não foi concluída ou o resultado não é conhecido.', 'Validation did not complete or its result is unknown.');
       setError(`${detail} ${t('Atualize a lista antes de voltar a tentar. Não confirme novamente um pagamento que já apareça como pago.', 'Refresh the list before trying again. Do not reconfirm a payment already shown as paid.')}`);
     } finally {
@@ -238,13 +242,14 @@ function AdminTransfersQueue({ user, language }) {
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {!loading && !readFailed && visible.length === 0 && <p>{truncated ? t('Não existem transferências neste filtro entre os pedidos carregados.', 'No loaded transfers match this filter.') : t('Não existem transferências para este filtro.', 'No transfers match this filter.')}</p>}
     {visible.length > 0 && <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>{t('Participante', 'Participant')}</th><th>{t('Pedido', 'Order')}</th><th>{t('Montante', 'Amount')}</th><th>{t('Estado', 'Status')}</th><th>{t('Referência', 'Reference')}</th><th>{t('Conferência', 'Review')}</th></tr></thead>
-      <tbody>{visible.map(order => <tr key={order.id}><td>{order.ownerName || t('Participante', 'Participant')}</td><td>{order.kind === 'supplementary' ? t('Complementos', 'Supplements') : t('Inscrição', 'Registration')}<br /><small>{order.id}</small></td><td>{money(order.amountCents)}</td><td>{order.status === 'paid' ? t('Pago', 'Paid') : bankLabel(order.bankTransfer.status)}</td><td>{order.bankTransfer.paymentReference}</td><td><button type="button" disabled={posting || loading || readFailed} onClick={() => { setSelectedId(order.id); setError(''); }}>{mayReview(order) ? t('Conferir', 'Review') : t('Consultar', 'View')}</button></td></tr>)}</tbody></table></div>}
+      <tbody>{visible.map(order => <tr key={order.id}><td>{order.ownerName || t('Participante', 'Participant')}</td><td>{order.kind === 'supplementary' ? t('Complementos', 'Supplements') : t('Inscrição', 'Registration')}<br /><small>{order.id}</small></td><td>{money(order.amountCents)}</td><td>{order.status === 'paid' ? order.capacityStatus === 'review_required' ? t('Pago · vaga em conferência', 'Paid · place under review') : t('Pago', 'Paid') : bankLabel(order.bankTransfer.status)}</td><td>{order.bankTransfer.paymentReference}</td><td><button type="button" disabled={posting || loading || readFailed} onClick={() => { setSelectedId(order.id); setError(''); }}>{mayReview(order) ? t('Conferir', 'Review') : t('Consultar', 'View')}</button></td></tr>)}</tbody></table></div>}
     {truncated && <button type="button" disabled={loading || posting} onClick={() => load(activeRequest.current?.signal, { append:true })}>{t('Carregar mais pedidos', 'Load more orders')}</button>}
 
     {selected && <section className="admin-transfers__review" aria-labelledby="transfer-review-title">
       <h2 id="transfer-review-title">{t('Conferência do crédito bancário', 'Bank credit review')}</h2>
       <p><strong>{selected.ownerName || t('Participante', 'Participant')}</strong> · {selected.bankTransfer.paymentReference}</p>
       <dl><dt>{t('Valor do pedido', 'Order amount')}</dt><dd>{money(selected.amountCents)}</dd><dt>{t('Beneficiário', 'Payee')}</dt><dd>{selected.bankTransfer.payee}</dd><dt>IBAN</dt><dd>{selected.bankTransfer.iban}</dd></dl>
+      {selected.status === 'paid' && selected.capacityStatus === 'review_required' && <p role="status">{t('O pagamento foi recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não valide outro pagamento para este pedido.', 'Payment was received. The registration or place awaits organiser review because of capacity. Do not validate another payment for this order.')}</p>}
       {Array.isArray(selected.bankTransfer.reports) && selected.bankTransfer.reports.length > 0 && <div><h3>{t('Comunicações do participante', 'Participant reports')}</h3><ul>{selected.bankTransfer.reports.map((report, index) => <li key={index}>{report.at ? new Date(report.at).toLocaleString(en ? 'en-GB' : 'pt-PT', { timeZone:'Europe/Lisbon' }) : ''}{report.note ? ` · ${report.note}` : ` · ${t('Transferência comunicada', 'Transfer reported')}`}</li>)}</ul></div>}
       {selected.bankTransfer.confirmation && <p>{t('Movimento confirmado', 'Confirmed bank entry')}: {selected.bankTransfer.confirmation.creditReference} · {selected.bankTransfer.confirmation.bookingDate}</p>}
       {!mayReview(selected) ? <p>{selected.status === 'paid' ? t('Pagamento confirmado. Este pedido não permite uma nova validação.', 'Payment confirmed. This order cannot be validated again.') : t('Este pedido não está disponível para validação.', 'This order is not available for validation.')}</p> : <form onSubmit={approve}>
