@@ -75,16 +75,29 @@ function ContactForm() {
   return (
     <form ref={form} onSubmit={sendEmail} className="contact-form">
       <input type="hidden" name="to_email" value={CIRC_EMAIL} />
-      <input
-        type="text"
-        name="name"
-        placeholder={en ? 'Name' : 'Nome'}
-        autoComplete="name"
-        required
-      />
-      <input type="email" name="email" placeholder="Email" autoComplete="email" required />
-      <input type="text" name="subject" placeholder={en ? 'Subject' : 'Assunto'} required />
-      <textarea name="message" placeholder={en ? 'Message' : 'Mensagem'} required />
+      <label className="contact-form__field" htmlFor="contact-name">
+        <span>{en ? 'Name' : 'Nome'}</span>
+        <input
+          id="contact-name"
+          type="text"
+          name="name"
+          placeholder={en ? 'Name' : 'Nome'}
+          autoComplete="name"
+          required
+        />
+      </label>
+      <label className="contact-form__field" htmlFor="contact-email">
+        <span>Email</span>
+        <input id="contact-email" type="email" name="email" placeholder="Email" autoComplete="email" required />
+      </label>
+      <label className="contact-form__field" htmlFor="contact-subject">
+        <span>{en ? 'Subject' : 'Assunto'}</span>
+        <input id="contact-subject" type="text" name="subject" placeholder={en ? 'Subject' : 'Assunto'} required />
+      </label>
+      <label className="contact-form__field" htmlFor="contact-message">
+        <span>{en ? 'Message' : 'Mensagem'}</span>
+        <textarea id="contact-message" name="message" placeholder={en ? 'Message' : 'Mensagem'} required />
+      </label>
 
       <div className="contact-form__actions">
         <button type="submit" disabled={status === 'sending'}>
