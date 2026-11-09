@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -18,6 +18,18 @@ const navItems = [
 function Navbar() {
   const visibleItems = mediaVisible ? [...navItems.slice(0,-1), {to:'/media',pt:'Media',en:'Media'}, navItems[navItems.length-1]] : navItems;
   const [isOpen, setIsOpen] = useState(false);
+  const menuButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      setIsOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isOpen]);
   const { language, setLanguage } = useLanguage();
   const { user, loading } = useAuth();
   const isEnglish = language === 'en';
@@ -93,6 +105,7 @@ function Navbar() {
           <small>{accountState}</small>
         </Link>
         <button
+          ref={menuButtonRef}
           className={isOpen ? 'menu-toggle is-open' : 'menu-toggle'}
           type="button"
           onClick={() => setIsOpen((current) => !current)}
@@ -113,9 +126,10 @@ function Navbar() {
         </button>
       </div>
 
-      <div
+      <nav
         id="mobile-navigation"
         className={isOpen ? 'mobile-nav is-open' : 'mobile-nav'}
+        aria-label={isEnglish ? 'Mobile navigation' : 'Navegação móvel'}
       >
         <p className="mobile-nav__title">
           {isEnglish ? 'CIRC 2027 · 8–10 April' : 'CIRC 2027 · 8–10 de abril'}
@@ -130,7 +144,7 @@ function Navbar() {
           {user ? `My CIRC · ${accountIdentity}` : 'My CIRC · Login'}
         </Link>
         <Link to="/contactos" onClick={closeMenu}>{isEnglish ? 'Contact' : 'Contactos'}</Link>
-      </div>
+      </nav>
     </header>
   );
 }
