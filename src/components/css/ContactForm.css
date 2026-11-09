@@ -6,6 +6,17 @@
   background: var(--mist);
 }
 
+.contact-form__field {
+  display: grid;
+  gap: 4px;
+}
+
+.contact-form__field > span {
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
 .contact-form input,
 .contact-form textarea {
   width: 100%;
@@ -16,6 +27,18 @@
   padding: 14px 2px;
   background: transparent;
   color: var(--ink);
+}
+
+.contact-form__field input,
+.contact-form__field textarea {
+  padding-top: 8px;
+  padding-bottom: 12px;
+}
+
+.contact-form input:focus-visible,
+.contact-form textarea:focus-visible {
+  outline: 2px solid var(--blue-deep);
+  outline-offset: 3px;
 }
 
 .contact-form input:focus,
