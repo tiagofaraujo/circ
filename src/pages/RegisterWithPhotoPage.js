@@ -113,20 +113,20 @@ export default function RegisterWithPhotoPage() {
 
           <form className="auth-form" onSubmit={handleRegister}>
             <label htmlFor="register-name">{isEnglish ? 'Full name' : 'Nome completo'}</label>
-            <input id="register-name" type="text" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <input id="register-name" type="text" autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); setError(''); }} required />
 
             <label htmlFor="register-email">Email</label>
-            <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <input id="register-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} required />
 
             <label htmlFor="register-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
             <div className="auth-password-field">
-              <input id="register-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={password} onChange={(event) => setPassword(event.target.value)} required />
+              <input id="register-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} required />
               <button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? (isEnglish ? 'Hide' : 'Ocultar') : (isEnglish ? 'Show' : 'Mostrar')}</button>
             </div>
             <small className="auth-help">{isEnglish ? 'Minimum 8 characters.' : 'Mínimo de 8 caracteres.'}</small>
 
             <label htmlFor="register-password-confirm">{isEnglish ? 'Confirm password' : 'Confirmar palavra-passe'}</label>
-            <input id="register-password-confirm" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+            <input id="register-password-confirm" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setError(''); }} required />
 
             {error && <div className="auth-notice auth-notice--error" role="alert">{error}</div>}
 
