@@ -48,6 +48,13 @@ export default function MyCircHome() {
     return () => { active = false; unsubscribe(); };
   }, [user.uid, reload]);
 
+  // Let participants request verification again without refreshing the page.
+  useEffect(() => {
+    if (verificationState !== 'sent') return undefined;
+    const timer = window.setTimeout(() => setVerificationState('idle'), 60_000);
+    return () => window.clearTimeout(timer);
+  }, [verificationState]);
+
   const verify = async () => {
     setVerificationState('sending');
     try { await resendVerification(language); setVerificationState('sent'); }
@@ -72,7 +79,7 @@ export default function MyCircHome() {
 
     {!user.emailVerified && user.providerData?.some((provider) => provider.providerId === 'password') && <section className="my-circ-notice my-circ-notice--verification">
       <AppIcon name="envelope" /><div><strong>{en ? 'Confirm your email' : 'Confirme o seu email'}</strong><p>{en ? 'Check your inbox and spam folder for the verification message.' : 'Procure a mensagem de verificação na caixa de entrada e na pasta de spam.'}</p>
-        <button type="button" onClick={verify} disabled={verificationState === 'sending' || verificationState === 'sent'}>{verificationState === 'sent' ? (en ? 'Email resent' : 'Email reenviado') : verificationState === 'sending' ? (en ? 'Sending…' : 'A enviar…') : (en ? 'Resend verification' : 'Reenviar verificação')}</button>
+        <button type="button" onClick={verify} disabled={verificationState === 'sending' || verificationState === 'sent'}>{verificationState === 'sent' ? (en ? 'Email resent · retry in 1 min' : 'Email reenviado · aguarde 1 min') : verificationState === 'sending' ? (en ? 'Sending…' : 'A enviar…') : (en ? 'Resend verification' : 'Reenviar verificação')}</button>
         {verificationState === 'error' && <p role="alert">{en ? 'Could not send the email. Wait a moment and try again.' : 'Não foi possível enviar o email. Aguarde um momento e tente novamente.'}</p>}
       </div>
     </section>}
