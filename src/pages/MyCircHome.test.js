@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import MyCircHome from './MyCircHome';
 import { useAuth } from '../auth/AuthContext';
@@ -67,4 +67,29 @@ test('a permission/network error is not presented as an empty submission list', 
   show();
   await waitFor(() => expect(screen.getByText(/Não foi possível carregar os trabalhos/)).toBeInTheDocument());
   expect(screen.queryByText('Espaço para a sua próxima ideia.')).not.toBeInTheDocument();
+});
+
+test('verification resend becomes available again after the one-minute cooldown', async () => {
+  jest.useFakeTimers();
+  try {
+    const resendVerification = jest.fn().mockResolvedValue(undefined);
+    useAuth.mockReturnValue({
+      user: { ...user, emailVerified: false, providerData: [{ providerId: 'password' }] },
+      access: {},
+      resendVerification,
+    });
+    show();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Reenviar verificação' }));
+    });
+    expect(resendVerification).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Email reenviado · aguarde 1 min/ })).toBeDisabled();
+
+    act(() => { jest.advanceTimersByTime(60_000); });
+    expect(screen.getByRole('button', { name: 'Reenviar verificação' })).toBeEnabled();
+    expect(resendVerification).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });
