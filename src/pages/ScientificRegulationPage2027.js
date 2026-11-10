@@ -10,7 +10,6 @@ const copy = {
     back: 'Participar',
     title: 'Regulamento de trabalhos científicos',
     lead: 'Consulte os prazos, prepare o resumo e saiba como são avaliadas e apresentadas as comunicações orais e os pósteres.',
-    version: 'Versão de trabalho v1.0 · 9 de setembro de 2026',
     myCirc: 'Trabalhos no My CIRC',
     fullText: 'Texto integral',
     deadlines: 'Datas de submissão',
@@ -18,13 +17,11 @@ const copy = {
     openingTime: '00h00 · hora de Lisboa',
     index: 'Nesta página',
     checklist: 'Antes de submeter',
-    pointsTitle: 'Pontos por confirmar',
-    languageNote: 'O requisito final de idioma do resumo está por confirmar. Consulte as duas indicações do documento em «Autores e resumo».',
-    formNote: 'O formulário do My CIRC recebe atualmente um resumo estruturado em texto. O segundo idioma, o carregamento de ficheiros e os restantes campos previstos no documento ainda não estão disponíveis como opções próprias do formulário.',
     proposedTable: 'Grelha proposta no documento de trabalho',
+    tableHint: 'Em ecrãs pequenos, deslize a tabela para consultar todas as colunas.',
     topics: 'Consultar todas as áreas temáticas',
-    originalLabel: 'Ler o documento completo e os três anexos',
-    originalNote: 'Texto em português da versão de trabalho de 9 de setembro de 2026.',
+    originalLabel: 'Consultar as 22 secções e os três anexos',
+    originalNote: 'Documento de referência: versão de trabalho v1.0, de 9 de setembro de 2026. O texto integral em português reúne as normas e os modelos de apoio a autores e revisores.',
     help: 'Contactar a organização',
     goUp: 'Voltar ao início do regulamento',
   },
@@ -32,7 +29,6 @@ const copy = {
     back: 'Attend',
     title: 'Scientific submissions regulations',
     lead: 'Check the deadlines, prepare your abstract and learn how oral presentations and scientific posters are reviewed and presented.',
-    version: 'Working draft v1.0 · 9 September 2026',
     myCirc: 'Scientific work in My CIRC',
     fullText: 'Full text',
     deadlines: 'Submission dates',
@@ -40,30 +36,57 @@ const copy = {
     openingTime: '00:00 · Lisbon time',
     index: 'On this page',
     checklist: 'Before you submit',
-    pointsTitle: 'Details to be confirmed',
-    languageNote: 'The final language requirement for the abstract is still to be confirmed. See both instructions from the draft in “Authors and abstract”.',
-    formNote: 'The My CIRC form currently accepts one structured text abstract. A second language, file uploads and the other fields proposed in the document do not yet have dedicated form controls.',
     proposedTable: 'Proposed scoring criteria in the working draft',
+    tableHint: 'On smaller screens, scroll the table horizontally to see every column.',
     topics: 'See all thematic areas',
-    originalLabel: 'Read the complete document and all three appendices',
-    originalNote: 'Original Portuguese text of the working draft dated 9 September 2026.',
+    originalLabel: 'Read all 22 sections and the three appendices',
+    originalNote: 'Reference document: working draft v1.0, dated 9 September 2026. The full Portuguese text contains the rules and supporting templates for authors and reviewers.',
     help: 'Contact the organisers',
     goUp: 'Back to the top of the regulations',
   },
 };
 
-function RegulationTable({ label, columns, rows }) {
+function RegulationTable({ label, columns, rows, hint }) {
+  const hasWeights = columns[1] === 'Peso' || columns[1] === 'Weight';
+  const showCriteriaCards = hasWeights && columns.length === 3;
   return (
-    <div className="science-regulation__table-scroll" role="region" aria-label={label} tabIndex={0}>
-      <table>
-        <thead><tr>{columns.map((cell, index) => <th key={index} scope="col">{cell}</th>)}</tr></thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>{row.map((cell, column) => <td key={column}>{cell}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className={`science-regulation__table-scroll${showCriteriaCards ? ' science-regulation__table-scroll--criteria' : ''}`} role="region" aria-label={label} tabIndex={0}>
+        <table>
+          <caption>{label}</caption>
+          {hasWeights && (
+            <colgroup>
+              <col className="science-regulation__criterion-column" />
+              <col className="science-regulation__weight-column" />
+              {columns.slice(2).map((_, index) => <col key={index} className="science-regulation__description-column" />)}
+            </colgroup>
+          )}
+          <thead><tr>{columns.map((cell, index) => <th className={hasWeights && index === 1 ? 'science-regulation__weight' : undefined} key={index} scope="col">{cell}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>{row.map((cell, column) => column === 0
+                ? <th key={column} scope="row">{cell}</th>
+                : <td className={hasWeights && column === 1 ? 'science-regulation__weight' : undefined} key={column}>{cell}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showCriteriaCards && (
+        <div className="science-regulation__criteria-mobile">
+          <p className="science-regulation__criteria-label">{label}</p>
+          <div className="science-regulation__criteria-cards" role="list">
+            {rows.map(([criterion, weight, description]) => (
+              <div className="science-regulation__criteria-card" role="listitem" key={criterion}>
+                <p className="science-regulation__criterion-name">{criterion}</p>
+                <span className="science-regulation__weight" aria-label={`${columns[1]}: ${weight}`}>{weight}</span>
+                <p className="science-regulation__criterion-description">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {hint && <p className={`science-regulation__table-hint${showCriteriaCards ? ' science-regulation__table-hint--criteria' : ''}`}>{hint}</p>}
+    </>
   );
 }
 
@@ -78,7 +101,7 @@ function OriginalText({ t }) {
           }
           if (block.type === 'table') {
             const [columns, ...rows] = block.rows;
-            return <RegulationTable key={index} label="Tabela do regulamento" columns={columns} rows={rows} />;
+            return <RegulationTable key={index} label={columns[1] === 'Peso' ? 'Critérios de avaliação — documento de referência' : 'Tabela do regulamento'} columns={columns} rows={rows} hint={t.tableHint} />;
           }
           if (block.type === 'list') {
             return <ul key={index}>{block.items.map(item => <li key={item}>{item}</li>)}</ul>;
@@ -105,7 +128,6 @@ export default function ScientificRegulationPage2027() {
         <p className="eyebrow">CIRC 2027 · {lang === 'en' ? 'Scientific programme' : 'Programa científico'}</p>
         <h1>{t.title}</h1>
         <p className="science-regulation__lead">{t.lead}</p>
-        <p className="science-regulation__version">{t.version}</p>
         <div className="science-regulation__actions">
           <Link className="button button--dark" to="/conta/submissoes">{t.myCirc}</Link>
           <a className="button button--outline" href="#texto-integral">{t.fullText} <span aria-hidden="true">↓</span></a>
@@ -133,12 +155,6 @@ export default function ScientificRegulationPage2027() {
         </nav>
 
         <div className="science-regulation__content">
-          <aside className="science-regulation__notice" aria-labelledby="science-notice-title">
-            <h2 id="science-notice-title">{t.pointsTitle}</h2>
-            <p>{t.languageNote}</p>
-            <p>{t.formNote}</p>
-          </aside>
-
           <section id="antes-de-submeter" className="science-regulation__section science-regulation__checklist" aria-labelledby="science-checklist-title">
             <h2 id="science-checklist-title">{t.checklist}</h2>
             <ul>{checklist.map(item => <li key={item}>{item}</li>)}</ul>
@@ -155,13 +171,13 @@ export default function ScientificRegulationPage2027() {
                   <ul>{section.items.map(item => <li key={item}>{item}</li>)}</ul>
                 </details>
               ) : <ul>{section.items.map(item => <li key={item}>{item}</li>)}</ul>)}
-              {section.table && <RegulationTable label={t.proposedTable} {...section.table} />}
+              {section.table && <RegulationTable label={t.proposedTable} {...section.table} hint={t.tableHint} />}
             </section>
           ))}
 
           <section id="texto-integral" className="science-regulation__section" aria-labelledby="science-full-text-title">
             <h2 id="science-full-text-title">{t.fullText}</h2>
-            <p>{t.originalNote}</p>
+            <p className="science-regulation__source-note">{t.originalNote}</p>
             <OriginalText t={t} />
           </section>
 
