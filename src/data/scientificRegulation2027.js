@@ -1,12 +1,12 @@
 export const scientificRegulation2027 = {
   pt: {
     checklist: [
-      'Escolhe Comunicação Oral ou Poster Científico e uma área temática.',
-      'Confirma a autoria, as afiliações e o contacto do autor correspondente.',
-      'Estrutura o resumo e verifica os limites de palavras, palavras-chave e referências.',
-      'Retira do material para avaliação todos os elementos que identifiquem a autoria.',
-      'Confirma a originalidade, as autorizações aplicáveis e a declaração de conflitos de interesse.',
-      'Usa a conta My CIRC de um dos autores e confirma a concordância de todos antes de submeter.',
+      'Escolha Comunicação Oral ou Poster Científico e uma área temática.',
+      'Reúna os nomes e afiliações dos autores e o contacto do autor correspondente.',
+      'Prepare o resumo por secções e confira os limites de palavras, palavras-chave e referências.',
+      'Retire do título e do resumo os nomes, instituições e outros elementos que identifiquem os autores.',
+      'Confirme a originalidade, as autorizações aplicáveis e a declaração de conflitos de interesse.',
+      'Entre no My CIRC com a conta de um dos autores e confirme a concordância de todos antes de submeter.',
     ],
     sections: [
       {
@@ -27,14 +27,15 @@ export const scientificRegulation2027 = {
         title: 'Autores e resumo',
         reference: 'Secções 8 a 10 e Anexo I',
         paragraphs: [
-          'Cada trabalho pode ter até 4 autores. Indica o nome profissional e a afiliação de cada autor, além do email e telefone do autor correspondente. Pelo menos um autor deve ter inscrição válida para apresentar o trabalho. Para trabalhos com quatro autores, recomenda-se a inscrição de pelo menos dois, sobretudo se ambos participarem na apresentação ou discussão.',
-          'O documento de trabalho apresenta duas indicações sobre o idioma. A secção 9 prevê resumo em português e inglês. A secção 10 admite submissões em português ou inglês e pede um abstract em inglês quando a submissão é em português. A apresentação oral pode decorrer em qualquer dos dois idiomas, de acordo com o programa.',
+          'Identifique cada autor pelo nome profissional e respetiva afiliação. Indique o email e telefone do autor correspondente, que será o contacto para as comunicações sobre o trabalho.',
+          'O documento de referência estabelece um máximo de 4 autores por trabalho. Pelo menos um dos autores deve ter inscrição válida para apresentar o trabalho.',
+          'Na preparação do resumo, tenha disponíveis as versões portuguesa e inglesa, previstas no documento de referência. Cada versão tem um máximo de 400 palavras. A apresentação oral pode decorrer em português ou inglês, de acordo com o programa.',
         ],
         items: [
-          'Identifica o trabalho com título, autores, afiliações, autor correspondente, área temática e formato pretendido.',
-          'Organiza o resumo em introdução, objetivo, métodos, resultados e conclusão.',
-          'Respeita o máximo de 400 palavras por idioma, até 4 palavras-chave e até 5 referências bibliográficas, quando se justifiquem.',
-          'Inclui a declaração de conflitos de interesse e o termo de aceitação.',
+          'Dados do trabalho: título, autores, afiliações, autor correspondente, área temática e formato pretendido.',
+          'Estrutura do resumo: introdução, objetivo, métodos, resultados e conclusão.',
+          'Informação complementar: até 4 palavras-chave e até 5 referências bibliográficas, quando se justifiquem.',
+          'Declarações: conflitos de interesse e termo de aceitação.',
         ],
       },
       {
@@ -83,8 +84,8 @@ export const scientificRegulation2027 = {
         paragraphs: [
           'A versão de trabalho prevê três revisores por trabalho, designados de acordo com a área temática. Cada revisor deve declarar impedimento quando tenha um conflito de interesse. A Comissão Científica pode apreciar divergências e comunica a decisão final ao autor responsável.',
           'As decisões previstas são aceitação como Comunicação Oral, aceitação como Poster, aceitação com correções ou rejeição. A Comissão Científica pode propor uma alteração do formato para adequar o trabalho ao programa.',
-          'A grelha atual do My CIRC usa cinco critérios de peso igual, com pontuação de 0 a 10. A data de comunicação das decisões será definida pela Comissão Científica.',
-          'A grelha abaixo é a proposta do documento de trabalho. A Comissão Científica pode ajustar critérios ou pesos antes da abertura formal, com aplicação uniforme. O Anexo III sugere uma escala de 1 (insuficiente) a 5 (excelente).',
+          'A data de comunicação das decisões será definida pela Comissão Científica. O autor responsável deve acompanhar as comunicações e os prazos indicados pela organização.',
+          'A tabela apresenta os seis critérios e os respetivos pesos propostos no documento de referência. O Anexo III sugere uma escala de 1 (insuficiente) a 5 (excelente). A grelha definitiva depende da validação da Comissão Científica antes da abertura das submissões, com aplicação uniforme a todos os trabalhos.',
         ],
         table: {
           columns: ['Critério', 'Peso', 'O que se avalia'],
@@ -149,14 +150,15 @@ export const scientificRegulation2027 = {
         title: 'Authors and abstract',
         reference: 'Sections 8–10 and Annex I',
         paragraphs: [
-          'Each submission may have up to 4 authors. Give each author’s professional name and affiliation, plus the corresponding author’s email and phone number. At least one author must hold a valid registration to present the work. For submissions with four authors, registration of at least two is recommended, especially if both will present or join the discussion.',
-          'The working draft gives two instructions about language. Section 9 calls for abstracts in Portuguese and English. Section 10 allows submissions in Portuguese or English and requires an English abstract for submissions in Portuguese. Oral presentations may be in either language, according to the programme.',
+          'Give each author’s professional name and affiliation. Include the corresponding author’s email and phone number so that the organisers can contact them about the submission.',
+          'The reference document sets a maximum of 4 authors per submission. At least one author must hold a valid registration to present the work.',
+          'When preparing the abstract, have the Portuguese and English versions ready, as provided for in the reference document. Each version is limited to 400 words. Oral presentations may be in Portuguese or English, according to the programme.',
         ],
         items: [
-          'Include the title, authors, affiliations, corresponding author, thematic area and preferred presentation format.',
-          'Structure the abstract into introduction, objective, methods, results and conclusion.',
-          'Keep to 400 words per language, up to 4 keywords and up to 5 references where appropriate.',
-          'Include the conflict of interest declaration and the statement of acceptance.',
+          'Submission details: title, authors, affiliations, corresponding author, thematic area and preferred presentation format.',
+          'Abstract structure: introduction, objective, methods, results and conclusion.',
+          'Supporting information: up to 4 keywords and up to 5 references where appropriate.',
+          'Declarations: conflicts of interest and statement of acceptance.',
         ],
       },
       {
@@ -205,8 +207,8 @@ export const scientificRegulation2027 = {
         paragraphs: [
           'The working draft provides for three reviewers per submission, selected according to the thematic area. Reviewers must withdraw if they have a conflict of interest. The Scientific Committee may review material disagreements and communicates its final decision to the submitting author.',
           'Possible decisions are acceptance as an Oral Presentation, acceptance as a Poster, acceptance subject to corrections or rejection. The Scientific Committee may propose a change of format to fit the programme.',
-          'My CIRC currently uses five equally weighted criteria, scored from 0 to 10. The Scientific Committee will set the date when decisions are announced.',
-          'The table reproduces the working draft’s proposed scoring scheme. The Scientific Committee may adjust the criteria or weights before submissions formally open, applying them equally to all work. Annex III suggests scores from 1 (insufficient) to 5 (excellent).',
+          'The Scientific Committee will set the date when decisions are announced. The submitting author should check communications and deadlines from the organisers.',
+          'The table presents the six criteria and weights proposed in the reference document. Annex III suggests scores from 1 (insufficient) to 5 (excellent). The final scoring scheme requires Scientific Committee validation before submissions open and must apply equally to all work.',
         ],
         table: {
           columns: ['Criterion', 'Weight', 'What is assessed'],
