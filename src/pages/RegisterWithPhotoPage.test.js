@@ -15,7 +15,7 @@ const showForm = (language = 'pt') => {
   return render(<MemoryRouter><RegisterWithPhotoPage /></MemoryRouter>);
 };
 
-const enterRegistration = (en = false, confirmation = 'Secure987') => {
+const enterRegistration = (en = false, confirmation = 'Secure123') => {
   fireEvent.change(screen.getByLabelText(en ? 'Full name' : 'Nome completo'), {
     target: { value: 'Participante Teste' },
   });
