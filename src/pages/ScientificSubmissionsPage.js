@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -332,6 +332,12 @@ function formFromSubmission(submission) {
 function SubmissionForm({ t, onClose, onSave, onClearError, error, submission }) {
   const [form, setForm] = useState(() => formFromSubmission(submission));
   const [saving, setSaving] = useState(false);
+  const headingRef = useRef(null);
+
+  useEffect(() => {
+    // Announce the newly opened editor before the participant enters any data.
+    headingRef.current?.focus();
+  }, []);
 
   const updateField = (field) => (event) => {
     onClearError();
@@ -369,7 +375,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
       <header className="submissions-composer__header">
         <div>
           <p className="eyebrow">{submission ? t.editFormEyebrow : t.formEyebrow}</p>
-          <h2 id="submissions-composer-title">{submission ? t.editFormTitle : t.formTitle}</h2>
+          <h2 id="submissions-composer-title" ref={headingRef} tabIndex={-1}>{submission ? t.editFormTitle : t.formTitle}</h2>
         </div>
         <button type="button" onClick={onClose} disabled={saving}>{t.close} ×</button>
       </header>
@@ -498,12 +504,6 @@ export default function ScientificSubmissionsPage() {
     setError('');
     setEditingSubmission(submission);
     setComposerOpen(true);
-    window.setTimeout(() => {
-      document.getElementById('submissions-composer-title')?.scrollIntoView?.({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 0);
   };
 
   const closeComposer = () => {

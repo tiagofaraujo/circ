@@ -82,3 +82,20 @@ test('a failed draft save shows its error beside the composer and clears after e
   await waitFor(() => expect(saveSubmission).toHaveBeenCalledTimes(2));
   expect(await screen.findByText(/O rascunho foi guardado/)).toBeInTheDocument();
 });
+
+
+test('opening a new scientific submission focuses the editor heading', () => {
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /Novo trabalho/ }));
+  expect(screen.getByRole('heading', { name: 'Construa o trabalho passo a passo.' })).toHaveFocus();
+});
+
+test('editing a saved draft focuses the editor heading', () => {
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]);
+    return () => {};
+  });
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /Editar rascunho/ }));
+  expect(screen.getByRole('heading', { name: 'Continue o trabalho e submeta quando estiver pronto.' })).toHaveFocus();
+});
