@@ -161,14 +161,14 @@ export function LoginPage() {
 
       <form className="auth-form" onSubmit={handleEmailLogin}>
         <label htmlFor="login-email">Email</label>
-        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
+        <input id="login-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} placeholder={isEnglish ? 'email@example.com' : 'email@exemplo.com'} required />
 
         <div className="auth-password-row">
           <label htmlFor="login-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
           <Link to="/recuperar-password" state={{ email }}>{isEnglish ? 'Forgot password?' : 'Esqueceu-se?'}</Link>
         </div>
         <div className="auth-password-field">
-          <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={isEnglish ? 'Your password' : 'A sua palavra-passe'} required />
+          <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} placeholder={isEnglish ? 'Your password' : 'A sua palavra-passe'} required />
           <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? (isEnglish ? 'Hide password' : 'Ocultar palavra-passe') : (isEnglish ? 'Show password' : 'Mostrar palavra-passe')}>
             {showPassword ? (isEnglish ? 'Hide' : 'Ocultar') : (isEnglish ? 'Show' : 'Mostrar')}
           </button>
