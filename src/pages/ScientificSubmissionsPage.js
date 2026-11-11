@@ -329,11 +329,12 @@ function formFromSubmission(submission) {
   };
 }
 
-function SubmissionForm({ t, onClose, onSave, submission }) {
+function SubmissionForm({ t, onClose, onSave, onClearError, error, submission }) {
   const [form, setForm] = useState(() => formFromSubmission(submission));
   const [saving, setSaving] = useState(false);
 
   const updateField = (field) => (event) => {
+    onClearError();
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
@@ -433,6 +434,7 @@ function SubmissionForm({ t, onClose, onSave, submission }) {
           </div>
           <p>{t.reviewText}</p>
           {!isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
+          {error && <p className="submissions-test-notice" role="alert">{error}</p>}
           <div className="submissions-form-actions">
             <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : submission ? t.updateDraft : t.saveDraft}</button>
             <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitWork} →</button>
@@ -486,12 +488,14 @@ export default function ScientificSubmissionsPage() {
 
   const openNewSubmission = () => {
     if (!canSubmitWork || !isSubmissionOpeningReached()) return;
+    setError('');
     setEditingSubmission(null);
     setComposerOpen(true);
   };
 
   const editSubmission = (submission) => {
     if (!canSubmitWork || !isSubmissionOpeningReached() || submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft') return;
+    setError('');
     setEditingSubmission(submission);
     setComposerOpen(true);
     window.setTimeout(() => {
@@ -574,7 +578,7 @@ export default function ScientificSubmissionsPage() {
 
       {user?.emailVerified !== true && <p role="alert">{language === 'en' ? 'Verify your email address in your profile before creating or submitting work.' : 'Confirme o endereço de email no perfil antes de criar ou submeter um trabalho.'} <Link to="/conta/perfil">{t.profile}</Link></p>}
       {notice && <div className="submissions-test-notice" role="status">{notice}</div>}
-      {error && <div className="submissions-test-notice" role="alert">{error}</div>}
+      {error && !composerOpen && <div className="submissions-test-notice" role="alert">{error}</div>}
 
       <section className="submissions-desk">
         <div className="submissions-desk__intro">
@@ -605,6 +609,8 @@ export default function ScientificSubmissionsPage() {
           submission={editingSubmission}
           onClose={closeComposer}
           onSave={saveWork}
+          error={error}
+          onClearError={() => setError('')}
         />
       )}
 
