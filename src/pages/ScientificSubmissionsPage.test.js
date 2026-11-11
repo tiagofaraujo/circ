@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ScientificSubmissionsPage from './ScientificSubmissionsPage';
 import { useAuth } from '../auth/AuthContext';
@@ -64,4 +64,21 @@ test('unverified participants receive a clear profile action instead of a save a
   useAuth.mockReturnValue({ user: { ...user, emailVerified: false }, access: {} }); show();
   expect(screen.getByRole('button', { name: /Novo trabalho/ })).toBeDisabled();
   expect(screen.getByRole('alert')).toHaveTextContent('Confirme o endereço de email');
+});
+
+test('a failed draft save shows its error beside the composer and clears after editing', async () => {
+  saveSubmission.mockRejectedValueOnce(new Error('network'));
+  show(); fireEvent.click(screen.getByRole('button', { name: /Novo trabalho/ }));
+  const title = screen.getByPlaceholderText('Introduza um título claro e objetivo');
+  fireEvent.change(title, { target: { value: form.title } });
+  fireEvent.change(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação'), { target: { value: form.authors } });
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar rascunho' }));
+  const composer = document.querySelector('.submissions-composer');
+  expect(await within(composer).findByRole('alert')).toHaveTextContent('Não foi possível guardar o trabalho.');
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  fireEvent.change(title, { target: { value: form.title + ' revisto' } });
+  expect(within(composer).queryByRole('alert')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar rascunho' }));
+  await waitFor(() => expect(saveSubmission).toHaveBeenCalledTimes(2));
+  expect(await screen.findByText(/O rascunho foi guardado/)).toBeInTheDocument();
 });
