@@ -88,7 +88,7 @@ export default function MyCircShell({ children }) {
           <span>MY CIRC</span>
         </Link>
         <div className="my-circ-topbar__actions">
-          <button type="button" className="my-circ-language" onClick={toggleLanguage} aria-label={en ? 'Mudar para português' : 'Switch to English'}>
+          <button type="button" className="my-circ-language" onClick={toggleLanguage} aria-label={en ? 'Switch to Portuguese' : 'Mudar para inglês'}>
             <span className={en ? '' : 'is-current'}>PT</span><span aria-hidden="true">/</span><span className={en ? 'is-current' : ''}>EN</span>
           </button>
           {user ? <>
