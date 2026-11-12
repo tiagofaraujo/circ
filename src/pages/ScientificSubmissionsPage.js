@@ -55,6 +55,9 @@ const content = {
     worksEyebrow: 'Os seus trabalhos',
     worksTitle: 'Ainda não existem trabalhos',
     worksText: 'Crie uma submissão, escolha a tipologia e guarde o resumo antes de o enviar para avaliação.',
+    worksLoading: 'A carregar os seus trabalhos…',
+    worksLoadError: 'Não foi possível carregar os seus trabalhos. Nenhum dado foi alterado.',
+    worksRetry: 'Tentar novamente',
     profile: 'Rever dados do perfil',
     preparationEyebrow: 'Preparação',
     preparationTitle: 'Tudo pronto antes de começar.',
@@ -155,6 +158,9 @@ const content = {
     worksEyebrow: 'Your submissions',
     worksTitle: 'No submissions yet',
     worksText: 'Create a submission, select its type and save your abstract before sending it for review.',
+    worksLoading: 'Loading your submissions…',
+    worksLoadError: 'Your submissions could not be loaded. No data has been changed.',
+    worksRetry: 'Try again',
     profile: 'Review profile details',
     preparationEyebrow: 'Preparation',
     preparationTitle: 'Everything ready before you begin.',
@@ -465,6 +471,8 @@ export default function ScientificSubmissionsPage() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [ownSubmissions, setOwnSubmissions] = useState([]);
+  const [submissionsLoadState, setSubmissionsLoadState] = useState('loading');
+  const [submissionsRetry, setSubmissionsRetry] = useState(0);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
@@ -485,12 +493,16 @@ export default function ScientificSubmissionsPage() {
 
   useEffect(() => {
     if (!user) return undefined;
-    return subscribeToUserSubmissions(
+    let active = true;
+    setOwnSubmissions([]);
+    setSubmissionsLoadState('loading');
+    const unsubscribe = subscribeToUserSubmissions(
       user.uid,
-      setOwnSubmissions,
-      () => setError(language === 'en' ? 'Unable to load your submissions. Refresh the page to try again.' : 'Não foi possível carregar as suas submissões. Atualize a página para tentar novamente.')
+      (items) => { if (active) { setOwnSubmissions(items); setSubmissionsLoadState('ready'); } },
+      () => { if (active) setSubmissionsLoadState('error'); }
     );
-  }, [language, user]);
+    return () => { active = false; unsubscribe(); };
+  }, [language, user, submissionsRetry]);
 
   const openNewSubmission = () => {
     if (!canSubmitWork || !isSubmissionOpeningReached()) return;
@@ -630,7 +642,16 @@ export default function ScientificSubmissionsPage() {
       </section>
 
       <section className="submissions-lower-grid" id="my-works">
-        {ownSubmissions.length > 0 ? (
+        {submissionsLoadState === 'loading' ? (
+          <article className="submissions-empty" role="status"><p>{t.worksLoading}</p></article>
+        ) : submissionsLoadState === 'error' ? (
+          <article className="submissions-empty" role="status">
+            <div>
+              <p>{t.worksLoadError}</p>
+              <button type="button" onClick={() => setSubmissionsRetry((count) => count + 1)}>{t.worksRetry}</button>
+            </div>
+          </article>
+        ) : ownSubmissions.length > 0 ? (
           <article className="submissions-test-list">
             <header>
               <div>
