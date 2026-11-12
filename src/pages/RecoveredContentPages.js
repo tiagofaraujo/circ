@@ -387,6 +387,15 @@ export function EnhancedContactPage() {
           <p>{tx(en, '8–10 April 2027 · Coimbra', '8–10 de abril de 2027 · Coimbra')}</p>
           <p>{tx(en, '8 April · Two Pre-Congress Courses — morning and afternoon · 9–10 April · International Congress', '8 de abril · Dois Cursos Pré-Congresso — manhã e tarde · 9–10 de abril · Congresso Internacional')}</p>
           <p className="contact-layout__note">{tx(en, 'When confirmed information is already available on the programme, participation, partnerships or Coimbra pages, those pages remain the official reference.', 'Quando já exista informação confirmada nas páginas Programa, Participar, Parcerias ou Coimbra, essas páginas mantêm-se como referência oficial.')}</p>
+          <a
+            className="button button--outline"
+            href="https://wa.me/351914004261"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i className="fa-brands fa-whatsapp" aria-hidden="true" />
+            {tx(en, 'Contact us on WhatsApp', 'Contactar por WhatsApp')}
+          </a>
         </div>
         <ContactForm />
       </section>
