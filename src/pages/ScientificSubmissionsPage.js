@@ -469,6 +469,8 @@ export default function ScientificSubmissionsPage() {
   const statusText = !openingReached ? t.upcomingText : anyTypeOpen ? t.statusText : t.closedText;
   const openValue = !openingReached ? t.upcomingValue : anyTypeOpen ? t.openValue : t.closedValue;
   const [composerOpen, setComposerOpen] = useState(false);
+  const newSubmissionRef = useRef(null);
+  const restoreFocusRef = useRef(null);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [ownSubmissions, setOwnSubmissions] = useState([]);
   const [submissionsLoadState, setSubmissionsLoadState] = useState('loading');
@@ -504,15 +506,24 @@ export default function ScientificSubmissionsPage() {
     return () => { active = false; unsubscribe(); };
   }, [language, user, submissionsRetry]);
 
-  const openNewSubmission = () => {
+  useEffect(() => {
+    if (composerOpen || !restoreFocusRef.current) return;
+    const trigger = restoreFocusRef.current;
+    (trigger.isConnected ? trigger : newSubmissionRef.current)?.focus();
+    restoreFocusRef.current = null;
+  }, [composerOpen]);
+
+  const openNewSubmission = (event) => {
     if (!canSubmitWork || !isSubmissionOpeningReached()) return;
+    restoreFocusRef.current = event.currentTarget;
     setError('');
     setEditingSubmission(null);
     setComposerOpen(true);
   };
 
-  const editSubmission = (submission) => {
+  const editSubmission = (submission, event) => {
     if (!canSubmitWork || !isSubmissionOpeningReached() || submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft') return;
+    restoreFocusRef.current = event.currentTarget;
     setError('');
     setEditingSubmission(submission);
     setComposerOpen(true);
@@ -609,7 +620,7 @@ export default function ScientificSubmissionsPage() {
             <div><dt>{t.posterDeadlineLabel}</dt><dd>{t.posterDeadlineValue}</dd></div>
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
-          <button type="button" disabled={!canSubmitWork} onClick={openNewSubmission} aria-describedby="submissions-new-hint">{t.newWork}<span>＋</span></button>
+          <button ref={newSubmissionRef} type="button" disabled={!canSubmitWork} onClick={openNewSubmission} aria-describedby="submissions-new-hint">{t.newWork}<span>＋</span></button>
           <small id="submissions-new-hint">{openingReached ? t.newWorkHint : t.upcomingText}</small>
         </div>
       </section>
@@ -678,7 +689,7 @@ export default function ScientificSubmissionsPage() {
                   </time>
 
                   {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && (
-                    <button type="button" onClick={() => editSubmission(submission)}>
+                    <button type="button" onClick={(event) => editSubmission(submission, event)}>
                       {t.editDraft} →
                     </button>
                   )}
