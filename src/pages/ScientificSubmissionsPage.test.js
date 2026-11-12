@@ -122,3 +122,28 @@ test('a pending submission subscription is not presented as an empty list', () =
   expect(screen.getByRole('status')).toHaveTextContent('A carregar os seus trabalhos…');
   expect(screen.queryByText('Ainda não existem trabalhos')).not.toBeInTheDocument();
 });
+
+test('closing a new submission restores focus to the New submission button', () => {
+  show();
+  const trigger = screen.getByRole('button', { name: /Novo trabalho/ });
+  trigger.focus();
+  fireEvent.click(trigger);
+  expect(screen.getByRole('heading', { name: 'Construa o trabalho passo a passo.' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: /Fechar formulário/ }));
+  expect(trigger).toHaveFocus();
+  expect(screen.queryByRole('heading', { name: 'Construa o trabalho passo a passo.' })).not.toBeInTheDocument();
+});
+
+test('closing an existing draft restores focus to its Edit draft button', () => {
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]);
+    return () => {};
+  });
+  show();
+  const trigger = screen.getByRole('button', { name: /Editar rascunho/ });
+  trigger.focus();
+  fireEvent.click(trigger);
+  expect(screen.getByRole('heading', { name: 'Continue o trabalho e submeta quando estiver pronto.' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: /Fechar formulário/ }));
+  expect(trigger).toHaveFocus();
+});
