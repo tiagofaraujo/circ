@@ -22,6 +22,24 @@ const errors = {
   'registration-changed': 'A inscrição mudou desde a conferência. Prepare uma nova conferência antes de continuar.',
 };
 
+const blockedReasons = new Map([
+  ['registration-state', 'Os dados da inscrição ativa não são compatíveis com a libertação.'],
+  ['profile-mismatch', 'O perfil associado à inscrição não corresponde à conta que pediu a libertação.'],
+  ['open-payment', 'Ainda existe um pedido de pagamento em aberto. Confirme primeiro o seu estado.'],
+  ['fiscal-pending', 'A emissão da fatura-recibo de um pagamento ainda está pendente.'],
+  ['linked-order', 'Existe um pedido associado à inscrição que precisa de conferência.'],
+  ['document-mismatch', 'Os pagamentos e as faturas-recibo associados não coincidem.'],
+  ['archive-mismatch', 'O histórico da inscrição precisa de conferência antes da libertação.'],
+  ['closed-attempt-unverified', 'O encerramento sem pagamento de um pedido associado ainda não está confirmado.'],
+]);
+
+function errorMessage(issue, fallback) {
+  if (issue.code === 'registration-release-blocked' && issue.status === 409) {
+    return blockedReasons.get(issue.reason) || errors[issue.code];
+  }
+  return errors[issue.code] || fallback;
+}
+
 function validPreview(value, requestedId) {
   return value?.allowed === true && value.registrationId === requestedId && email(value.email) === TARGET_EMAIL
     && typeof value.name === 'string' && value.name.trim().length > 0 && value.name.length <= 300
@@ -57,7 +75,7 @@ export default function RegistrationRelease({ registration, onReleased }) {
     });
     let data;
     try { data = await response.json(); } catch { throw new Error('invalid-response'); }
-    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error, status: response.status });
+    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error, reason: data.reason, status: response.status });
     return data;
   }
 
@@ -73,7 +91,7 @@ export default function RegistrationRelease({ registration, onReleased }) {
       setPreview({ ...result, documentNumbers: [...result.documentNumbers] }); setPhase('review');
     } catch (issue) {
       if (controller.signal.aborted || generation.current !== currentGeneration) return;
-      setPhase('idle'); setError(errors[issue.code] || 'Não foi possível conferir os dados desta inscrição. Nenhuma libertação foi pedida.');
+      setPhase('idle'); setError(errorMessage(issue, 'Não foi possível conferir os dados desta inscrição. Nenhuma libertação foi pedida.'));
     } finally { if (working.current === operation) working.current = null; }
   }
 
@@ -100,7 +118,7 @@ export default function RegistrationRelease({ registration, onReleased }) {
       if (generation.current !== currentGeneration) return;
       if (definitive.has(issue.code)) {
         attempt.current = null; setPreview(null); setPhase('idle');
-        setError(errors[issue.code] || 'A libertação foi recusada. Prepare uma nova conferência antes de continuar.');
+        setError(errorMessage(issue, 'A libertação foi recusada. Prepare uma nova conferência antes de continuar.'));
       } else {
         setPreview(original.preview); setPhase('uncertain');
         setError('O resultado da libertação não foi confirmado. Conserve esta conferência e consulte o resultado da mesma libertação antes de iniciar outra.');

@@ -128,6 +128,88 @@ test('all linked real payments must be settled and have the matching issued FR',
   for(const change of changes){const f=fixture();change(f);for(const row of [...f.payments,...f.documents,f.credit,f.profile])f.sync(row);
     const response=await f.call();assert.equal(response.status,409);assert.equal(f.commits,0);}
 });
+
+const closedId='33333333-3333-4333-8333-333333333333';
+function addClosedSupplement(f,status='cancelled'){
+  const identifier=`circ_live_${closedId.replaceAll('-','')}`,reference='82980768';
+  const row=f.record('payments',closedId,{
+    id:closedId,eventId:'circ-2027',registrationId,userId:uid,environment:'production',
+    kind:'supplementary',quote:{kind:'supplementary',eventId:'circ-2027',amountCents:4000,currency:'EUR'},
+    amountCents:4000,currency:'EUR',provider:'eupago',method:'mbway',identifier,reference,entity:null,
+    status,providerState:status,retryAllowed:true,transactionId:null,paidAt:null,
+    providerClosure:{source:'eupago-reference-info',state:status,checkedAt:time,reference,identifier,entity:null},
+  });
+  f.payments.push(row);
+  f.registration.data.lastClosedSupplementaryOrderId=closedId;
+  f.sync(f.registration);
+  return row;
+}
+
+test('provider-confirmed cancelled or expired unpaid supplement is archived with the original paid order and FR',async()=>{
+  for(const status of ['cancelled','expired']){
+    const f=fixture(),closed=addClosedSupplement(f,status);
+    const original=structuredClone(closed.data),preview=await f.preview();
+    assert.deepEqual(preview.documentNumbers,['FR CIRC2027/7']);
+    assert.equal(preview.amountCents,5500);assert.equal(f.commits,0);
+    assert.equal((await f.call(confirmation(preview.stamp))).status,200);
+    const{registrationArchiveId,registrationArchivedAt,...preserved}=closed.data;
+    assert.deepEqual(preserved,original);assert.equal(registrationArchiveId,archiveId);assert.equal(registrationArchivedAt,time);
+    assert.equal(f.registration,null);assert.equal(f.commits,1);
+    assert.deepEqual(f.archives[0].data.paymentIds,[orderId,closedId]);
+    assert.deepEqual(f.archives[0].data.documentIds,[orderId]);
+    assert.equal(f.archives[0].data.registration.lastClosedSupplementaryOrderId,closedId);
+  }
+});
+
+test('closed supplementary pointer requires authenticated provider closure evidence and absence of payment or fiscal evidence',async()=>{
+  const changes=[
+    p=>{p.status='pending';},p=>{p.kind='primary';},p=>{p.userId='another';},p=>{p.environment='sandbox';},
+    p=>{p.retryAllowed=false;},p=>{p.providerState='paga';},p=>{p.providerClosure.source='browser';},
+    p=>{p.providerClosure.checkedAt='invalid';},p=>{p.providerClosure.reference='82980769';},
+    p=>{p.providerClosure.identifier='different';},p=>{p.providerClosure.entity='10045';},
+    p=>{p.paidAt=time;},p=>{p.transactionId='captured';},p=>{p.fiscalStatus='pending';},
+    p=>{p.fiscalDocumentId='750';},p=>{p.replacementOrderId=orderId;},
+  ];
+  for(const change of changes){
+    const f=fixture(),closed=addClosedSupplement(f);
+    change(closed.data);f.sync(closed);
+    const response=await f.call();assert.equal(response.status,409);
+    assert.deepEqual(await response.json(),{error:'registration-release-blocked',reason:'closed-attempt-unverified'});
+    assert.equal(f.commits,0);
+  }
+  const f=fixture();addClosedSupplement(f);
+  f.documents.push(f.record('documents',closedId,{...f.documents[0].data,id:closedId,orderKind:'supplementary',paymentMethod:'mbway'}));
+  const response=await f.call();assert.equal(response.status,409);
+  assert.equal((await response.json()).reason,'closed-attempt-unverified');assert.equal(f.commits,0);
+});
+
+test('late capture recorded after preview prevents release without removing the registration',async()=>{
+  const f=fixture(),closed=addClosedSupplement(f),preview=await f.preview();
+  Object.assign(closed.data,{status:'review_required',transactionId:'late-credit',paidAt:time});f.sync(closed);
+  const response=await f.call(confirmation(preview.stamp));
+  assert.equal(response.status,409);assert.equal((await response.json()).reason,'closed-attempt-unverified');
+  assert.ok(f.registration);assert.equal(f.commits,0);
+});
+
+test('blocked previews provide the administrator with a bounded diagnostic and no ledger fields',async()=>{
+  const cases=[
+    ['registration-state',f=>{f.registration.data.isTest=true;}],
+    ['open-payment',f=>{f.registration.data.openSupplementaryOrderId=closedId;}],
+    ['fiscal-pending',f=>{f.registration.data.fiscalPendingOrderId=orderId;}],
+    ['profile-mismatch',f=>{f.profile.data.email='other@example.test';}],
+    ['linked-order',f=>{f.legacy.push(f.record('registrationOrders','legacy',{registrationId}));}],
+    ['archive-mismatch',f=>{f.payments[0].data.registrationArchivedAt=time;}],
+    ['document-mismatch',f=>{f.documents.length=0;}],
+  ];
+  for(const [reason,change] of cases){
+    const f=fixture();change(f);
+    const response=await f.call();assert.equal(response.status,409);
+    assert.deepEqual(await response.json(),{error:'registration-release-blocked',reason});assert.equal(f.commits,0);
+    f.setClaims({...admin,email:'other@example.test'});
+    const denied=await f.call();assert.equal(denied.status,403);
+    assert.deepEqual(await denied.json(),{error:'admin-required'});
+  }
+});
 test('truncated financial listings fail closed rather than archive only a subset',async()=>{
   const f=fixture();while(f.payments.length<26)f.payments.push(f.payments[0]);assert.equal((await f.call()).status,409);assert.equal(f.commits,0);
 });
