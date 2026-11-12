@@ -67,3 +67,31 @@ test('clears an old provider error after the participant changes the email', asy
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(registerWithEmail).toHaveBeenCalledTimes(1);
 });
+
+test.each([
+  ['pt', 'Palavra-passe', 'Confirmar palavra-passe', 'Mostrar palavras-passe', 'Ocultar palavras-passe'],
+  ['en', 'Password', 'Confirm password', 'Show passwords', 'Hide passwords'],
+])('password visibility control describes both fields and its state in %s', (language, passwordLabel, confirmLabel, showLabel, hideLabel) => {
+  showForm(language);
+  const password = screen.getByLabelText(passwordLabel);
+  const confirmation = screen.getByLabelText(confirmLabel);
+  const toggle = screen.getByRole('button', { name: showLabel });
+
+  expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  expect(toggle).toHaveAttribute('aria-controls', 'register-password register-password-confirm');
+  expect(password).toHaveAttribute('type', 'password');
+  expect(confirmation).toHaveAttribute('type', 'password');
+
+  fireEvent.click(toggle);
+
+  expect(screen.getByRole('button', { name: hideLabel })).toHaveAttribute('aria-pressed', 'true');
+  expect(password).toHaveAttribute('type', 'text');
+  expect(confirmation).toHaveAttribute('type', 'text');
+
+  fireEvent.click(toggle);
+
+  expect(screen.getByRole('button', { name: showLabel })).toHaveAttribute('aria-pressed', 'false');
+  expect(password).toHaveAttribute('type', 'password');
+  expect(confirmation).toHaveAttribute('type', 'password');
+  expect(registerWithEmail).not.toHaveBeenCalled();
+});
