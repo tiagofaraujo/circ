@@ -166,13 +166,26 @@ test('signed MB WAY payment evidence confirms registration and issues a distinct
   const f=fixture({inspectReference:async attempt=>{inspections++;assert.equal(attempt.method,'mbway');assert.equal(attempt.entity,'10045');return{providerState:'paga'};}});
   Object.assign(f.state().payment,{method:'mbway',entity:null});
   f.state().registration.payment.method='mbway';
-  const event=payload();Object.assign(event.transaction,{method:'Mbway',entity:10045});
+  const event=payload();Object.assign(event.transaction,{method:'Mbway',entity:10045,fees:{value:'0.83640',currency:'EUR'}});
   const response=await f.call(event);assert.equal(response.status,200);assert.equal((await response.json()).fiscalStatus,'issued');
   const s=f.state();assert.equal(inspections,1);assert.equal(s.payment.method,'mbway');assert.equal(s.payment.entity,'10045');
   assert.equal(s.payment.status,'paid');assert.equal(s.payment.transactionId,'777');assert.equal(s.payment.paidAt,event.transaction.date);
+  assert.equal(s.payment.providerFeeMicros,836400);assert.equal(s.payment.providerFeeSource,'eupago-webhook');
   assert.equal(s.registration.status,'confirmed');assert.equal(s.document.salesDocument.payment_mechanism,'OU');
   assert.match(s.document.salesDocument.notes,/MB WAY via EuPago/);assert.equal(s.document.issuanceProtocol,'claimed-v1');
   assert.equal(f.calls().issueCalls,1);assert.equal(f.calls().confirmCalls,1);
+});
+
+test('missing or invalid reported fees leave commission unknown without blocking payment', async () => {
+  for (const fees of [undefined, { value: '0.37', currency: 'USD' }, { value: '-0.37', currency: 'EUR' }, { value: '100', currency: 'EUR' }]) {
+    const f = fixture();
+    const event = payload();
+    event.transaction.fees = fees;
+    assert.equal((await f.call(event)).status, 200);
+    assert.equal(f.state().payment.status, 'paid');
+    assert.equal(f.state().payment.providerFeeMicros, undefined);
+    assert.equal(f.state().payment.providerFeeSource, undefined);
+  }
 });
 
 test('fiscal payload failure does not roll back verified paid money or confirmed entitlements',async()=>{

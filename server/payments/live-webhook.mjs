@@ -23,6 +23,16 @@ function cents(v){
   if (/[1-9]/.test(f.slice(2))) return null;
   return Number.isSafeInteger(scaled)?scaled:null;
 }
+function reportedFee(fees, amountCents) {
+  if (fees?.currency !== 'EUR') return {};
+  const value = typeof fees.value === 'number' ? String(fees.value) : fees.value;
+  if (typeof value !== 'string' || !/^\d{1,5}(?:\.\d{1,6})?$/.test(value)) return {};
+  const [whole, fraction = ''] = value.split('.');
+  // The provider can report sub-cent commissions. Round only for display.
+  const providerFeeMicros = Number(whole) * 1_000_000 + Number(fraction.padEnd(6, '0'));
+  if (providerFeeMicros > amountCents * 10_000) return {};
+  return { providerFeeMicros, providerFeeSource: 'eupago-webhook' };
+}
 function orderId(identifier){
   const m=/^circ_live_([a-f0-9]{32})$/.exec(identifier||'');if(!m)return null;
   const h=m[1];const id=`${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
@@ -44,7 +54,7 @@ function parsePaid(bytes,signature,key,channel){
   const parsedDate = new Date(normalizedDate);
   if(!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0,19)!==tx.date.slice(0,19))throw new Error('invalid_event');
   const event={id,identifier:tx.identifier,method,reference,entity,transactionId:trid,amountCents,currency:'EUR',paidAt:tx.date};
-  return {...event,digest:createHash('sha256').update(JSON.stringify(event)).digest('hex')};
+  return {...event,fee:reportedFee(tx.fees,amountCents),digest:createHash('sha256').update(JSON.stringify(event)).digest('hex')};
 }
 function lisbonPaymentDate(value){
   const explicit=/(?:Z|\+00:00)$/.test(value);
@@ -96,7 +106,7 @@ export function createLivePaymentWebhook({
       const original=registration.data;
       const kind=payment.kind||payment.quote?.kind||'primary';
       async function review(reason,{preserveRegistration=false}={}){
-        const p={...payment,status:'review_required',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,
+        const p={...payment,...event.fee,status:'review_required',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,
           paymentDate:paymentDate.date,providerState:hint.providerState,reviewReason:reason,retryAllowed:false,updatedAt:now()};
         if(!original||preserveRegistration){await store.updatePayment(event.id,p,located.version);return json({received:true,reviewRequired:true});}
         const r=kind==='primary'&&original.status==='submitted'
@@ -131,7 +141,7 @@ export function createLivePaymentWebhook({
       try{salesDocument=buildLivePaymentFR({orderId:event.id,quote:expected,billing:{customer:payment.billingSnapshot},paymentDate:paymentDate.date,method:payment.method});}
       catch{ /* Verified money and registration confirmation do not depend on fiscal payload availability. */ }
       const fiscalState=salesDocument?'pending':'review_required';
-      const p={...payment,kind,status:'paid',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,paymentDate:paymentDate.date,
+      const p={...payment,...event.fee,kind,status:'paid',reference:event.reference,entity:event.entity,transactionId:event.transactionId,paidAt:event.paidAt,paymentDate:paymentDate.date,
         providerState:hint.providerState,fiscalStatus:fiscalState,fiscalQuote:expected,updatedAt:now()};
       const ent=expected.selection, owned=original.entitlements||original.selection;
       const r=kind==='primary'?{...original,status:'confirmed',fiscalPendingOrderId:event.id,
