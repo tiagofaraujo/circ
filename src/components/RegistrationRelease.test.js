@@ -41,6 +41,18 @@ test('previews the financial record and requires explicit acknowledgement before
 });
 
 test.each([
+  ['open-payment', 'Ainda existe um pedido de pagamento em aberto'],
+  ['closed-attempt-unverified', 'O encerramento sem pagamento de um pedido associado ainda não está confirmado'],
+  ['unknown-reason', 'O estado desta inscrição não permite libertar uma nova inscrição'],
+])('explains a blocked preview without exposing a confirmation action (%s)', async (reason, message) => {
+  fetch.mockResolvedValue(response({ error: 'registration-release-blocked', reason }, false, 409)); show();
+  fireEvent.click(screen.getByRole('button'));
+  expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(posts()).toHaveLength(0);
+});
+
+test.each([
   ['a different registration', { registrationId: 'circ-2027-other' }], ['another email', { email: 'other@example.com' }],
   ['a denied preview', { allowed: false }], ['an invalid stamp', { stamp: 'invalid' }],
   ['a nonpositive amount', { amountCents: 0 }], ['a fractional cent', { amountCents: 9500.5 }],

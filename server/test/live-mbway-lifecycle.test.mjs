@@ -379,6 +379,36 @@ test('late signed payment on a closed old order is retained for review without o
   assert.equal(f.fiscalCalls.length, 0); assert.equal(f.job(), null);
 });
 
+test('a late paid notification on an archived closed supplement stays in review and leaves a fresh registration intact', async () => {
+  const f = fixture({ supplementary: true, providerState: 'cancelada' });
+  const registrationId = f.payment().registrationId;
+  assert.equal((await f.reconcile()).status, 200);
+  const archived = { ...f.payment(), registrationArchiveId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    registrationArchivedAt: '2026-11-15T12:10:00Z' };
+  f.startFresh();
+  f.db.put(`payments/${oldId}`, archived);
+  const quoteResponse = await f.call('/quote', { selection });
+  assert.equal(quoteResponse.status, 200);
+  const quote = await quoteResponse.json();
+  const created = await f.call('/orders', { id: nextId, selection, method: 'mbway', phone: '911111111',
+    stamp: quote.stamp, billingStamp: quote.billingStamp },
+  { configuration: { ...env, LIVE_MBWAY_VALIDATION_EMAILS: owner.email } });
+  assert.equal(created.status, 201, await created.clone().text());
+  const newRegistration = structuredClone(f.registration()), newPayment = structuredClone(f.payment(nextId));
+  f.setState('paga');
+  const response = await f.callback({ date: '2026-11-15T12:11:00Z' });
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal((await response.json()).reviewRequired, true);
+  assert.equal(f.payment().registrationId, registrationId);
+  assert.equal(f.payment().registrationArchiveId, archived.registrationArchiveId);
+  assert.equal(f.payment().registrationArchivedAt, archived.registrationArchivedAt);
+  assert.equal(f.payment().status, 'review_required');
+  assert.equal(f.payment().transactionId, '7001');
+  assert.deepEqual(f.registration(), newRegistration);
+  assert.deepEqual(f.payment(nextId), newPayment);
+  assert.equal(f.fiscalCalls.length, 0); assert.equal(f.job(), null);
+});
+
 test('valid HMAC and provider-paid MB WAY confirms finances even when frozen billing prevents an FR payload', async () => {
   for (const supplementary of [false, true]) {
     const f = fixture({ supplementary, providerState: 'paga', billingBlocked: true });
