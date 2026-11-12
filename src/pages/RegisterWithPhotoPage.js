@@ -121,7 +121,17 @@ export default function RegisterWithPhotoPage() {
             <label htmlFor="register-password">{isEnglish ? 'Password' : 'Palavra-passe'}</label>
             <div className="auth-password-field">
               <input id="register-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength="8" value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} required />
-              <button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? (isEnglish ? 'Hide' : 'Ocultar') : (isEnglish ? 'Show' : 'Mostrar')}</button>
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-pressed={showPassword}
+                aria-controls="register-password register-password-confirm"
+                aria-label={showPassword
+                  ? (isEnglish ? 'Hide passwords' : 'Ocultar palavras-passe')
+                  : (isEnglish ? 'Show passwords' : 'Mostrar palavras-passe')}
+              >
+                {showPassword ? (isEnglish ? 'Hide' : 'Ocultar') : (isEnglish ? 'Show' : 'Mostrar')}
+              </button>
             </div>
             <small className="auth-help">{isEnglish ? 'Minimum 8 characters.' : 'Mínimo de 8 caracteres.'}</small>
 
