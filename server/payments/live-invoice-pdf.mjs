@@ -4,6 +4,18 @@ import { createToconlineLiveClient } from './toconline-live-client.mjs';
 const headers = { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store',
   Vary: 'Authorization', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 const reply = (error, status, diagnostic) => Response.json({ error, ...(diagnostic ? { diagnostic } : {}) }, { status, headers });
+const pdfDiagnostics = new Set([
+  'toconline-api-url-invalid', 'toconline-background-session-missing', 'toconline-not-configured',
+  'toconline-oauth-invalid-response', 'toconline-oauth-rejected', 'toconline-oauth-unavailable',
+  'toconline-oauth-url-invalid', 'toconline-reauthorize-required', 'toconline-print-json-invalid',
+  'toconline-print-location-invalid', 'toconline-print-url-invalid', 'toconline-pdf-unavailable',
+  'toconline-pdf-invalid-response', 'toconline-pdf-invalid-file',
+]);
+
+function pdfDiagnostic(code) {
+  return typeof code === 'string' && (pdfDiagnostics.has(code)
+    || /^toconline-(?:print|pdf)-http-[1-5][0-9]{2}$/.test(code)) ? code : null;
+}
 
 export function createLiveInvoicePdfApi({ verify, storeFactory = createCheckoutLiveStore,
   fiscalClient = createToconlineLiveClient(),
@@ -38,12 +50,17 @@ export function createLiveInvoicePdfApi({ verify, storeFactory = createCheckoutL
         || p.fiscalStatus !== 'issued' || d.status !== 'issued' || !d.issuedAt
         || String(p.fiscalDocumentId) !== String(d.providerDocumentId) || !/^[1-9][0-9]{0,17}$/.test(String(d.providerDocumentId))
         || !Number.isSafeInteger(p.amountCents) || p.amountCents <= 0 || d.amountCents !== p.amountCents) return reply('invoice-not-available', 409);
-      const pdf = await fiscalClient.downloadSalesDocumentPdf(env, d.providerDocumentId);
+      let pdf;
+      try {
+        pdf = await fiscalClient.downloadSalesDocumentPdf(env, d.providerDocumentId);
+      } catch (error) {
+        return reply('invoice-download-unavailable', 503, pdfDiagnostic(error?.code) || 'invoice-provider-read-failed');
+      }
       return new Response(pdf, { headers: { ...headers, 'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="CIRC2027-fatura-recibo-${id}.pdf"` } });
     } catch (error) {
-      const diagnostic = claims.email === 'circ.chuc@gmail.com' && /^toconline-[a-z0-9-]+$/.test(error?.code || '') ? error.code : null;
-      return reply(error?.code === 'storage_forbidden' ? 'not-found' : 'invoice-download-unavailable', error?.code === 'storage_forbidden' ? 404 : 503, diagnostic);
+      if (error?.code === 'storage_forbidden') return reply('not-found', 404);
+      return reply('invoice-download-unavailable', 503, 'invoice-record-read-failed');
     }
   };
 }
