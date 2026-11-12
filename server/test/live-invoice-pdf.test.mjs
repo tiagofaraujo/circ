@@ -15,7 +15,12 @@ function fixture(overrides = {}) {
   const api = createLiveInvoicePdfApi({ verify: async () => ({ sub: 'user', email_verified: true, ...overrides.claims }),
     storeFactory: options => { assert.equal(options.token, 'user-token'); return { registrationId: 'circ-2027-user',
       payment: async () => ({ data: { ...payment, ...overrides.payment } }), document: async () => ({ data: { ...document, ...overrides.document } }) }; },
-    fiscalClient: { downloadSalesDocumentPdf: async (_, providerId) => { calls++; assert.equal(providerId, 321); return new TextEncoder().encode('%PDF-original'); } },
+    fiscalClient: { downloadSalesDocumentPdf: async (_, providerId) => {
+      calls++;
+      assert.equal(providerId, 321);
+      if (overrides.downloadError) throw overrides.downloadError;
+      return new TextEncoder().encode('%PDF-original');
+    } },
   });
   return { api, calls: () => calls };
 }
@@ -25,6 +30,18 @@ test('owner downloads the existing PDF with creation disabled and no fiscal writ
   assert.equal(response.headers.get('Content-Type'), 'application/pdf');
   assert.match(response.headers.get('Content-Disposition'), /attachment/);
   assert.match(response.headers.get('Cache-Control'), /no-store/); assert.equal(f.calls(), 1);
+});
+test('verified owners get a safe PDF diagnostic with no raw provider details', async () => {
+  const response = await fixture({ downloadError: Object.assign(new Error('private upstream response'), {
+    code: 'toconline-print-http-403',
+  }) }).api(request(), env);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'invoice-download-unavailable', diagnostic: 'toconline-print-http-403' });
+
+  const unknown = await fixture({ downloadError: Object.assign(new Error('private upstream response'), {
+    code: 'toconline-unexpected-private-code',
+  }) }).api(request(), env);
+  assert.deepEqual(await unknown.json(), { error: 'invoice-download-unavailable', diagnostic: 'invoice-provider-read-failed' });
 });
 test('owner downloads an issued bank-transfer invoice using its matching internal payment and fiscal job',async()=>{
   const f=fixture({payment:{provider:'internal_bank_transfer',method:'bank_transfer'},document:{paymentMethod:'bank_transfer'}});

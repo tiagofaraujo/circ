@@ -17,10 +17,11 @@ test('shows the issued number and downloads once while the request is pending', 
   expect(screen.getByRole('status')).toHaveTextContent('Transferência do PDF iniciada');
 });
 test('download failure preserves the issued document and permits a read-only retry', async () => {
-  downloadRegistrationInvoice.mockRejectedValue(new Error('unavailable'));
+  downloadRegistrationInvoice.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 'toconline-print-http-403' }));
   render(<RegistrationInvoice {...props} />);
   fireEvent.click(screen.getByRole('button'));
   expect(await screen.findByRole('alert')).toHaveTextContent('A fatura emitida mantém-se válida');
+  expect(screen.getByRole('alert')).toHaveTextContent('Código de apoio toconline-print-http-403');
   expect(screen.getByText('FR CIRC2027/1')).toBeInTheDocument();
   expect(screen.getByRole('button')).toBeEnabled();
 });

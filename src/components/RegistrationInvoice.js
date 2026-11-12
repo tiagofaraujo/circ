@@ -7,13 +7,13 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
   const [loadError, setLoadError] = useState(false);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState('');
-  const [downloadError, setDownloadError] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
   const [downloadStarted, setDownloadStarted] = useState(false);
   const download = useRef(null);
   const uid = user?.uid;
   const registrationId = registration.id;
   useEffect(() => {
-    setDocuments([]); setLoading(true); setLoadError(false); setBusy(''); setDownloadError(false); setDownloadStarted(false);
+    setDocuments([]); setLoading(true); setLoadError(false); setBusy(''); setDownloadError(''); setDownloadStarted(false);
     return subscribeToRegistrationInvoices({ uid }, registrationId, data => {
       setDocuments(data); setLoading(false); setLoadError(false);
     }, () => { setLoading(false); setLoadError(true); });
@@ -24,15 +24,16 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
     if (download.current) return;
     const controller = new AbortController();
     download.current = controller;
-    setBusy(document.id); setDownloadError(false); setDownloadStarted(false);
+    setBusy(document.id); setDownloadError(''); setDownloadStarted(false);
     try {
       await downloadRegistrationInvoice(user, document, controller.signal);
       if (!controller.signal.aborted) setDownloadStarted(true);
     }
     catch (error) {
       if (!controller.signal.aborted) {
-        setDownloadError(true);
-        if (user.email === 'circ.chuc@gmail.com') console.warn('CIRC invoice PDF:', error.code || 'download-unavailable');
+        const code = typeof error?.code === 'string' && /^[a-z][a-z0-9-]{1,63}$/.test(error.code)
+          ? error.code : 'invoice-download-unavailable';
+        setDownloadError(code);
       }
     }
     finally { if (download.current === controller) download.current = null; if (!controller.signal.aborted) setBusy(''); }
@@ -50,7 +51,10 @@ export default function RegistrationInvoice({ user, registration, en = false }) 
         {busy === document.id ? (en ? 'Downloading PDF…' : 'A descarregar PDF…') : (en ? 'Download invoice-receipt (PDF)' : 'Descarregar fatura-recibo (PDF)')}
       </button>
     </div>)}
-    {downloadError && <p role="alert">{en ? 'The PDF could not be downloaded. Try again shortly or contact the organisers. The issued invoice remains unchanged.' : 'Não foi possível descarregar o PDF. Tente novamente dentro de instantes ou contacte a organização. A fatura emitida mantém-se válida.'}</p>}
+    {downloadError && <p role="alert">
+      {en ? 'The PDF could not be downloaded. Try again shortly or contact the organisers. The issued invoice remains unchanged.' : 'Não foi possível descarregar o PDF. Tente novamente dentro de instantes ou contacte a organização. A fatura emitida mantém-se válida.'}
+      <br /><small>{en ? 'Support code' : 'Código de apoio'} <code>{downloadError}</code></small>
+    </p>}
     {downloadStarted && <p role="status">{en ? 'PDF download started. Check your browser downloads.' : 'Transferência do PDF iniciada. Consulte as transferências do navegador.'}</p>}
   </div>;
 }
