@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
+import { LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 
 const PATH = '/api/admin/billing/summary';
 const EVENT = 'circ-2027';
@@ -11,7 +12,11 @@ const METHODS = ['multibanco', 'mbway', 'stripe_card', 'bank_transfer', 'company
 const PAYMENT_FIELDS = [
   'eventId', 'environment', 'isTest', 'testMode', 'currency', 'provider', 'method', 'status',
   'amountCents', 'paidAt', 'transactionId', 'refund.completedExternally', 'refund.amountCents',
-  'refund.currency', 'providerFeeMicros', 'providerFeeSource', 'fiscalStatus', 'fiscalDocumentId',
+  'refund.currency', 'fiscalStatus', 'fiscalDocumentId',
+];
+const FEE_FIELDS = [
+  'eventId', 'environment', 'currency', 'provider', 'method', 'transactionId',
+  'providerFeeMicros', 'providerFeeSource',
 ];
 const COMPANY_FIELDS = [
   'eventId', 'environment', 'isTest', 'testMode', 'currency', 'status', 'amountCents',
@@ -41,7 +46,7 @@ function methodOf(payment) {
   return 'other';
 }
 
-function paymentMetrics(payment) {
+function paymentMetrics(payment, fee) {
   if (payment.environment !== 'production' || payment.currency !== 'EUR' || !positiveInteger(payment.amountCents)
     || !recordedDate(payment.paidAt) || typeof payment.transactionId !== 'string' || !payment.transactionId.trim()) return null;
   if (payment.status === 'review_required') return { reviewCents: payment.amountCents, reviewCount: 1 };
@@ -56,11 +61,9 @@ function paymentMetrics(payment) {
       metrics.unresolvedRefundCount = 1;
     }
   }
-  if (payment.providerFeeSource === 'eupago-webhook' && payment.provider === 'eupago'
-    && ['mbway', 'multibanco'].includes(payment.method)
-    && Number.isSafeInteger(payment.providerFeeMicros) && payment.providerFeeMicros >= 0
-    && payment.providerFeeMicros <= payment.amountCents * 10000) {
-    metrics.reportedFeeMicros = payment.providerFeeMicros;
+  if (fee && fee.provider === payment.provider && fee.method === payment.method && fee.transactionId === payment.transactionId
+    && fee.providerFeeMicros <= payment.amountCents * 10000) {
+    metrics.reportedFeeMicros = fee.providerFeeMicros;
     metrics.feeKnownCount = 1;
   }
   if (payment.fiscalStatus === 'issued' && /^[1-9]\d{0,17}$/.test(String(payment.fiscalDocumentId))) {
@@ -69,6 +72,12 @@ function paymentMetrics(payment) {
     metrics.fiscalPendingCount = 1;
   }
   return metrics;
+}
+
+function validFee(fee) {
+  return fee.environment === 'production' && fee.currency === 'EUR' && fee.provider === 'eupago'
+    && ['mbway', 'multibanco'].includes(fee.method) && typeof fee.transactionId === 'string' && Boolean(fee.transactionId.trim())
+    && fee.providerFeeSource === 'eupago-webhook' && Number.isSafeInteger(fee.providerFeeMicros) && fee.providerFeeMicros >= 0;
 }
 
 function companyMetrics(purchase) {
@@ -153,12 +162,13 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
     for (let page = 0; page < MAX_PAGES; page++) {
       const documents = await readPage(collection, fields, after);
       for (const { name, fields: encoded } of documents) {
-        if (typeof name !== 'string' || !name.startsWith(prefix) || !name.slice(prefix.length)
-          || name.slice(prefix.length).includes('/') || seen.has(name)) unavailable();
+        if (typeof name !== 'string' || !name.startsWith(prefix) || seen.has(name)) unavailable();
+        const id = name.slice(prefix.length);
+        if (!id || id.includes('/')) unavailable();
         seen.add(name);
         const entry = decodeFields(encoded);
         if (entry.eventId !== EVENT) unavailable();
-        if (entry.isTest !== true && entry.testMode !== true) consume(entry);
+        if (entry.isTest !== true && entry.testMode !== true) consume(entry, id);
       }
       if (documents.length < PAGE_SIZE) return;
       after = documents.at(-1).name;
@@ -171,6 +181,7 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
     async summary() {
       const totals = emptyMetrics();
       const grouped = new Map();
+      const fees = new Map();
       function record(method, values) {
         if (!values) return;
         const methodMetrics = grouped.get(method) || emptyMetrics();
@@ -178,7 +189,10 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
         addMetrics(totals, values);
         grouped.set(method, methodMetrics);
       }
-      await forEachEntry('payments', PAYMENT_FIELDS, payment => record(methodOf(payment), paymentMetrics(payment)));
+      await forEachEntry('paymentFees', FEE_FIELDS, (fee, id) => {
+        if (LIVE_ORDER_UUID.test(id) && validFee(fee)) fees.set(id, fee);
+      });
+      await forEachEntry('payments', PAYMENT_FIELDS, (payment, id) => record(methodOf(payment), paymentMetrics(payment, fees.get(id))));
       await forEachEntry('companyPurchases', COMPANY_FIELDS, purchase => record('company_voucher_purchase', companyMetrics(purchase)));
       return { totals, methods: METHODS.filter(method => grouped.has(method)).map(method => ({ method, ...grouped.get(method) })) };
     },

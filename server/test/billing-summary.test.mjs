@@ -8,6 +8,7 @@ const ROOT = 'projects/circ-test/databases/(default)/documents';
 const URL = 'https://circ.test/api/admin/billing/summary';
 const DATE = '2026-11-01T17:00:00.000Z';
 const ADMIN = { sub: 'organiser', email: 'circ.chuc@gmail.com', email_verified: true };
+const orderId = number => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
 
 const request = (options = {}) => new Request(URL, {
   method: options.method || 'GET',
@@ -73,7 +74,7 @@ function row(collection, id, data) {
 }
 
 function payment(id, data = {}) {
-  return row('payments', id, {
+  return row('payments', orderId(id), {
     environment: 'production', status: 'paid', currency: 'EUR', provider: 'eupago', method: 'mbway',
     paidAt: DATE, transactionId: `private-transaction-${id}`, amountCents: 5500,
     fiscalStatus: 'issued', fiscalDocumentId: 20,
@@ -81,8 +82,17 @@ function payment(id, data = {}) {
   });
 }
 
-function fixture(payments, companies = []) {
+function fee(id, data = {}) {
+  return row('paymentFees', orderId(id), {
+    environment: 'production', currency: 'EUR', provider: 'eupago', method: 'mbway',
+    transactionId: `private-transaction-${id}`, providerFeeMicros: 430000, providerFeeSource: 'eupago-webhook',
+    ...data,
+  });
+}
+
+function fixture(payments, companies = [], fees = []) {
   const queries = [];
+  const datasets = { payments, companyPurchases: companies, paymentFees: fees };
   const store = createBillingSummaryStore({ projectId: 'circ-test', token: 'mock-service-token', fetchImpl: async (url, options) => {
     assert.equal(url, `https://firestore.googleapis.com/v1/${ROOT}:runQuery`);
     assert.equal(options.method, 'POST');
@@ -94,8 +104,9 @@ function fixture(payments, companies = []) {
     assert.ok(!fields.some(field => /^(billingSnapshot|billingCustomer|company|refund\.(reason|recordedBy)|userId|customer|notes)/.test(field)));
     const collection = query.from[0].collectionId;
     queries.push(query);
-    assert.ok(['payments', 'companyPurchases'].includes(collection));
-    const dataset = collection === 'payments' ? payments : companies;
+    assert.ok(Object.hasOwn(datasets, collection));
+    if (collection !== 'paymentFees') assert.ok(fields.every(field => !field.startsWith('providerFee')));
+    const dataset = datasets[collection];
     const after = query.startAt?.values[0].referenceValue;
     const start = after ? dataset.findIndex(item => item.document.name === after) + 1 : 0;
     return Response.json(dataset.slice(start, start + query.limit));
@@ -105,28 +116,28 @@ function fixture(payments, companies = []) {
 
 test('receipts include archived payments and add-ons, with confirmed refunds, fee coverage and review counted separately', async () => {
   const payments = [
-    payment('historic', { registrationArchiveId: 'historical', providerFeeMicros: 430000, providerFeeSource: 'eupago-webhook' }),
-    payment('refunded', { method: 'multibanco', amountCents: 9500, status: 'refunded', providerFeeMicros: 836400,
-      providerFeeSource: 'eupago-webhook', refund: { completedExternally: true, amountCents: 9500, currency: 'EUR', reason: 'private-reason' } }),
-    payment('unresolved', { method: 'multibanco', amountCents: 15000, status: 'refunded', fiscalStatus: 'review_required',
-      providerFeeMicros: 150000001, providerFeeSource: 'eupago-webhook',
+    payment(1, { registrationArchiveId: 'historical' }),
+    payment(2, { method: 'multibanco', amountCents: 9500, status: 'refunded',
+      refund: { completedExternally: true, amountCents: 9500, currency: 'EUR', reason: 'private-reason' } }),
+    payment(3, { method: 'multibanco', amountCents: 15000, status: 'refunded', fiscalStatus: 'review_required',
       refund: { completedExternally: true, amountCents: 4000, currency: 'EUR' } }),
-    payment('add-on', { kind: 'supplementary', provider: 'stripe', method: 'stripe_card', amountCents: 1500,
-      providerFeeMicros: 200000, providerFeeSource: 'eupago-webhook', fiscalStatus: 'pending' }),
-    payment('transfer', { provider: 'internal_bank_transfer', method: 'bank_transfer', amountCents: 2200 }),
-    payment('review', { status: 'review_required', amountCents: 4000 }),
-    payment('not-captured', { status: 'review_required', paidAt: null, transactionId: null }),
-    payment('cancelled', { status: 'cancelled' }),
-    payment('test', { isTest: true }),
-    payment('sandbox', { environment: 'sandbox' }),
-    payment('non-euro', { currency: 'USD' }),
-    payment('malformed', { amountCents: 55.5 }),
+    payment(4, { kind: 'supplementary', provider: 'stripe', method: 'stripe_card', amountCents: 1500, fiscalStatus: 'pending' }),
+    payment(5, { provider: 'internal_bank_transfer', method: 'bank_transfer', amountCents: 2200 }),
+    payment(6, { status: 'review_required', amountCents: 4000 }),
+    payment(7, { status: 'review_required', paidAt: null, transactionId: null }),
+    payment(8, { status: 'cancelled' }),
+    payment(9, { isTest: true }),
+    payment(10, { environment: 'sandbox' }),
+    payment(11, { currency: 'USD' }),
+    payment(12, { amountCents: 55.5 }),
   ];
   const purchase = { status: 'paid', quantity: 3, unitAmountCents: 5000, amountCents: 15000, confirmedAt: DATE,
     transferReference: 'private-transfer-reference', company: { name: 'private-company' } };
   const { store } = fixture(payments, [row('companyPurchases', 'paid', purchase),
     row('companyPurchases', 'unmatched', { ...purchase, amountCents: 20000 }),
     row('companyPurchases', 'pending', { ...purchase, status: 'pending' }),
+  ], [fee(1), fee(2, { method: 'multibanco', providerFeeMicros: 836400 }),
+    fee(3, { method: 'multibanco', providerFeeMicros: 150000001 }), fee(6),
   ]);
   const summary = await store.summary();
   assert.deepEqual(summary.totals, {
@@ -140,20 +151,40 @@ test('receipts include archived payments and add-ons, with confirmed refunds, fe
   assert.doesNotMatch(JSON.stringify(summary), /private-|historic|add-on/);
 });
 
+test('only the exact private fee evidence for a production receipt affects commission coverage', async () => {
+  const payments = [
+    payment(1, { providerFeeMicros: 1, providerFeeSource: 'eupago-webhook' }),
+    payment(2), payment(3), payment(4, { provider: 'legacy-provider' }),
+    payment(5), payment(6), payment(7), payment(8),
+  ];
+  const { store } = fixture(payments, [], [
+    fee(100, { transactionId: 'private-transaction-1' }),
+    fee(2, { transactionId: 'private-mismatched-transaction' }),
+    fee(3, { method: 'multibanco' }), fee(4), fee(5, { currency: 'USD' }),
+    fee(6, { environment: 'sandbox' }), fee(7, { providerFeeSource: 'unknown' }), fee(8),
+  ]);
+  const summary = await store.summary();
+  assert.equal(summary.totals.receivedCount, 8);
+  assert.equal(summary.totals.feeKnownCount, 1);
+  assert.equal(summary.totals.reportedFeeMicros, 430000);
+  assert.equal(summary.methods.find(item => item.method === 'other').feeKnownCount, 0);
+  assert.doesNotMatch(JSON.stringify(summary), /private-|providerFee/);
+});
+
 test('the complete payment ledger is read beyond the first page and zero fees require explicit evidence', async () => {
-  const initial = Array.from({ length: 500 }, (_, index) => payment(`p-${index}`, { status: 'pending' }));
-  const { store, queries } = fixture([...initial,
-    payment('known-zero', { providerFeeMicros: 0, providerFeeSource: 'eupago-webhook' }), payment('unknown')]);
+  const initial = Array.from({ length: 500 }, (_, index) => payment(index, { status: 'pending' }));
+  const { store, queries } = fixture([...initial, payment(500), payment(501)], [], [fee(500, { providerFeeMicros: 0 })]);
   const summary = await store.summary();
   assert.equal(summary.totals.receivedCents, 11000);
   assert.equal(summary.totals.receivedCount, 2);
   assert.equal(summary.totals.reportedFeeMicros, 0);
   assert.equal(summary.totals.feeKnownCount, 1);
-  assert.deepEqual(queries[1].startAt, { values: [{ referenceValue: initial.at(-1).document.name }], before: false });
+  const paymentQueries = queries.filter(query => query.from[0].collectionId === 'payments');
+  assert.deepEqual(paymentQueries[1].startAt, { values: [{ referenceValue: initial.at(-1).document.name }], before: false });
 });
 
 test('the ledger fails closed for repeated rows instead of returning inflated totals', async () => {
-  const first = payment('duplicate');
+  const first = payment(1);
   const { store } = fixture([first, first]);
   await assert.rejects(store.summary(), /billing-summary-unavailable/);
 });

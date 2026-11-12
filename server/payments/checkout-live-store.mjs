@@ -272,8 +272,19 @@ export function createCheckoutLiveStore({
         },
       });
     },
-    async confirmPrimaryPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob }) {
+    async confirmPrimaryPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob, providerFeeMicros = null }) {
       if (!paymentVersion || !registrationVersion || fiscalJob.id !== orderId) throw new LiveStoreError('storage_invalid');
+      const feeWrites = [];
+      if (providerFeeMicros !== null && payment.provider === 'eupago' && payment.environment === 'production'
+        && payment.eventId === EVENT && payment.currency === 'EUR' && payment.id === orderId && payment.status === 'paid'
+        && ['multibanco', 'mbway'].includes(payment.method) && /^\d{1,30}$/.test(payment.transactionId || '')
+        && Number.isSafeInteger(providerFeeMicros) && providerFeeMicros >= 0 && providerFeeMicros <= payment.amountCents * 10_000) {
+        // Payment documents are readable by participants. Fees belong in the server-only ledger.
+        feeWrites.push({ update: { name: `${root}/paymentFees/${orderId}`, fields: fields({
+          eventId: EVENT, environment: 'production', currency: 'EUR', provider: 'eupago', method: payment.method,
+          transactionId: payment.transactionId, providerFeeMicros, providerFeeSource: 'eupago-webhook',
+        }) }, currentDocument: { exists: false } });
+      }
       return capacity.commit({ registrationName, nextRegistration: registration, onFull: 'hold',
         checks: [{ name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: paymentVersion }, { name: documentName(orderId), version: null }],
         writes: (decision, previous) => {
@@ -282,6 +293,7 @@ export function createCheckoutLiveStore({
             { update: { name: paymentName(orderId), fields: fields(final.payment) }, currentDocument: { updateTime: paymentVersion } },
             { update: { name: registrationName, fields: fields(final.registration) }, currentDocument: { updateTime: registrationVersion } },
             { update: { name: documentName(orderId), fields: fields(fiscalJob) }, currentDocument: { exists: false } },
+            ...feeWrites,
           ];
         },
       });

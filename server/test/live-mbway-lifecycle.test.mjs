@@ -201,11 +201,11 @@ function fixture({ supplementary = false, providerState = 'pendente', billingBlo
     const q = await qResponse.json();
     return call(`${prefix}/orders`, { id, replacesOrderId: oldId, selection: supplementary ? extras : selection, method: 'multibanco', stamp: q.stamp, billingStamp: q.billingStamp });
   }
-  const callback = async ({ id = oldId, method = 'MW:PT', signatureValid = true, amountCents, date = '2026-11-15T12:02:00Z' } = {}) => {
+  const callback = async ({ id = oldId, method = 'MW:PT', signatureValid = true, amountCents, fees, date = '2026-11-15T12:02:00Z' } = {}) => {
     const p = db.get(`payments/${id}`);
     const text = JSON.stringify({ channel: { name: 'CIRC 2027' }, transaction: { identifier: p.identifier, method,
       reference: p.reference, ...(p.entity ? { entity: p.entity } : {}), trid: '7001', status: 'Paid',
-      amount: { value: (amountCents ?? p.amountCents) / 100, currency: 'EUR' }, date } });
+      amount: { value: (amountCents ?? p.amountCents) / 100, currency: 'EUR' }, fees, date } });
     const signature = createHmac('sha256', signatureValid ? env.EUPAGO_LIVE_WEBHOOK_KEY : 'invalid-key').update(text).digest('base64');
     return webhook(new Request('https://circ.test/api/payments/live/notifications', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature': signature }, body: text,
@@ -235,16 +235,22 @@ test('admin validation creates a real-mode MB WAY order through the PSP adapter 
   assert.doesNotMatch(JSON.stringify(f.payment()), /911111111/);
   assert.equal((await f.call('/orders', request)).status, 200); assert.equal(f.providerCalls.length, 1);
   f.setState('paga', order.reference); f.setClock('2026-11-15T12:12:00Z');
-  const paid = await Promise.all([f.callback({ date: '2026-11-15T12:11:00Z' }), f.callback({ date: '2026-11-15T12:11:00Z' })]);
+  const notification = { date: '2026-11-15T12:11:00Z', fees: { value: '0.83640', currency: 'EUR' } };
+  const paid = await Promise.all([f.callback(notification), f.callback(notification)]);
   assert.ok(paid.some(response => response.status === 200));
   assert.ok(paid.every(response => [200, 503].includes(response.status)));
   assert.equal(f.payment().status, 'paid'); assert.equal(f.payment().fiscalStatus, 'issued');
+  assert.equal(f.payment().providerFeeMicros, undefined);
+  const fee = f.db.get(`paymentFees/${oldId}`);
+  assert.deepEqual(fee, { eventId: 'circ-2027', environment: 'production', currency: 'EUR', provider: 'eupago', method: 'mbway',
+    transactionId: '7001', providerFeeMicros: 836400, providerFeeSource: 'eupago-webhook' });
   assert.equal(f.registration().status, 'confirmed'); assert.equal(f.registration().documentCount, 1);
   assert.equal(f.fiscalCalls.length, 1); assert.equal(f.fiscalCalls[0].payment_mechanism, 'OU');
   assert.match(f.fiscalCalls[0].notes, /MB\s?WAY/i);
   assert.equal(f.job().status, 'issued');
-  const repeated = await f.callback({ date: '2026-11-15T12:11:00Z' });
+  const repeated = await f.callback({ ...notification, fees: { value: '0.90', currency: 'EUR' } });
   assert.equal(repeated.status, 200); assert.equal((await repeated.json()).duplicate, true);
+  assert.deepEqual(f.db.get(`paymentFees/${oldId}`), fee);
   assert.equal(f.fiscalCalls.length, 1); assert.equal(f.registration().documentCount, 1);
 });
 
