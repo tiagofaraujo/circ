@@ -8,8 +8,17 @@ const response = (data, ok = true) => ({ ok, json: async () => data });
 const config = { configured: true, connected: true, backgroundAutomation: { sessionStored: true } };
 const stripe = { ready: true, apiKeyPresent: true, liveKeyValid: true, webhookKeyPresent: true, serviceAccountPresent: true,
   webhookPath: '/api/payments/stripe/live/notifications', apiVersion: '2026-09-30.endive', liveEnabled: true, validationOnly: true };
+const totals = {
+  receivedCents: 9500, receivedCount: 1, refundedCents: 0, unresolvedRefundCount: 0, reportedFeeMicros: 350000,
+  feeKnownCount: 1, reviewCents: 0, reviewCount: 0, issuedCount: 1, fiscalPendingCount: 0,
+};
+const summary = {
+  currency: 'EUR', generatedAt: '2026-11-12T22:30:00Z', totals,
+  methods: [{ method: 'mbway', ...totals }],
+};
 beforeEach(() => {
   global.fetch = jest.fn(async url => {
+    if (url === '/api/admin/billing/summary') return response(summary);
     if (url.endsWith('/config')) return response(config);
     if (url.endsWith('/diagnostics')) return response({ liveCheckoutEnabled: true, privatePilot: false, channelMatchesExpected: true, checks: { FIREBASE_PROJECT_ID: true }, stripe });
     if (url.endsWith('/resources')) return response({ fetchedAt: '2026-11-01T10:00:00Z', resources: { series: { ok: true, count: 7 } } });
@@ -25,10 +34,34 @@ test('production billing reads the existing configuration without creating payme
   expect(screen.getByText('Receção de pagamentos ativa')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Stripe · cartões e carteiras digitais' })).toBeInTheDocument();
   expect(await screen.findByText('Configuração técnica presente')).toBeInTheDocument();
-  expect(fetch.mock.calls).toHaveLength(3);
+  expect(await screen.findByRole('rowheader', { name: 'MB WAY' })).toBeInTheDocument();
+  expect(fetch.mock.calls).toHaveLength(4);
   expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
   expect(screen.queryByText(/ensaio|sandbox|pré-visualização|simular/i)).not.toBeInTheDocument();
   expect(screen.queryAllByRole('link').some(link => link.getAttribute('href').includes('-teste'))).toBe(false);
+});
+
+test('the summary shows missing commissions honestly and refreshes independently from the configuration', async () => {
+  const read = fetch.getMockImplementation();
+  const partial = { ...totals, reportedFeeMicros: 0, feeKnownCount: 0 };
+  fetch.mockImplementation((url, options) => url === '/api/admin/billing/summary'
+    ? Promise.resolve(response({ ...summary, totals: partial, methods: [{ method: 'mbway', ...partial }] }))
+    : read(url, options));
+  show();
+  await screen.findByRole('rowheader', { name: 'MB WAY' });
+  await screen.findByText('7 registos');
+  const panel = screen.getByRole('region', { name: 'Resumo financeiro' });
+  expect(within(panel).getAllByText('Por apurar')).toHaveLength(4);
+  expect(within(panel).queryByText(/94,65\s*€/)).not.toBeInTheDocument();
+
+  fetch.mockClear();
+  fetch.mockImplementation(read);
+  fireEvent.click(within(panel).getByRole('button', { name: 'Atualizar resumo' }));
+  await waitFor(() => expect(within(panel).getAllByText(/94,65\s*€/)).toHaveLength(2));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledWith('/api/admin/billing/summary', expect.objectContaining({
+    method: 'GET', cache: 'no-store', headers: { Authorization: 'Bearer firebase-session' },
+  }));
 });
 test('disconnect ends only the browser connection and leaves the backend status visible', async () => {
   show(); await screen.findByText('7 registos');

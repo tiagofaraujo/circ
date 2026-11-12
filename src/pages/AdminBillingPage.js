@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import AdminModuleNav from '../components/AdminModuleNav';
+import BillingSummary from '../components/BillingSummary';
 import StripeProductionSetup from '../components/StripeProductionSetup';
 import '../admin.css';
 import './AdminBillingPage.css';
@@ -99,6 +100,8 @@ export default function AdminBillingPage() {
       <h1>{t('Faturação', 'Invoicing')}</h1>
       <p>{t('Ligação aos serviços de pagamento e faturação. As faturas-recibo emitidas ficam disponíveis na inscrição do participante.', 'Payment and invoicing service connections. Issued invoice-receipts are available in the participant registration.')}</p>
     </header>
+
+    <BillingSummary user={user} en={en} />
 
     <section aria-labelledby="billing-payments-title" className="admin-billing__panel">
       <h2 id="billing-payments-title">{t('Pagamentos', 'Payments')}</h2>
