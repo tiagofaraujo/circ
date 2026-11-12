@@ -37,6 +37,18 @@ export default function AccountSecurityPage() {
   const hasPasswordProvider = providers.includes('password');
   const hasGoogleProvider = providers.includes('google.com');
 
+  // Clear obsolete feedback as soon as the participant corrects an input.
+  const updatePasswordField = (setField) => (event) => {
+    setField(event.target.value);
+    setPasswordError('');
+    setPasswordStatus('');
+  };
+
+  const updateDeleteField = (setField) => (event) => {
+    setField(event.target.value);
+    setDeleteError('');
+  };
+
   const handlePasswordChange = async (event) => {
     event.preventDefault();
     setPasswordError('');
@@ -108,15 +120,15 @@ export default function AccountSecurityPage() {
             <form className="security-form" onSubmit={handlePasswordChange}>
               <label>
                 <span>{isEnglish ? 'Current password' : 'Palavra-passe atual'}</span>
-                <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+                <input type="password" autoComplete="current-password" value={currentPassword} onChange={updatePasswordField(setCurrentPassword)} required />
               </label>
               <label>
                 <span>{isEnglish ? 'New password' : 'Nova palavra-passe'}</span>
-                <input type="password" autoComplete="new-password" minLength="8" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+                <input type="password" autoComplete="new-password" minLength="8" value={newPassword} onChange={updatePasswordField(setNewPassword)} required />
               </label>
               <label>
                 <span>{isEnglish ? 'Confirm new password' : 'Confirmar nova palavra-passe'}</span>
-                <input type="password" autoComplete="new-password" minLength="8" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+                <input type="password" autoComplete="new-password" minLength="8" value={confirmPassword} onChange={updatePasswordField(setConfirmPassword)} required />
               </label>
               {passwordError && <div className="auth-notice auth-notice--error" role="alert">{passwordError}</div>}
               {passwordStatus && <div className="auth-notice auth-notice--success" role="status">{passwordStatus}</div>}
@@ -138,7 +150,7 @@ export default function AccountSecurityPage() {
           {hasPasswordProvider && (
             <label className="security-danger-field">
               <span>{isEnglish ? 'Current password' : 'Palavra-passe atual'}</span>
-              <input type="password" autoComplete="current-password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} />
+              <input type="password" autoComplete="current-password" value={deletePassword} onChange={updateDeleteField(setDeletePassword)} />
             </label>
           )}
 
@@ -148,7 +160,7 @@ export default function AccountSecurityPage() {
 
           <label className="security-danger-field">
             <span>{isEnglish ? 'Type DELETE to confirm' : 'Escreva ELIMINAR para confirmar'}</span>
-            <input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" />
+            <input value={confirmation} onChange={updateDeleteField(setConfirmation)} autoComplete="off" />
           </label>
 
           {deleteError && <div className="auth-notice auth-notice--error" role="alert">{deleteError}</div>}
