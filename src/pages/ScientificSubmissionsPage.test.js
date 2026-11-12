@@ -99,3 +99,26 @@ test('editing a saved draft focuses the editor heading', () => {
   fireEvent.click(screen.getByRole('button', { name: /Editar rascunho/ }));
   expect(screen.getByRole('heading', { name: 'Continue o trabalho e submeta quando estiver pronto.' })).toHaveFocus();
 });
+
+test('a failed submission subscription is not presented as an empty list and can be retried', () => {
+  let offline = true;
+  subscribeToUserSubmissions.mockImplementation((_uid, next, onError) => {
+    if (offline) onError(new Error('unavailable'));
+    else next([]);
+    return () => {};
+  });
+  show();
+  expect(screen.getByRole('status')).toHaveTextContent('Não foi possível carregar os seus trabalhos.');
+  expect(screen.queryByText('Ainda não existem trabalhos')).not.toBeInTheDocument();
+  offline = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+  expect(subscribeToUserSubmissions).toHaveBeenCalledTimes(2);
+  expect(screen.getByText('Ainda não existem trabalhos')).toBeInTheDocument();
+});
+
+test('a pending submission subscription is not presented as an empty list', () => {
+  subscribeToUserSubmissions.mockImplementation(() => () => {});
+  show();
+  expect(screen.getByRole('status')).toHaveTextContent('A carregar os seus trabalhos…');
+  expect(screen.queryByText('Ainda não existem trabalhos')).not.toBeInTheDocument();
+});
