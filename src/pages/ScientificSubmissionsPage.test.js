@@ -164,3 +164,34 @@ test.each([
   expect(date).toHaveTextContent(zoneLabel);
   expect(date).toHaveAttribute('dateTime', new Date(submittedAt).toISOString());
 });
+
+test('a pending draft save announces progress and prevents duplicate actions in PT', () => {
+  saveSubmission.mockImplementation(() => new Promise(() => {}));
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /Novo trabalho/ }));
+  fireEvent.change(screen.getByPlaceholderText('Introduza um título claro e objetivo'), { target: { value: form.title } });
+  fireEvent.change(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação'), { target: { value: form.authors } });
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar rascunho' }));
+
+  expect(screen.getByRole('status')).toHaveTextContent('A guardar o trabalho…');
+  expect(screen.getByRole('button', { name: 'Guardar rascunho' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /Submeter trabalho/ })).toBeDisabled();
+  expect(saveSubmission).toHaveBeenCalledTimes(1);
+});
+
+test('a pending scientific submission announces its different operation in EN', () => {
+  mockLanguage = 'en';
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]);
+    return () => {};
+  });
+  updateSubmissionDraft.mockImplementation(() => new Promise(() => {}));
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /Edit draft/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Submit work/ }));
+
+  expect(screen.getByRole('status')).toHaveTextContent('Submitting your work…');
+  expect(screen.getByRole('button', { name: 'Update draft' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /Submit work/ })).toBeDisabled();
+  expect(updateSubmissionDraft).toHaveBeenCalledTimes(1);
+});
