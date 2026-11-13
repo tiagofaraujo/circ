@@ -242,6 +242,18 @@ test('release commit conflicts and transport failures are surfaced without retri
     assert.equal(calls[0].body.writes.length, 5);
   }
   const { store, calls } = fixture(() => { throw new Error('connection lost'); });
-  await assert.rejects(store.commit(commitInput()), error => error.code === 'storage_unavailable');
+  await assert.rejects(store.commit(commitInput()), error => error.code === 'storage_unavailable' && error.supportCause === 'network');
   assert.equal(calls.length, 1);
+});
+
+test('release store provides bounded causes without retaining the upstream response body', async () => {
+  for (const [status, cause] of [[403, 'http-403'], [429, 'http-429'], [504, 'http-504'], [418, 'response']]) {
+    const { store } = fixture(() => new Response('sensitive upstream data', { status }));
+    await assert.rejects(store.findArchive(registrationId, stamp, transaction), error =>
+      error.code === 'storage_unavailable' && error.supportCause === cause && error.message === 'storage_unavailable');
+  }
+  const timeout = fixture(() => { throw new DOMException('private timeout detail', 'TimeoutError'); });
+  await assert.rejects(timeout.store.commit(commitInput()), error => error.code === 'storage_unavailable' && error.supportCause === 'timeout');
+  const unreadable = fixture(() => new Response('private malformed response'));
+  await assert.rejects(unreadable.store.commit(commitInput()), error => error.code === 'storage_unavailable' && error.supportCause === 'response');
 });

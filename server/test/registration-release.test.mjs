@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRegistrationReleaseApi } from '../payments/registration-release.mjs';
-import { releaseFields, decodeReleaseValue } from '../payments/registration-release-store.mjs';
+import { releaseFields, decodeReleaseValue, RegistrationReleaseStoreError } from '../payments/registration-release-store.mjs';
 
 const orderId='11111111-1111-4111-8111-111111111111',archiveId='22222222-2222-4222-8222-222222222222';
 const uid='target-person',registrationId=`circ-2027-${uid}`,email='araujotiagofc@gmail.com';
@@ -60,7 +60,7 @@ function fixture(){
   const call=(body,options)=>api(request(body,options),{FIREBASE_PROJECT_ID:'circ-demo'});
   const sync=row=>{row.fields=releaseFields(row.data);};
   const preview=async()=>{const response=await call();assert.equal(response.status,200);return response.json();};
-  return{call,preview,calls,payments,documents,legacy,profile,credit,archives,sync,record,
+  return{call,preview,calls,payments,documents,legacy,profile,credit,archives,sync,record,store,
     get registration(){return registration;},set registration(value){registration=value;},get commits(){return commits;},
     setClaims:value=>{claims=value;},setLostAck:()=>{lostAck=true;},setConflict:()=>{conflict=true;}};
 }
@@ -86,7 +86,10 @@ test('confirmed release archives complete registration and preserves financial r
 });
 test('a lost commit acknowledgement replays the original receipt without reading/deleting a new registration',async()=>{
   const f=fixture(),p=await f.preview(),replacement=f.record('registrations',registrationId,{userId:uid,status:'submitted',newRegistration:true});
-  f.setLostAck();assert.equal((await f.call(confirmation(p.stamp))).status,503);assert.equal(f.registration,null);
+  f.setLostAck();const unavailable=await f.call(confirmation(p.stamp));
+  assert.equal(unavailable.status,503);
+  assert.deepEqual(await unavailable.json(),{error:'registration-release-unavailable',diagnostic:'release-commit-unexpected'});
+  assert.equal(f.registration,null);
   f.registration=replacement;const before=f.calls.length;
   const replay=await f.call(confirmation(p.stamp));assert.equal(replay.status,200);assert.equal(f.commits,1);assert.equal(f.registration,replacement);
   assert.ok(!f.calls.slice(before).some(row=>row[0]==='readRegistration'));assert.equal((await replay.json()).archiveId,archiveId);
@@ -98,6 +101,23 @@ test('source change after preview returns conflict without committing',async()=>
 test('transaction conflict never retries or removes the registration',async()=>{
   const f=fixture(),p=await f.preview();f.setConflict();const result=await f.call(confirmation(p.stamp));
   assert.equal(result.status,409);assert.equal(f.commits,1);assert.ok(f.registration);assert.equal(f.archives.length,0);
+});
+test('POST storage errors expose only an allowlisted stage and cause, with no attempted release',async()=>{
+  const cases=[
+    ['begin','begin','http-403','http-403'],
+    ['findArchive','lookup','http-400','http-400'],
+    ['readRegistration','inspect','network','network'],
+    ['commit','commit','timeout','timeout'],
+    ['commit','commit','sensitive-upstream-value','response'],
+  ];
+  for(const [operation,stage,cause,expected] of cases){
+    const f=fixture(),preview=await f.preview();
+    f.store[operation]=async()=>{throw new RegistrationReleaseStoreError('storage_unavailable',cause);};
+    const response=await f.call(confirmation(preview.stamp));
+    assert.equal(response.status,503);
+    assert.deepEqual(await response.json(),{error:'registration-release-unavailable',diagnostic:`release-${stage}-${expected}`});
+    assert.ok(f.registration);assert.equal(f.commits,0);
+  }
 });
 test('only the exact verified administrator may obtain a preview or release',async()=>{
   for(const claims of [{...admin,email_verified:false},{...admin,email:'other@example.test'},{...admin,email:'CIRC.CHUC@gmail.com'}]){

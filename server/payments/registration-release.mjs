@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
-import { createRegistrationReleaseStore, releaseFields } from './registration-release-store.mjs';
+import { createRegistrationReleaseStore, RegistrationReleaseStoreError, releaseFields } from './registration-release-store.mjs';
 
 const EVENT='circ-2027', ADMIN='circ.chuc@gmail.com', TARGET='araujotiagofc@gmail.com';
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -15,6 +15,14 @@ const positive=value=>Number.isSafeInteger(value)&&value>0;
 const providerId=value=>typeof value==='string'&&/^[1-9]\d{0,17}$/.test(value)||positive(value);
 const rowIdentity=(row,uid,id)=>row?.data&&row.version&&row.fields&&row.data.userId===uid&&row.data.eventId===EVENT&&row.data.registrationId===id;
 const snap=row=>({id:row.id,name:row.name,version:row.version,fields:row.fields});
+
+function unavailableResponse(stage,error){
+  const allowed=/^(?:network|timeout|response|http-(?:400|401|403|404|408|429|500|502|503|504))$/;
+  const cause=error instanceof RegistrationReleaseStoreError
+    ? error.code==='storage_invalid'?'invalid':allowed.test(error.supportCause||'')?error.supportCause:'response'
+    : 'unexpected';
+  return reply({error:'registration-release-unavailable',diagnostic:`release-${stage}-${cause}`},503);
+}
 
 async function bodyOf(request){
   if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type')||''))fail('invalid-request',400);
@@ -139,22 +147,26 @@ export function createRegistrationReleaseApi({verify,storeFactory=createRegistra
     if(!env.FIREBASE_PROJECT_ID)return reply({error:'registration-release-unavailable'},503);
     let claims;try{claims=await verify(token,env.FIREBASE_PROJECT_ID);}catch{return reply({error:'invalid-session'},401);}
     if(claims?.email!==ADMIN||claims.email_verified!==true||!/^[-A-Za-z0-9_]{1,128}$/.test(claims.sub||''))return reply({error:'admin-required'},403);
-    let store,tx;
+    let store,tx,stage='parse';
     try{
       const body=request.method==='POST'?await bodyOf(request):null;
+      stage='begin';
       store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token});
       tx=await store.begin({readOnly:request.method==='GET'});
       const id=match[1],uid=match[2];
       if(body){
+        stage='lookup';
         const prior=await store.findArchive(id,body.stamp,tx);
         if(prior.length){
           if(prior.length!==1||!validArchive(prior[0],id,body.stamp)||prior[0].data.userId!==uid)blocked('archive-mismatch');
           return reply({released:true,archiveId:prior[0].data.archiveId,registrationId:id});
         }
       }
+      stage='inspect';
       const current=await inspect(store,id,uid,tx);
       if(!body)return reply(current.preview);
       if(body.stamp!==current.stamp)fail('registration-changed');
+      stage='prepare';
       const archiveId=makeArchiveId(),archivedAt=now();
       if(!UUID.test(archiveId)||!date(archivedAt))fail('registration-release-unavailable',503);
       const actor={uid:claims.sub,email:ADMIN};
@@ -163,6 +175,7 @@ export function createRegistrationReleaseApi({verify,storeFactory=createRegistra
         creditClaimIds:current.credits.map(c=>c.id).sort(),sourceVersions:[current.registration,...current.payments,...current.documents,...current.credits].map(row=>({name:row.name,version:row.version}))}),
         registration:{mapValue:{fields:current.registration.fields}}};
       if(Buffer.byteLength(JSON.stringify(archiveFields))>750000)blocked('archive-mismatch');
+      stage='commit';
       await store.commit({transaction:tx,registration:current.registration,payments:current.payments,documents:current.documents,archiveId,archiveFields,
         archivedAt,auditFields:releaseFields({action:'registration.released',eventId:EVENT,registrationId:id,archiveId,actor,createdAt:archivedAt,
           details:{email:TARGET,stamp:current.stamp,paymentIds:current.payments.map(p=>p.id),documentIds:current.documents.map(d=>d.id)}})});
@@ -172,7 +185,7 @@ export function createRegistrationReleaseApi({verify,storeFactory=createRegistra
       if(error?.code==='conflict')return reply({error:'registration-changed'},409);
       if(error?.code==='registration-release-blocked')return reply({error:error.code,reason:error.reason},409);
       if(error?.status&&error.code)return reply({error:error.code},error.status);
-      return reply({error:'registration-release-unavailable'},503);
+      return request.method==='POST'?unavailableResponse(stage,error):reply({error:'registration-release-unavailable'},503);
     }finally{if(tx&&store)try{await store.rollback(tx);}catch{/* Expired/committed transaction; no retry or extra writes. */}}
   };
 }

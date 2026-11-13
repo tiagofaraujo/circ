@@ -1,9 +1,10 @@
 // This store uses the verified administrator's Firebase ID token. Every source
 // read and bounded query belongs to the same Firestore transaction.
 export class RegistrationReleaseStoreError extends Error {
-  constructor(code) { super(code); this.code = code; }
+  constructor(code, cause) { super(code); this.code = code; this.supportCause = cause; }
 }
 const invalid = () => { throw new RegistrationReleaseStoreError('storage_invalid'); };
+const supportStatuses = new Set([400, 401, 403, 404, 408, 429, 500, 502, 503, 504]);
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const regId = /^circ-2027-[A-Za-z0-9_-]{1,128}$/;
 const hash = /^[a-f0-9]{64}$/;
@@ -42,12 +43,18 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
     let response;
     try { response = await fetchImpl(url,{method,redirect:'manual',cache:'no-store',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       ...(body !== undefined ? {body:JSON.stringify(body)} : {}),signal:AbortSignal.timeout(10000)}); }
-    catch { throw new RegistrationReleaseStoreError('storage_unavailable'); }
+    catch (error) {
+      const cause = ['TimeoutError','AbortError'].includes(error?.name) ? 'timeout' : 'network';
+      throw new RegistrationReleaseStoreError('storage_unavailable', cause);
+    }
     if (method === 'GET' && response.status === 404) return null;
     if ([409,412].includes(response.status)) throw new RegistrationReleaseStoreError('conflict');
-    if (!response.ok) throw new RegistrationReleaseStoreError('storage_unavailable');
+    if (!response.ok) {
+      const cause = supportStatuses.has(response.status) ? `http-${response.status}` : 'response';
+      throw new RegistrationReleaseStoreError('storage_unavailable', cause);
+    }
     if (response.status === 204) return null;
-    try { return await response.json(); } catch { throw new RegistrationReleaseStoreError('storage_unavailable'); }
+    try { return await response.json(); } catch { throw new RegistrationReleaseStoreError('storage_unavailable', 'response'); }
   }
   function record(doc,collection) {
     if (!doc || typeof doc.name !== 'string' || !doc.name.startsWith(`${root}/${collection}/`) || !doc.updateTime || !doc.fields) invalid();
