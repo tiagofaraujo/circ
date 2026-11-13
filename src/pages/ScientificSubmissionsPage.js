@@ -100,6 +100,7 @@ const content = {
     submittingWork: 'A submeter o trabalho…',
     updateDraft: 'Atualizar rascunho',
     submitWork: 'Submeter trabalho',
+    submitRequirements: 'Para submeter, preencha o título, os autores e as seis secções do resumo. Pode guardar um rascunho depois de indicar o título e os autores.',
     savedMessage: 'O rascunho foi guardado. Pode continuar a editá-lo antes de submeter.',
     draftUpdatedMessage: 'O rascunho foi atualizado.',
     submittedMessage: 'Trabalho submetido com sucesso. Pode acompanhar o estado da avaliação nesta página.',
@@ -205,6 +206,7 @@ const content = {
     submittingWork: 'Submitting your work…',
     updateDraft: 'Update draft',
     submitWork: 'Submit work',
+    submitRequirements: 'To submit, complete the title, authors and all six abstract sections. You can save a draft once you have entered the title and authors.',
     savedMessage: 'Your draft was saved. You can keep editing it before submission.',
     draftUpdatedMessage: 'Your draft was updated.',
     submittedMessage: 'Your work was submitted successfully. You can track its review status here.',
@@ -453,11 +455,12 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
           </div>
           <p>{t.reviewText}</p>
           {!isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
+          {!canSubmit && isSubmissionTypeOpen(form.type) && <p id="submissions-submit-hint">{t.submitRequirements}</p>}
           {error && <p className="submissions-test-notice" role="alert">{error}</p>}
           {saving && <p role="status" aria-live="polite">{savingStatus === 'submitted' ? t.submittingWork : t.savingWork}</p>}
           <div className="submissions-form-actions">
             <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{submission ? t.updateDraft : t.saveDraft}</button>
-            <button type="submit" disabled={saving || !canSubmit}>{t.submitWork} →</button>
+            <button type="submit" disabled={saving || !canSubmit} aria-describedby={!canSubmit && isSubmissionTypeOpen(form.type) ? 'submissions-submit-hint' : undefined}>{t.submitWork} →</button>
           </div>
         </fieldset>
       </form>
