@@ -1,5 +1,5 @@
-// This store uses the verified administrator's Firebase ID token. Every source
-// read and bounded query belongs to the same Firestore transaction.
+// The caller supplies the verified administrator's ID token for reads, or a
+// service token for an authorized archive. All reads and writes share a transaction.
 export class RegistrationReleaseStoreError extends Error {
   constructor(code, cause) { super(code); this.code = code; this.supportCause = cause; }
 }

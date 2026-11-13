@@ -5,7 +5,7 @@ const TARGET_EMAIL = 'araujotiagofc@gmail.com';
 const CONFIRMATION = 'LIBERTAR NOVA INSCRICAO';
 const ID = /^circ-2027-[A-Za-z0-9_-]{1,128}$/;
 const STAMP = /^[a-f0-9]{64}$/i;
-const SUPPORT_CODE = /^release-(parse|begin|lookup|inspect|prepare|commit)-(invalid|network|timeout|response|unexpected|http-(400|401|403|404|408|429|500|502|503|504))$/;
+const SUPPORT_CODE = /^release-(parse|identity|begin|lookup|inspect|prepare|commit)-(invalid|network|timeout|response|unexpected|http-(400|401|403|404|408|429|500|502|503|504))$/;
 const email = value => String(value || '').trim().toLowerCase();
 const statuses = {
   paid: 'Pago', pending: 'Pendente', awaiting_confirmation: 'A aguardar confirmação',

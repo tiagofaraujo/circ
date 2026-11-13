@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
+import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createRegistrationReleaseStore, RegistrationReleaseStoreError, releaseFields } from './registration-release-store.mjs';
 
 const EVENT='circ-2027', ADMIN='circ.chuc@gmail.com', TARGET='araujotiagofc@gmail.com';
@@ -135,7 +136,8 @@ async function inspect(store,id,uid,tx){
       paymentStatus:p.status,documentNumbers:activeDocuments.map(d=>d.data.providerDocumentNo).sort(),stamp,allowed:true}};
 }
 
-export function createRegistrationReleaseApi({verify,storeFactory=createRegistrationReleaseStore,now=()=>new Date().toISOString(),makeArchiveId=randomUUID}={}){
+export function createRegistrationReleaseApi({verify,tokenProvider=createPaymentsServiceTokenProvider(),
+  storeFactory=createRegistrationReleaseStore,now=()=>new Date().toISOString(),makeArchiveId=randomUUID}={}){
   return async function handle(request,env){
     const url=new URL(request.url),match=url.pathname.match(/^\/api\/admin\/registrations\/(circ-2027-([A-Za-z0-9_-]{1,128}))\/release$/);
     if(!match)return null;
@@ -150,8 +152,12 @@ export function createRegistrationReleaseApi({verify,storeFactory=createRegistra
     let store,tx,stage='parse';
     try{
       const body=request.method==='POST'?await bodyOf(request):null;
+      // Firestore REST requires a Google OAuth token for read-write transactions.
+      // The verified Firebase identity above still authorizes and audits the action.
+      stage='identity';
+      const storeToken=body?await tokenProvider(env):token;
       stage='begin';
-      store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token});
+      store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token:storeToken});
       tx=await store.begin({readOnly:request.method==='GET'});
       const id=match[1],uid=match[2];
       if(body){
