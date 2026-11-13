@@ -28,7 +28,7 @@ function fixture(){
     providerDocumentNo:'FR CIRC2027/7',issuedAt:time,salesDocument:{type:'FR',payment_mechanism:'TR',document_no:'stored-original'}})];
   const credit=record('settings',`circ-bank-credit-live-${key}`,{key,kind:'bank-credit-live',eventId:'circ-2027',environment:'production',
     orderId,decisionId:archiveId,requestHash,creditReference:'BANK-REF-42',bookingDate:'2026-11-01',amountCents:5500,currency:'EUR'});
-  const archives=[],legacy=[],calls=[];let commits=0,lostAck=false,conflict=false;
+  const archives=[],legacy=[],calls=[],storeTokens=[];let commits=0,lostAck=false,conflict=false;
   const store={
     begin:async options=>{calls.push(['begin',options]);return'fake-transaction';},
     rollback:async tx=>{assert.equal(tx,'fake-transaction');calls.push(['rollback']);},
@@ -51,17 +51,29 @@ function fixture(){
       if(lostAck)throw new Error('lost commit acknowledgement');
     },
   };
-  let claims=admin;
-  const api=createRegistrationReleaseApi({verify:async()=>claims,storeFactory:({projectId,token})=>{
-    assert.equal(projectId,'circ-demo');assert.equal(token,'fake-admin');return store;},now:()=>time,makeArchiveId:()=>archiveId});
+  let claims=admin,identityRequests=0,identityError=null;
+  const api=createRegistrationReleaseApi({
+    verify:async token=>{assert.equal(token,'fake-admin');if(!claims)throw new Error('invalid-session');return claims;},
+    tokenProvider:async env=>{
+      assert.equal(env.FIREBASE_PROJECT_ID,'circ-demo');
+      identityRequests++;
+      if(identityError)throw identityError;
+      return 'fake-service-token';
+    },
+    storeFactory:({projectId,token})=>{
+      assert.equal(projectId,'circ-demo');storeTokens.push(token);return store;
+    },
+    now:()=>time,makeArchiveId:()=>archiveId,
+  });
   const request=(body,options={})=>new Request(`https://circ.test/api/admin/registrations/${registrationId}/release`,{
     method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer fake-admin',Origin:'https://circ.test',...(body===undefined?{}:{'Content-Type':'application/json'}),...options.headers},
     ...(body===undefined?{}:{body:JSON.stringify(body)})});
   const call=(body,options)=>api(request(body,options),{FIREBASE_PROJECT_ID:'circ-demo'});
   const sync=row=>{row.fields=releaseFields(row.data);};
   const preview=async()=>{const response=await call();assert.equal(response.status,200);return response.json();};
-  return{call,preview,calls,payments,documents,legacy,profile,credit,archives,sync,record,store,
+  return{call,preview,calls,payments,documents,legacy,profile,credit,archives,sync,record,store,storeTokens,
     get registration(){return registration;},set registration(value){registration=value;},get commits(){return commits;},
+    get identityRequests(){return identityRequests;},setIdentityError:error=>{identityError=error;},
     setClaims:value=>{claims=value;},setLostAck:()=>{lostAck=true;},setConflict:()=>{conflict=true;}};
 }
 const confirmation=stamp=>({stamp,confirmation:'LIBERTAR NOVA INSCRICAO'});
@@ -72,11 +84,13 @@ test('preview is read-only and returns only the target confirmation data',async(
   assert.equal(p.amountCents,5500);assert.equal(p.email,email);assert.match(p.stamp,/^[a-f0-9]{64}$/);
   assert.deepEqual(p.documentNumbers,['FR CIRC2027/7']);assert.equal(f.commits,0);assert.equal(f.registration.data.payment.status,'paid');
   assert.deepEqual(f.calls[0],['begin',{readOnly:true}]);assert.deepEqual(f.calls.at(-1),['rollback']);
+  assert.deepEqual(f.storeTokens,['fake-admin']);assert.equal(f.identityRequests,0);
 });
 test('confirmed release archives complete registration and preserves financial records, credit and profile',async()=>{
   const f=fixture(),p=await f.preview(),payment=structuredClone(f.payments[0].data),document=structuredClone(f.documents[0].data),credit=structuredClone(f.credit),profile=structuredClone(f.profile);
   const result=await f.call(confirmation(p.stamp));assert.equal(result.status,200);
   assert.deepEqual(await result.json(),{released:true,archiveId,registrationId});assert.equal(f.registration,null);assert.equal(f.commits,1);
+  assert.deepEqual(f.storeTokens,['fake-admin','fake-service-token']);assert.equal(f.identityRequests,1);
   for(const [current,original] of [[f.payments[0].data,payment],[f.documents[0].data,document]]){
     const{registrationArchiveId:marker,registrationArchivedAt,...rest}=current;assert.equal(marker,archiveId);assert.equal(registrationArchivedAt,time);assert.deepEqual(rest,original);
   }
@@ -93,6 +107,7 @@ test('a lost commit acknowledgement replays the original receipt without reading
   f.registration=replacement;const before=f.calls.length;
   const replay=await f.call(confirmation(p.stamp));assert.equal(replay.status,200);assert.equal(f.commits,1);assert.equal(f.registration,replacement);
   assert.ok(!f.calls.slice(before).some(row=>row[0]==='readRegistration'));assert.equal((await replay.json()).archiveId,archiveId);
+  assert.deepEqual(f.storeTokens,['fake-admin','fake-service-token','fake-service-token']);assert.equal(f.identityRequests,2);
 });
 test('source change after preview returns conflict without committing',async()=>{
   const f=fixture(),p=await f.preview();f.registration.data.internalNote='changed';f.sync(f.registration);
@@ -120,15 +135,34 @@ test('POST storage errors expose only an allowlisted stage and cause, with no at
   }
 });
 test('only the exact verified administrator may obtain a preview or release',async()=>{
-  for(const claims of [{...admin,email_verified:false},{...admin,email:'other@example.test'},{...admin,email:'CIRC.CHUC@gmail.com'}]){
-    const f=fixture();f.setClaims(claims);assert.equal((await f.call()).status,403);assert.equal(f.calls.length,0);
+  const body=confirmation('a'.repeat(64));
+  for(const claims of [{...admin,email_verified:false},{...admin,email:'other@example.test'},{...admin,email:'CIRC.CHUC@gmail.com'},{...admin,sub:'bad/path'}]){
+    const f=fixture();f.setClaims(claims);
+    assert.equal((await f.call()).status,403);assert.equal((await f.call(body)).status,403);
+    assert.equal(f.calls.length,0);assert.equal(f.identityRequests,0);assert.deepEqual(f.storeTokens,[]);
   }
+  const f=fixture();f.setClaims(null);
+  assert.equal((await f.call(body,{headers:{Authorization:''}})).status,401);
+  assert.equal((await f.call(body)).status,401);
+  assert.equal(f.identityRequests,0);assert.deepEqual(f.storeTokens,[]);
 });
 test('POST requires exact origin, bounded JSON schema and explicit confirmation',async()=>{
   const f=fixture(),p=await f.preview();
   assert.equal((await f.call(confirmation(p.stamp),{headers:{Origin:'https://other.test'}})).status,403);
+  assert.equal((await f.call(confirmation(p.stamp),{headers:{Origin:''}})).status,403);
+  assert.equal((await f.call(confirmation(p.stamp),{headers:{'Content-Type':'text/plain'}})).status,400);
   assert.equal((await f.call({...confirmation(p.stamp),extra:true})).status,400);
   assert.equal((await f.call({stamp:p.stamp,confirmation:'SIM'})).status,400);assert.equal(f.commits,0);
+  assert.equal(f.identityRequests,0);assert.deepEqual(f.storeTokens,['fake-admin']);
+});
+test('failure to obtain service identity returns a bounded diagnostic before opening any write transaction',async()=>{
+  const f=fixture(),p=await f.preview(),before=f.calls.length;
+  f.setIdentityError(new Error('private credential error'));
+  const response=await f.call(confirmation(p.stamp));
+  assert.equal(response.status,503);
+  assert.deepEqual(await response.json(),{error:'registration-release-unavailable',diagnostic:'release-identity-unexpected'});
+  assert.equal(f.calls.length,before);assert.equal(f.commits,0);
+  assert.equal(f.identityRequests,1);assert.deepEqual(f.storeTokens,['fake-admin']);
 });
 test('missing registration is reported without changing any retained ledger',async()=>{
   const f=fixture();f.registration=null;const response=await f.call();assert.equal(response.status,404);assert.equal(f.payments.length,1);assert.equal(f.commits,0);
