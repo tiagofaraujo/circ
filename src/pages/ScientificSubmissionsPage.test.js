@@ -5,7 +5,8 @@ import ScientificSubmissionsPage from './ScientificSubmissionsPage';
 import { useAuth } from '../auth/AuthContext';
 import { saveSubmission, updateSubmissionDraft, subscribeToUserSubmissions } from '../auth/adminOperationsStore';
 jest.mock('../auth/AuthContext', () => ({ useAuth: jest.fn() }));
-jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
+let mockLanguage = 'pt';
+jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language: mockLanguage }) }));
 jest.mock('../auth/adminOperationsStore', () => ({ saveSubmission: jest.fn(), updateSubmissionDraft: jest.fn(), deleteSubmissionDraft: jest.fn(),
   subscribeToUserSubmissions: jest.fn(), submissionErrorMessage: () => 'Não foi possível guardar o trabalho.' }));
 const user = { uid: 'author', emailVerified: true, displayName: 'Autora' };
@@ -15,7 +16,7 @@ const form = { type: 'oral', title: 'Trabalho científico', authors: 'Autora', a
 function show() { render(<MemoryRouter><ScientificSubmissionsPage /></MemoryRouter>); }
 beforeEach(() => {
   jest.useFakeTimers().setSystemTime(new Date('2026-11-15T12:00:00Z'));
-  jest.clearAllMocks(); useAuth.mockReturnValue({ user, access: {} });
+  jest.clearAllMocks(); mockLanguage = 'pt'; useAuth.mockReturnValue({ user, access: {} });
   subscribeToUserSubmissions.mockImplementation((_uid, next) => { next([]); return () => {}; });
   saveSubmission.mockResolvedValue('new-id'); updateSubmissionDraft.mockResolvedValue('existing-id');
 });
@@ -146,4 +147,20 @@ test('closing an existing draft restores focus to its Edit draft button', () => 
   expect(screen.getByRole('heading', { name: 'Continue o trabalho e submeta quando estiver pronto.' })).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: /Fechar formulário/ }));
   expect(trigger).toHaveFocus();
+});
+
+test.each([
+  ['pt', '2026-12-01T13:30:00Z', '13:30', 'hora de Lisboa'],
+  ['en', '2027-04-05T13:30:00Z', '14:30', 'Lisbon time'],
+])('shows submitted work dates in Lisbon time, without changing the stored timestamp (%s)', (language, submittedAt, shownTime, zoneLabel) => {
+  mockLanguage = language;
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'submitted-id', userId: user.uid, isTest: false, status: 'submitted', submittedAt, ...form }]);
+    return () => {};
+  });
+  show();
+  const date = document.querySelector('.submissions-test-list__timestamp');
+  expect(date).toHaveTextContent(shownTime);
+  expect(date).toHaveTextContent(zoneLabel);
+  expect(date).toHaveAttribute('dateTime', new Date(submittedAt).toISOString());
 });
