@@ -4,43 +4,76 @@ import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import { moderators2027 } from '../data/moderators2027';
 import './ProvisionalProgramme.css';
-import MriCourseDescription, { mriCourseTitle } from '../components/MriCourseDescription';
-import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
+import MriCourseDescription, { mriCourseInstructor, mriCourseTitle } from '../components/MriCourseDescription';
+import StrokeCourseDescription, { strokeCourseInstructor, strokeCourseTitle } from '../components/StrokeCourseDescription';
+
+const profiles = new Map(speakers2027.map(speaker => [speaker.id, speaker]));
+
+function ProgrammeSpeaker({ speaker, en }) {
+  const profile = profiles.get(speaker.id);
+  const name = speaker.name || profile?.name;
+  if (!name) return null;
+  const language = en ? 'en' : 'pt';
+  const affiliation = speaker.affiliation?.[language] || (speaker.showInstitution && profile?.institution);
+  const hasBiography = Boolean(profile?.[language]?.bio?.length);
+  const nameParts = name.split(' ');
+  const initials = profile?.initials || `${nameParts[0][0]}${nameParts.at(-1)[0]}`;
+  const Card = hasBiography ? Link : 'div';
+  const linkProps = hasBiography ? {
+    to: `/oradores/${profile.id}`,
+    'aria-label': `${name} — ${en ? 'view biography' : 'ver biografia'}`,
+  } : {};
+
+  return <li><Card className="schedule-speaker" {...linkProps}>
+    {profile?.image
+      ? <img src={`/speakers/${profile.image}`} alt="" width="52" height="52" loading="lazy" />
+      : <span className="schedule-speaker__initials" aria-hidden="true">{initials}</span>}
+    <span>
+      <strong>{name}</strong>
+      {affiliation && <small className="schedule-speaker__affiliation">{affiliation}</small>}
+      {hasBiography && <small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small>}
+    </span>
+  </Card></li>;
+}
 
 // Times and pending confirmations transcribed from the supplied provisional programme.
 const days = [
   { day: '08', pt: 'Pré-Congresso', en: 'Pre-Congress', rows: [
-    ['09:00–13:00', mriCourseTitle.pt, mriCourseTitle.en],
-    ['14:00–18:00', strokeCourseTitle.pt, strokeCourseTitle.en],
+    ['09:00–13:00', mriCourseTitle.pt, mriCourseTitle.en, { speakers: [mriCourseInstructor] }],
+    ['14:00–18:00', strokeCourseTitle.pt, strokeCourseTitle.en, { speakers: [strokeCourseInstructor] }],
   ] },
   { day: '09', pt: 'Congresso · Dia 1', en: 'Congress · Day 1', rows: [
     ['08:10', 'Check-in', 'Check-in'],
     ['08:50', 'Abertura da sala da Igreja', 'Church hall opens'],
     ['09:00', 'Boas-vindas', 'Welcome'],
     ['09:10', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.', 'CIRC TALKS — Industry Edition: Beyond the Image — No Products. Just Ideas.'],
-    ['10:00', 'Painel de Radiologia', 'Radiography panel', null, null, [
-      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', 'Ana Rita Vaz (ULS Coimbra)'],
-      ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', 'Filipa Martins, Diana Santos, Adriana Marques e Márcia Amaral', 'Filipa Martins, Diana Santos, Adriana Marques and Márcia Amaral'],
-      ['10:40', 'The Art of Spine Radiography: Novel and Creative Techniques', 'The Art of Spine Radiography: Novel and Creative Techniques', 'Michael Fuller (Flinders Medical Centre)', 'Michael Fuller (Flinders Medical Centre)'],
-    ], ['joana-santos', 'raquel-reis']],
+    ['10:00', 'Painel de Radiologia', 'Radiography panel', { moderators: ['joana-santos', 'raquel-reis'], children: [
+      ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', { speakers: [{ id: 'ana-rita-vaz', showInstitution: true }] }],
+      ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', { speakers: [
+        { id: 'filipa-martins' }, { name: 'Diana Santos' }, { id: 'adriana-marques' }, { id: 'marcia-amaral' },
+      ] }],
+      ['10:40', 'The Art of Spine Radiography: Novel and Creative Techniques', 'The Art of Spine Radiography: Novel and Creative Techniques', { speakers: [{ id: 'michael-fuller', showInstitution: true }] }],
+    ] }],
     ['11:15', 'Abertura oficial do CIRC 2027', 'Official opening of CIRC 2027'],
     ['11:45', 'Visita guiada à Medical Radiology Exhibition', 'Guided tour of the Medical Radiology Exhibition'],
     ['12:15–14:00', 'Brunch', 'Brunch'],
-    ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', null, null, [
-      ['14:00', 'RM Fetal', 'Fetal MRI', 'Rui Pedro Faria Pais e Paula Marques', 'Rui Pedro Faria Pais and Paula Marques'],
-      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', 'Amélia Estêvão e Diana Carvalho', 'Amélia Estêvão and Diana Carvalho'],
-      ['14:40', 'RM Pélvica', 'Pelvic MRI', 'Célia Antunes e Bruno Esteves', 'Célia Antunes and Bruno Esteves'],
-    ], ['sofia-brandao']],
-    ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', null, null, [
-      ['', 'Fides R. Schwartz', 'Fides R. Schwartz'],
-      ['', 'Giuseppe V. Toia', 'Giuseppe V. Toia'],
-      ['', 'Kirsten Burke', 'Kirsten Burke', 'Biografia pendente', 'Biography pending'],
-    ], ['mario-monteiro', 'ana-isabel-machado']],
-    ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado', 'Mammography panel — Artificial intelligence, intervention and advanced diagnosis', null, null, [
-      ['16:15–16:25', 'IA na Mamografia — Da Investigação à Prática Clínica', 'AI in mammography — From research to clinical practice', 'Fundação Champalimaud (a confirmar)', 'Champalimaud Foundation (to be confirmed)'],
-      ['16:25–16:45', 'Estereotaxia Mamária — Da Técnica Convencional à Biópsia Guiada por Tomossíntese', 'Breast stereotaxis — From conventional technique to tomosynthesis-guided biopsy', 'Sandra Rodrigues, Francisca Raimundo e Filipa Oliveira (ULS Coimbra)', 'Sandra Rodrigues, Francisca Raimundo and Filipa Oliveira (ULS Coimbra)'],
-      ['16:45–16:55', 'Mamografia com Contraste — Novas Perspetivas no Diagnóstico Mamário', 'Contrast-enhanced mammography — New perspectives in breast diagnosis', 'Rita Batista (ULS da Lezíria)'],
-    ]],
+    ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', { moderators: ['sofia-brandao'], children: [
+      ['14:00', 'RM Fetal', 'Fetal MRI', { speakers: [{ id: 'rui-pedro-faria-pais' }, { id: 'paula-marques' }] }],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', { speakers: [{ id: 'amelia-estevao' }, { id: 'diana-carvalho' }] }],
+      ['14:40', 'RM Pélvica', 'Pelvic MRI', { speakers: [{ id: 'celia-antunes' }, { id: 'bruno-esteves' }] }],
+    ] }],
+    ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', { moderators: ['mario-monteiro', 'ana-isabel-machado'], children: [
+      ['', null, null, { speakers: [{ id: 'fides-schwartz', name: 'Fides R. Schwartz' }] }],
+      ['', null, null, { speakers: [{ id: 'giuseppe-toia' }] }],
+      ['', null, null, { speakers: [{ name: 'Kirsten Burke' }], detail: { pt: 'Biografia pendente', en: 'Biography pending' } }],
+    ] }],
+    ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado', 'Mammography panel — Artificial intelligence, intervention and advanced diagnosis', { children: [
+      ['16:15–16:25', 'IA na Mamografia — Da Investigação à Prática Clínica', 'AI in mammography — From research to clinical practice', { detail: { pt: 'Fundação Champalimaud (a confirmar)', en: 'Champalimaud Foundation (to be confirmed)' } }],
+      ['16:25–16:45', 'Estereotaxia Mamária — Da Técnica Convencional à Biópsia Guiada por Tomossíntese', 'Breast stereotaxis — From conventional technique to tomosynthesis-guided biopsy', { speakers: [
+        { id: 'sandra-rodrigues', showInstitution: true }, { name: 'Francisca Raimundo', affiliation: { pt: 'ULS Coimbra', en: 'ULS Coimbra' } }, { id: 'filipa-oliveira', showInstitution: true },
+      ] }],
+      ['16:45–16:55', 'Mamografia com Contraste — Novas Perspetivas no Diagnóstico Mamário', 'Contrast-enhanced mammography — New perspectives in breast diagnosis', { speakers: [{ id: 'rita-batista', showInstitution: true }] }],
+    ] }],
     ['17:00–17:45', 'Coffee break', 'Coffee break'],
     ['17:45–18:30', 'Comunicações', 'Presentations'],
     ['18:30–19:00', 'Momento cultural e de animação', 'Cultural programme and entertainment'],
@@ -52,35 +85,22 @@ const days = [
     ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
     ['13:05–14:00', 'Almoço', 'Lunch'],
     ['14:00–15:00', 'Radiologia de Intervenção / Mamografia', 'Interventional Radiology / Mammography'],
-    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', null, null, [
-      ['15:10–15:30', 'Toby Gilk', 'Toby Gilk'],
-      ['15:30–15:50', 'Bill Faulkner', 'Bill Faulkner'],
-      ['15:50–16:10', 'Kris Seitz', 'Kris Seitz'],
-    ], ['samuel-oliveira', 'vitor-silva']],
-    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', 'Julien Greggio', null, null, ['samuel-oliveira', 'vitor-silva']],
+    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira', 'vitor-silva'], children: [
+      ['15:10–15:30', null, null, { speakers: [{ id: 'tobias-gilk' }] }],
+      ['15:30–15:50', null, null, { speakers: [{ id: 'bill-faulkner' }] }],
+      ['15:50–16:10', null, null, { speakers: [{ id: 'kris-seitz' }] }],
+    ] }],
+    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['samuel-oliveira', 'vitor-silva'] }],
     ['17:00', 'Coffee break', 'Coffee break'],
-    ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', null, null, [
-      ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', 'Joana Madureira (ATARP)'],
+    ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', { children: [
+      ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', { speakers: [{ id: 'joana-madureira', name: 'Joana Madureira', showInstitution: true }] }],
       ['17:50–18:10', 'Comunicação e Ética na Radiologia', 'Communication and Ethics in Radiology'],
-    ]],
+    ] }],
   ] },
 ];
 
-const speakerMatches = [
-  ['Michael Fuller', 'michael-fuller'],
-  ['Fides R. Schwartz', 'fides-schwartz'],
-  ['Giuseppe V. Toia', 'giuseppe-toia'],
-  ['Toby Gilk', 'tobias-gilk'],
-  ['Bill Faulkner', 'bill-faulkner'],
-  ['Kris Seitz', 'kris-seitz'],
-  ['Julien Greggio', 'julien-greggio'],
-];
-
 function ProgrammeRow({ row, en, nested = false }) {
-  const [time, pt, english, detail, detailEn, children, moderators] = row;
-  const match = speakerMatches.find(([name]) => `${pt} ${detail || ''}`.includes(name));
-  const speaker = match && speakers2027.find(person => person.id === match[1]);
-  const titleIsSpeaker = speaker && pt.includes(match[0]);
+  const [time, pt, english, { speakers, detail, children, moderators } = {}] = row;
   const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada|Momento cultural|Jantar de convívio)/.test(pt);
   const title = en ? english : pt;
   const heading = pt === 'Quo Vadis Radiologia'
@@ -91,14 +111,13 @@ function ProgrammeRow({ row, en, nested = false }) {
   return <li className={`schedule-row${nested ? ' schedule-row--nested' : ''}${practical ? ' schedule-row--practical' : ''}`}>
     {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
-      {!titleIsSpeaker && heading}
-      {pt === mriCourseTitle.pt && <MriCourseDescription en={en} />}
-      {pt === strokeCourseTitle.pt && <StrokeCourseDescription en={en} />}
-      {speaker && <Link className="schedule-speaker" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${en ? 'view biography' : 'ver biografia'}`}>
-        <img src={`/speakers/${speaker.image}`} alt="" width="52" height="52" loading="lazy" />
-        <span><strong>{titleIsSpeaker ? title : speaker.name}</strong><small>{en ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></small></span>
-      </Link>}
-      {detail && (!speaker || detail !== speaker.name) && <p>{en ? detailEn || detail : detail}</p>}
+      {title && heading}
+      {speakers && <ul className="schedule-speakers" role="list" aria-label={en ? 'Speakers' : 'Oradores'}>
+        {speakers.map(speaker => <ProgrammeSpeaker key={speaker.id || speaker.name} speaker={speaker} en={en} />)}
+      </ul>}
+      {pt === mriCourseTitle.pt && <MriCourseDescription en={en} showInstructor={false} />}
+      {pt === strokeCourseTitle.pt && <StrokeCourseDescription en={en} showInstructor={false} />}
+      {detail && <p>{detail[en ? 'en' : 'pt']}</p>}
       {moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>
         {moderators.map(id => {
           const { name, institution } = moderators2027[id];

@@ -282,5 +282,55 @@ export const speakers2027 = [
       'She worked in conventional radiography, CT and MRI at Glenfield Hospital in the United Kingdom. She went on to work at ULS da Lezíria and is now a radiographer at ULS Coimbra, where she also supervises and supports students on clinical placements.',
       'She is in the second year of a master’s degree in Digital Transformation in Healthcare.'
     ] }
+  },
+  {
+    id: 'rui-pedro-faria-pais', name: 'Rui Pedro Faria Pais', initials: 'RP',
+    institution: 'ULS Coimbra',
+    pt: { field: 'Neurorradiologia pediátrica', role: 'Médico neurorradiologista', bio: [
+      'Rui Pedro Faria Pais é assistente graduado de Neurorradiologia na ULS Coimbra e integra a comissão instaladora da Subespecialidade de Neurorradiologia Pediátrica da Ordem dos Médicos.'
+    ] },
+    en: { field: 'Paediatric neuroradiology', role: 'Neuroradiologist', bio: [
+      'Rui Pedro Faria Pais is a hospital neuroradiologist at ULS Coimbra and serves on the Portuguese Medical Association’s founding committee for the Paediatric Neuroradiology subspecialty.'
+    ] }
+  },
+  {
+    id: 'celia-antunes', name: 'Célia Antunes', initials: 'CA',
+    institution: 'ULS Coimbra',
+    pt: { field: 'Ressonância magnética abdominal e pélvica', role: 'Médica radiologista', bio: [
+      'Célia Antunes é assistente graduada de Radiologia na ULS Coimbra. Obteve o grau de consultora da carreira médica na especialidade de Radiologia em 2026. Dedica-se à ressonância magnética abdominal e pélvica feminina.'
+    ] },
+    en: { field: 'Abdominal and pelvic MRI', role: 'Radiologist', bio: [
+      'Célia Antunes is a hospital radiologist at ULS Coimbra. She obtained the Portuguese medical career grade of consultant in Radiology in 2026. Her interests include abdominal and female pelvic MRI.'
+    ] }
+  },
+  {
+    id: 'rita-batista', name: 'Rita Batista', initials: 'RB',
+    institution: 'ULS da Lezíria',
+    pt: { field: 'Imagiologia mamária', role: 'Técnica de Radiologia', bio: [
+      'Rita Batista é técnica de radiologia na ULS da Lezíria. Em outubro de 2026, conduziu uma sessão sobre os aspetos técnicos da biópsia mamária guiada por contraste num encontro de imagiologia mamária no Hospital de Santarém.'
+    ] },
+    en: { field: 'Breast imaging', role: 'Radiographer', bio: [
+      'Rita Batista is a radiographer at ULS da Lezíria. In October 2026 she led a session on the technical aspects of contrast-guided breast biopsy at a breast imaging meeting at Santarém Hospital.'
+    ] }
+  },
+  {
+    id: 'daniel-leitao', name: 'Daniel Leitão', initials: 'DL',
+    institution: 'Siemens Healthineers',
+    pt: { field: 'Aplicações clínicas em ressonância magnética', role: 'Especialista de aplicações em RM', bio: [
+      'Daniel Leitão é especialista de aplicações em ressonância magnética na Siemens Healthineers. É licenciado em Radiologia pela Escola Superior de Tecnologia da Saúde de Lisboa e pós-graduado em Radiações Aplicadas às Tecnologias da Saúde, na área funcional e multimodal.'
+    ] },
+    en: { field: 'Clinical MRI applications', role: 'MRI Applications Specialist', bio: [
+      'Daniel Leitão is an MRI Applications Specialist at Siemens Healthineers. He holds a Radiography degree from the Lisbon School of Health Technology and a postgraduate qualification in radiation applied to health technologies, with a focus on functional and multimodal approaches.'
+    ] }
+  },
+  {
+    id: 'ricardo-veiga', name: 'Ricardo Veiga', initials: 'RV',
+    institution: 'ULS Coimbra',
+    pt: { field: 'Neurorradiologia de intervenção', role: 'Médico neurorradiologista', bio: [
+      'Ricardo Veiga é assistente graduado de Neurorradiologia na ULS Coimbra e integra a direção da Subespecialidade de Neurorradiologia de Intervenção da Ordem dos Médicos.'
+    ] },
+    en: { field: 'Interventional neuroradiology', role: 'Neuroradiologist', bio: [
+      'Ricardo Veiga is a hospital neuroradiologist at ULS Coimbra and serves on the Portuguese Medical Association’s Interventional Neuroradiology subspecialty board.'
+    ] }
   }
 ];
