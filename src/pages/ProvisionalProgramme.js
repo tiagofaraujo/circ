@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import { moderators2027 } from '../data/moderators2027';
-import ProgrammeModerators from '../components/ProgrammeModerators';
 import './ProvisionalProgramme.css';
 import MriCourseDescription, { mriCourseTitle } from '../components/MriCourseDescription';
 import StrokeCourseDescription, { strokeCourseTitle } from '../components/StrokeCourseDescription';
@@ -119,11 +118,10 @@ function dayFromHash() {
 export default function ProvisionalProgramme() {
   const { language } = useLanguage();
   const en = language === 'en';
+  const { hash } = useLocation();
   const [selectedDay, setSelectedDay] = useState(dayFromHash);
   useEffect(() => {
-    const sync = () => {
-      if (window.location.hash !== '#moderadores') setSelectedDay(dayFromHash());
-    };
+    const sync = () => setSelectedDay(dayFromHash());
     window.addEventListener('hashchange', sync);
     window.addEventListener('popstate', sync);
     return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync); };
@@ -132,6 +130,7 @@ export default function ProvisionalProgramme() {
     setSelectedDay(day);
     window.history.replaceState(window.history.state, '', `#dia-${day}`);
   };
+  if (hash === '#moderadores') return <Navigate to="/oradores#moderadores" replace />;
   return <main className="page provisional-programme">
     <header className="schedule-hero">
       <p className="eyebrow">CIRC 2027 · Coimbra · 8–10 {en ? 'April' : 'de abril'}</p>
@@ -139,7 +138,7 @@ export default function ProvisionalProgramme() {
       <h1>{en ? 'Scientific programme' : 'Programa científico'}</h1>
       <p className="schedule-lead">{en ? 'International perspectives, advances in medical imaging and practical learning. Explore the programme and meet the speakers at CIRC 2027.' : 'Perspetivas internacionais, inovação em imagem médica e formação prática. Explore o programa e conheça os oradores do CIRC 2027.'}</p>
       <p className="schedule-notice">{en ? 'Programme subject to change. Sessions marked “to be confirmed” are pending confirmation.' : 'Programa sujeito a alterações. As sessões assinaladas «a confirmar» aguardam confirmação.'}</p>
-      <a className="text-link schedule-moderators-link" href="#moderadores">{en ? 'Meet the moderators' : 'Conhecer os moderadores'} <span aria-hidden="true">↓</span></a>
+      <Link className="text-link schedule-moderators-link" to="/oradores#moderadores">{en ? 'Meet the moderators' : 'Conhecer os moderadores'} <span aria-hidden="true">→</span></Link>
     </header>
     <nav className="schedule-nav" aria-label={en ? 'Choose programme day' : 'Escolher dia do programa'}>{days.map(day => <button type="button" key={day.day} aria-pressed={selectedDay === day.day} aria-controls={`dia-${day.day}`} onClick={() => chooseDay(day.day)}><strong>{day.day} <small>{en ? 'APR' : 'ABR'}</small></strong><span>{day.day === '08' ? (en ? 'Pre-Congress' : 'Pré-Congresso') : (en ? `Day ${day.day === '09' ? '1' : '2'}` : `Dia ${day.day === '09' ? '1' : '2'}`)}</span></button>)}</nav>
     {days.map(day => <section hidden={selectedDay !== day.day} className="schedule-day" id={`dia-${day.day}`} key={day.day} aria-labelledby={`title-${day.day}`}>
@@ -147,7 +146,6 @@ export default function ProvisionalProgramme() {
       {day.day === '08' && <p className="schedule-day-note">{en ? 'The morning and afternoon courses have separate registrations.' : 'Os cursos da manhã e da tarde têm inscrições autónomas.'}</p>}
       <ol className="schedule-list">{day.rows.map((row, i) => <ProgrammeRow key={i} row={row} en={en} />)}</ol>
     </section>)}
-    <ProgrammeModerators days={days} en={en} />
     <div className="schedule-footer"><Link className="button button--outline" to="/oradores">{en ? 'Meet all speakers' : 'Conhecer todos os oradores'}</Link><Link className="button button--dark" to="/participar">{en ? 'Registration information' : 'Informações sobre inscrições'}</Link></div>
   </main>;
 }

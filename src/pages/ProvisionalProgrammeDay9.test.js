@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import ProvisionalProgramme from './ProvisionalProgramme';
 
 let mockLanguage = 'pt';
@@ -112,18 +112,23 @@ test('preserves days 8 and 10, the provisional notice and day navigation without
 });
 
 test.each([
-  ['pt', 'Moderadores', 'Conhecer os moderadores', 'Ler biografia', 'Painel de Radiologia'],
-  ['en', 'Moderators', 'Meet the moderators', 'Read biography', 'Radiography panel'],
-])('lists each moderator with their scheduled sessions and available biography in %s', (language, title, jump, biography, panel) => {
+  ['pt', 'Moderadores', 'Conhecer os moderadores'],
+  ['en', 'Moderators', 'Meet the moderators'],
+])('links the programme to the moderators directory in %s', (language, title, linkName) => {
   mockLanguage = language;
   mount();
-  expect(screen.getByRole('link', { name: jump })).toHaveAttribute('href', '#moderadores');
-  const section = within(screen.getByRole('region', { name: title }));
-  const joana = section.getByRole('heading', { name: 'Joana Santos' }).closest('li');
-  expect(within(joana).getByText(panel)).toBeVisible();
-  expect(joana.querySelector('summary')).toHaveTextContent(biography);
-  expect(section.getAllByRole('heading', { name: 'Samuel Oliveira' })).toHaveLength(1);
-  const samuel = section.getByRole('heading', { name: 'Samuel Oliveira' }).closest('li');
-  expect(within(samuel).getByText('Digital twinning in MRI')).toBeVisible();
-  expect(within(samuel).getByRole('link', { name: new RegExp(biography) })).toHaveAttribute('href', '/oradores/samuel-oliveira');
+  expect(screen.getByRole('link', { name: linkName })).toHaveAttribute('href', '/oradores#moderadores');
+  expect(screen.queryByRole('region', { name: title })).not.toBeInTheDocument();
+  expect(screen.getByText(/Joana Santos.*Raquel Reis/)).toBeVisible();
+});
+
+test('redirects the previous moderators bookmark to the directory', () => {
+  function ProgrammeOrLocation() {
+    const { pathname, hash } = useLocation();
+    return pathname === '/programa' ? <ProvisionalProgramme /> : <p>{pathname}{hash}</p>;
+  }
+  render(<MemoryRouter initialEntries={['/programa#moderadores']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <ProgrammeOrLocation />
+  </MemoryRouter>);
+  expect(screen.getByText('/oradores#moderadores')).toBeVisible();
 });
