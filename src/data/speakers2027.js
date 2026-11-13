@@ -206,7 +206,7 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'paula-marques', name: 'Paula Marques', initials: 'PM',
+    id: 'paula-marques', name: 'Paula Marques', initials: 'PM', image: 'paula-marques.jpg',
     institution: 'ULS Coimbra',
     pt: { field: 'Ressonância magnética', role: 'Técnica de Radiologia · Supervisora de estágio clínico', bio: [
       'Paula Marques é Técnica de Radiologia na ULS Coimbra, com um percurso profissional no diagnóstico por imagem. Nos últimos anos tem-se dedicado à ressonância magnética.',
