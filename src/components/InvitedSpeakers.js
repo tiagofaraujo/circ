@@ -16,20 +16,27 @@ export function SpeakerPortrait({ speaker }) {
   </div>;
 }
 
-export function SpeakerCard({ speaker, language }) {
+export function SpeakerCard({ speaker, language, fromModerators = false }) {
   const text = speaker[language];
-  return <article className="guest-card">
-    <Link className="guest-card__link" to={`/oradores/${speaker.id}`} aria-label={`${speaker.name} — ${language === 'en' ? 'biography' : 'biografia'}`}>
+  const hasBiography = Boolean(text?.bio?.length);
+  const CardContent = hasBiography ? Link : 'div';
+  const linkProps = hasBiography ? {
+    to: `/oradores/${speaker.id}`,
+    state: fromModerators ? { fromModerators: true } : undefined,
+    'aria-label': `${speaker.name} — ${language === 'en' ? 'biography' : 'biografia'}`,
+  } : {};
+  return <article className={`guest-card${hasBiography ? ' guest-card--linked' : ''}`}>
+    <CardContent className={`guest-card__content${hasBiography ? ' guest-card__link' : ''}`} {...linkProps}>
       <div className="guest-card__top">
         <SpeakerPortrait speaker={speaker} />
-        <p className="guest-field">{text.field}</p>
+        {text?.field && <p className="guest-field">{text.field}</p>}
       </div>
       <div className="guest-card__copy">
         <h3>{speaker.name}</h3>
         <p className="guest-institution">{speaker.institution}</p>
-        <span className="guest-more">{language === 'en' ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></span>
+        {hasBiography && <span className="guest-more">{language === 'en' ? 'View biography' : 'Ver biografia'} <span aria-hidden="true">↗</span></span>}
       </div>
-    </Link>
+    </CardContent>
     {speaker.linkedin && <a className="guest-card__linkedin" href={speaker.linkedin} target="_blank" rel="noopener noreferrer" aria-label={`${speaker.name} — LinkedIn (${language === 'en' ? 'opens in a new tab' : 'abre num novo separador'})`} title={`${speaker.name} · LinkedIn`}>
       <LinkedInIcon />
     </a>}
