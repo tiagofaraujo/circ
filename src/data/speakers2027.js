@@ -268,5 +268,19 @@ export const speakers2027 = [
       'Sandra Marisa Ferreira Rodrigues holds a degree in Radiography and a master’s in Musculoskeletal Radiology. She has worked as a radiographer at ULS Coimbra’s University Hospitals site since 2004, covering mammography, digestive and urological imaging and conventional radiography.',
       'She has supervised ESTeSC clinical placements since 2008. She represents radiographers from the Medical Imaging Service in ULS Coimbra’s Elos da Humanização network and has served on several scientific committees for the Coimbra International Congress of Radiology.'
     ] }
+  },
+  {
+    id: 'filipa-oliveira', name: 'Filipa Oliveira', initials: 'FO', image: 'filipa-oliveira.jpg',
+    institution: 'ULS Coimbra',
+    pt: { field: 'Radiologia convencional, TC e RM', role: 'Técnica de Radiologia · Monitora de estágio', bio: [
+      'Filipa Oliveira licenciou-se em Radiologia pela Escola Superior de Tecnologia da Saúde de Coimbra em 2014 e tem uma pós-graduação em Tomografia Computorizada e Ressonância Magnética.',
+      'Trabalhou no Glenfield Hospital, no Reino Unido, nas áreas de radiologia convencional, tomografia computorizada e ressonância magnética. Exerceu depois funções na ULS da Lezíria e é atualmente técnica de radiologia na ULS Coimbra, onde também orienta e acompanha estudantes em estágio.',
+      'Frequenta o segundo ano do mestrado em Transformação Digital na área da Saúde.'
+    ] },
+    en: { field: 'Conventional radiography, CT and MRI', role: 'Radiographer · Clinical placement supervisor', bio: [
+      'Filipa Oliveira graduated in Radiography from the Coimbra School of Health Technology in 2014 and holds a postgraduate qualification in Computed Tomography and Magnetic Resonance Imaging.',
+      'She worked in conventional radiography, CT and MRI at Glenfield Hospital in the United Kingdom. She went on to work at ULS da Lezíria and is now a radiographer at ULS Coimbra, where she also supervises and supports students on clinical placements.',
+      'She is in the second year of a master’s degree in Digital Transformation in Healthcare.'
+    ] }
   }
 ];
