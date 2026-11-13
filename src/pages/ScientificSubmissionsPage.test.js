@@ -195,3 +195,40 @@ test('a pending scientific submission announces its different operation in EN', 
   expect(screen.getByRole('button', { name: /Submit work/ })).toBeDisabled();
   expect(updateSubmissionDraft).toHaveBeenCalledTimes(1);
 });
+
+test('incomplete PT submissions explain why the final action is disabled until all six abstract sections are complete', () => {
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /Novo trabalho/ }));
+  const submit = screen.getByRole('button', { name: /Submeter trabalho/ });
+  const hint = screen.getByText(/Para submeter, preencha o título, os autores e as seis secções do resumo/);
+  expect(submit).toBeDisabled();
+  expect(submit).toHaveAttribute('aria-describedby', hint.id);
+  fireEvent.change(screen.getByPlaceholderText('Introduza um título claro e objetivo'), { target: { value: form.title } });
+  fireEvent.change(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação'), { target: { value: form.authors } });
+  expect(screen.getByRole('button', { name: 'Guardar rascunho' })).toBeEnabled();
+  expect(submit).toBeDisabled();
+  [
+    ['Enquadramento e relevância do tema.', form.abstractSections.introduction],
+    ['Defina de forma clara o objetivo principal do trabalho.', form.abstractSections.objective],
+    ['Descreva o desenho do estudo, a amostra, os procedimentos e a análise.', form.abstractSections.methods],
+    ['Apresente os resultados principais de forma objetiva.', form.abstractSections.results],
+    ['Sintetize a principal conclusão e a sua relevância.', form.abstractSections.conclusion],
+    ['Ex.: Radiologia; Ressonância magnética; Diagnóstico', form.abstractSections.keywords],
+  ].forEach(([placeholder, value]) => {
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
+  });
+  expect(submit).toBeEnabled();
+  expect(screen.queryByText(/Para submeter, preencha o título/)).not.toBeInTheDocument();
+  expect(submit).not.toHaveAttribute('aria-describedby');
+});
+
+test('incomplete EN scientific submissions provide the equivalent instructions', () => {
+  mockLanguage = 'en';
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /New submission/ }));
+  const submit = screen.getByRole('button', { name: /Submit work/ });
+  const hint = screen.getByText(/To submit, complete the title, authors and all six abstract sections/);
+  expect(submit).toBeDisabled();
+  expect(submit).toHaveAttribute('aria-describedby', hint.id);
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+});
