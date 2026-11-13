@@ -53,3 +53,19 @@
 .schedule-title--quo-vadis-italic {
   font-style: oblique 14deg;
 }
+.programme-moderators { margin: 48px 0 0; padding-top: 32px; border-top: 1px solid rgba(35,46,183,.2); scroll-margin-top: 116px; }
+.programme-moderators h2 { margin: 0 0 24px; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 550; letter-spacing: -.035em; }
+.programme-moderators__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 18px; align-items: start; }
+.programme-moderators__list, .programme-moderator__sessions { list-style: none; padding: 0; margin: 0; }
+.programme-moderator { background: #fff; border: 1px solid rgba(35,46,183,.16); border-radius: 16px; padding: 22px; min-width: 0; }
+.programme-moderator h3 { margin: 0 0 4px; font-size: 1.2rem; color: #171a48; }
+.programme-moderator__institution { margin: 0; color: #55566a; line-height: 1.5; }
+.programme-moderator__sessions { display: grid; gap: 12px; margin-top: 16px; }
+.programme-moderator__sessions li { display: grid; gap: 2px; border-left: 2px solid #ded9f0; padding-left: 12px; color: #252451; font-size: .91rem; line-height: 1.5; }
+.programme-moderator__sessions li span { font-size: .8rem; color: #55566a; }
+.programme-moderator__bio, .programme-moderator > .text-link { margin-top: 16px; }
+.programme-moderator > .text-link { display: inline-block; }
+.programme-moderator__bio summary { cursor: pointer; font-weight: 600; color: #232eb7; }
+.programme-moderator__bio p { color: #333548; font-size: .92rem; line-height: 1.65; margin: 12px 0 0; }
+.schedule-moderators-link { display: inline-block; margin-top: 16px; }
+.programme-moderators :is(a, summary):focus-visible, .schedule-moderators-link:focus-visible { outline: 2px solid #232eb7; outline-offset: 4px; }
