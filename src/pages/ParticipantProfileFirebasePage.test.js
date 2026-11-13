@@ -1,13 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { loadParticipantProfile, saveParticipantProfile } from '../auth/profileStore';
+import { loadParticipantProfileResult, saveParticipantProfile } from '../auth/profileStore';
 import { useUlsEligibility } from '../auth/ulsEligibilityStore';
 import ParticipantProfileFirebasePage from './ParticipantProfileFirebasePage';
 
 jest.mock('../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../auth/profileStore', () => ({
-  loadParticipantProfile: jest.fn(),
+  loadParticipantProfileResult: jest.fn(),
   saveParticipantProfile: jest.fn(),
 }));
 jest.mock('../auth/ulsEligibilityStore', () => ({ useUlsEligibility: jest.fn() }));
@@ -30,7 +30,7 @@ beforeEach(() => {
     updateDisplayName: jest.fn().mockResolvedValue(undefined),
   });
   useUlsEligibility.mockReturnValue({ status: 'ready', verified: false, confirmedAbsent: true });
-  loadParticipantProfile.mockResolvedValue(PROFILE);
+  loadParticipantProfileResult.mockResolvedValue({ source: 'firestore', remoteAvailable: true, profile: PROFILE });
   saveParticipantProfile.mockImplementation(async (_, profile) => ({ ...profile, __remoteSaved: true }));
 });
 
@@ -54,7 +54,7 @@ test('reports an Auth sync warning without claiming the Firestore save failed', 
     verified: false,
     confirmedAbsent: true,
   });
-  loadParticipantProfile.mockResolvedValue(PROFILE);
+  loadParticipantProfileResult.mockResolvedValue({ source: 'firestore', remoteAvailable: true, profile: PROFILE });
   saveParticipantProfile.mockResolvedValue({
     ...PROFILE,
     name: 'Nome Novo',
@@ -130,4 +130,36 @@ test('preserves the verified ULS name lock while saving the remaining profile fi
   fireEvent.click(screen.getByRole('button', { name: 'Guardar dados' }));
   await screen.findByText('Guardado na base de dados.');
   expect(saveParticipantProfile).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: PROFILE.name, billingCity: 'Coimbra' }));
+});
+
+test('blocks editing when Firestore is unavailable even if a cached profile exists', async () => {
+  loadParticipantProfileResult.mockResolvedValue({
+    source: 'cache', remoteAvailable: false, profile: { ...PROFILE, name: 'Nome em cache' },
+  });
+  show();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível confirmar o perfil guardado.');
+  expect(screen.queryByLabelText('Nome completo *')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Guardar dados' })).not.toBeInTheDocument();
+  expect(saveParticipantProfile).not.toHaveBeenCalled();
+});
+
+test('retries a failed profile read without saving or replacing billing details', async () => {
+  loadParticipantProfileResult
+    .mockResolvedValueOnce({ source: 'unavailable', remoteAvailable: false, profile: PROFILE })
+    .mockResolvedValueOnce({ source: 'firestore', remoteAvailable: true, profile: PROFILE });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Tentar novamente' }));
+  expect(await screen.findByLabelText('Nome completo *')).toHaveValue(PROFILE.name);
+  expect(loadParticipantProfileResult).toHaveBeenCalledTimes(2);
+  expect(saveParticipantProfile).not.toHaveBeenCalled();
+});
+
+test('shows a recoverable error if the profile reader rejects', async () => {
+  loadParticipantProfileResult.mockRejectedValueOnce(new Error('network-failure'))
+    .mockResolvedValueOnce({ source: 'empty', remoteAvailable: true, profile: PROFILE });
+  show();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Nenhuma alteração foi efetuada.');
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+  expect(await screen.findByLabelText('Nome completo *')).toBeInTheDocument();
+  expect(loadParticipantProfileResult).toHaveBeenCalledTimes(2);
 });
