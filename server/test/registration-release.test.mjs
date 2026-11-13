@@ -30,7 +30,7 @@ function fixture(){
     orderId,decisionId:archiveId,requestHash,creditReference:'BANK-REF-42',bookingDate:'2026-11-01',amountCents:5500,currency:'EUR'});
   const archives=[],legacy=[],calls=[],storeTokens=[];let commits=0,lostAck=false,conflict=false;
   const store={
-    begin:async options=>{calls.push(['begin',options]);return'fake-transaction';},
+    begin:async ({readOnly=true}={})=>{assert.equal(readOnly,true);calls.push(['begin',{readOnly}]);return'fake-transaction';},
     rollback:async tx=>{assert.equal(tx,'fake-transaction');calls.push(['rollback']);},
     readRegistration:async(id,tx)=>{assert.equal(id,registrationId);assert.equal(tx,'fake-transaction');calls.push(['readRegistration']);return registration||{data:null};},
     readProfile:async(id,tx)=>{assert.equal(id,uid);assert.equal(tx,'fake-transaction');return profile;},
@@ -40,7 +40,8 @@ function fixture(){
     readArchive:async(id,tx)=>{assert.equal(tx,'fake-transaction');return archives.find(row=>row.data.archiveId===id)||{data:null};},
     commit:async args=>{
       commits++;calls.push(['commit',args]);if(conflict)throw Object.assign(new Error('conflict'),{code:'conflict'});
-      assert.equal(args.transaction,'fake-transaction');assert.equal(args.registration,registration);
+      assert.equal(Object.hasOwn(args,'transaction'),false);assert.equal(args.registration,registration);
+      assert.ok(Array.isArray(args.guards));
       const original=registration;
       const data=decodeReleaseValue({mapValue:{fields:args.archiveFields}});
       archives.push(record('settings',`circ-registration-release-${args.archiveId}`,data));
@@ -51,17 +52,11 @@ function fixture(){
       if(lostAck)throw new Error('lost commit acknowledgement');
     },
   };
-  let claims=admin,identityRequests=0,identityError=null;
+  let claims=admin;
   const api=createRegistrationReleaseApi({
     verify:async token=>{assert.equal(token,'fake-admin');if(!claims)throw new Error('invalid-session');return claims;},
-    tokenProvider:async env=>{
-      assert.equal(env.FIREBASE_PROJECT_ID,'circ-demo');
-      identityRequests++;
-      if(identityError)throw identityError;
-      return 'fake-service-token';
-    },
     storeFactory:({projectId,token})=>{
-      assert.equal(projectId,'circ-demo');storeTokens.push(token);return store;
+      assert.equal(projectId,'circ-demo');assert.equal(token,'fake-admin');storeTokens.push(token);return store;
     },
     now:()=>time,makeArchiveId:()=>archiveId,
   });
@@ -73,7 +68,6 @@ function fixture(){
   const preview=async()=>{const response=await call();assert.equal(response.status,200);return response.json();};
   return{call,preview,calls,payments,documents,legacy,profile,credit,archives,sync,record,store,storeTokens,
     get registration(){return registration;},set registration(value){registration=value;},get commits(){return commits;},
-    get identityRequests(){return identityRequests;},setIdentityError:error=>{identityError=error;},
     setClaims:value=>{claims=value;},setLostAck:()=>{lostAck=true;},setConflict:()=>{conflict=true;}};
 }
 const confirmation=stamp=>({stamp,confirmation:'LIBERTAR NOVA INSCRICAO'});
@@ -84,19 +78,23 @@ test('preview is read-only and returns only the target confirmation data',async(
   assert.equal(p.amountCents,5500);assert.equal(p.email,email);assert.match(p.stamp,/^[a-f0-9]{64}$/);
   assert.deepEqual(p.documentNumbers,['FR CIRC2027/7']);assert.equal(f.commits,0);assert.equal(f.registration.data.payment.status,'paid');
   assert.deepEqual(f.calls[0],['begin',{readOnly:true}]);assert.deepEqual(f.calls.at(-1),['rollback']);
-  assert.deepEqual(f.storeTokens,['fake-admin']);assert.equal(f.identityRequests,0);
+  assert.deepEqual(f.storeTokens,['fake-admin']);
 });
 test('confirmed release archives complete registration and preserves financial records, credit and profile',async()=>{
   const f=fixture(),p=await f.preview(),payment=structuredClone(f.payments[0].data),document=structuredClone(f.documents[0].data),credit=structuredClone(f.credit),profile=structuredClone(f.profile);
   const result=await f.call(confirmation(p.stamp));assert.equal(result.status,200);
   assert.deepEqual(await result.json(),{released:true,archiveId,registrationId});assert.equal(f.registration,null);assert.equal(f.commits,1);
-  assert.deepEqual(f.storeTokens,['fake-admin','fake-service-token']);assert.equal(f.identityRequests,1);
+  assert.deepEqual(f.storeTokens,['fake-admin','fake-admin']);
   for(const [current,original] of [[f.payments[0].data,payment],[f.documents[0].data,document]]){
     const{registrationArchiveId:marker,registrationArchivedAt,...rest}=current;assert.equal(marker,archiveId);assert.equal(registrationArchivedAt,time);assert.deepEqual(rest,original);
   }
   assert.deepEqual(f.credit,credit);assert.deepEqual(f.profile,profile);
   assert.equal(f.archives[0].data.registration.createdAt,time);assert.equal(f.archives[0].data.registration.payment.status,'paid');
   const args=f.calls.find(row=>row[0]==='commit')[1];assert.deepEqual(args.archiveFields.registration.mapValue.fields.createdAt,{timestampValue:time});
+  assert.deepEqual(args.guards.map(({name,version})=>({name,version})).sort((a,b)=>a.name.localeCompare(b.name)),
+    [credit,profile].map(({name,version})=>({name,version})));
+  assert.deepEqual(f.calls.filter(row=>row[0]==='begin'),[['begin',{readOnly:true}],['begin',{readOnly:true}]]);
+  assert.deepEqual(f.calls.at(-1),['rollback']);
 });
 test('a lost commit acknowledgement replays the original receipt without reading/deleting a new registration',async()=>{
   const f=fixture(),p=await f.preview(),replacement=f.record('registrations',registrationId,{userId:uid,status:'submitted',newRegistration:true});
@@ -107,7 +105,8 @@ test('a lost commit acknowledgement replays the original receipt without reading
   f.registration=replacement;const before=f.calls.length;
   const replay=await f.call(confirmation(p.stamp));assert.equal(replay.status,200);assert.equal(f.commits,1);assert.equal(f.registration,replacement);
   assert.ok(!f.calls.slice(before).some(row=>row[0]==='readRegistration'));assert.equal((await replay.json()).archiveId,archiveId);
-  assert.deepEqual(f.storeTokens,['fake-admin','fake-service-token','fake-service-token']);assert.equal(f.identityRequests,2);
+  assert.deepEqual(f.storeTokens,['fake-admin','fake-admin','fake-admin']);
+  assert.deepEqual(f.calls.at(-1),['rollback']);
 });
 test('source change after preview returns conflict without committing',async()=>{
   const f=fixture(),p=await f.preview();f.registration.data.internalNote='changed';f.sync(f.registration);
@@ -139,12 +138,12 @@ test('only the exact verified administrator may obtain a preview or release',asy
   for(const claims of [{...admin,email_verified:false},{...admin,email:'other@example.test'},{...admin,email:'CIRC.CHUC@gmail.com'},{...admin,sub:'bad/path'}]){
     const f=fixture();f.setClaims(claims);
     assert.equal((await f.call()).status,403);assert.equal((await f.call(body)).status,403);
-    assert.equal(f.calls.length,0);assert.equal(f.identityRequests,0);assert.deepEqual(f.storeTokens,[]);
+    assert.equal(f.calls.length,0);assert.deepEqual(f.storeTokens,[]);
   }
   const f=fixture();f.setClaims(null);
   assert.equal((await f.call(body,{headers:{Authorization:''}})).status,401);
   assert.equal((await f.call(body)).status,401);
-  assert.equal(f.identityRequests,0);assert.deepEqual(f.storeTokens,[]);
+  assert.deepEqual(f.storeTokens,[]);
 });
 test('POST requires exact origin, bounded JSON schema and explicit confirmation',async()=>{
   const f=fixture(),p=await f.preview();
@@ -153,16 +152,7 @@ test('POST requires exact origin, bounded JSON schema and explicit confirmation'
   assert.equal((await f.call(confirmation(p.stamp),{headers:{'Content-Type':'text/plain'}})).status,400);
   assert.equal((await f.call({...confirmation(p.stamp),extra:true})).status,400);
   assert.equal((await f.call({stamp:p.stamp,confirmation:'SIM'})).status,400);assert.equal(f.commits,0);
-  assert.equal(f.identityRequests,0);assert.deepEqual(f.storeTokens,['fake-admin']);
-});
-test('failure to obtain service identity returns a bounded diagnostic before opening any write transaction',async()=>{
-  const f=fixture(),p=await f.preview(),before=f.calls.length;
-  f.setIdentityError(new Error('private credential error'));
-  const response=await f.call(confirmation(p.stamp));
-  assert.equal(response.status,503);
-  assert.deepEqual(await response.json(),{error:'registration-release-unavailable',diagnostic:'release-identity-unexpected'});
-  assert.equal(f.calls.length,before);assert.equal(f.commits,0);
-  assert.equal(f.identityRequests,1);assert.deepEqual(f.storeTokens,['fake-admin']);
+  assert.deepEqual(f.storeTokens,['fake-admin']);
 });
 test('missing registration is reported without changing any retained ledger',async()=>{
   const f=fixture();f.registration=null;const response=await f.call();assert.equal(response.status,404);assert.equal(f.payments.length,1);assert.equal(f.commits,0);
@@ -276,6 +266,10 @@ test('older archived financial rows are validated and excluded from the current 
   const oldDocument=f.record('documents',oldId,{...f.documents[0].data,id:oldId,...marker});f.payments.push(oldPayment);f.documents.push(oldDocument);
   const p=await f.preview(),old=structuredClone([oldPayment,oldDocument]);assert.equal((await f.call(confirmation(p.stamp))).status,200);
   assert.deepEqual([oldPayment,oldDocument],old);assert.deepEqual(f.archives.at(-1).data.paymentIds,[orderId]);assert.deepEqual(f.archives.at(-1).data.documentIds,[orderId]);
+  const args=f.calls.find(row=>row[0]==='commit')[1];
+  assert.deepEqual(args.guards.map(({name,version})=>({name,version})).sort((a,b)=>a.name.localeCompare(b.name)),
+    [f.profile,f.credit,f.archives[0],oldPayment,oldDocument].map(({name,version})=>({name,version})).sort((a,b)=>a.name.localeCompare(b.name)));
+  assert.deepEqual(args.payments.map(row=>row.id),[orderId]);assert.deepEqual(args.documents.map(row=>row.id),[orderId]);
 });
 test('unproven archive markers cannot hide a linked unsettled payment',async()=>{
   const f=fixture();f.payments[0].data.registrationArchiveId=archiveId;f.payments[0].data.registrationArchivedAt=time;f.sync(f.payments[0]);
