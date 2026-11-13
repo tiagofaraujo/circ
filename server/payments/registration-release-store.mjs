@@ -1,5 +1,5 @@
-// The caller supplies the verified administrator's ID token for reads, or a
-// service token for an authorized archive. All reads and writes share a transaction.
+// The verified administrator's ID token is subject to Firestore security rules.
+// As in the Firestore Web SDK, writes use an atomic commit with version checks.
 export class RegistrationReleaseStoreError extends Error {
   constructor(code, cause) { super(code); this.code = code; this.supportCause = cause; }
 }
@@ -49,6 +49,10 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
     }
     if (method === 'GET' && response.status === 404) return null;
     if ([409,412].includes(response.status)) throw new RegistrationReleaseStoreError('conflict');
+    if (response.status === 400 && url === `${endpoint}:commit`) {
+      const error = await response.json().catch(() => null);
+      if (error?.error?.status === 'FAILED_PRECONDITION') throw new RegistrationReleaseStoreError('conflict');
+    }
     if (!response.ok) {
       const cause = supportStatuses.has(response.status) ? `http-${response.status}` : 'response';
       throw new RegistrationReleaseStoreError('storage_unavailable', cause);
@@ -76,8 +80,8 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
     return rows.filter(row=>row.document).map(row=>record(row.document,collection));
   }
   return {
-    async begin({readOnly=true}={}) {
-      const result=await call(`${endpoint}:beginTransaction`,'POST',{options:readOnly?{readOnly:{}}:{readWrite:{}}});
+    async begin() {
+      const result=await call(`${endpoint}:beginTransaction`,'POST',{options:{readOnly:{}}});
       validTx(result?.transaction); return result.transaction;
     },
     async readRegistration(id,tx) { if (!regId.test(id || '')) invalid(); return read('registrations',id,tx); },
@@ -94,24 +98,41 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
     async readArchive(id,tx) {
       if (!uuid.test(id || '')) invalid(); return read('settings',`circ-registration-release-${id}`,tx);
     },
-    async commit({transaction,registration,payments,documents=[],archiveId,archiveFields,auditFields,archivedAt}) {
-      validTx(transaction);
+    async commit({registration,payments,documents=[],guards,archiveId,archiveFields,auditFields,archivedAt}) {
       if (!uuid.test(archiveId || '') || !regId.test(registration?.id || '') || registration.name !== name('registrations',registration.id)
         || !registration.version || !Array.isArray(payments) || payments.length < 1 || payments.length > 25
-        || !Array.isArray(documents) || documents.length > 25 || !archiveFields || !auditFields || !Number.isFinite(Date.parse(archivedAt))) invalid();
+        || !Array.isArray(documents) || documents.length > 25 || !Array.isArray(guards) || guards.length < 1 || guards.length > 126
+        || !archiveFields || !auditFields || !Number.isFinite(Date.parse(archivedAt))) invalid();
       const marker=releaseFields({registrationArchiveId:archiveId,registrationArchivedAt:archivedAt});
-      const seen = new Set();
+      const archiveName=name('settings',`circ-registration-release-${archiveId}`);
+      const auditName=name('auditLogs',`registration-release-${archiveId}`);
+      const seen = new Set([registration.name,archiveName,auditName]);
       const patches = (rows,collection) => rows.map(row=>{
         if (!uuid.test(row?.id || '') || row.name!==name(collection,row.id) || !row.version || seen.has(row.name)
           || row.data?.registrationArchiveId || row.data?.registrationArchivedAt) invalid();
         seen.add(row.name);
         return {update:{name:row.name,fields:marker},updateMask:{fieldPaths:['registrationArchiveId','registrationArchivedAt']},currentDocument:{updateTime:row.version}};
       });
-      const writes=[{update:{name:name('settings',`circ-registration-release-${archiveId}`),fields:archiveFields},currentDocument:{exists:false}},
-        {update:{name:name('auditLogs',`registration-release-${archiveId}`),fields:auditFields},currentDocument:{exists:false}},
+      // Opening a new linked production order or issuing a fiscal document
+      // also updates the canonical registration, so its version guards those insertions.
+      const writes=[{update:{name:archiveName,fields:archiveFields},currentDocument:{exists:false}},
+        {update:{name:auditName,fields:auditFields},currentDocument:{exists:false}},
         ...patches(payments,'payments'),...patches(documents,'documents'),
         {delete:registration.name,currentDocument:{updateTime:registration.version}}];
-      await call(`${endpoint}:commit`,'POST',{transaction,writes});
+      for (const row of guards) {
+        const path=row?.name;
+        const historical=uuid.test(row?.id || '')&&(path===name('payments',row.id)||path===name('documents',row.id));
+        const setting=typeof row?.id==='string'&&path===name('settings',row.id)&&(
+          row.id.startsWith('circ-registration-release-')&&uuid.test(row.id.slice('circ-registration-release-'.length))
+          ||row.id.startsWith('circ-bank-credit-live-')&&hash.test(row.id.slice('circ-bank-credit-live-'.length)));
+        const profileId=registration.id.slice('circ-2027-'.length);
+        const profile=row?.id===profileId&&path===name('users',profileId);
+        if ((!historical&&!setting&&!profile)||!row.version||seen.has(path)) invalid();
+        seen.add(path);
+        writes.push({verify:path,currentDocument:{updateTime:row.version}});
+      }
+      if (!seen.has(name('users',registration.id.slice('circ-2027-'.length)))) invalid();
+      await call(`${endpoint}:commit`,'POST',{writes});
     },
     async rollback(transaction) { validTx(transaction); await call(`${endpoint}:rollback`,'POST',{transaction}); },
   };

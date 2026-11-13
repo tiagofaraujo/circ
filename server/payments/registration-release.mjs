@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
-import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createRegistrationReleaseStore, RegistrationReleaseStoreError, releaseFields } from './registration-release-store.mjs';
 
 const EVENT='circ-2027', ADMIN='circ.chuc@gmail.com', TARGET='araujotiagofc@gmail.com';
@@ -130,14 +129,15 @@ async function inspect(store,id,uid,tx){
   const attempts=r.paymentAttemptOrderIds||[p.id];
   if(!Array.isArray(attempts)||attempts.some(x=>!settledPayments.some(row=>row.id===x))||new Set(attempts).size!==attempts.length)blocked('linked-order');
   const sources=[registration,profile,...payments,...documents,...credits,...archiveCache.values()].map(snap).sort((a,b)=>a.name.localeCompare(b.name));
+  const changedNames=new Set([registration,...activePayments,...activeDocuments].map(row=>row.name));
+  const guards=sources.filter(source=>!changedNames.has(source.name));
   const stamp=liveDataStamp({operation:'registration-release-v1',registrationId:id,email:TARGET,sources});
-  return {registration,profile,payments:activePayments,documents:activeDocuments,credits,stamp,
+  return {registration,payments:activePayments,documents:activeDocuments,credits,guards,stamp,
     preview:{registrationId:id,email:TARGET,name:typeof r.participantName==='string'?r.participantName:'',amountCents:p.amountCents,currency:'EUR',
       paymentStatus:p.status,documentNumbers:activeDocuments.map(d=>d.data.providerDocumentNo).sort(),stamp,allowed:true}};
 }
 
-export function createRegistrationReleaseApi({verify,tokenProvider=createPaymentsServiceTokenProvider(),
-  storeFactory=createRegistrationReleaseStore,now=()=>new Date().toISOString(),makeArchiveId=randomUUID}={}){
+export function createRegistrationReleaseApi({verify,storeFactory=createRegistrationReleaseStore,now=()=>new Date().toISOString(),makeArchiveId=randomUUID}={}){
   return async function handle(request,env){
     const url=new URL(request.url),match=url.pathname.match(/^\/api\/admin\/registrations\/(circ-2027-([A-Za-z0-9_-]{1,128}))\/release$/);
     if(!match)return null;
@@ -152,13 +152,9 @@ export function createRegistrationReleaseApi({verify,tokenProvider=createPayment
     let store,tx,stage='parse';
     try{
       const body=request.method==='POST'?await bodyOf(request):null;
-      // Firestore REST requires a Google OAuth token for read-write transactions.
-      // The verified Firebase identity above still authorizes and audits the action.
-      stage='identity';
-      const storeToken=body?await tokenProvider(env):token;
       stage='begin';
-      store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token:storeToken});
-      tx=await store.begin({readOnly:request.method==='GET'});
+      store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token});
+      tx=await store.begin();
       const id=match[1],uid=match[2];
       if(body){
         stage='lookup';
@@ -182,16 +178,15 @@ export function createRegistrationReleaseApi({verify,tokenProvider=createPayment
         registration:{mapValue:{fields:current.registration.fields}}};
       if(Buffer.byteLength(JSON.stringify(archiveFields))>750000)blocked('archive-mismatch');
       stage='commit';
-      await store.commit({transaction:tx,registration:current.registration,payments:current.payments,documents:current.documents,archiveId,archiveFields,
+      await store.commit({registration:current.registration,payments:current.payments,documents:current.documents,guards:current.guards,archiveId,archiveFields,
         archivedAt,auditFields:releaseFields({action:'registration.released',eventId:EVENT,registrationId:id,archiveId,actor,createdAt:archivedAt,
           details:{email:TARGET,stamp:current.stamp,paymentIds:current.payments.map(p=>p.id),documentIds:current.documents.map(d=>d.id)}})});
-      tx=null;
       return reply({released:true,archiveId,registrationId:id});
     }catch(error){
       if(error?.code==='conflict')return reply({error:'registration-changed'},409);
       if(error?.code==='registration-release-blocked')return reply({error:error.code,reason:error.reason},409);
       if(error?.status&&error.code)return reply({error:error.code},error.status);
       return request.method==='POST'?unavailableResponse(stage,error):reply({error:'registration-release-unavailable'},503);
-    }finally{if(tx&&store)try{await store.rollback(tx);}catch{/* Expired/committed transaction; no retry or extra writes. */}}
+    }finally{if(tx&&store)try{await store.rollback(tx);}catch{/* The read snapshot may already have expired. */}}
   };
 }

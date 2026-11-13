@@ -41,11 +41,13 @@ const fiscalDocument = {
   fields: { status: { stringValue: 'issued' }, providerDocumentId: { stringValue: 'toc-42' } },
   data: { id: orderId, status: 'issued', providerDocumentId: 'toc-42', registrationId },
 };
+const profile = { id: 'participant', name: `${root}/users/participant`, version: registration.version };
+const credit = { id: `circ-bank-credit-live-${creditKey}`, name: `${root}/settings/circ-bank-credit-live-${creditKey}`, version: payment.version };
 const commitInput = () => ({
-  transaction,
   registration: structuredClone(registration),
   payments: [structuredClone(payment)],
   documents: [structuredClone(fiscalDocument)],
+  guards: [profile, credit],
   archiveId,
   archiveFields: {
     kind: { stringValue: 'registration-release' },
@@ -73,17 +75,15 @@ const fieldFilters = query => query.where.compositeFilter
   ? query.where.compositeFilter.filters.map(filter => filter.fieldFilter)
   : [query.where.fieldFilter];
 
-test('registration release opens explicit transactions and rolls them back with the admin token', async () => {
+test('registration release opens and rolls back a read-only snapshot with the admin token', async () => {
   const { store, calls } = fixture(call => call.url.endsWith(':beginTransaction')
     ? Response.json({ transaction }) : Response.json({}));
   assert.equal(await store.begin(), transaction);
-  assert.equal(await store.begin({ readOnly: false }), transaction);
   await store.rollback(transaction);
   assert.ok(calls[0].url.endsWith('/documents:beginTransaction'));
   assert.deepEqual(calls[0].body, { options: { readOnly: {} } });
-  assert.deepEqual(calls[1].body, { options: { readWrite: {} } });
-  assert.ok(calls[2].url.endsWith('/documents:rollback'));
-  assert.deepEqual(calls[2].body, { transaction });
+  assert.ok(calls[1].url.endsWith('/documents:rollback'));
+  assert.deepEqual(calls[1].body, { transaction });
   for (const call of calls) {
     assert.equal(call.options.method, 'POST');
     assert.equal(call.options.headers.Authorization, 'Bearer admin-id-token');
@@ -169,9 +169,13 @@ test('release commit archives the raw source and deletes only its active registr
   await store.commit(input);
   assert.equal(calls.length, 1);
   assert.ok(calls[0].url.endsWith('/documents:commit'));
-  assert.equal(calls[0].body.transaction, transaction);
+  assert.equal(calls[0].body.transaction, undefined);
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer admin-id-token');
   const writes = calls[0].body.writes;
-  assert.equal(writes.length, 5);
+  assert.equal(writes.length, 7);
+  assert.deepEqual(writes.filter(write => write.verify), [profile, credit].map(row => ({
+    verify: row.name, currentDocument: { updateTime: row.version },
+  })));
   const archive = writes.find(write => write.update?.name === `${root}/settings/circ-registration-release-${archiveId}`);
   const audit = writes.find(write => write.update?.name === `${root}/auditLogs/registration-release-${archiveId}`);
   const paymentWrite = writes.find(write => write.update?.name === payment.name);
@@ -217,7 +221,12 @@ test('invalid document paths, collection names and absent transaction cannot iss
     () => store.readRegistration(registrationId, ''),
     () => store.related('payments', registrationId, ''),
     () => store.findArchive(registrationId, stamp, ''),
-    () => store.commit({ ...commitInput(), transaction: '' }),
+    () => store.commit({ ...commitInput(), guards: [] }),
+    () => store.commit({ ...commitInput(), guards: [credit] }),
+    () => store.commit({ ...commitInput(), guards: [profile, profile] }),
+    () => store.commit({ ...commitInput(), guards: [profile, payment] }),
+    () => store.commit({ ...commitInput(), guards: [profile, { ...credit, version: null }] }),
+    () => store.commit({ ...commitInput(), guards: [profile, { ...credit, name: `${root}/settings/circ-2027-paid-capacity-v1` }] }),
     () => store.commit({ ...commitInput(), registration: { ...registration, name: `${root}/users/participant` } }),
     () => store.commit({ ...commitInput(), payments: [{ ...payment, name: `${root}/documents/${orderId}` }] }),
     () => store.commit({ ...commitInput(), documents: [{ ...fiscalDocument, name: `${root}/payments/${orderId}` }] }),
@@ -235,12 +244,14 @@ test('invalid document paths, collection names and absent transaction cannot iss
 });
 
 test('release commit conflicts and transport failures are surfaced without retries or partial writes', async () => {
-  for (const status of [409, 412]) {
-    const { store, calls } = fixture(() => new Response('', { status }));
+  for (const status of [400, 409, 412]) {
+    const { store, calls } = fixture(() => Response.json({ error: { status: 'FAILED_PRECONDITION' } }, { status }));
     await assert.rejects(store.commit(commitInput()), error => error.code === 'conflict');
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].body.writes.length, 5);
+    assert.equal(calls[0].body.writes.length, 7);
   }
+  const badCommit = fixture(() => Response.json({ error: { status: 'INVALID_ARGUMENT', message: 'private upstream error' } }, { status: 400 }));
+  await assert.rejects(badCommit.store.commit(commitInput()), error => error.supportCause === 'http-400' && error.message === 'storage_unavailable');
   const { store, calls } = fixture(() => { throw new Error('connection lost'); });
   await assert.rejects(store.commit(commitInput()), error => error.code === 'storage_unavailable' && error.supportCause === 'network');
   assert.equal(calls.length, 1);
