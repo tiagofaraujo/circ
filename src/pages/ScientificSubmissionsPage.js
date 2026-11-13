@@ -96,6 +96,8 @@ const content = {
     reviewLabel: 'Revisão e envio',
     reviewText: 'Confirme os dados e a anonimização do título e do resumo. Depois de submeter, o trabalho segue para avaliação e deixa de poder ser editado.',
     saveDraft: 'Guardar rascunho',
+    savingWork: 'A guardar o trabalho…',
+    submittingWork: 'A submeter o trabalho…',
     updateDraft: 'Atualizar rascunho',
     submitWork: 'Submeter trabalho',
     savedMessage: 'O rascunho foi guardado. Pode continuar a editá-lo antes de submeter.',
@@ -199,6 +201,8 @@ const content = {
     reviewLabel: 'Review and submission',
     reviewText: 'Check the details and anonymise the title and abstract. After submission, the work enters review and can no longer be edited.',
     saveDraft: 'Save draft',
+    savingWork: 'Saving your work…',
+    submittingWork: 'Submitting your work…',
     updateDraft: 'Update draft',
     submitWork: 'Submit work',
     savedMessage: 'Your draft was saved. You can keep editing it before submission.',
@@ -339,6 +343,7 @@ function formFromSubmission(submission) {
 function SubmissionForm({ t, onClose, onSave, onClearError, error, submission }) {
   const [form, setForm] = useState(() => formFromSubmission(submission));
   const [saving, setSaving] = useState(false);
+  const [savingStatus, setSavingStatus] = useState('draft');
   const headingRef = useRef(null);
 
   useEffect(() => {
@@ -363,6 +368,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
 
   const save = async (status) => {
     if (saving || (status === 'draft' ? !canSaveDraft : !canSubmit)) return;
+    setSavingStatus(status);
     setSaving(true);
     try {
       await onSave({
@@ -448,9 +454,10 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
           <p>{t.reviewText}</p>
           {!isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
           {error && <p className="submissions-test-notice" role="alert">{error}</p>}
+          {saving && <p role="status" aria-live="polite">{savingStatus === 'submitted' ? t.submittingWork : t.savingWork}</p>}
           <div className="submissions-form-actions">
-            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{saving ? '…' : submission ? t.updateDraft : t.saveDraft}</button>
-            <button type="submit" disabled={saving || !canSubmit}>{saving ? '…' : t.submitWork} →</button>
+            <button type="button" onClick={() => save('draft')} disabled={saving || !canSaveDraft}>{submission ? t.updateDraft : t.saveDraft}</button>
+            <button type="submit" disabled={saving || !canSubmit}>{t.submitWork} →</button>
           </div>
         </fieldset>
       </form>
