@@ -10,6 +10,7 @@
 .guest-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .guest-portrait--fides-schwartz img { object-position: 50% 23%; }
 .guest-portrait--michael-fuller img { object-position: 50% 25%; }
+.guest-portrait--paula-marques img { object-position: 50% 37%; }
 .guest-initials { display: grid; place-items: center; height: 100%; font-size: 4.5rem; font-weight: 300; color: #232eb7; background: #efe8df; }
 .guest-card__copy { display: flex; flex-direction: column; flex: 1; padding-top: 28px; }
 .guest-field { color: #a93727; font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; line-height: 1.5; margin: 0 0 12px; }
