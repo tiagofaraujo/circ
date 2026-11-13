@@ -242,5 +242,31 @@ export const speakers2027 = [
       'She headed the Imaging Department and Radiology Service at Centro Hospitalar de Coimbra and coordinated the Radiology Unit within the Medical Imaging Department at Centro Hospitalar e Universitário de Coimbra.',
       'From 2011 to 2017 she chaired the Radiology Specialty Board of the Portuguese Medical Association. She also served as Vice-President of the Portuguese Society of Radiology and Nuclear Medicine.'
     ] }
+  },
+  {
+    id: 'bruno-esteves', name: 'Bruno Esteves', initials: 'BE', image: 'bruno-esteves.jpg',
+    institution: 'ULS Coimbra · ESTeSC',
+    pt: { field: 'Ressonância magnética e radiologia osteoarticular', role: 'Técnico de Radiologia · Assistente convidado', bio: [
+      'Bruno Ribeiro Esteves iniciou a atividade como técnico de radiologia no Hospital Geral do Centro Hospitalar de Coimbra, onde trabalhou até 2014. Desde então, exerce funções no Hospital Pediátrico de Coimbra e no Centro Hospitalar e Universitário de Coimbra, atualmente integrados na ULS Coimbra.',
+      'Concluiu na ESTeSC o bacharelato em Radiologia em 2005, a licenciatura em Radiologia em 2006, o mestrado em Radiologia Osteoarticular em 2012, a pós-graduação em Ressonância Magnética em 2018 e a formação de nível 2 em Proteção Radiológica em 2022.',
+      'É assistente convidado na licenciatura em Imagem Médica e Radioterapia da ESTeSC e doutorando em Biomedicina na Faculdade de Ciências da Saúde da Universidade da Beira Interior.'
+    ] },
+    en: { field: 'MRI and musculoskeletal radiology', role: 'Radiographer · Visiting teaching assistant', bio: [
+      'Bruno Ribeiro Esteves began his career as a radiographer at the General Hospital of the Coimbra Hospital Centre, where he worked until 2014. He has since worked at Coimbra Paediatric Hospital and Coimbra University Hospital Centre, now part of ULS Coimbra.',
+      'At ESTeSC, he completed a bacharelato in Radiography in 2005, a licenciatura in Radiography in 2006, a master’s in Musculoskeletal Radiology in 2012, a postgraduate qualification in MRI in 2018 and Level 2 training in Radiation Protection in 2022.',
+      'He is a visiting teaching assistant on the Medical Imaging and Radiotherapy degree at ESTeSC and a PhD candidate in Biomedicine at the Faculty of Health Sciences of the University of Beira Interior.'
+    ] }
+  },
+  {
+    id: 'sandra-rodrigues', name: 'Sandra Rodrigues', initials: 'SR', image: 'sandra-rodrigues.jpg',
+    institution: 'ULS Coimbra',
+    pt: { field: 'Mamografia e radiologia convencional', role: 'Técnica de Radiologia · Orientadora de estágio', bio: [
+      'Sandra Marisa Ferreira Rodrigues é licenciada em Radiologia e mestre em Radiologia Osteoarticular. Desde 2004, exerce funções como técnica de radiologia na ULS Coimbra, no polo dos Hospitais da Universidade de Coimbra, nas áreas de mamografia, estudos digestivos e urológicos e radiologia convencional.',
+      'Orienta estágios da ESTeSC desde 2008. Integra a rede Elos da Humanização da ULS Coimbra como representante dos técnicos de radiologia do Serviço de Imagem Médica. Integrou várias comissões científicas do Congresso Internacional de Radiologia de Coimbra.'
+    ] },
+    en: { field: 'Mammography and conventional radiography', role: 'Radiographer · Clinical placement supervisor', bio: [
+      'Sandra Marisa Ferreira Rodrigues holds a degree in Radiography and a master’s in Musculoskeletal Radiology. She has worked as a radiographer at ULS Coimbra’s University Hospitals site since 2004, covering mammography, digestive and urological imaging and conventional radiography.',
+      'She has supervised ESTeSC clinical placements since 2008. She represents radiographers from the Medical Imaging Service in ULS Coimbra’s Elos da Humanização network and has served on several scientific committees for the Coimbra International Congress of Radiology.'
+    ] }
   }
 ];
