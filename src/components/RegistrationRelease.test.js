@@ -99,6 +99,20 @@ test('a stale preview rejection requires a new manual preview and acknowledgemen
   expect(posts()).toHaveLength(1);
 });
 
+test.each([
+  ['release-commit-timeout', true],
+  ['private-provider-response', false],
+])('keeps the release pending and only displays a recognized support code (%s)', async (diagnostic, showCode) => {
+  fetch.mockImplementation(async (_, options) => options.method === 'GET'
+    ? response(preview) : response({ error: 'registration-release-unavailable', diagnostic }, false, 503));
+  show(); const submit = await prepare(); fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(submit);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('O resultado da libertação não foi confirmado');
+  if (showCode) expect(alert).toHaveTextContent(`Código de apoio ${diagnostic}`);
+  else expect(alert).not.toHaveTextContent(diagnostic);
+  expect(screen.getByRole('button', { name: 'Consultar resultado da libertação' })).toBeDisabled();
+});
+
 test('a malformed success is treated as uncertain and never calls the list callback', async () => {
   fetch.mockImplementation(async (_, options) => response(options.method === 'GET' ? preview : { ...released, registrationId: 'circ-2027-other' }));
   const onReleased = jest.fn(); show({ onReleased }); const submit = await prepare();

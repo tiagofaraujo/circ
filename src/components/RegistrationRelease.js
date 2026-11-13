@@ -5,6 +5,7 @@ const TARGET_EMAIL = 'araujotiagofc@gmail.com';
 const CONFIRMATION = 'LIBERTAR NOVA INSCRICAO';
 const ID = /^circ-2027-[A-Za-z0-9_-]{1,128}$/;
 const STAMP = /^[a-f0-9]{64}$/i;
+const SUPPORT_CODE = /^release-(parse|begin|lookup|inspect|prepare|commit)-(invalid|network|timeout|response|unexpected|http-(400|401|403|404|408|429|500|502|503|504))$/;
 const email = value => String(value || '').trim().toLowerCase();
 const statuses = {
   paid: 'Pago', pending: 'Pendente', awaiting_confirmation: 'A aguardar confirmação',
@@ -37,7 +38,12 @@ function errorMessage(issue, fallback) {
   if (issue.code === 'registration-release-blocked' && issue.status === 409) {
     return blockedReasons.get(issue.reason) || errors[issue.code];
   }
-  return errors[issue.code] || fallback;
+  const message = errors[issue.code] || fallback;
+  if (issue.code === 'registration-release-unavailable' && issue.status === 503
+    && typeof issue.diagnostic === 'string' && SUPPORT_CODE.test(issue.diagnostic)) {
+    return `${message} Código de apoio ${issue.diagnostic}.`;
+  }
+  return message;
 }
 
 function validPreview(value, requestedId) {
@@ -75,7 +81,9 @@ export default function RegistrationRelease({ registration, onReleased }) {
     });
     let data;
     try { data = await response.json(); } catch { throw new Error('invalid-response'); }
-    if (!response.ok) throw Object.assign(new Error('request-failed'), { code: data.error, reason: data.reason, status: response.status });
+    if (!response.ok) throw Object.assign(new Error('request-failed'), {
+      code: data.error, reason: data.reason, diagnostic: data.diagnostic, status: response.status,
+    });
     return data;
   }
 
@@ -121,7 +129,7 @@ export default function RegistrationRelease({ registration, onReleased }) {
         setError(errorMessage(issue, 'A libertação foi recusada. Prepare uma nova conferência antes de continuar.'));
       } else {
         setPreview(original.preview); setPhase('uncertain');
-        setError('O resultado da libertação não foi confirmado. Conserve esta conferência e consulte o resultado da mesma libertação antes de iniciar outra.');
+        setError(errorMessage(issue, 'O resultado da libertação não foi confirmado. Conserve esta conferência e consulte o resultado da mesma libertação antes de iniciar outra.'));
       }
     } finally { if (working.current === operation) working.current = null; }
     if (completed && generation.current === currentGeneration && typeof callback.current === 'function') {
