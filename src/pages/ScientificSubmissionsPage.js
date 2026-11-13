@@ -266,7 +266,8 @@ function submissionDateMeta(submission, language, t) {
       ? `${label} ${new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'pt-PT', {
           dateStyle: 'medium',
           timeStyle: 'short',
-        }).format(date)}`
+          timeZone: 'Europe/Lisbon',
+        }).format(date)} (${language === 'en' ? 'Lisbon time' : 'hora de Lisboa'})`
       : t.datePending,
   };
 }
