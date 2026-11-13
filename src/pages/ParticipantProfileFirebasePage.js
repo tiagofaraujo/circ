@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
-import { loadParticipantProfile, saveParticipantProfile } from '../auth/profileStore';
+import { loadParticipantProfileResult, saveParticipantProfile } from '../auth/profileStore';
 import { useUlsEligibility } from '../auth/ulsEligibilityStore';
 import { useLanguage } from '../context/LanguageContext';
 import '../account.css';
@@ -58,7 +58,8 @@ export default function ParticipantProfileFirebasePage() {
   // keeps the field locked. Only a server-confirmed absence unlocks it.
   const ulsNameLocked = Boolean(user) && !ulsEligibility.confirmedAbsent;
   const [form, setForm] = useState(() => emptyForm(user));
-  const [loading, setLoading] = useState(true);
+  const [profileLoadState, setProfileLoadState] = useState('loading');
+  const [profileReload, setProfileReload] = useState(0);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -74,18 +75,25 @@ export default function ParticipantProfileFirebasePage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    loadParticipantProfile(user).then((profile) => {
+    setProfileLoadState('loading');
+    loadParticipantProfileResult(user).then((result) => {
       if (!active) return;
+      // Never offer editing when the saved billing data could not be verified
+      // against Firestore; a local/cache fallback may be outdated.
+      if (!result?.remoteAvailable || !result.profile) {
+        setProfileLoadState('error');
+        return;
+      }
+      const profile = result.profile;
       setForm((current) => ({
         ...current,
         ...profile,
         email: user?.email || profile.email || '',
       }));
-      setLoading(false);
-    });
+      setProfileLoadState('ready');
+    }).catch(() => { if (active) setProfileLoadState('error'); });
     return () => { active = false; };
-  }, [user]);
+  }, [user, profileReload]);
 
   const updateField = (event) => {
     const { name, value } = event.target;
@@ -157,7 +165,16 @@ export default function ParticipantProfileFirebasePage() {
         <p id="profile-payment-requirements">{isEnglish
           ? 'Fields marked * are required before payment and invoice issuance: full name, Portuguese tax number and billing address, postal code, city and country. You can save a partially completed profile and finish it later. The overall profile completion percentage includes other personal and professional details; it does not determine payment eligibility.'
           : 'Os campos assinalados com * são necessários antes do pagamento e da emissão da fatura: nome completo, NIF português, morada, código postal, localidade e país de faturação. Pode guardar o perfil parcialmente preenchido e completá-lo mais tarde. A percentagem de conclusão global inclui outros dados pessoais e profissionais; não é o critério para poder pagar.'}</p>
-        {loading ? <p>{isEnglish ? 'Loading profile…' : 'A carregar perfil…'}</p> : (
+        {profileLoadState === 'loading' ? <p role="status">{isEnglish ? 'Loading profile…' : 'A carregar perfil…'}</p> : profileLoadState === 'error' ? (
+          <div role="alert" className="account-save-message account-save-message--error">
+            <p>{isEnglish
+              ? 'We could not verify your saved profile. No changes have been made. Check your connection before editing your billing details.'
+              : 'Não foi possível confirmar o perfil guardado. Nenhuma alteração foi efetuada. Verifique a ligação antes de editar os dados de faturação.'}</p>
+            <button type="button" className="button account-primary-button" onClick={() => setProfileReload((current) => current + 1)}>
+              {isEnglish ? 'Try again' : 'Tentar novamente'}
+            </button>
+          </div>
+        ) : (
           <form className="account-profile-form" onSubmit={handleSubmit}>
             <div className="profile-avatar-note">
               <div className="profile-photo-preview">
