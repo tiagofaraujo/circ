@@ -112,7 +112,7 @@ function ProgrammeRow({ row, en, nested = false }) {
     {time && <span className="schedule-time">{time}</span>}
     <div className="schedule-content">
       {title && heading}
-      {speakers && <ul className="schedule-speakers" role="list" aria-label={en ? 'Speakers' : 'Oradores'}>
+      {speakers && <ul className="schedule-speakers" aria-label={en ? 'Speakers' : 'Oradores'}>
         {speakers.map(speaker => <ProgrammeSpeaker key={speaker.id || speaker.name} speaker={speaker} en={en} />)}
       </ul>}
       {pt === mriCourseTitle.pt && <MriCourseDescription en={en} showInstructor={false} />}
