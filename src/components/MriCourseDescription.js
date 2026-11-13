@@ -5,9 +5,15 @@ export const mriCourseTitle = {
   en: 'MRI post-processing: from acquisition to advanced analysis',
 };
 
-export default function MriCourseDescription({ en }) {
+export const mriCourseInstructor = {
+  id: 'daniel-leitao',
+  name: 'Daniel Leitão',
+  affiliation: { pt: 'Siemens Healthineers', en: 'Siemens Healthineers' },
+};
+
+export default function MriCourseDescription({ en, showInstructor = true }) {
   return <div className="mri-course-description">
-    <p><strong>Daniel Leitão</strong> · Siemens Healthineers</p>
+    {showInstructor && <p><strong>{mriCourseInstructor.name}</strong> · {mriCourseInstructor.affiliation[en ? 'en' : 'pt']}</p>}
     <p>{en ? <>A theory and practical course dedicated to MRI post-processing and its application in clinical practice.</> : <>Um curso teórico-prático dedicado ao pós-processamento em ressonância magnética e à sua aplicação na prática clínica.</>}</p>
     <p>{en ? 'From multiplanar and 3D reconstruction to diffusion, perfusion and image fusion, the course explores the main visualisation and analysis tools through practical demonstrations and clinical cases.' : 'Das reconstruções multiplanares e 3D à difusão, à perfusão e à fusão de imagens, o curso explora as principais ferramentas de visualização e análise, através de demonstrações práticas e casos clínicos.'}</p>
     <p><strong>{en ? 'A practical approach for radiographers and radiologists, connecting image acquisition with advanced analysis.' : 'Uma abordagem prática para técnicos de radiologia e médicos radiologistas, que liga a aquisição de imagem à análise avançada.'}</strong></p>
