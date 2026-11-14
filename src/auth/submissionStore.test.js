@@ -52,6 +52,26 @@ test('submission deadlines use the current date in Lisbon, including the last da
   await expect(saveSubmission(user, form, 'submitted')).rejects.toThrow('submissions/closed');
   await saveSubmission(user, { ...form, type: 'poster' }, 'submitted');
 });
+test.each([
+  ['oral', '2027-01-16T00:00:00Z'],
+  ['poster', '2027-03-01T00:00:00Z'],
+])('expired %s drafts cannot be created or updated through the store (%s)', async (type, date) => {
+  jest.setSystemTime(new Date(date));
+  const typedForm = { ...form, type };
+  await expect(saveSubmission(user, typedForm, 'draft')).rejects.toThrow('submissions/closed');
+  await expect(updateSubmissionDraft(user, { id: ref.id, ...current }, typedForm, 'draft')).rejects.toThrow('submissions/closed');
+  expect(ref.set).not.toHaveBeenCalled();
+  expect(db.runTransaction).not.toHaveBeenCalled();
+  expect(tx.update).not.toHaveBeenCalled();
+});
+test('an oral deadline does not prevent a poster draft while its deadline is open', async () => {
+  jest.setSystemTime(new Date('2027-01-16T00:00:00Z'));
+  const posterForm = { ...form, type: 'poster' };
+  await saveSubmission(user, posterForm, 'draft');
+  await updateSubmissionDraft(user, { id: ref.id, ...current }, posterForm, 'draft');
+  expect(ref.set).toHaveBeenCalledTimes(1);
+  expect(tx.update).toHaveBeenCalledWith(ref, expect.objectContaining({ type: 'poster', status: 'draft' }));
+});
 test('editing rechecks the owned draft and preserves immutable ownership fields', async () => {
   await updateSubmissionDraft(user, { id: ref.id, ...current }, form, 'submitted');
   expect(tx.update).toHaveBeenCalledWith(ref, expect.objectContaining({ status: 'submitted', submittedAt: 'SERVER_TIME' }));

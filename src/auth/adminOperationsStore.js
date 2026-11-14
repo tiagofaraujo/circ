@@ -96,7 +96,8 @@ function submissionInput(user, form, status) {
     if (value.length > SUBMISSION_LIMITS[key]) throw new Error('submissions/field-too-long');
   }
   if (status === 'submitted' && !hasCompleteAbstractSections(abstractSections)) throw new Error('submissions/incomplete-abstract');
-  if (status === 'submitted' && !isSubmissionTypeOpen(form.type)) throw new Error('submissions/closed');
+  // Apply the same deadline to draft creation and updates as to final submission.
+  if (!isSubmissionTypeOpen(form.type)) throw new Error('submissions/closed');
   return { type: form.type, ...fields, abstractSections, abstract: abstractSectionsToText(abstractSections), status };
 }
 
