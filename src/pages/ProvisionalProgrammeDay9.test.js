@@ -81,7 +81,7 @@ test.each([
     .toEqual(['16:15–16:25', '16:25–16:45', '16:45–16:55']);
   expect(within(pendingTalk).getByText(pending)).toBeVisible();
   expect(within(pendingTalk).queryByRole('link')).not.toBeInTheDocument();
-  expect(speakerNames(stereotaxis)).toEqual(['Sandra Rodrigues', 'Francisca Raimundo', 'Filipa Oliveira']);
+  expect(speakerNames(stereotaxis)).toEqual(['Sandra Rodrigues', 'Francisca Rodrigues', 'Filipa Oliveira']);
   const filipa = within(stereotaxis).getByRole('link', { name: `Filipa Oliveira — ${biographyLabel}` });
   expect(filipa).toHaveAttribute('href', '/oradores/filipa-oliveira');
   expect(filipa.querySelector('img')).toHaveAttribute('src', '/speakers/filipa-oliveira.jpg');
