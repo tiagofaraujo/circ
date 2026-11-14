@@ -134,7 +134,9 @@ test.each([
   const ricardo = expectSpeakerWithoutBiography(afternoon, 'Ricardo Veiga', 'RV');
   expect(ricardo).toHaveTextContent(neuroradiology);
   fireEvent.click(container.querySelector('button[aria-controls="dia-10"]'));
-  const [, , , , , safety, digitalTwinning, , quoVadis] = rows(container, '10');
+  const day10 = container.querySelector('#dia-10');
+  expect(within(day10).queryByRole('heading', { name: /mamografia|mammography/i })).not.toBeInTheDocument();
+  const [, , , , safety, digitalTwinning, , quoVadis] = rows(container, '10');
   expect(speakerNames(safety)).toEqual(['Toby Gilk', 'Bill Faulkner', 'Kris Seitz']);
   expect(speakerNames(digitalTwinning)).toEqual(['Julien Greggio']);
   expect(speakerNames(quoVadis)).toEqual(['Joana Madureira']);
@@ -143,7 +145,7 @@ test.each([
   expect(joana.querySelector('img')).toHaveAttribute('src', '/speakers/joana-madureira.jpg');
 });
 
-test('preserves days 8 and 10, the provisional notice and day navigation without duplicating new entries', () => {
+test('preserves day navigation, the provisional notice and the remaining schedule', () => {
   const { container } = mount();
   fireEvent.click(container.querySelector('button[aria-controls="dia-08"]'));
   expect(container.querySelector('#dia-08')).toBeVisible();
@@ -151,10 +153,10 @@ test('preserves days 8 and 10, the provisional notice and day navigation without
   expect(rows(container, '08').map(row => row.querySelector('.schedule-time').textContent)).toEqual(['09:00–13:00', '14:00–18:00']);
   fireEvent.click(container.querySelector('button[aria-controls="dia-10"]'));
   expect(container.querySelector('#dia-10')).toBeVisible();
-  expect(rows(container, '10')).toHaveLength(9);
+  expect(rows(container, '10')).toHaveLength(8);
   expect(summary(rows(container, '10')[1])).toEqual(['10:00–12:00', 'Comunicações Livres']);
-  expect(summary(rows(container, '10')[7])).toEqual(['17:00', 'Coffee break']);
-  expect(summary(rows(container, '10')[8])).toEqual(['17:30–18:10', 'Quo Vadis Radiologia']);
+  expect(summary(rows(container, '10')[6])).toEqual(['17:00', 'Coffee break']);
+  expect(summary(rows(container, '10')[7])).toEqual(['17:30–18:10', 'Quo Vadis Radiologia']);
   fireEvent.click(container.querySelector('button[aria-controls="dia-09"]'));
   expect(window.location.hash).toBe('#dia-09');
   expect(rows(container, '09').slice(-5).map(summary)).toEqual(additionsPT);

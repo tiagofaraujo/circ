@@ -84,7 +84,6 @@ const days = [
     ['10:00–12:00', 'Comunicações Livres', 'Oral communications'],
     ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
     ['13:05–14:00', 'Almoço', 'Lunch'],
-    ['14:00–15:00', 'Radiologia de Intervenção / Mamografia', 'Interventional Radiology / Mammography'],
     ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira', 'vitor-silva'], children: [
       ['15:10–15:30', null, null, { speakers: [{ id: 'tobias-gilk' }] }],
       ['15:30–15:50', null, null, { speakers: [{ id: 'bill-faulkner' }] }],
