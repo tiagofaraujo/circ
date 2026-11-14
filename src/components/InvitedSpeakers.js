@@ -54,7 +54,10 @@ export default function InvitedSpeakers() {
     </div>
     <div className="guest-grid">{speakers2027.slice(0, 3).map((speaker) => <SpeakerCard key={speaker.id} speaker={speaker} language={language} />)}</div>
     <div className="guest-section__footer"><div><span className="eyebrow">{en ? 'Also joining us' : 'Também connosco'}</span>
-      <p>{speakers2027.slice(3).map((speaker, index) => <React.Fragment key={speaker.id}>{index > 0 && <span aria-hidden="true"> · </span>}<Link to={`/oradores/${speaker.id}`}>{speaker.name}</Link></React.Fragment>)}</p></div>
+      <p>{speakers2027.slice(3).map((speaker, index) => <React.Fragment key={speaker.id}>
+        {index > 0 && <span aria-hidden="true"> · </span>}
+        {speaker[language]?.bio?.length ? <Link to={`/oradores/${speaker.id}`}>{speaker.name}</Link> : <span>{speaker.name}</span>}
+      </React.Fragment>)}</p></div>
       <Link className="button button--outline" to="/oradores">{en ? 'Meet all speakers' : 'Conhecer todos os oradores'} <span aria-hidden="true">→</span></Link>
     </div>
   </section>;
