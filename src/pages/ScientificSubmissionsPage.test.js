@@ -278,3 +278,15 @@ test('an already-open editor cannot save an oral draft after its deadline passes
   fireEvent.click(draft);
   expect(saveSubmission).not.toHaveBeenCalled();
 });
+
+test('an expired oral draft can be consulted and exported while posters remain open, without an unusable edit action', () => {
+  jest.setSystemTime(new Date('2027-01-16T12:00:00Z'));
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]);
+    return () => {};
+  });
+  show();
+  expect(screen.getByText(form.title)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Editar rascunho/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
+});
