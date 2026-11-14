@@ -396,7 +396,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
       </header>
 
       <form onSubmit={(event) => { event.preventDefault(); save('submitted'); }}>
-        <fieldset className="submissions-form-step">
+        <fieldset disabled={saving} className="submissions-form-step">
           <legend><span>01</span>{t.typeLabel}</legend>
           <div className="submissions-type-grid">
             <label className={form.type === 'oral' ? 'is-selected' : ''}>
@@ -412,7 +412,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
           </div>
         </fieldset>
 
-        <fieldset className="submissions-form-step">
+        <fieldset disabled={saving} className="submissions-form-step">
           <legend><span>02</span>{t.identityLabel}</legend>
           <label>
             <span>{t.titleLabel}</span>
@@ -424,7 +424,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
           </label>
         </fieldset>
 
-        <fieldset className="submissions-form-step">
+        <fieldset disabled={saving} className="submissions-form-step">
           <legend><span>03</span>{t.contentLabel}</legend>
           <label>
             <span>{t.affiliationLabel}</span>
@@ -445,7 +445,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
           </div>
         </fieldset>
 
-        <fieldset className="submissions-form-step submissions-form-step--review">
+        <fieldset disabled={saving} className="submissions-form-step submissions-form-step--review">
           <legend><span>04</span>{t.reviewLabel}</legend>
           <div className="submissions-review-card">
             <div><small>{t.typeLabel}</small><strong>{form.type === 'oral' ? t.oralType : t.posterType}</strong></div>
