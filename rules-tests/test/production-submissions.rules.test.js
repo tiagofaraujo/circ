@@ -96,6 +96,74 @@ test('a verified owner can edit a draft and submit it, but cannot edit submitted
   await assertFails(updateDoc(ref, { title: 'Alteração posterior', updatedAt: serverTimestamp() }));
 });
 
+test('the presenter must be a nonempty author line when supplied on creation or in a draft', async () => {
+  const db = dbFor(open);
+  const authors = '\r\nAutora Exemplo\r\n  \r\nCoautor Exemplo\r\n';
+  const draft = doc(db, 'submissions', 'draft');
+  await assertSucceeds(setDoc(draft, submission('author', 'draft', { authors, presenterIndex: null })));
+  await assertFails(updateDoc(draft, { presenterIndex: 1, updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(draft, { presenterIndex: 2, updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(draft, { presenterIndex: null, updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(draft, { status: 'submitted', submittedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(draft, { status: 'submitted', presenterIndex: 0, submittedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(db, 'submissions', 'valid-presenter'), submission('author', 'submitted', { authors, presenterIndex: 2 })));
+  for (const [index, presenterIndex] of [-1, 1, 3, 0.5, '0', null].entries()) {
+    await assertFails(setDoc(doc(db, 'submissions', `invalid-presenter-${index}`), submission('author', 'submitted', { authors, presenterIndex })));
+  }
+});
+
+test('only a verified author can change the presenter on an active submitted work', async () => {
+  const db = dbFor(open);
+  const authors = 'Autora Exemplo\nCoautor Exemplo';
+  const update = { presenterIndex: 1, updatedAt: serverTimestamp() };
+  const submitted = doc(db, 'submissions', 'submitted');
+  await assertSucceeds(setDoc(submitted, submission('author', 'submitted', { authors })));
+  for (const [uid, verified] of [['other', true], ['author', false]]) {
+    await assertFails(updateDoc(doc(dbFor(open, uid, verified), 'submissions', 'submitted'), update));
+  }
+  await assertFails(updateDoc(submitted, { ...update, status: 'under_review' }));
+  await assertFails(updateDoc(submitted, { ...update, authors: 'Outra Autora\nOutro Autor' }));
+  await assertFails(updateDoc(submitted, { ...update, abstract: 'Resumo alterado' }));
+  await assertFails(updateDoc(submitted, { ...update, submittedAt: serverTimestamp() }));
+  await assertFails(updateDoc(submitted, { presenterIndex: 1 }));
+  await assertFails(updateDoc(submitted, { ...update, presenterIndex: 2 }));
+  await assertFails(updateDoc(submitted, { ...update, presenterIndex: null }));
+  const before = (await getDoc(submitted)).data();
+  await assertSucceeds(updateDoc(submitted, update));
+  const after = (await getDoc(submitted)).data();
+  assert.equal(after.presenterIndex, 1);
+  assert.deepEqual({ ...after, presenterIndex: undefined, updatedAt: undefined }, { ...before, presenterIndex: undefined, updatedAt: undefined });
+
+  const states = ['under_review', 'revisions', 'accepted', 'rejected'];
+  const ineligible = { archived: { archived: true }, test: { isTest: true }, legacyTest: { testMode: true }, otherEvent: { eventId: 'circ-2025' } };
+  await open.withSecurityRulesDisabled(async ctx => {
+    const admin = ctx.firestore();
+    for (const status of states) await setDoc(doc(admin, 'submissions', status), submission('author', status, { authors }));
+    for (const [id, extra] of Object.entries(ineligible)) {
+      await setDoc(doc(admin, 'submissions', id), submission('author', 'submitted', { authors, ...extra }));
+    }
+  });
+  for (const status of ['under_review', 'revisions', 'accepted']) await assertSucceeds(updateDoc(doc(db, 'submissions', status), update));
+  for (const id of ['rejected', ...Object.keys(ineligible)]) await assertFails(updateDoc(doc(db, 'submissions', id), update));
+});
+
+test('presenter changes obey the official opening and the deadline of the stored submission type', async () => {
+  for (const env of [notOpened, closed, oralClosed]) {
+    const authors = 'Autora Exemplo\nCoautor Exemplo';
+    await env.withSecurityRulesDisabled(async ctx => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'submissions', 'oral'), submission('author', 'submitted', { authors }));
+      await setDoc(doc(db, 'submissions', 'poster'), submission('author', 'submitted', { authors, type: 'poster' }));
+    });
+    const db = dbFor(env);
+    const update = { presenterIndex: 1, updatedAt: serverTimestamp() };
+    await assertFails(updateDoc(doc(db, 'submissions', 'oral'), update));
+    const posterChange = updateDoc(doc(db, 'submissions', 'poster'), update);
+    if (env === oralClosed) await assertSucceeds(posterChange);
+    else await assertFails(posterChange);
+  }
+});
+
 test('unverified or anonymous callers cannot create, edit or delete real drafts', async () => {
   await setDoc(doc(dbFor(open), 'submissions', 'draft'), submission('author', 'draft'));
   const unverified = dbFor(open, 'author', false);

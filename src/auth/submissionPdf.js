@@ -1,4 +1,5 @@
 import { abstractSectionKeys, normalizeAbstractSections } from './submissionAbstract';
+import { submissionPresenterName } from '../data/submissions2027';
 
 const sectionLabels = {
   pt: {
@@ -29,6 +30,7 @@ const copy = {
     contact: 'Autor de contacto',
     email: 'Email',
     authors: 'Autores',
+    presenter: 'Apresentador',
     affiliation: 'Instituição / Afiliação',
     abstract: 'Resumo',
     generatedAt: 'Documento gerado em',
@@ -52,6 +54,7 @@ const copy = {
     contact: 'Contact author',
     email: 'Email',
     authors: 'Authors',
+    presenter: 'Presenter',
     affiliation: 'Institution / Affiliation',
     abstract: 'Abstract',
     generatedAt: 'Document generated on',
@@ -131,6 +134,7 @@ export function buildSubmissionPrintDocument(submission, options = {}) {
   const generatedAt = new Date();
   const type = t.typeLabels[submission?.type] || printableValue(submission?.type);
   const status = t.statusLabels[submission?.status] || printableValue(submission?.status);
+  const presenter = submissionPresenterName(submission);
   const testBadge = submission?.isTest
     ? '<span class="test-badge">' + (language === 'en' ? 'TEST' : 'TESTE') + '</span>'
     : '';
@@ -173,6 +177,7 @@ export function buildSubmissionPrintDocument(submission, options = {}) {
     [t.email, printableValue(submission?.contactEmail)],
     [t.authors, printableValue(submission?.authors)],
     [t.affiliation, printableValue(submission?.affiliation)],
+    ...(presenter ? [[t.presenter, presenter]] : []),
   ].map(([label, value]) => (
     '<div><span>' + escapeHtml(label) + '</span><strong>'
       + escapeHtml(value).replace(/\n/g, '<br>')

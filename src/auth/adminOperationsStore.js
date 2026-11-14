@@ -1,6 +1,6 @@
 import { getFirebaseFirestore } from './firebaseClient';
 import { canAttendEventDay, canReceiveCredential } from './secretariatEligibility';
-import { isSubmissionOpeningReached, isSubmissionTypeOpen, SUBMISSION_LIMITS } from '../data/submissions2027';
+import { canEditSubmissionPresenter, isSubmissionOpeningReached, isSubmissionTypeOpen, submissionPresenterName, SUBMISSION_LIMITS } from '../data/submissions2027';
 import {
   abstractSectionsToText,
   hasCompleteAbstractSections,
@@ -98,7 +98,17 @@ function submissionInput(user, form, status) {
   if (status === 'submitted' && !hasCompleteAbstractSections(abstractSections)) throw new Error('submissions/incomplete-abstract');
   // Apply the same deadline to draft creation and updates as to final submission.
   if (!isSubmissionTypeOpen(form.type)) throw new Error('submissions/closed');
-  return { type: form.type, ...fields, abstractSections, abstract: abstractSectionsToText(abstractSections), status };
+  const data = { type: form.type, ...fields, abstractSections, abstract: abstractSectionsToText(abstractSections), status };
+  // Cached forms can still submit records without this optional field.
+  if (Object.hasOwn(form, 'presenterIndex')) {
+    const { presenterIndex } = form;
+    if (!(status === 'draft' && presenterIndex === null)
+      && !submissionPresenterName({ authors: data.authors, presenterIndex })) {
+      throw new Error('submissions/presenter-required');
+    }
+    data.presenterIndex = presenterIndex;
+  }
+  return data;
 }
 
 export async function saveSubmission(user, form, status) {
@@ -128,6 +138,34 @@ export async function updateSubmissionDraft(user, submission, form, status) {
   return submission.id;
 }
 
+export async function updateSubmissionPresenter(user, submission, presenterIndex) {
+  if (!user?.uid) throw new Error('submissions/auth-required');
+  if (user.emailVerified !== true) throw new Error('submissions/verified-email-required');
+  if (typeof submission?.id !== 'string' || !submission.id || submission.id.includes('/')
+    || submission.userId !== user.uid || !canEditSubmissionPresenter(submission)) {
+    throw new Error('submissions/presenter-edit-not-allowed');
+  }
+  if (!submissionPresenterName({ authors: submission.authors, presenterIndex })) {
+    throw new Error('submissions/presenter-required');
+  }
+
+  const db = dbOrThrow();
+  const ref = db.collection('submissions').doc(submission.id);
+  await db.runTransaction(async tx => {
+    const snapshot = await tx.get(ref);
+    const current = snapshot.data();
+    if (!snapshot.exists || current.userId !== user.uid || !canEditSubmissionPresenter(current)) {
+      throw new Error('submissions/presenter-edit-not-allowed');
+    }
+    if (current.authors !== submission.authors) throw new Error('submissions/presenter-changed');
+    if (current.presenterIndex === presenterIndex) return;
+    if ((current.presenterIndex ?? null) !== (submission.presenterIndex ?? null)) {
+      throw new Error('submissions/presenter-changed');
+    }
+    tx.update(ref, { presenterIndex, updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() });
+  });
+}
+
 export async function deleteSubmissionDraft(user, submission) {
   if (!user?.uid || user.emailVerified !== true || !submission?.id || submission.userId !== user.uid || submission.status !== 'draft' || submission.isTest === true) throw new Error('submissions/delete-not-allowed');
   const db = dbOrThrow(), ref = db.collection('submissions').doc(submission.id);
@@ -147,6 +185,9 @@ export function submissionErrorMessage(error, language = 'pt') {
     'submissions/incomplete-abstract': ['Preencha todas as secções do resumo antes de submeter.', 'Complete every abstract section before submitting.'],
     'submissions/field-too-long': ['Um dos campos excede o limite de caracteres permitido.', 'A field exceeds the permitted character limit.'],
     'submissions/invalid-input': ['Verifique a tipologia, o título e os autores do trabalho.', 'Check the submission type, title and authors.'],
+    'submissions/presenter-required': ['Selecione o apresentador entre os autores do trabalho.', 'Select the presenter from the authors of this work.'],
+    'submissions/presenter-edit-not-allowed': ['Já não é possível alterar o apresentador deste trabalho.', 'The presenter for this work can no longer be changed.'],
+    'submissions/presenter-changed': ['Os dados do apresentador foram alterados. Consulte a versão atual e tente novamente.', 'The presenter details have changed. Check the current version and try again.'],
     'submissions/closed': ['O prazo de submissão desta tipologia já terminou.', 'The submission deadline for this type has passed.'],
     'submissions/draft-changed': ['O rascunho foi alterado. Atualize a página antes de voltar a guardar.', 'The draft changed. Refresh the page before saving again.'],
     'submissions/edit-not-allowed': ['Só pode editar os seus rascunhos ainda não submetidos.', 'You can only edit your own drafts before submission.'],

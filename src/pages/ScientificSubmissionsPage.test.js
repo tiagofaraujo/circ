@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor, act, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import ScientificSubmissionsPage from './ScientificSubmissionsPage';
 import { useAuth } from '../auth/AuthContext';
-import { saveSubmission, updateSubmissionDraft, subscribeToUserSubmissions } from '../auth/adminOperationsStore';
+import { saveSubmission, updateSubmissionDraft, updateSubmissionPresenter, subscribeToUserSubmissions } from '../auth/adminOperationsStore';
 jest.mock('../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 let mockLanguage = 'pt';
 jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language: mockLanguage }) }));
-jest.mock('../auth/adminOperationsStore', () => ({ saveSubmission: jest.fn(), updateSubmissionDraft: jest.fn(), deleteSubmissionDraft: jest.fn(),
+jest.mock('../auth/adminOperationsStore', () => ({ saveSubmission: jest.fn(), updateSubmissionDraft: jest.fn(), updateSubmissionPresenter: jest.fn(), deleteSubmissionDraft: jest.fn(),
   subscribeToUserSubmissions: jest.fn(), submissionErrorMessage: () => 'Não foi possível guardar o trabalho.' }));
 const user = { uid: 'author', emailVerified: true, displayName: 'Autora' };
 const form = { type: 'oral', title: 'Trabalho científico', authors: 'Autora', affiliation: 'Instituição', abstractSections: {
@@ -18,7 +18,7 @@ beforeEach(() => {
   jest.useFakeTimers().setSystemTime(new Date('2026-11-15T12:00:00Z'));
   jest.clearAllMocks(); mockLanguage = 'pt'; useAuth.mockReturnValue({ user, access: {} });
   subscribeToUserSubmissions.mockImplementation((_uid, next) => { next([]); return () => {}; });
-  saveSubmission.mockResolvedValue('new-id'); updateSubmissionDraft.mockResolvedValue('existing-id');
+  saveSubmission.mockResolvedValue('new-id'); updateSubmissionDraft.mockResolvedValue('existing-id'); updateSubmissionPresenter.mockResolvedValue();
 });
 afterEach(() => jest.useRealTimers());
 test('creation and editing stay closed before launch while existing work remains readable', () => {
@@ -56,8 +56,9 @@ test('saving a draft calls the real submission store for the signed-in owner', a
 test('an owned production draft can be reopened and submitted without creating another work', async () => {
   subscribeToUserSubmissions.mockImplementation((_uid, next) => { next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]); return () => {}; });
   show(); fireEvent.click(screen.getByRole('button', { name: /Editar rascunho/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Autor apresentador' }), { target: { value: '0' } });
   fireEvent.click(screen.getByRole('button', { name: /Submeter trabalho/ }));
-  await waitFor(() => expect(updateSubmissionDraft).toHaveBeenCalledWith(user, expect.objectContaining({ id: 'existing-id' }), expect.objectContaining({ title: form.title }), 'submitted'));
+  await waitFor(() => expect(updateSubmissionDraft).toHaveBeenCalledWith(user, expect.objectContaining({ id: 'existing-id' }), expect.objectContaining({ title: form.title, presenterIndex: 0 }), 'submitted'));
   expect(await screen.findByText(/Trabalho submetido com sucesso/)).toBeInTheDocument();
   expect(saveSubmission).not.toHaveBeenCalled();
 });
@@ -193,6 +194,7 @@ test('a pending scientific submission announces its different operation in EN', 
   updateSubmissionDraft.mockImplementation(() => new Promise(() => {}));
   show();
   fireEvent.click(screen.getByRole('button', { name: /Edit draft/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Presenting author' }), { target: { value: '0' } });
   fireEvent.click(screen.getByRole('button', { name: /Submit work/ }));
 
   expect(screen.getByRole('status')).toHaveTextContent('Submitting your work…');
@@ -203,7 +205,7 @@ test('a pending scientific submission announces its different operation in EN', 
   expect(updateSubmissionDraft).toHaveBeenCalledTimes(1);
 });
 
-test('incomplete PT submissions explain why the final action is disabled until all six abstract sections are complete', () => {
+test('final submission requires a presenter and follows the selected author when the draft roster is reordered', async () => {
   show();
   fireEvent.click(screen.getByRole('button', { name: /Novo trabalho/ }));
   const submit = screen.getByRole('button', { name: /Submeter trabalho/ });
@@ -211,7 +213,8 @@ test('incomplete PT submissions explain why the final action is disabled until a
   expect(submit).toBeDisabled();
   expect(submit).toHaveAttribute('aria-describedby', hint.id);
   fireEvent.change(screen.getByPlaceholderText('Introduza um título claro e objetivo'), { target: { value: form.title } });
-  fireEvent.change(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação'), { target: { value: form.authors } });
+  const authors = screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação');
+  fireEvent.change(authors, { target: { value: 'Primeira Autora\n\nSegunda Autora' } });
   expect(screen.getByRole('button', { name: 'Guardar rascunho' })).toBeEnabled();
   expect(submit).toBeDisabled();
   [
@@ -224,9 +227,53 @@ test('incomplete PT submissions explain why the final action is disabled until a
   ].forEach(([placeholder, value]) => {
     fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
   });
+  expect(submit).toBeDisabled();
+  const presenter = screen.getByRole('combobox', { name: 'Autor apresentador' });
+  expect(within(presenter).getAllByRole('option').map(option => option.textContent))
+    .toEqual(['Selecione um dos autores', 'Primeira Autora', 'Segunda Autora']);
+  fireEvent.change(presenter, { target: { value: '2' } });
   expect(submit).toBeEnabled();
+  fireEvent.change(authors, { target: { value: 'Segunda Autora\nPrimeira Autora' } });
+  expect(presenter).toHaveValue('0');
+  fireEvent.change(authors, { target: { value: 'Primeira Autora' } });
+  expect(presenter).toHaveValue('');
+  expect(submit).toBeDisabled();
+  fireEvent.change(presenter, { target: { value: '0' } });
   expect(screen.queryByText(/Para submeter, preencha o título/)).not.toBeInTheDocument();
   expect(submit).not.toHaveAttribute('aria-describedby');
+  fireEvent.click(submit);
+  await waitFor(() => expect(saveSubmission).toHaveBeenCalledWith(user, expect.objectContaining({ authors: 'Primeira Autora', presenterIndex: 0 }), 'submitted'));
+});
+
+test('the submitting author can change the presenter on existing accepted work without reopening the abstract', async () => {
+  const accepted = { id: 'accepted-id', userId: user.uid, eventId: 'circ-2027', status: 'accepted', ...form, authors: 'Ana Costa\nBeatriz Silva' };
+  let publish;
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => { publish = next; next([accepted]); return () => {}; });
+  show();
+  const details = screen.getByText('Consultar submissão').closest('details');
+  details.open = true;
+  fireEvent.click(within(details).getByRole('button', { name: 'Alterar apresentador' }));
+  const select = within(details).getByRole('combobox', { name: 'Autor apresentador' });
+  expect(select).toHaveFocus();
+  fireEvent.change(select, { target: { value: '1' } });
+  fireEvent.click(within(details).getByRole('button', { name: 'Guardar apresentador' }));
+  await waitFor(() => expect(updateSubmissionPresenter).toHaveBeenCalledWith(user, accepted, 1));
+  expect(await within(details).findByText('Apresentador atualizado.')).toBeInTheDocument();
+  act(() => publish([{ ...accepted, presenterIndex: 1 }]));
+  expect(within(details).getByText(/Beatriz Silva/, { selector: '.submissions-presenter p' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: /Editar rascunho/ })).not.toBeInTheDocument();
+  expect(updateSubmissionDraft).not.toHaveBeenCalled();
+});
+
+test('a past oral deadline keeps the presenter visible and removes editing while posters are open', () => {
+  jest.setSystemTime(new Date('2027-01-16T00:00:00Z'));
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'oral-id', userId: user.uid, eventId: 'circ-2027', status: 'under_review', presenterIndex: 0, ...form }]);
+    return () => {};
+  });
+  show();
+  expect(screen.getByText(/Autora/, { selector: '.submissions-presenter p' })).toBeInTheDocument();
+  expect(screen.queryByText('Alterar apresentador')).not.toBeInTheDocument();
 });
 
 test('incomplete EN scientific submissions provide the equivalent instructions', () => {

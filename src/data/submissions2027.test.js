@@ -1,4 +1,4 @@
-import { isSubmissionOpeningReached, isSubmissionTypeOpen, submissionDateInLisbon } from './submissions2027';
+import { canEditSubmissionPresenter, isSubmissionOpeningReached, isSubmissionTypeOpen, submissionAuthorOptions, submissionDateInLisbon, submissionPresenterName } from './submissions2027';
 
 test('both scientific formats open at 00:00 Lisbon on 15 November 2026', () => {
   const before = new Date('2026-11-14T23:59:59.999Z');
@@ -18,4 +18,26 @@ test('the existing final deadlines stay inclusive and unsupported types stay clo
   expect(isSubmissionTypeOpen('poster', new Date('2027-02-28T23:59:59Z'))).toBe(true);
   expect(isSubmissionTypeOpen('poster', new Date('2027-03-01T00:00:00Z'))).toBe(false);
   expect(isSubmissionTypeOpen('other', new Date('2026-11-15T12:00:00Z'))).toBe(false);
+});
+
+test('selections use persisted author line indexes including blank lines and CRLF', () => {
+  const authors = '\n  Ana Silva\r\n \r\n  Bruno Costa  \r\n';
+  expect(submissionAuthorOptions(authors)).toEqual([
+    { index: 0, name: 'Ana Silva' },
+    { index: 2, name: 'Bruno Costa' },
+  ]);
+  expect(submissionPresenterName({ authors, presenterIndex: 2 })).toBe('Bruno Costa');
+  for (const presenterIndex of [undefined, null, '0', -1, 1, 3]) {
+    expect(submissionPresenterName({ authors, presenterIndex })).toBe('');
+  }
+});
+
+test('presenter edits respect the same type deadline and ignore archived or test records', () => {
+  const submission = { eventId: 'circ-2027', type: 'oral', status: 'accepted' };
+  const lastDay = new Date('2027-01-15T23:59:59Z');
+  expect(canEditSubmissionPresenter(submission, lastDay)).toBe(true);
+  expect(canEditSubmissionPresenter(submission, new Date('2027-01-16T00:00:00Z'))).toBe(false);
+  for (const patch of [{ status: 'draft' }, { status: 'rejected' }, { isTest: true }, { testMode: true }, { archived: true }, { eventId: 'other' }]) {
+    expect(canEditSubmissionPresenter({ ...submission, ...patch }, lastDay)).toBe(false);
+  }
 });

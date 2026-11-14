@@ -2,7 +2,7 @@ export const scientificRegulation2027 = {
   pt: {
     checklist: [
       'Escolha Comunicação Oral ou Poster Científico e uma área temática.',
-      'Reúna os nomes e afiliações dos autores e o contacto do autor correspondente.',
+      'Reúna os nomes e afiliações dos autores e o contacto do autor correspondente. Escolha quem apresentará o trabalho entre os autores.',
       'Prepare o resumo por secções e confira os limites de palavras, palavras-chave e referências.',
       'Retire do título e do resumo os nomes, instituições e outros elementos que identifiquem os autores.',
       'Confirme a originalidade, as autorizações aplicáveis e a declaração de conflitos de interesse.',
@@ -28,11 +28,11 @@ export const scientificRegulation2027 = {
         reference: 'Secções 8 a 10 e Anexo I',
         paragraphs: [
           'Identifique cada autor pelo nome profissional e respetiva afiliação. Indique o email e telefone do autor correspondente, que será o contacto para as comunicações sobre o trabalho.',
-          'O documento de referência estabelece um máximo de 4 autores por trabalho. Pelo menos um dos autores deve ter inscrição válida para apresentar o trabalho.',
+          'O documento de referência estabelece um máximo de 4 autores por trabalho. No My CIRC, indique um dos autores como apresentador. O autor apresentador pode ser diferente do autor correspondente e do autor que submete o trabalho.',
           'Na preparação do resumo, tenha disponíveis as versões portuguesa e inglesa, previstas no documento de referência. Cada versão tem um máximo de 400 palavras. A apresentação oral pode decorrer em português ou inglês, de acordo com o programa.',
         ],
         items: [
-          'Dados do trabalho: título, autores, afiliações, autor correspondente, área temática e formato pretendido.',
+          'Dados do trabalho: título, autores, afiliações, autor correspondente, autor apresentador, área temática e formato pretendido.',
           'Estrutura do resumo: introdução, objetivo, métodos, resultados e conclusão.',
           'Informação complementar: até 4 palavras-chave e até 5 referências bibliográficas, quando se justifiquem.',
           'Declarações: conflitos de interesse e termo de aceitação.',
@@ -73,6 +73,8 @@ export const scientificRegulation2027 = {
         reference: 'Secções 4, 7 e 11',
         paragraphs: [
           'A submissão é feita na área reservada do site do CIRC, através da conta de um dos autores. Esse autor responde pelos dados do trabalho, autoria, afiliações, contactos e documentação. As comunicações são dirigidas preferencialmente a esse autor.',
+          'Em «Trabalhos» no My CIRC, abra «Novo trabalho», escreva um autor por linha e escolha o autor apresentador na lista. Pode guardar o trabalho como rascunho e retomá-lo antes de submeter.',
+          'Depois de submeter, o autor responsável pode abrir «Consultar submissão» e usar «Alterar apresentador» até ao fim do prazo de submissão da respetiva tipologia, incluindo após a aceitação. A alteração mantém o conteúdo científico, a conta responsável pela submissão e a anonimização da avaliação.',
           'A versão de trabalho prevê a recolha separada da identidade dos autores e uma avaliação anonimizada. O material para avaliação deve omitir nomes, instituições, emails, agradecimentos identificativos e metadados que revelem a autoria.',
           'Todos os autores devem conhecer e aceitar a submissão. Os autores assumem a responsabilidade científica, ética e legal pelo conteúdo. Se um trabalho aceite não puder ser apresentado, o autor responsável deve informar a organização logo que possível.',
         ],
@@ -105,7 +107,7 @@ export const scientificRegulation2027 = {
         reference: 'Secções 3, 6 e 14 a 17',
         paragraphs: [
           'A organização disponibilizará os modelos oficiais para os trabalhos aceites. Comunicará também o formato final, as dimensões, a orientação e o modo de entrega dos posters.',
-          'A apresentação depende de inscrição válida dentro do prazo a definir pela organização. Os certificados de apresentação destinam-se aos autores inscritos e presentes na sessão, com validação da presença e da apresentação efetiva.',
+          'O autor apresentador tem de ter uma inscrição válida dentro do prazo a definir pela organização. Os certificados de apresentação destinam-se aos autores inscritos e presentes na sessão, com validação da presença e da apresentação efetiva.',
           'O CIRC 2027 poderá distinguir a Melhor Comunicação Oral e o Melhor Poster Científico. A avaliação dos prémios cabe ao júri designado pela organização, com anúncio preferencial na sessão de encerramento.',
         ],
       },
@@ -125,7 +127,7 @@ export const scientificRegulation2027 = {
   en: {
     checklist: [
       'Choose an Oral Presentation or Scientific Poster and one thematic area.',
-      'Check the authors, their affiliations and the corresponding author’s contact details.',
+      'Check the authors, their affiliations and the corresponding author’s contact details. Choose which author will present the work.',
       'Structure the abstract and check the word, keyword and reference limits.',
       'Remove anything that could identify the authors from the material for review.',
       'Confirm originality, applicable approvals and the conflict of interest declaration.',
@@ -151,11 +153,11 @@ export const scientificRegulation2027 = {
         reference: 'Sections 8–10 and Annex I',
         paragraphs: [
           'Give each author’s professional name and affiliation. Include the corresponding author’s email and phone number so that the organisers can contact them about the submission.',
-          'The reference document sets a maximum of 4 authors per submission. At least one author must hold a valid registration to present the work.',
+          'The reference document sets a maximum of 4 authors per submission. In My CIRC, select one of the authors as the presenter. The presenting author may be different from the corresponding author and the author who submits the work.',
           'When preparing the abstract, have the Portuguese and English versions ready, as provided for in the reference document. Each version is limited to 400 words. Oral presentations may be in Portuguese or English, according to the programme.',
         ],
         items: [
-          'Submission details: title, authors, affiliations, corresponding author, thematic area and preferred presentation format.',
+          'Submission details: title, authors, affiliations, corresponding author, presenting author, thematic area and preferred presentation format.',
           'Abstract structure: introduction, objective, methods, results and conclusion.',
           'Supporting information: up to 4 keywords and up to 5 references where appropriate.',
           'Declarations: conflicts of interest and statement of acceptance.',
@@ -196,6 +198,8 @@ export const scientificRegulation2027 = {
         reference: 'Sections 4, 7 and 11',
         paragraphs: [
           'Submit through the member area of the CIRC website using one author’s account. That author is responsible for the submission details, author information, affiliations, contact details and required documentation. Communications are preferably sent to that author.',
+          'Under “Submissions” in My CIRC, select “New submission”, enter one author per line and choose the presenting author from the list. You can save a draft and return to it before submitting.',
+          'After submitting, the submitting author can open “View submission” and select “Change presenter” until the submission deadline for that format, including after acceptance. This preserves the scientific content, the submitting account and the anonymity of the review.',
           'The working draft calls for author details to be collected separately and for anonymised review. Remove names, institutions, email addresses, identifying acknowledgements and metadata that could reveal authorship from the material for review.',
           'All authors must know and agree to the submission. The authors are responsible for its scientific, ethical and legal content. If accepted work cannot be presented, the submitting author should inform the organisers as soon as possible.',
         ],
@@ -228,7 +232,7 @@ export const scientificRegulation2027 = {
         reference: 'Sections 3, 6 and 14–17',
         paragraphs: [
           'The organisers will provide the official templates for accepted work. They will also communicate the final poster format, dimensions, orientation and delivery method.',
-          'Presentation requires valid registration by the deadline set by the organisers. Presentation certificates are issued to registered authors present at the session, subject to verification of attendance and delivery of the presentation.',
+          'The presenting author must hold a valid registration by the deadline set by the organisers. Presentation certificates are issued to registered authors present at the session, subject to verification of attendance and delivery of the presentation.',
           'CIRC 2027 may award Best Oral Presentation and Best Scientific Poster. The awards are judged by the panel appointed by the organisers, with winners preferably announced at the closing session.',
         ],
       },

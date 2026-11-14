@@ -396,7 +396,9 @@
 }
 
 .submissions-form-step input,
-.submissions-form-step textarea {
+.submissions-form-step select,
+.submissions-form-step textarea,
+.submissions-presenter select {
   width: 100%;
   padding: 14px 15px;
   border: 1px solid rgba(20, 24, 70, 0.2);
@@ -410,7 +412,9 @@
 }
 
 .submissions-form-step input:focus,
-.submissions-form-step textarea:focus {
+.submissions-form-step select:focus,
+.submissions-form-step textarea:focus,
+.submissions-presenter select:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(35, 46, 183, 0.08);
 }
@@ -827,6 +831,40 @@
 
 .submissions-work-details__abstract {
   margin-top: 24px;
+}
+
+.submissions-presenter {
+  margin-top: 16px;
+  padding: 15px;
+  border: 1px solid rgba(20, 24, 70, 0.14);
+  overflow-wrap: anywhere;
+}
+
+.submissions-presenter p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.submissions-presenter fieldset {
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.submissions-presenter label {
+  display: grid;
+  max-width: 32rem;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.submissions-presenter .submissions-work-details__actions {
+  margin-top: 12px;
+}
+
+.submissions-presenter .submissions-work-details__actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .submissions-work-details__abstract section {
