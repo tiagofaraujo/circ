@@ -76,6 +76,8 @@ test('a failed draft save shows its error beside the composer and clears after e
   fireEvent.click(screen.getByRole('button', { name: 'Guardar rascunho' }));
   const composer = document.querySelector('.submissions-composer');
   expect(await within(composer).findByRole('alert')).toHaveTextContent('Não foi possível guardar o trabalho.');
+  expect(title).toBeEnabled();
+  expect(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação')).toBeEnabled();
   expect(screen.getAllByRole('alert')).toHaveLength(1);
   fireEvent.change(title, { target: { value: form.title + ' revisto' } });
   expect(within(composer).queryByRole('alert')).not.toBeInTheDocument();
@@ -174,6 +176,9 @@ test('a pending draft save announces progress and prevents duplicate actions in 
   fireEvent.click(screen.getByRole('button', { name: 'Guardar rascunho' }));
 
   expect(screen.getByRole('status')).toHaveTextContent('A guardar o trabalho…');
+  expect(screen.getByPlaceholderText('Introduza um título claro e objetivo')).toBeDisabled();
+  expect(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação')).toBeDisabled();
+  expect(screen.getByRole('radio', { name: /Póster/ })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Guardar rascunho' })).toBeDisabled();
   expect(screen.getByRole('button', { name: /Submeter trabalho/ })).toBeDisabled();
   expect(saveSubmission).toHaveBeenCalledTimes(1);
@@ -191,6 +196,8 @@ test('a pending scientific submission announces its different operation in EN', 
   fireEvent.click(screen.getByRole('button', { name: /Submit work/ }));
 
   expect(screen.getByRole('status')).toHaveTextContent('Submitting your work…');
+  expect(screen.getByPlaceholderText('Enter a clear, objective title')).toBeDisabled();
+  expect(screen.getByRole('radio', { name: /Poster/ })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Update draft' })).toBeDisabled();
   expect(screen.getByRole('button', { name: /Submit work/ })).toBeDisabled();
   expect(updateSubmissionDraft).toHaveBeenCalledTimes(1);
