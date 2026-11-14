@@ -211,3 +211,36 @@ test('does not expose or save the previous account’s billing fields after swit
     })
   ));
 });
+
+test('ignores an old account save response after the participant changes', async () => {
+  const firstUser = { uid: 'old', email: 'old@example.test', displayName: 'Conta Antiga' };
+  const secondUser = { uid: 'new', email: 'new@example.test', displayName: 'Conta Atual' };
+  loadParticipantProfileResult.mockImplementation(async (currentUser) => ({
+    source: 'firestore', remoteAvailable: true,
+    profile: currentUser.uid === 'old'
+      ? { name: 'Conta Antiga', email: firstUser.email, billingAddress: 'Morada privada' }
+      : { name: 'Conta Atual', email: secondUser.email },
+  }));
+  let resolveOldSave;
+  saveParticipantProfile.mockImplementationOnce(() => new Promise((resolve) => { resolveOldSave = resolve; }));
+  const updateDisplayName = jest.fn().mockResolvedValue(undefined);
+  useAuth.mockReturnValue({ user: firstUser, updateDisplayName });
+  const view = show();
+  expect(await screen.findByLabelText('Morada *')).toHaveValue('Morada privada');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar dados' }));
+  expect(saveParticipantProfile).toHaveBeenCalledTimes(1);
+
+  useAuth.mockReturnValue({ user: secondUser, updateDisplayName });
+  view.rerender(<MemoryRouter><ParticipantProfileFirebasePage /></MemoryRouter>);
+  await waitFor(() => expect(screen.getByLabelText('Nome completo *')).toHaveValue('Conta Atual'));
+  expect(screen.getByLabelText('Morada *')).toHaveValue('');
+
+  await act(async () => {
+    resolveOldSave({ name: 'Conta Antiga', email: firstUser.email, billingAddress: 'Morada privada' });
+  });
+  expect(screen.getByLabelText('Nome completo *')).toHaveValue('Conta Atual');
+  expect(screen.getByLabelText('Morada *')).toHaveValue('');
+  expect(screen.queryByText('Guardado na base de dados.')).not.toBeInTheDocument();
+  expect(updateDisplayName).not.toHaveBeenCalled();
+});
