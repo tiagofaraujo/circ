@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
@@ -53,6 +53,8 @@ export default function ParticipantProfileFirebasePage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
   const { user, updateDisplayName } = useAuth();
+  const currentAccountUid = useRef(user?.uid || null);
+  currentAccountUid.current = user?.uid || null;
   const ulsEligibility = useUlsEligibility(user);
   // A cached miss, a failed lookup, or any existing eligibility document
   // keeps the field locked. Only a server-confirmed absence unlocks it.
@@ -78,6 +80,7 @@ export default function ParticipantProfileFirebasePage() {
     let active = true;
     setProfileLoadState('loading');
     setLoadedProfileUid(null);
+    setSaving(false);
     setSaved(false);
     setSaveError('');
     setForm(emptyForm(user));
@@ -111,6 +114,7 @@ export default function ParticipantProfileFirebasePage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const savingAccountUid = user?.uid || null;
     setSaving(true);
     setSaved(false);
     setSaveError('');
@@ -122,12 +126,15 @@ export default function ParticipantProfileFirebasePage() {
         photoURL: user?.photoURL || '',
       };
       const savedProfile = await saveParticipantProfile(user, next);
+      // A response from an earlier account must not update the new session's form.
+      if (currentAccountUid.current !== savingAccountUid) return;
       setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
       if (savedProfile.name && savedProfile.name !== user?.displayName) {
         try {
           await updateDisplayName(savedProfile.name);
         } catch {
+          if (currentAccountUid.current !== savingAccountUid) return;
           setSaveError(
             isEnglish
               ? 'The profile was saved, but the account display name could not be synchronised. Reload the page and try again.'
@@ -136,13 +143,14 @@ export default function ParticipantProfileFirebasePage() {
         }
       }
     } catch {
+      if (currentAccountUid.current !== savingAccountUid) return;
       setSaveError(
         isEnglish
           ? 'The profile could not be saved to the database. Check your connection and try again.'
           : 'Não foi possível guardar o perfil na base de dados. Confirme a ligação e tente novamente.'
       );
     } finally {
-      setSaving(false);
+      if (currentAccountUid.current === savingAccountUid) setSaving(false);
     }
   };
 
