@@ -195,14 +195,14 @@ export const speakers2027 = [
   },
   {
     id: 'diana-carvalho', name: 'Diana Carvalho', initials: 'DC', image: 'diana-carvalho.jpg',
-    institution: 'ULS Coimbra · ESTeSC–UPC',
-    pt: { field: 'Ressonância magnética em adultos e pediatria', role: 'Técnica de Radiologia · Professora Adjunta Convidada', bio: [
-      'Diana Carvalho é Técnica de Radiologia na ULS Coimbra e Professora Adjunta Convidada na Escola Superior de Tecnologia da Saúde da Universidade Politécnica de Coimbra.',
-      'É mestre em Radiologia, na especialidade osteoarticular, e pós-graduada em Ressonância Magnética. A sua atividade clínica e docente centra-se na ressonância magnética em adultos e em pediatria.'
+    institution: 'ULS Coimbra',
+    pt: { field: 'Radiologia de urgência e proteção radiológica', role: 'Técnica de Radiologia', bio: [
+      'Diana Carvalho é técnica de radiologia. Trabalhou vários anos no setor privado e integra atualmente a equipa de radiologia convencional de urgência da ULS Coimbra. É mestre em Imagem Médica e Radioterapia e tem uma pós-graduação em Proteção e Segurança Radiológica de nível 2.',
+      'Tem experiência na realização e otimização de exames em vários contextos radiológicos, com especial atenção à qualidade e às auditorias clínicas de proteção radiológica. Participa no licenciamento de unidades de saúde, apoiando a implementação e o acompanhamento dos requisitos técnicos e regulamentares de proteção radiológica.'
     ] },
-    en: { field: 'Adult and paediatric MRI', role: 'Radiographer · Visiting Adjunct Professor', bio: [
-      'Diana Carvalho is a radiographer at ULS Coimbra and Visiting Adjunct Professor at the Coimbra Health School, Polytechnic University of Coimbra.',
-      'She holds a master’s degree in Radiology, specialising in musculoskeletal imaging, and a postgraduate qualification in Magnetic Resonance Imaging. Her clinical practice and teaching focus on adult and paediatric MRI.'
+    en: { field: 'Emergency radiography and radiation protection', role: 'Radiographer', bio: [
+      'Diana Carvalho is a radiographer. She worked in the private sector for several years and now works in the emergency general radiography team at ULS Coimbra. She holds a master’s degree in Medical Imaging and Radiotherapy and a Level 2 postgraduate qualification in Radiation Protection and Safety.',
+      'Her experience spans several radiography settings, with a focus on performing and optimising examinations, quality and clinical audits in radiation protection. She also contributes to healthcare facility licensing by helping implement and monitor technical and regulatory requirements for radiation protection.'
     ] }
   },
   {

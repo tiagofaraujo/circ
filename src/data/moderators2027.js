@@ -13,7 +13,17 @@ export const moderators2027 = {
       'She chairs the EFRS Educational Wing Management Team, directs the WHO Collaborating Centre for Radiation Protection and Health, and is vice-chair of the EURAMED Scientific Committee. She chaired ATARP from 2016 to 2018. Her research focuses on radiation protection and optimising procedures for patients and professionals.',
     ] },
   },
-  'raquel-reis': { name: 'Raquel Reis', institution: 'ULS Santo António' },
+  'raquel-reis': {
+    name: 'Raquel Reis', institution: 'ULS Santo António', image: 'raquel-reis.jpg',
+    pt: { field: 'Radiologia geral', role: 'Técnica de Radiologia', bio: [
+      'Raquel Reis é licenciada em Radiologia pela Escola Superior de Saúde da Universidade de Aveiro e mestre em Radiologia Osteoarticular pela Escola Superior de Tecnologia da Saúde de Coimbra.',
+      'É técnica de radiologia na Unidade Local de Saúde de Santo António e coordena o Grupo de Trabalho de Radiologia Geral da ATARP.',
+    ] },
+    en: { field: 'General radiography', role: 'Radiographer', bio: [
+      'Raquel Reis holds a degree in Radiography from the University of Aveiro’s School of Health Sciences and a master’s degree in Musculoskeletal Radiology from the Coimbra School of Health Technology.',
+      'She is a radiographer at ULS Santo António and coordinates ATARP’s General Radiography Working Group.',
+    ] },
+  },
   'sofia-brandao': { name: 'Sofia Brandão', institution: 'CESPU' },
   'mario-monteiro': {
     name: 'Mário Monteiro',
@@ -29,7 +39,19 @@ export const moderators2027 = {
       'He has authored and co-authored conference presentations, articles and book chapters and served on scientific and organising committees. His research interests include clinical applications of CT and general radiography, as well as body composition.',
     ] },
   },
-  'ana-isabel-machado': { name: 'Ana Isabel Machado', institution: 'ULS Coimbra' },
+  'ana-isabel-machado': {
+    name: 'Ana Isabel Machado', institution: 'ULS Coimbra', image: 'ana-isabel-machado.jpg',
+    pt: { field: 'Radiologia e ressonância magnética', role: 'Técnica de Radiologia', bio: [
+      'Ana Isabel Machado é técnica superior de diagnóstico e terapêutica na área de Radiologia na ULS Coimbra desde 2010. Na Escola Superior de Tecnologia da Saúde de Coimbra, licenciou-se em Radiologia em 2009, concluiu o mestrado em Radiologia Osteoarticular em 2014 e a pós-graduação em Ressonância Magnética em 2019. Concluiu também o mestrado em Medicina Legal e Ciências Forenses pela Faculdade de Medicina da Universidade de Coimbra em 2006.',
+      'Em março de 2023, moderou no CIRC a comunicação «Lines, Tubes and Devices on a Chest X-ray», apresentada por Amanda Er.',
+      'No European Congress of Radiology, apresentou oralmente o póster «Quality Criteria in Orthopantomography» na iniciativa The Voice of EPOS, em março de 2017. Em março de 2018, foi coautora do póster «Quality Assessment in Orthopantomography Before and After a Training Programme in a Radiology Department», apresentado na mesma iniciativa.',
+    ] },
+    en: { field: 'Radiography and MRI', role: 'Radiographer', bio: [
+      'Ana Isabel Machado has worked as a radiographer at ULS Coimbra since 2010. At the Coimbra School of Health Technology, she completed a degree in Radiography in 2009, a master’s degree in Musculoskeletal Radiology in 2014 and a postgraduate qualification in Magnetic Resonance Imaging in 2019. She also completed a master’s degree in Legal Medicine and Forensic Sciences at the University of Coimbra’s Faculty of Medicine in 2006.',
+      'In March 2023, she chaired Amanda Er’s talk “Lines, Tubes and Devices on a Chest X-ray” at CIRC.',
+      'At the European Congress of Radiology, she gave an oral presentation of the poster “Quality Criteria in Orthopantomography” in The Voice of EPOS in March 2017. In March 2018, she co-authored the poster “Quality Assessment in Orthopantomography Before and After a Training Programme in a Radiology Department”, presented in the same programme.',
+    ] },
+  },
   'samuel-oliveira': { name: 'Samuel Oliveira', institution: 'Everything MRI', speakerId: 'samuel-oliveira' },
   'vitor-silva': { name: 'Vitor Silva', institution: 'ULS São João' },
   'joana-madureira': { name: 'Joana Madureira', institution: 'ATARP', speakerId: 'joana-madureira' },
