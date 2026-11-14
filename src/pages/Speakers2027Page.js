@@ -22,7 +22,7 @@ export default function Speakers2027Page() {
   const en = language === 'en';
   const { speakerId } = useParams();
   const { state } = useLocation();
-  const invited = speakers2027.find(item => item.id === speakerId);
+  const invited = speakers2027.find(item => item.id === speakerId && item[language]?.bio?.length);
   const moderator = moderatorProfiles.find(item => item.id === speakerId && item[language]?.bio?.length);
   const speaker = invited || moderator;
   const fromModerators = moderator && (!invited || state?.fromModerators === true);

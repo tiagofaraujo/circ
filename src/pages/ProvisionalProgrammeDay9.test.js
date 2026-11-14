@@ -9,6 +9,16 @@ const mount = () => render(<MemoryRouter future={{ v7_startTransition: true, v7_
 const rows = (container, day) => Array.from(container.querySelector(`#dia-${day} > .schedule-list`).children);
 const summary = row => [row.querySelector('.schedule-time')?.textContent, row.querySelector('h3')?.textContent];
 const speakerNames = row => Array.from(row.querySelectorAll('.schedule-speaker strong'), name => name.textContent);
+
+function expectSpeakerWithoutBiography(row, name, initials) {
+  const card = within(row).getByText(name, { exact: true }).closest('.schedule-speaker');
+  expect(card).toBeVisible();
+  expect(card.closest('a')).toBeNull();
+  expect(within(card).queryByRole('link')).not.toBeInTheDocument();
+  expect(card.querySelector('.schedule-speaker__initials')).toHaveTextContent(initials);
+  return card;
+}
+
 const additionsPT = [
   ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado'],
   ['17:00–17:45', 'Coffee break'],
@@ -76,8 +86,7 @@ test.each([
   expect(filipa).toHaveAttribute('href', '/oradores/filipa-oliveira');
   expect(filipa.querySelector('img')).toHaveAttribute('src', '/speakers/filipa-oliveira.jpg');
   expect(speakerNames(contrast)).toEqual(['Rita Batista']);
-  const rita = within(contrast).getByRole('link', { name: `Rita Batista — ${biographyLabel}` });
-  expect(rita).toHaveAttribute('href', '/oradores/rita-batista');
+  const rita = expectSpeakerWithoutBiography(contrast, 'Rita Batista', 'RB');
   expect(rita).toHaveTextContent('ULS da Lezíria');
 });
 
@@ -108,10 +117,8 @@ test.each([
     ['Amélia Estêvão', 'Diana Carvalho'],
     ['Célia Antunes', 'Bruno Esteves'],
   ]);
-  expect(within(mriTalks[0]).getByRole('link', { name: `Rui Pedro Faria Pais — ${biographyLabel}` }))
-    .toHaveAttribute('href', '/oradores/rui-pedro-faria-pais');
-  expect(within(mriTalks[2]).getByRole('link', { name: `Célia Antunes — ${biographyLabel}` }))
-    .toHaveAttribute('href', '/oradores/celia-antunes');
+  expectSpeakerWithoutBiography(mriTalks[0], 'Rui Pedro Faria Pais', 'RP');
+  expectSpeakerWithoutBiography(mriTalks[2], 'Célia Antunes', 'CA');
   const ctPanel = rows(container, '09')[9];
   const kirsten = within(ctPanel).getByText('Kirsten Burke').closest('.schedule-speaker');
   expect(kirsten.querySelector('.schedule-speaker__initials')).toHaveTextContent('KB');
@@ -121,12 +128,10 @@ test.each([
   fireEvent.click(container.querySelector('button[aria-controls="dia-08"]'));
   const [morning, afternoon] = rows(container, '08');
   expect(speakerNames(morning)).toEqual(['Daniel Leitão']);
-  const daniel = within(morning).getByRole('link', { name: `Daniel Leitão — ${biographyLabel}` });
-  expect(daniel).toHaveAttribute('href', '/oradores/daniel-leitao');
+  const daniel = expectSpeakerWithoutBiography(morning, 'Daniel Leitão', 'DL');
   expect(daniel).toHaveTextContent('Siemens Healthineers');
   expect(speakerNames(afternoon)).toEqual(['Ricardo Veiga']);
-  const ricardo = within(afternoon).getByRole('link', { name: `Ricardo Veiga — ${biographyLabel}` });
-  expect(ricardo).toHaveAttribute('href', '/oradores/ricardo-veiga');
+  const ricardo = expectSpeakerWithoutBiography(afternoon, 'Ricardo Veiga', 'RV');
   expect(ricardo).toHaveTextContent(neuroradiology);
   fireEvent.click(container.querySelector('button[aria-controls="dia-10"]'));
   const [, , , , , safety, digitalTwinning, , quoVadis] = rows(container, '10');
