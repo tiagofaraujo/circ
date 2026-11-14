@@ -288,5 +288,6 @@ test('an expired oral draft can be consulted and exported while posters remain o
   show();
   expect(screen.getByText(form.title)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Editar rascunho/ })).not.toBeInTheDocument();
+  expect(screen.getByText('Prazo de submissão encerrado para esta tipologia.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
 });
