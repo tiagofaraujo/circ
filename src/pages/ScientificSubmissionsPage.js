@@ -358,7 +358,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
-  const canSaveDraft = Boolean(isSubmissionOpeningReached() && form.title.trim().length >= 3 && form.authors.trim().length >= 2);
+  const canSaveDraft = Boolean(isSubmissionOpeningReached() && isSubmissionTypeOpen(form.type) && form.title.trim().length >= 3 && form.authors.trim().length >= 2);
   const canSubmit = canSaveDraft && hasCompleteAbstractSections(form) && isSubmissionTypeOpen(form.type);
   const abstractFields = [
     ['introduction', t.introductionLabel, t.introductionPlaceholder, 4],
@@ -369,7 +369,7 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
   ];
 
   const save = async (status) => {
-    if (saving || (status === 'draft' ? !canSaveDraft : !canSubmit)) return;
+    if (saving || !isSubmissionTypeOpen(form.type) || (status === 'draft' ? !canSaveDraft : !canSubmit)) return;
     setSavingStatus(status);
     setSaving(true);
     try {
@@ -475,7 +475,7 @@ export default function ScientificSubmissionsPage() {
   const [clock, setClock] = useState(() => new Date());
   const openingReached = isSubmissionOpeningReached(clock);
   const anyTypeOpen = isSubmissionTypeOpen('oral', clock) || isSubmissionTypeOpen('poster', clock);
-  const canSubmitWork = user?.emailVerified === true && openingReached;
+  const canSubmitWork = user?.emailVerified === true && openingReached && anyTypeOpen;
   const status = !openingReached ? t.upcomingStatus : anyTypeOpen ? t.status : t.closedStatus;
   const statusText = !openingReached ? t.upcomingText : anyTypeOpen ? t.statusText : t.closedText;
   const openValue = !openingReached ? t.upcomingValue : anyTypeOpen ? t.openValue : t.closedValue;
@@ -525,7 +525,7 @@ export default function ScientificSubmissionsPage() {
   }, [composerOpen]);
 
   const openNewSubmission = (event) => {
-    if (!canSubmitWork || !isSubmissionOpeningReached()) return;
+    if (!canSubmitWork || (!isSubmissionTypeOpen('oral') && !isSubmissionTypeOpen('poster'))) return;
     restoreFocusRef.current = event.currentTarget;
     setError('');
     setEditingSubmission(null);
@@ -533,7 +533,7 @@ export default function ScientificSubmissionsPage() {
   };
 
   const editSubmission = (submission, event) => {
-    if (!canSubmitWork || !isSubmissionOpeningReached() || submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft') return;
+    if (!canSubmitWork || !isSubmissionOpeningReached() || submission?.isTest === true || submission?.userId !== user?.uid || submission.status !== 'draft' || !isSubmissionTypeOpen(submission.type)) return;
     restoreFocusRef.current = event.currentTarget;
     setError('');
     setEditingSubmission(submission);
@@ -632,7 +632,7 @@ export default function ScientificSubmissionsPage() {
             <div><dt>{t.rulesLabel}</dt><dd>{t.rulesValue}</dd></div>
           </dl>
           <button ref={newSubmissionRef} type="button" disabled={!canSubmitWork} onClick={openNewSubmission} aria-describedby="submissions-new-hint">{t.newWork}<span>＋</span></button>
-          <small id="submissions-new-hint">{openingReached ? t.newWorkHint : t.upcomingText}</small>
+          <small id="submissions-new-hint">{!openingReached ? t.upcomingText : !anyTypeOpen ? t.closedText : t.newWorkHint}</small>
         </div>
       </section>
 
@@ -698,8 +698,11 @@ export default function ScientificSubmissionsPage() {
                   <time className="submissions-test-list__timestamp" dateTime={submissionDateMeta(submission, language, t).dateTime}>
                     {submissionDateMeta(submission, language, t).text}
                   </time>
+                  {openingReached && submission.status === 'draft' && !isSubmissionTypeOpen(submission.type, clock) && (
+                    <p className="submissions-draft-closed">{t.closedType}</p>
+                  )}
 
-                  {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && (
+                  {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && isSubmissionTypeOpen(submission.type, clock) && (
                     <button type="button" onClick={(event) => editSubmission(submission, event)}>
                       {t.editDraft} →
                     </button>

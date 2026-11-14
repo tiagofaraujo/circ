@@ -232,3 +232,62 @@ test('incomplete EN scientific submissions provide the equivalent instructions',
   expect(submit).toHaveAttribute('aria-describedby', hint.id);
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
 });
+
+test.each([
+  ['pt', 'Novo trabalho', 'Introduza um título claro e objetivo', 'Um autor por linha, pela ordem de apresentação', 'Guardar rascunho', 'Prazo de submissão encerrado para esta tipologia.'],
+  ['en', 'New submission', 'Enter a clear, objective title', 'One author per line, in presentation order', 'Save draft', 'The submission deadline for this type has passed.'],
+])('an expired oral submission cannot be saved as a draft while posters remain open (%s)', (language, newLabel, titlePlaceholder, authorsPlaceholder, saveLabel, closedMessage) => {
+  jest.setSystemTime(new Date('2027-01-16T12:00:00Z'));
+  mockLanguage = language;
+  show();
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(newLabel) }));
+  expect(screen.getByRole('radio', { name: /Póster|Poster/ })).toBeChecked();
+  fireEvent.change(screen.getByPlaceholderText(titlePlaceholder), { target: { value: form.title } });
+  fireEvent.change(screen.getByPlaceholderText(authorsPlaceholder), { target: { value: form.authors } });
+  const draft = screen.getByRole('button', { name: saveLabel });
+  expect(draft).toBeEnabled();
+  fireEvent.click(screen.getByRole('radio', { name: /Resumo|Abstract/ }));
+  expect(screen.getByRole('status')).toHaveTextContent(closedMessage);
+  expect(draft).toBeDisabled();
+  expect(saveSubmission).not.toHaveBeenCalled();
+});
+
+test('after all scientific deadlines, previous submissions remain readable but new drafts and edits are unavailable', () => {
+  jest.setSystemTime(new Date('2027-03-01T12:00:00Z'));
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]);
+    return () => {};
+  });
+  show();
+  expect(screen.getByText('Prazos de submissão encerrados')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Novo trabalho/ })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: /Editar rascunho/ })).not.toBeInTheDocument();
+  expect(screen.getByText(form.title)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
+});
+
+test('an already-open editor cannot save an oral draft after its deadline passes', () => {
+  jest.setSystemTime(new Date('2027-01-15T23:59:59Z'));
+  show();
+  fireEvent.click(screen.getByRole('button', { name: /Novo trabalho/ }));
+  fireEvent.change(screen.getByPlaceholderText('Introduza um título claro e objetivo'), { target: { value: form.title } });
+  fireEvent.change(screen.getByPlaceholderText('Um autor por linha, pela ordem de apresentação'), { target: { value: form.authors } });
+  const draft = screen.getByRole('button', { name: 'Guardar rascunho' });
+  expect(draft).toBeEnabled();
+  jest.setSystemTime(new Date('2027-01-16T00:00:00Z'));
+  fireEvent.click(draft);
+  expect(saveSubmission).not.toHaveBeenCalled();
+});
+
+test('an expired oral draft can be consulted and exported while posters remain open, without an unusable edit action', () => {
+  jest.setSystemTime(new Date('2027-01-16T12:00:00Z'));
+  subscribeToUserSubmissions.mockImplementation((_uid, next) => {
+    next([{ id: 'existing-id', userId: user.uid, isTest: false, status: 'draft', ...form }]);
+    return () => {};
+  });
+  show();
+  expect(screen.getByText(form.title)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Editar rascunho/ })).not.toBeInTheDocument();
+  expect(screen.getByText('Prazo de submissão encerrado para esta tipologia.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
+});
