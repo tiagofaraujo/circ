@@ -699,7 +699,7 @@ export default function ScientificSubmissionsPage() {
                     {submissionDateMeta(submission, language, t).text}
                   </time>
 
-                  {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && (
+                  {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && isSubmissionTypeOpen(submission.type, clock) && (
                     <button type="button" onClick={(event) => editSubmission(submission, event)}>
                       {t.editDraft} →
                     </button>
