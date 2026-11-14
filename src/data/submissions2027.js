@@ -18,3 +18,21 @@ export function isSubmissionTypeOpen(type, now = new Date()) {
   const date = submissionDateInLisbon(now);
   return Boolean(SUBMISSION_DEADLINES[type] && date >= SUBMISSION_OPEN_DATE && date <= SUBMISSION_DEADLINES[type]);
 }
+
+export function submissionAuthorOptions(authors) {
+  return String(authors ?? '').trim().split('\n')
+    .map((name, index) => ({ index, name: name.trim() }))
+    .filter(({ name }) => name);
+}
+
+export function submissionPresenterName(submission) {
+  return submissionAuthorOptions(submission?.authors)
+    .find(({ index }) => index === submission?.presenterIndex)?.name || '';
+}
+
+export function canEditSubmissionPresenter(submission, now = new Date()) {
+  return Boolean(submission?.eventId === 'circ-2027'
+    && submission.archived !== true && submission.isTest !== true && submission.testMode !== true
+    && ['submitted', 'under_review', 'revisions', 'accepted'].includes(submission.status)
+    && isSubmissionTypeOpen(submission.type, now));
+}

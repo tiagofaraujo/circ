@@ -1,4 +1,4 @@
-import { saveSubmission, updateSubmissionDraft, deleteSubmissionDraft, subscribeToUserSubmissions } from './adminOperationsStore';
+import { saveSubmission, updateSubmissionDraft, updateSubmissionPresenter, deleteSubmissionDraft, subscribeToUserSubmissions } from './adminOperationsStore';
 import { getFirebaseFirestore } from './firebaseClient';
 jest.mock('./firebaseClient', () => ({ getFirebaseFirestore: jest.fn() }));
 const user = { uid: 'author', email: 'author@example.com', displayName: 'Autora Exemplo', emailVerified: true };
@@ -25,6 +25,20 @@ test('drafts can be incomplete, but submission needs every abstract section', as
   await saveSubmission(user, { ...form, abstractSections: {} }, 'draft');
   expect(ref.set.mock.calls[0][0].submittedAt).toBeNull();
   await expect(saveSubmission(user, { ...form, abstractSections: {} }, 'submitted')).rejects.toThrow('submissions/incomplete-abstract');
+});
+
+test('stores the selected author by line, and accepts a draft without a selection', async () => {
+  const authors = '\n  Autora Exemplo\r\n\r\n Segundo Autor  ';
+  await saveSubmission(user, { ...form, authors, presenterIndex: 2 }, 'submitted');
+  await saveSubmission(user, { ...form, authors, presenterIndex: null }, 'draft');
+  expect(ref.set.mock.calls[0][0]).toEqual(expect.objectContaining({
+    authors: 'Autora Exemplo\r\n\r\n Segundo Autor', presenterIndex: 2,
+  }));
+  expect(ref.set.mock.calls[1][0]).toHaveProperty('presenterIndex', null);
+  for (const presenterIndex of [1, 3, '2', null]) {
+    await expect(saveSubmission(user, { ...form, authors, presenterIndex }, 'submitted')).rejects.toThrow('submissions/presenter-required');
+  }
+  expect(ref.set).toHaveBeenCalledTimes(2);
 });
 test('drafts, definitive submissions and draft edits stay closed until the official opening, including admin authors', async () => {
   jest.setSystemTime(new Date('2026-11-14T23:59:59.999Z'));
@@ -77,6 +91,39 @@ test('editing rechecks the owned draft and preserves immutable ownership fields'
   expect(tx.update).toHaveBeenCalledWith(ref, expect.objectContaining({ status: 'submitted', submittedAt: 'SERVER_TIME' }));
   expect(tx.update.mock.calls[0][1]).not.toHaveProperty('userId');
   expect(tx.update.mock.calls[0][1]).not.toHaveProperty('createdAt');
+});
+
+test('a verified owner can add a presenter to a legacy submission or replace the selection', async () => {
+  current = { ...current, type: 'oral', status: 'under_review', authors: 'Autora Exemplo\nSegundo Autor', submittedAt: 1000 };
+  const initial = { ...current, id: ref.id };
+  await updateSubmissionPresenter(user, initial, 1);
+  expect(tx.update).toHaveBeenCalledWith(ref, { presenterIndex: 1, updatedAt: 'SERVER_TIME' });
+  current = { ...current, presenterIndex: 1 };
+  tx.update.mockClear();
+  await updateSubmissionPresenter(user, initial, 1);
+  expect(tx.update).not.toHaveBeenCalled();
+  await updateSubmissionPresenter(user, { ...current, id: ref.id }, 0);
+  expect(tx.update).toHaveBeenCalledWith(ref, { presenterIndex: 0, updatedAt: 'SERVER_TIME' });
+});
+
+test('rejects invalid, unauthorized, stale and late presenter edits without touching the work', async () => {
+  const initial = { ...current, id: ref.id, type: 'oral', status: 'accepted', authors: 'Autora Exemplo\nSegundo Autor\nTerceiro Autor', presenterIndex: 0 };
+  current = initial;
+  await expect(updateSubmissionPresenter(user, initial, 3)).rejects.toThrow('submissions/presenter-required');
+  await expect(updateSubmissionPresenter({ ...user, emailVerified: false }, initial, 1)).rejects.toThrow('submissions/verified-email-required');
+  await expect(updateSubmissionPresenter({ ...user, uid: 'other' }, initial, 1)).rejects.toThrow('submissions/presenter-edit-not-allowed');
+  for (const patch of [{ authors: 'Outros Autores' }, { presenterIndex: 2 }]) {
+    current = { ...initial, ...patch };
+    await expect(updateSubmissionPresenter(user, initial, 1)).rejects.toThrow('submissions/presenter-changed');
+  }
+  for (const patch of [{ status: 'rejected' }, { archived: true }, { eventId: 'other' }, { testMode: true }, { userId: 'other' }]) {
+    current = { ...initial, ...patch };
+    await expect(updateSubmissionPresenter(user, initial, 1)).rejects.toThrow('submissions/presenter-edit-not-allowed');
+  }
+  current = initial;
+  jest.setSystemTime(new Date('2027-01-16T00:00:00Z'));
+  await expect(updateSubmissionPresenter(user, initial, 1)).rejects.toThrow('submissions/presenter-edit-not-allowed');
+  expect(tx.update).not.toHaveBeenCalled();
 });
 test('an already submitted, archived or concurrently changed draft cannot be edited', async () => {
   const initial = { id: ref.id, ...current };

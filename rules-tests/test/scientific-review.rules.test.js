@@ -42,7 +42,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'users', 'super'), { roles: { submissions: true } });
     await setDoc(doc(db, 'reviewConfiguration', 'circ-2027'), { enabled: true, version: 1 });
-    await setDoc(doc(db, 'submissions', sid), sourceData('under_review'));
+    await setDoc(doc(db, 'submissions', sid), { ...sourceData('under_review'), presenterIndex: 0 });
     for (const uid of ['reviewer-a', 'reviewer-b', 'reviewer-c', 'reviewer-d', 'author']) await setDoc(doc(db, 'scientificReviewers', mail(uid)), reviewerData(uid));
   });
 });
@@ -52,7 +52,7 @@ test('supervisor assigns three reviewers; each lists only their own anonymous wo
   const items = await assertSucceeds(getDocs(query(collection(db, 'scientificReviewers', mail('reviewer-a'), 'works'), where('active', '==', true))));
   assert.equal(items.size, 1);
   const content = JSON.stringify(items.docs[0].data());
-  for (const secret of ['Nome Confidencial', 'Hospital Confidencial', mail('author'), 'userId']) assert(!content.includes(secret));
+  for (const secret of ['Nome Confidencial', 'Hospital Confidencial', mail('author'), 'userId', 'presenterIndex']) assert(!content.includes(secret));
   await assertFails(getDoc(doc(db, 'submissions', sid)));
   await assertFails(getDoc(work(db, 'reviewer-b')));
   await assertFails(getDoc(control(db)));
@@ -77,6 +77,7 @@ test('reviewers cannot grant a role or change assignments, manuscript content, d
 test('anonymous copies reject author metadata and arbitrary nested fields even from supervisors', async () => {
   await assign(); const db = dbFor('super');
   await assertFails(setDoc(work(db, 'reviewer-a'), { ...projection(), authors: 'Nome Confidencial' }));
+  await assertFails(setDoc(work(db, 'reviewer-a'), { ...projection(), presenterIndex: 0 }));
   await assertFails(setDoc(work(db, 'reviewer-a'), { ...projection(), contactEmail: mail('author') }));
   await assertFails(setDoc(work(db, 'reviewer-a'), { ...projection(), abstractSections: { ...sections, authors: 'Nome Confidencial' } }));
 });
@@ -104,7 +105,9 @@ test('identity stays inaccessible until atomic acceptance, and scoring closes on
   await env.withSecurityRulesDisabled(ctx => setDoc(identity(ctx.firestore()), { authors: 'Nome Confidencial', contactName: 'Nome Confidencial', affiliation: 'Hospital Confidencial' }));
   await assertFails(getDoc(identity(dbFor())));
   await assertSucceeds(decide('accepted'));
-  assert.equal((await assertSucceeds(getDoc(identity(dbFor())))).data().authors, 'Nome Confidencial');
+  const identityData = (await assertSucceeds(getDoc(identity(dbFor())))).data();
+  assert.equal(identityData.authors, 'Nome Confidencial');
+  assert(!Object.hasOwn(identityData, 'presenterIndex'));
   await assertFails(getDoc(identity(dbFor('reviewer-d'))));
   await assertFails(score());
 });

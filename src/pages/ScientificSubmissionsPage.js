@@ -7,12 +7,21 @@ import {
   subscribeToUserSubmissions,
   submissionErrorMessage,
   updateSubmissionDraft,
+  updateSubmissionPresenter,
 } from '../auth/adminOperationsStore';
 import {
   hasCompleteAbstractSections,
   normalizeAbstractSections,
 } from '../auth/submissionAbstract';
-import { isSubmissionOpeningReached, isSubmissionTypeOpen, SUBMISSION_LIMITS, SUBMISSION_OPEN_DATE } from '../data/submissions2027';
+import {
+  canEditSubmissionPresenter,
+  isSubmissionOpeningReached,
+  isSubmissionTypeOpen,
+  submissionAuthorOptions,
+  submissionPresenterName,
+  SUBMISSION_LIMITS,
+  SUBMISSION_OPEN_DATE,
+} from '../data/submissions2027';
 import { exportSubmissionPdf } from '../auth/submissionPdf';
 import { useLanguage } from '../context/LanguageContext';
 import '../submissions.css';
@@ -76,6 +85,16 @@ const content = {
     titlePlaceholder: 'Introduza um título claro e objetivo',
     authorsLabel: 'Autores',
     authorsPlaceholder: 'Um autor por linha, pela ordem de apresentação',
+    presenterLabel: 'Autor apresentador',
+    presenterPlaceholder: 'Selecione um dos autores',
+    presenterHint: 'Escolha quem apresentará o trabalho. O autor apresentador deve ter inscrição válida para o apresentar.',
+    presenterMissing: 'Por indicar',
+    changePresenter: 'Alterar apresentador',
+    savePresenter: 'Guardar apresentador',
+    savingPresenter: 'A guardar o apresentador…',
+    presenterSaved: 'Apresentador atualizado.',
+    cancelPresenter: 'Cancelar',
+    editPresenterHint: 'Pode alterar o apresentador até ao fim do prazo de submissão desta tipologia.',
     anonymousHint: 'Para garantir uma avaliação anónima, não inclua nomes de autores nem afiliações no título ou no texto do resumo. Utilize os campos próprios para essa informação.',
     contentLabel: 'Conteúdo científico',
     affiliationLabel: 'Instituição ou afiliação principal',
@@ -94,13 +113,13 @@ const content = {
     keywordsPlaceholder: 'Ex.: Radiologia; Ressonância magnética; Diagnóstico',
     sectionsComplete: 'As seis secções do resumo estão preenchidas.',
     reviewLabel: 'Revisão e envio',
-    reviewText: 'Confirme os dados e a anonimização do título e do resumo. Depois de submeter, o trabalho segue para avaliação e deixa de poder ser editado.',
+    reviewText: 'Confirme os dados e a anonimização do título e do resumo. Após o envio, o conteúdo científico fica fechado para avaliação. Pode alterar o apresentador até ao fim do prazo de submissão desta tipologia.',
     saveDraft: 'Guardar rascunho',
     savingWork: 'A guardar o trabalho…',
     submittingWork: 'A submeter o trabalho…',
     updateDraft: 'Atualizar rascunho',
     submitWork: 'Submeter trabalho',
-    submitRequirements: 'Para submeter, preencha o título, os autores e as seis secções do resumo. Pode guardar um rascunho depois de indicar o título e os autores.',
+    submitRequirements: 'Para submeter, preencha o título, os autores e as seis secções do resumo e escolha o apresentador. Pode guardar um rascunho depois de indicar o título e os autores.',
     savedMessage: 'O rascunho foi guardado. Pode continuar a editá-lo antes de submeter.',
     draftUpdatedMessage: 'O rascunho foi atualizado.',
     submittedMessage: 'Trabalho submetido com sucesso. Pode acompanhar o estado da avaliação nesta página.',
@@ -182,6 +201,16 @@ const content = {
     titlePlaceholder: 'Enter a clear, objective title',
     authorsLabel: 'Authors',
     authorsPlaceholder: 'One author per line, in presentation order',
+    presenterLabel: 'Presenting author',
+    presenterPlaceholder: 'Select one of the authors',
+    presenterHint: 'Choose who will present the work. The presenting author must hold a valid registration to present it.',
+    presenterMissing: 'Not specified',
+    changePresenter: 'Change presenter',
+    savePresenter: 'Save presenter',
+    savingPresenter: 'Saving the presenter…',
+    presenterSaved: 'Presenter updated.',
+    cancelPresenter: 'Cancel',
+    editPresenterHint: 'You can change the presenter until the submission deadline for this type of work.',
     anonymousHint: 'For anonymous review, do not include author names or affiliations in the title or abstract. Use the dedicated fields for this information.',
     contentLabel: 'Scientific content',
     affiliationLabel: 'Main institution or affiliation',
@@ -200,13 +229,13 @@ const content = {
     keywordsPlaceholder: 'E.g. Radiology; Magnetic resonance imaging; Diagnosis',
     sectionsComplete: 'All six abstract sections are complete.',
     reviewLabel: 'Review and submission',
-    reviewText: 'Check the details and anonymise the title and abstract. After submission, the work enters review and can no longer be edited.',
+    reviewText: 'Check the details and anonymise the title and abstract. After submission, the scientific content is locked for review. You can change the presenter until the submission deadline for this type of work.',
     saveDraft: 'Save draft',
     savingWork: 'Saving your work…',
     submittingWork: 'Submitting your work…',
     updateDraft: 'Update draft',
     submitWork: 'Submit work',
-    submitRequirements: 'To submit, complete the title, authors and all six abstract sections. You can save a draft once you have entered the title and authors.',
+    submitRequirements: 'To submit, complete the title, authors and all six abstract sections and select the presenter. You can save a draft once you have entered the title and authors.',
     savedMessage: 'Your draft was saved. You can keep editing it before submission.',
     draftUpdatedMessage: 'Your draft was updated.',
     submittedMessage: 'Your work was submitted successfully. You can track its review status here.',
@@ -320,6 +349,7 @@ const emptySubmissionForm = {
   type: 'oral',
   title: '',
   authors: '',
+  presenterIndex: null,
   affiliation: '',
   introduction: '',
   objective: '',
@@ -337,9 +367,34 @@ function formFromSubmission(submission) {
     type: submission.type || (isSubmissionTypeOpen('oral') ? 'oral' : 'poster'),
     title: submission.title || '',
     authors: submission.authors || '',
+    presenterIndex: submissionPresenterName(submission) ? submission.presenterIndex : null,
     affiliation: submission.affiliation || '',
     ...sections,
   };
+}
+
+function PresenterSelect({ authors, value, onChange, t, hintId, selectRef }) {
+  const options = submissionAuthorOptions(authors);
+  const nameCounts = new Map();
+  for (const { name } of options) nameCounts.set(name, (nameCounts.get(name) || 0) + 1);
+
+  return (
+    <label>
+      <span>{t.presenterLabel}</span>
+      <select
+        ref={selectRef}
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))}
+        aria-describedby={hintId}
+        disabled={options.length === 0}
+      >
+        <option value="">{t.presenterPlaceholder}</option>
+        {options.map(({ index, name }, position) => (
+          <option key={index} value={index}>{nameCounts.get(name) > 1 ? `${name} (${position + 1})` : name}</option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function SubmissionForm({ t, onClose, onSave, onClearError, error, submission }) {
@@ -354,12 +409,26 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
   }, []);
 
   const updateField = (field) => (event) => {
+    const value = event.target.value;
     onClearError();
-    setForm((current) => ({ ...current, [field]: event.target.value }));
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateAuthors = (event) => {
+    const authors = event.target.value;
+    onClearError();
+    setForm((current) => {
+      const name = submissionPresenterName(current);
+      const matches = submissionAuthorOptions(authors).filter((author) => author.name === name);
+      const wasUnambiguous = submissionAuthorOptions(current.authors).filter((author) => author.name === name).length === 1;
+      return { ...current, authors, presenterIndex: wasUnambiguous && matches.length === 1 ? matches[0].index : null };
+    });
   };
 
   const canSaveDraft = Boolean(isSubmissionOpeningReached() && isSubmissionTypeOpen(form.type) && form.title.trim().length >= 3 && form.authors.trim().length >= 2);
-  const canSubmit = canSaveDraft && hasCompleteAbstractSections(form) && isSubmissionTypeOpen(form.type);
+  const presenterName = submissionPresenterName(form);
+  const sectionsComplete = hasCompleteAbstractSections(form);
+  const canSubmit = canSaveDraft && sectionsComplete && Boolean(presenterName);
   const abstractFields = [
     ['introduction', t.introductionLabel, t.introductionPlaceholder, 4],
     ['objective', t.objectiveLabel, t.objectivePlaceholder, 3],
@@ -420,8 +489,13 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
           </label>
           <label>
             <span>{t.authorsLabel}</span>
-            <textarea rows="4" value={form.authors} onChange={updateField('authors')} placeholder={t.authorsPlaceholder} maxLength={SUBMISSION_LIMITS.authors} required />
+            <textarea rows="4" value={form.authors} onChange={updateAuthors} placeholder={t.authorsPlaceholder} maxLength={SUBMISSION_LIMITS.authors} required />
           </label>
+          <PresenterSelect authors={form.authors} value={form.presenterIndex} onChange={(presenterIndex) => {
+            onClearError();
+            setForm((current) => ({ ...current, presenterIndex }));
+          }} t={t} hintId="submission-presenter-hint" />
+          <p id="submission-presenter-hint">{t.presenterHint}</p>
         </fieldset>
 
         <fieldset disabled={saving} className="submissions-form-step">
@@ -451,7 +525,8 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
             <div><small>{t.typeLabel}</small><strong>{form.type === 'oral' ? t.oralType : t.posterType}</strong></div>
             <div><small>{t.titleLabel}</small><strong>{form.title || '—'}</strong></div>
             <div><small>{t.authorsLabel}</small><strong>{form.authors || '—'}</strong></div>
-            <div><small>{t.contentLabel}</small><strong>{canSubmit ? t.sectionsComplete : '—'}</strong></div>
+            <div><small>{t.presenterLabel}</small><strong>{presenterName || t.presenterMissing}</strong></div>
+            <div><small>{t.contentLabel}</small><strong>{sectionsComplete ? t.sectionsComplete : '—'}</strong></div>
           </div>
           <p>{t.reviewText}</p>
           {!isSubmissionTypeOpen(form.type) && <p role="status">{t.closedType}</p>}
@@ -465,6 +540,78 @@ function SubmissionForm({ t, onClose, onSave, onClearError, error, submission })
         </fieldset>
       </form>
     </section>
+  );
+}
+
+function SubmissionPresenter({ submission, user, clock, language, t }) {
+  const presenterName = submissionPresenterName(submission);
+  const [selection, setSelection] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const changeButton = useRef(null);
+  const selector = useRef(null);
+  const originalSubmission = useRef(null);
+  const canEdit = user?.emailVerified === true && user.uid === submission.userId
+    && canEditSubmissionPresenter(submission, clock) && submissionAuthorOptions(submission.authors).length > 0;
+
+  useEffect(() => {
+    if (editing) {
+      selector.current?.focus();
+      return;
+    }
+    if (originalSubmission.current) changeButton.current?.focus();
+    originalSubmission.current = null;
+  }, [editing]);
+
+  const open = () => {
+    originalSubmission.current = submission;
+    setSelection(presenterName ? submission.presenterIndex : null);
+    setMessage('');
+    setError('');
+    setEditing(true);
+  };
+
+  const save = async (event) => {
+    event.preventDefault();
+    if (saving || selection === null || !canEdit || !canEditSubmissionPresenter(submission)) return;
+    setSaving(true);
+    setError('');
+    try {
+      await updateSubmissionPresenter(user, originalSubmission.current, selection);
+      setEditing(false);
+      setMessage(t.presenterSaved);
+    } catch (error) {
+      setError(submissionErrorMessage(error, language));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="submissions-presenter">
+      <p><strong>{t.presenterLabel}</strong> · {presenterName || t.presenterMissing}</p>
+      {canEdit && (editing ? (
+        <form onSubmit={save}>
+          <fieldset disabled={saving}>
+            <PresenterSelect authors={originalSubmission.current?.authors} value={selection} onChange={setSelection} t={t} hintId={`presenter-edit-${submission.id}`} selectRef={selector} />
+            <p id={`presenter-edit-${submission.id}`}>{t.editPresenterHint}</p>
+            <div className="submissions-work-details__actions">
+              <button type="submit" disabled={selection === null || selection === originalSubmission.current?.presenterIndex}>{t.savePresenter}</button>
+              <button type="button" onClick={() => { setError(''); setEditing(false); }}>{t.cancelPresenter}</button>
+            </div>
+          </fieldset>
+        </form>
+      ) : (
+        <div className="submissions-work-details__actions">
+          <button ref={changeButton} type="button" onClick={open}>{t.changePresenter}</button>
+        </div>
+      ))}
+      {saving && <p role="status">{t.savingPresenter}</p>}
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
+    </div>
   );
 }
 
@@ -720,6 +867,7 @@ export default function ScientificSubmissionsPage() {
                         <div><span>{t.contactLabel}</span><p>{submission.contactName || '—'}</p></div>
                         <div><span>{t.emailLabel}</span><p>{submission.contactEmail || '—'}</p></div>
                       </div>
+                      <SubmissionPresenter submission={submission} user={user} clock={clock} language={language} t={t} />
                       <div className="submissions-work-details__abstract">
                         <span>{t.abstractDetailLabel}</span>
                         {submissionAbstractItems(submission, t).map((section) => (

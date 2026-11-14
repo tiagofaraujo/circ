@@ -10,6 +10,7 @@ import { normalizeAbstractSections } from '../auth/submissionAbstract';
 import { exportSubmissionPdf } from '../auth/submissionPdf';
 import { updateScientificDecision, useScientificReviewConfig } from '../auth/scientificReviewStore';
 import AdminModuleNav from '../components/AdminModuleNav';
+import { submissionPresenterName } from '../data/submissions2027';
 import '../admin.css';
 import '../adminOperations.css';
 
@@ -76,6 +77,7 @@ function submissionForReviewExport(submission) {
     contactEmail: '—',
     authors: 'Anonimizado até à aceitação',
     affiliation: '—',
+    presenterIndex: null,
   };
 }
 
@@ -87,6 +89,7 @@ function exportSubmissions(items) {
     'Autor de contacto',
     'Email',
     'Autores',
+    'Apresentador',
     'Instituição',
     'Introdução',
     'Objetivo',
@@ -102,6 +105,7 @@ function exportSubmissions(items) {
   const rows = items.map((item) => {
     const sections = normalizeAbstractSections(item.abstractSections);
     const exportItem = submissionForReviewExport(item);
+    const presenter = submissionPresenterName(exportItem);
     return [
       item.code || item.id,
       typeLabels[item.type] || item.type,
@@ -109,6 +113,7 @@ function exportSubmissions(items) {
       exportItem.contactName,
       exportItem.contactEmail,
       String(exportItem.authors || '').replace(/\n/g, ' · '),
+      /^[=+\-@]/.test(presenter) ? "'" + presenter : presenter,
       exportItem.affiliation,
       sections.introduction,
       sections.objective,
@@ -393,6 +398,10 @@ export default function AdminSubmissionsPage() {
                           <p>A identificação permanece oculta durante a avaliação científica.</p>
                         )}
                       </div>
+                      {identityVisible && <div>
+                        <span>Apresentador</span>
+                        <p>{submissionPresenterName(submission) || '—'}</p>
+                      </div>}
                       <div className="admin-submission__abstract">
                         <span>{submission.abstractSections ? 'Resumo estruturado' : 'Resumo'}</span>
                         <div className="admin-submission__abstract-sections">

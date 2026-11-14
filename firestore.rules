@@ -134,6 +134,19 @@ service cloud.firestore {
         && data.affiliation is string && data.affiliation.size() <= 500;
     }
 
+    function validPresenterIndex(authors, presenterIndex) {
+      let authorLines = authors.trim().split('\\n');
+      return presenterIndex is int && presenterIndex >= 0 && presenterIndex < authorLines.size()
+        && authorLines[presenterIndex].trim().size() > 0;
+    }
+
+    function validOptionalSubmissionPresenter(data) {
+      // Cached clients and submissions made before the presenter field may omit it.
+      return !data.keys().hasAny(['presenterIndex'])
+        || (data.status == 'draft' && data.presenterIndex == null)
+        || validPresenterIndex(data.authors, data.presenterIndex);
+    }
+
     function officialOpeningReached() {
       // Midnight in mainland Portugal is UTC on 15 November 2026.
       // Also closes draft creation and author edits before the official launch.
@@ -151,7 +164,8 @@ service cloud.firestore {
     function hasValidProductionSubmissionIdentity() {
       let data = request.resource.data;
       return data.keys().hasOnly(['type', 'title', 'authors', 'affiliation', 'abstractSections', 'abstract', 'status',
-          'eventId', 'code', 'userId', 'contactName', 'contactEmail', 'isTest', 'createdAt', 'updatedAt', 'submittedAt'])
+          'eventId', 'code', 'userId', 'contactName', 'contactEmail', 'isTest', 'createdAt', 'updatedAt', 'submittedAt',
+          'presenterIndex'])
         && data.code is string && data.code.matches('^CIRC27-[A-Z0-9]{8}$')
         && data.contactName is string
         && data.contactEmail == request.auth.token.email;
@@ -165,6 +179,7 @@ service cloud.firestore {
           'affiliation',
           'abstract',
           'abstractSections',
+          'presenterIndex',
           'status',
           'updatedAt',
           'submittedAt'
@@ -182,6 +197,19 @@ service cloud.firestore {
             && request.resource.data.submittedAt == request.time
           )
         );
+    }
+
+    function isValidAuthorPresenterUpdate() {
+      let previous = resource.data;
+      let next = request.resource.data;
+      return hasVerifiedEmail() && previous.userId == request.auth.uid
+        && previous.eventId == 'circ-2027'
+        && previous.get('archived', false) == false
+        && previous.get('isTest', false) == false && previous.get('testMode', false) == false
+        && previous.status in ['submitted', 'under_review', 'revisions', 'accepted']
+        && previous.authors is string && validPresenterIndex(previous.authors, next.get('presenterIndex', null))
+        && next.diff(previous).affectedKeys().hasOnly(['presenterIndex', 'updatedAt'])
+        && next.updatedAt == request.time && productionSubmissionDeadlineOpen();
     }
 
     function validUlsNameKey(nameKey) {
@@ -880,6 +908,7 @@ service cloud.firestore {
           && request.resource.data.status in ['draft', 'submitted']
           && hasValidProductionSubmissionIdentity()
           && hasValidProductionSubmissionContent()
+          && validOptionalSubmissionPresenter(request.resource.data)
           && productionSubmissionDeadlineOpen()
           && hasValidAbstractSections()
           && hasValidInitialSubmissionTimestamps()
@@ -915,8 +944,11 @@ service cloud.firestore {
           && resource.data.status == 'draft'
           && request.resource.data.status in ['draft', 'submitted']
           && isValidAuthorSubmissionUpdate()
-          && hasValidProductionSubmissionContent() && productionSubmissionDeadlineOpen()
-        ));
+          && hasValidProductionSubmissionContent()
+          && validOptionalSubmissionPresenter(request.resource.data)
+          && productionSubmissionDeadlineOpen()
+        )
+        || isValidAuthorPresenterUpdate());
       allow delete: if reviewDeletionSafe(submissionId) && (isAdmin()
         || (
           canTestSubmissions()

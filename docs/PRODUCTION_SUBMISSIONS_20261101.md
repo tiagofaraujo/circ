@@ -12,9 +12,11 @@ anónimo entregue aos revisores não foram alterados.
 
 Os limites do resumo, a confirmação do email e os prazos de 15/01/2027 (oral)
 e 28/02/2027 (póster) são validados no cliente e nas regras Firestore de produção,
-com os limites finais em hora de Lisboa. O percurso atual recebe resumos em texto, sem anexos ou upload de
-póster final. Depois de submeter, o autor não pode editar o trabalho; as regras
-atuais também não permitem edição pelo autor no estado de correções solicitadas.
+com os limites finais em hora de Lisboa. O percurso atual recebe resumos em texto,
+sem anexos ou upload de póster final. A submissão pede a escolha do apresentador
+entre os autores indicados. O autor responsável pode alterar essa escolha até ao
+prazo da tipologia, mesmo após a aceitação, mantendo o resumo e a autoria
+submetidos. A identidade do apresentador fica fora dos documentos de avaliação.
 
 Validação: testes dos helpers de criação/edição/eliminação, limites e prazos;
 testes da interface para autor normal, rascunho, submissão e email não confirmado;
