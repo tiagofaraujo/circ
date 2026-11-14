@@ -698,6 +698,9 @@ export default function ScientificSubmissionsPage() {
                   <time className="submissions-test-list__timestamp" dateTime={submissionDateMeta(submission, language, t).dateTime}>
                     {submissionDateMeta(submission, language, t).text}
                   </time>
+                  {openingReached && submission.status === 'draft' && !isSubmissionTypeOpen(submission.type, clock) && (
+                    <p className="submissions-draft-closed">{t.closedType}</p>
+                  )}
 
                   {canSubmitWork && submission.isTest !== true && submission.status === 'draft' && isSubmissionTypeOpen(submission.type, clock) && (
                     <button type="button" onClick={(event) => editSubmission(submission, event)}>
