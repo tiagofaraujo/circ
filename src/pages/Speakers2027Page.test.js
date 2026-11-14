@@ -16,8 +16,6 @@ const speakersWithoutBiography = [
 
 const moderatorsWithoutBiography = [
   ['Vitor Silva', 'ULS São João', 'vitor-silva'],
-  ['Ana Isabel Machado', 'ULS Coimbra', 'ana-isabel-machado'],
-  ['Raquel Reis', 'ULS Santo António', 'raquel-reis'],
 ];
 
 function renderDirectory(path = '/oradores') {
@@ -74,5 +72,19 @@ test.each(['Joana Santos', 'Samuel Oliveira'])('opens the biography of %s and li
   const moderators = within(screen.getByRole('region', { name: 'Moderadores' }));
   fireEvent.click(moderators.getByRole('link', { name: `${name} — biografia` }));
   expect(screen.getByRole('heading', { name, level: 1 })).toBeVisible();
+  expect(screen.getByRole('link', { name: /Todos os moderadores/ })).toHaveAttribute('href', '/oradores#moderadores');
+});
+
+test.each([
+  ['Raquel Reis', 'raquel-reis', /Grupo de Trabalho de Radiologia Geral da ATARP/],
+  ['Ana Isabel Machado', 'ana-isabel-machado', /Quality Criteria in Orthopantomography/],
+])('opens the supplied portrait and biography of moderator %s', (name, slug, biography) => {
+  renderDirectory('/oradores#moderadores');
+  const moderators = within(screen.getByRole('region', { name: 'Moderadores' }));
+  const link = moderators.getByRole('link', { name: `${name} — biografia` });
+  expect(within(link).getByRole('img', { name })).toHaveAttribute('src', `/speakers/${slug}.jpg`);
+  fireEvent.click(link);
+  expect(screen.getByRole('heading', { name, level: 1 })).toBeVisible();
+  expect(screen.getByText(biography)).toBeVisible();
   expect(screen.getByRole('link', { name: /Todos os moderadores/ })).toHaveAttribute('href', '/oradores#moderadores');
 });
