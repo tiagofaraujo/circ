@@ -525,7 +525,7 @@ export default function ScientificSubmissionsPage() {
   }, [composerOpen]);
 
   const openNewSubmission = (event) => {
-    if (!canSubmitWork || !isSubmissionTypeOpen('oral') && !isSubmissionTypeOpen('poster')) return;
+    if (!canSubmitWork || (!isSubmissionTypeOpen('oral') && !isSubmissionTypeOpen('poster'))) return;
     restoreFocusRef.current = event.currentTarget;
     setError('');
     setEditingSubmission(null);
