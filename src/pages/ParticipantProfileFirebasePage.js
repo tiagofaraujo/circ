@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getProfileCompletion } from '../auth/profileCompletion';
@@ -53,12 +53,15 @@ export default function ParticipantProfileFirebasePage() {
   const { language } = useLanguage();
   const isEnglish = language === 'en';
   const { user, updateDisplayName } = useAuth();
+  const currentAccountUid = useRef(user?.uid || null);
+  currentAccountUid.current = user?.uid || null;
   const ulsEligibility = useUlsEligibility(user);
   // A cached miss, a failed lookup, or any existing eligibility document
   // keeps the field locked. Only a server-confirmed absence unlocks it.
   const ulsNameLocked = Boolean(user) && !ulsEligibility.confirmedAbsent;
   const [form, setForm] = useState(() => emptyForm(user));
   const [profileLoadState, setProfileLoadState] = useState('loading');
+  const [loadedProfileUid, setLoadedProfileUid] = useState(null);
   const [profileReload, setProfileReload] = useState(0);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,6 +79,11 @@ export default function ParticipantProfileFirebasePage() {
   useEffect(() => {
     let active = true;
     setProfileLoadState('loading');
+    setLoadedProfileUid(null);
+    setSaving(false);
+    setSaved(false);
+    setSaveError('');
+    setForm(emptyForm(user));
     loadParticipantProfileResult(user).then((result) => {
       if (!active) return;
       // Never offer editing when the saved billing data could not be verified
@@ -85,11 +93,13 @@ export default function ParticipantProfileFirebasePage() {
         return;
       }
       const profile = result.profile;
-      setForm((current) => ({
-        ...current,
+      // Never merge data left in this component by another signed-in account.
+      setForm({
+        ...emptyForm(user),
         ...profile,
         email: user?.email || profile.email || '',
-      }));
+      });
+      setLoadedProfileUid(user?.uid || null);
       setProfileLoadState('ready');
     }).catch(() => { if (active) setProfileLoadState('error'); });
     return () => { active = false; };
@@ -104,6 +114,7 @@ export default function ParticipantProfileFirebasePage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const savingAccountUid = user?.uid || null;
     setSaving(true);
     setSaved(false);
     setSaveError('');
@@ -115,12 +126,15 @@ export default function ParticipantProfileFirebasePage() {
         photoURL: user?.photoURL || '',
       };
       const savedProfile = await saveParticipantProfile(user, next);
+      // A response from an earlier account must not update the new session's form.
+      if (currentAccountUid.current !== savingAccountUid) return;
       setForm((current) => ({ ...current, ...savedProfile }));
       setSaved(true);
       if (savedProfile.name && savedProfile.name !== user?.displayName) {
         try {
           await updateDisplayName(savedProfile.name);
         } catch {
+          if (currentAccountUid.current !== savingAccountUid) return;
           setSaveError(
             isEnglish
               ? 'The profile was saved, but the account display name could not be synchronised. Reload the page and try again.'
@@ -129,16 +143,20 @@ export default function ParticipantProfileFirebasePage() {
         }
       }
     } catch {
+      if (currentAccountUid.current !== savingAccountUid) return;
       setSaveError(
         isEnglish
           ? 'The profile could not be saved to the database. Check your connection and try again.'
           : 'Não foi possível guardar o perfil na base de dados. Confirme a ligação e tente novamente.'
       );
     } finally {
-      setSaving(false);
+      if (currentAccountUid.current === savingAccountUid) setSaving(false);
     }
   };
 
+  // A user change must hide the previous account's form before effects run.
+  const visibleProfileLoadState = profileLoadState === 'ready' && loadedProfileUid !== (user?.uid || null)
+    ? 'loading' : profileLoadState;
   const showPortugueseRadiographerId = form.country === 'Portugal' && form.profession === 'radiographer';
   const avatarText = (form.name || user?.email || 'C').trim().charAt(0).toUpperCase();
 
@@ -165,7 +183,7 @@ export default function ParticipantProfileFirebasePage() {
         <p id="profile-payment-requirements">{isEnglish
           ? 'Fields marked * are required before payment and invoice issuance: full name, Portuguese tax number and billing address, postal code, city and country. You can save a partially completed profile and finish it later. The overall profile completion percentage includes other personal and professional details; it does not determine payment eligibility.'
           : 'Os campos assinalados com * são necessários antes do pagamento e da emissão da fatura: nome completo, NIF português, morada, código postal, localidade e país de faturação. Pode guardar o perfil parcialmente preenchido e completá-lo mais tarde. A percentagem de conclusão global inclui outros dados pessoais e profissionais; não é o critério para poder pagar.'}</p>
-        {profileLoadState === 'loading' ? <p role="status">{isEnglish ? 'Loading profile…' : 'A carregar perfil…'}</p> : profileLoadState === 'error' ? (
+        {visibleProfileLoadState === 'loading' ? <p role="status">{isEnglish ? 'Loading profile…' : 'A carregar perfil…'}</p> : visibleProfileLoadState === 'error' ? (
           <div role="alert" className="account-save-message account-save-message--error">
             <p>{isEnglish
               ? 'We could not verify your saved profile. No changes have been made. Check your connection before editing your billing details.'

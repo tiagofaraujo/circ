@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { loadParticipantProfileResult, saveParticipantProfile } from '../auth/profileStore';
@@ -162,4 +162,85 @@ test('shows a recoverable error if the profile reader rejects', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
   expect(await screen.findByLabelText('Nome completo *')).toBeInTheDocument();
   expect(loadParticipantProfileResult).toHaveBeenCalledTimes(2);
+});
+
+test('does not expose or save the previous account’s billing fields after switching users', async () => {
+  const firstUser = { uid: 'first', email: 'first@example.test', displayName: 'Primeira Pessoa' };
+  const secondUser = { uid: 'second', email: 'second@example.test', displayName: 'Segunda Pessoa' };
+  let resolveSecond;
+  loadParticipantProfileResult.mockImplementation((currentUser) => currentUser.uid === 'first'
+    ? Promise.resolve({
+      source: 'firestore', remoteAvailable: true,
+      profile: {
+        name: 'Primeira Pessoa', email: firstUser.email,
+        taxNumber: '123456789', billingAddress: 'Rua Privada',
+        billingPostalCode: '3000-000', billingCity: 'Coimbra',
+      },
+    })
+    : new Promise((resolve) => { resolveSecond = resolve; }));
+  const updateDisplayName = jest.fn().mockResolvedValue(undefined);
+  useAuth.mockReturnValue({ user: firstUser, updateDisplayName });
+  const view = show();
+
+  expect(await screen.findByLabelText('Morada *')).toHaveValue('Rua Privada');
+
+  useAuth.mockReturnValue({ user: secondUser, updateDisplayName });
+  view.rerender(<MemoryRouter><ParticipantProfileFirebasePage /></MemoryRouter>);
+  // No private billing data may appear while the new account is loading.
+  expect(screen.queryByLabelText('Morada *')).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('A carregar perfil…');
+
+  await act(async () => {
+    resolveSecond({
+      source: 'firestore', remoteAvailable: true,
+      profile: { name: 'Segunda Pessoa', email: secondUser.email },
+    });
+  });
+  expect(await screen.findByLabelText('Nome completo *')).toHaveValue('Segunda Pessoa');
+  expect(screen.getByLabelText('Morada *')).toHaveValue('');
+  expect(screen.getByLabelText('N.º de contribuinte / NIF português *')).toHaveValue('');
+  expect(screen.getByLabelText('Código postal *')).toHaveValue('');
+  expect(screen.getByLabelText('Localidade *')).toHaveValue('');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar dados' }));
+  await waitFor(() => expect(saveParticipantProfile).toHaveBeenCalledWith(
+    expect.objectContaining({ uid: 'second' }),
+    expect.objectContaining({
+      email: secondUser.email, taxNumber: '', billingAddress: '',
+      billingPostalCode: '', billingCity: '',
+    })
+  ));
+});
+
+test('ignores an old account save response after the participant changes', async () => {
+  const firstUser = { uid: 'old', email: 'old@example.test', displayName: 'Conta Antiga' };
+  const secondUser = { uid: 'new', email: 'new@example.test', displayName: 'Conta Atual' };
+  loadParticipantProfileResult.mockImplementation(async (currentUser) => ({
+    source: 'firestore', remoteAvailable: true,
+    profile: currentUser.uid === 'old'
+      ? { name: 'Conta Antiga', email: firstUser.email, billingAddress: 'Morada privada' }
+      : { name: 'Conta Atual', email: secondUser.email },
+  }));
+  let resolveOldSave;
+  saveParticipantProfile.mockImplementationOnce(() => new Promise((resolve) => { resolveOldSave = resolve; }));
+  const updateDisplayName = jest.fn().mockResolvedValue(undefined);
+  useAuth.mockReturnValue({ user: firstUser, updateDisplayName });
+  const view = show();
+  expect(await screen.findByLabelText('Morada *')).toHaveValue('Morada privada');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar dados' }));
+  expect(saveParticipantProfile).toHaveBeenCalledTimes(1);
+
+  useAuth.mockReturnValue({ user: secondUser, updateDisplayName });
+  view.rerender(<MemoryRouter><ParticipantProfileFirebasePage /></MemoryRouter>);
+  await waitFor(() => expect(screen.getByLabelText('Nome completo *')).toHaveValue('Conta Atual'));
+  expect(screen.getByLabelText('Morada *')).toHaveValue('');
+
+  await act(async () => {
+    resolveOldSave({ name: 'Conta Antiga', email: firstUser.email, billingAddress: 'Morada privada' });
+  });
+  expect(screen.getByLabelText('Nome completo *')).toHaveValue('Conta Atual');
+  expect(screen.getByLabelText('Morada *')).toHaveValue('');
+  expect(screen.queryByText('Guardado na base de dados.')).not.toBeInTheDocument();
+  expect(updateDisplayName).not.toHaveBeenCalled();
 });
