@@ -11,14 +11,16 @@ const headers = { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no
 const reply = (body, status = 200, extraHeaders = {}) => Response.json(body, { status, headers: { ...headers, ...extraHeaders } });
 const formatCode = (code) => `CIRC27-D-${code.match(/.{4}/g).join('-')}`;
 
-function batchTerms({ batchId, label, count, discount } = {}) {
+function batchTerms({ batchId, label, count, discount, audience } = {}) {
   const name = typeof label === 'string' ? label.trim() : '';
   if (typeof batchId !== 'string' || !UUID.test(batchId) || !name || name.length > 100 || /[\u0000-\u001f\u007f]/.test(name)
     || !Number.isInteger(count) || count < 1 || count > 50 || !Object.hasOwn(DISCOUNT_MAX, discount?.type)
-    || !Number.isInteger(discount.value) || discount.value < 1 || discount.value > DISCOUNT_MAX[discount.type]) {
+    || !Number.isInteger(discount.value) || discount.value < 1 || discount.value > DISCOUNT_MAX[discount.type]
+    || (audience !== undefined && audience !== 'uls-onsite')) {
     throw new Error('invalid-request');
   }
-  return { batchId, label: name, count, discount: { type: discount.type, value: discount.value } };
+  return { batchId, label: name, count, discount: { type: discount.type, value: discount.value },
+    ...(audience ? { audience } : {}) };
 }
 
 async function readTerms(request) {
@@ -60,6 +62,7 @@ export function createOrganizationDiscountVoucherAdminStore({ projectId, token, 
       if (!response.ok) throw new Error('storage-unavailable');
       const { name, fields } = await response.json();
       const terms = batchTerms({ batchId, label: fields?.label?.stringValue, count: Number(fields?.count?.integerValue),
+        audience: fields?.audience === undefined ? undefined : fields.audience?.stringValue ?? null,
         discount: { type: fields?.discount?.mapValue?.fields?.type?.stringValue,
           value: Number(fields?.discount?.mapValue?.fields?.value?.integerValue) } });
       const codes = fields.codes?.arrayValue?.values?.map(value => value.stringValue);
@@ -70,9 +73,10 @@ export function createOrganizationDiscountVoucherAdminStore({ projectId, token, 
       return { ...terms, codes, createdAt };
     },
     async create(batch, uid) {
-      const { batchId, label, count, discount, createdAt, codes } = batch;
+      const { batchId, label, count, discount, createdAt, codes, audience } = batch;
       const metadata = { eventId: string(EVENT), createdBy: string(uid), createdAt: string(createdAt),
-        discount: { mapValue: { fields: { type: string(discount.type), value: integer(discount.value) } } } };
+        discount: { mapValue: { fields: { type: string(discount.type), value: integer(discount.value) } } },
+        ...(audience ? { audience: string(audience) } : {}) };
       const writes = [create(batchName(batchId), { ...metadata, label: string(label), count: integer(count),
         codes: { arrayValue: { values: codes.map(string) } } }),
       ...codes.map((code, index) => create(`${root}/organizationDiscountVouchers/${createHash('sha256').update(code).digest('hex')}`, {
@@ -119,6 +123,7 @@ export function createOrganizationDiscountVoucherAdminApi({ verify, tokenProvide
     const unavailable = () => reply({ error: 'discount-vouchers-unavailable' }, 503);
     const priorResult = (previous) => previous.label === terms.label && previous.count === terms.count
       && previous.discount.type === terms.discount.type && previous.discount.value === terms.discount.value
+      && previous.audience === terms.audience
       ? batchReply(previous) : reply({ error: 'batch-conflict' }, 409);
 
     try {

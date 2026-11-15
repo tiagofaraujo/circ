@@ -5,6 +5,7 @@ import { REGISTRATION_CAPACITY_ENABLED } from '../data/registration2027';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const stamp = value => /^[a-f0-9]{64}$/.test(value || '');
 const knownMethods = ['multibanco', 'mbway', 'bank_transfer', 'stripe_card'];
+const VOUCHER_METHOD = 'organization_voucher';
 const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'], stripe_card:['Cartão (Stripe)', 'Card (Stripe)'] };
 const stripeSession = value => /^cs_live_[A-Za-z0-9]{8,240}$/.test(value || '');
 function stripeCheckoutUrl(order) {
@@ -26,7 +27,7 @@ const retryConflicts = new Set(['registration-exists', 'replacement-required', '
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
   'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable', 'capacity-full', 'capacity-unavailable', 'capacity-review-required',
-  'discount-voucher-invalid', 'discount-not-applicable', 'discount-voucher-changed']);
+  'discount-voucher-invalid', 'discount-not-applicable', 'discount-voucher-changed', 'discount-voucher-uls-onsite']);
 const billingIssueMessages = {
   'profile-incomplete': ['Nome completo: preencha entre 5 e 200 caracteres.', 'Full name: enter 5 to 200 characters.'],
   'billing-name-required': ['Nome de faturação: indique até 180 caracteres; pode usar o nome do participante.', 'Billing name: enter up to 180 characters; you can use the participant name.'],
@@ -63,11 +64,12 @@ const messages = {
   'capacity-unavailable': ['Não foi possível confirmar a lotação. Atualize a disponibilidade antes de preparar o pagamento.', 'Capacity could not be confirmed. Refresh availability before preparing payment.'],
   'capacity-review-required': ['Um pagamento recebido aguarda conferência da organização sobre a vaga. Não efetue outro pagamento.', 'A received payment awaits organiser review of its place. Do not make another payment.'],
   'discount-voucher-invalid': ['O código de desconto é inválido ou já não está disponível. Confira o código ou remova-o para continuar.', 'The discount code is invalid or no longer available. Check the code or remove it to continue.'],
-  'discount-not-applicable': ['O desconto não se aplica à seleção atual. O congresso tem de manter um valor positivo e o total a pagar tem de ser de pelo menos 1 €.', 'This discount does not apply to the current selection. The congress price must stay above zero and the total payable must be at least €1.'],
+  'discount-voucher-uls-onsite': ['Este voucher é exclusivo para o congresso presencial na categoria ULS Coimbra. Selecione ambas as opções e conclua a validação ULS.', 'This voucher is for onsite congress attendance in the ULS Coimbra category. Select both options and complete ULS verification.'],
+  'discount-not-applicable': ['O desconto não se aplica à seleção atual. Se houver um valor a pagar, tem de ser de pelo menos 1 €.', 'This discount does not apply to the current selection. If there is an amount to pay, it must be at least €1.'],
   'discount-voucher-changed': ['O desconto desta nova tentativa tem de corresponder ao do pedido anterior. Contacte a organização para confirmar o código.', 'This attempt must use the discount from the previous order. Contact the organisers to check the code.'],
 };
 
-export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, onLock = () => {}, onNewPurchase = () => {}, onCapacityRefresh = () => {} }) {
+export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, discountTransfer = null, onLock = () => {}, onNewPurchase = () => {}, onCapacityRefresh = () => {} }) {
   const supplementary = kind === 'supplementary';
   const key = supplementary ? `circ-production-supplementary-order:${user.uid}` : `circ-production-order:${user.uid}`;
   const path = name => supplementary ? `/supplementary/${name}` : `/${name}`;
@@ -86,6 +88,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [phone, setPhone] = useState('');
   const [discountInput, setDiscountInput] = useState('');
   const discountHelpId = useId();
+  const discountDetails = useRef(null);
+  const discountField = useRef(null);
+  const appliedDiscountTransfer = useRef(null);
   const [configBusy, setConfigBusy] = useState(true);
   const [configFailed, setConfigFailed] = useState(false);
   const [scheduledOpening, setScheduledOpening] = useState(false);
@@ -115,8 +120,11 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const discountCode = showDiscount ? discountInput.trim() : '';
   const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}:${discountCode}:${retrySource}`;
   const paymentReady = methods.includes(method) && (method !== 'mbway' || Boolean(phoneValue));
+  const canReview = paymentReady || (Boolean(discountCode || retry?.discount) && methods.length > 0);
   const creationBlocked = !supplementary && Boolean(registration) && !retrySource;
   const billingReady = billing.status === 'ready';
+  const reviewedQuote = preview?.paymentKey === paymentKey ? preview : null;
+  const voucherOnly = reviewedQuote?.quote.amountCents === 0;
   currentSelection.current = paymentKey;
 
   async function request(path, body, signal, existingToken) {
@@ -163,9 +171,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     return unavailable.length ? `${message} ${unavailable.map(key => capacityNames[key][en ? 1 : 0]).join(' · ')}.` : message;
   }
   function validateOrder(value, expectedId = null) {
-    if (!value || !UUID.test(value.id || '') || value.currency !== 'EUR' || !Number.isSafeInteger(value.amountCents) || value.amountCents <= 0
+    const voucherOrder = value?.method === VOUCHER_METHOD;
+    if (!value || !UUID.test(value.id || '') || value.currency !== 'EUR' || !Number.isSafeInteger(value.amountCents)
       || (expectedId && value.id !== expectedId) || (value.kind && value.kind !== kind)
-      || (supplementary && value.kind !== 'supplementary') || !knownMethods.includes(value.method)
+      || (supplementary && value.kind !== 'supplementary')
+      || (voucherOrder ? supplementary || value.status !== 'paid' || value.amountCents !== 0 || !validDiscount(value.discount)
+        : value.amountCents <= 0 || !knownMethods.includes(value.method))
       || (value.discount != null && (supplementary || !validDiscount(value.discount)))
       || (value.replacementOrderId && (!UUID.test(value.replacementOrderId) || value.replacementOrderId === value.id))) throw new Error('invalid-order');
   }
@@ -274,6 +285,14 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, id]);
   useEffect(() => { setPreview(null); setConfirmed(false); }, [paymentKey]);
+  useEffect(() => {
+    if (!discountTransfer || appliedDiscountTransfer.current === discountTransfer || !showDiscount || busy || !discountDetails.current) return;
+    appliedDiscountTransfer.current = discountTransfer;
+    setDiscountInput(discountTransfer.code); setError('');
+    discountDetails.current.open = true;
+    discountDetails.current.scrollIntoView?.({ block: 'nearest' });
+    discountField.current?.focus();
+  }, [discountTransfer, showDiscount, busy]);
 
   async function recoverSupplement(value) {
     setRecoveryBlocked(true); onLock(true); setPreview(null); setConfirmed(false);
@@ -286,17 +305,18 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   }
 
   async function review() {
-    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !billingGate.current) return;
+    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !canReview || !billingGate.current) return;
     working.current = true; setBusy(true); setError(''); setPreview(null); setConfirmed(false);
     try {
       const result = await request(path('quote'), { selection, ...(discountCode ? { discountCode } : {}),
         ...(!supplementary && retrySource ? { replacesOrderId: retrySource } : {}) });
       if (!stamp(result.stamp) || !stamp(result.billingStamp) || !result.billing || !Number.isSafeInteger(result.quote?.amountCents)
-        || result.quote.amountCents <= 0 || result.quote.currency !== 'EUR'
+        || result.quote.amountCents < 0 || result.quote.currency !== 'EUR'
         || (supplementary && result.quote.kind !== 'supplementary')) throw new Error('invalid-preview');
       const discount = result.quote.discount;
       const expectsDiscount = Boolean(discountCode || retry?.discount);
       if (expectsDiscount ? !validDiscount(discount) : discount != null) throw new Error('invalid-discount-preview');
+      if (result.quote.amountCents === 0 && (!expectsDiscount || supplementary || result.quote.kind !== 'primary')) throw new Error('invalid-preview');
       if (retry?.discount && (retry.discount.type !== discount.type || retry.discount.value !== discount.value)) throw new Error('retry-discount-changed');
       if (active.current && currentSelection.current === paymentKey) setPreview({ ...result, paymentKey });
     } catch (issue) {
@@ -308,7 +328,8 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     finally { working.current = false; if (active.current) setBusy(false); }
   }
   async function create() {
-    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !billingGate.current || !confirmed || !preview || preview.paymentKey !== paymentKey) return;
+    if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !(voucherOnly || paymentReady) || !billingGate.current || !confirmed || !reviewedQuote) return;
+    const orderMethod = voucherOnly ? VOUCHER_METHOD : method;
     working.current = true; setBusy(true); setError(''); onLock(true);
     let orderId = '', sent = false;
     try {
@@ -322,11 +343,11 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       setId(orderId); sent = true;
       // A newly saved registration can update the parent subscription while
       // this request is running. It must not abort the payment creation response.
-      const result = await request(path('orders'), { id: orderId, selection, stamp: preview.stamp, billingStamp: preview.billingStamp, method,
-        ...(method === 'mbway' ? { phone: phoneValue } : {}), ...(retrySource ? { replacesOrderId:retrySource } : {}),
+      const result = await request(path('orders'), { id: orderId, selection, stamp: reviewedQuote.stamp, billingStamp: reviewedQuote.billingStamp, method: orderMethod,
+        ...(orderMethod === 'mbway' ? { phone: phoneValue } : {}), ...(retrySource ? { replacesOrderId:retrySource } : {}),
         ...(discountCode ? { discountCode } : {}) }, null, token);
-      if (result.order?.method !== method || !sameDiscount(preview.quote.discount, result.order.discount)
-        || (preview.quote.discount && preview.quote.amountCents !== result.order.amountCents)) throw new Error('invalid-order');
+      if (result.order?.method !== orderMethod || !sameDiscount(reviewedQuote.quote.discount, result.order.discount)
+        || (reviewedQuote.quote.discount && reviewedQuote.quote.amountCents !== result.order.amountCents)) throw new Error('invalid-order');
       if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
@@ -359,8 +380,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       } else if (!sent || rejectedBeforeCreation.has(issue.code)) {
         if (orderId) try { localStorage.removeItem(key); } catch {}
         setId(''); onLock(false); setPreview(null); setConfirmed(false);
-        setError(preparationMessage(issue, t('O pagamento não foi criado. Reveja os dados antes de continuar.', 'Payment was not created. Review your details before continuing.')));
-      } else setError(t('O pedido pode já existir. Consulte o estado abaixo e não gere outro pagamento.', 'The order may already exist. Check its status below and do not generate another payment.'));
+        setError(preparationMessage(issue, voucherOnly
+          ? t('A inscrição não foi confirmada. Reveja o desconto antes de continuar.', 'Registration was not confirmed. Review the discount before continuing.')
+          : t('O pagamento não foi criado. Reveja os dados antes de continuar.', 'Payment was not created. Review your details before continuing.')));
+      } else setError(voucherOnly
+        ? t('O pedido pode já existir. Consulte o estado da inscrição abaixo antes de tentar novamente.', 'The order may already exist. Check the registration status below before trying again.')
+        : t('O pedido pode já existir. Consulte o estado abaixo e não gere outro pagamento.', 'The order may already exist. Check its status below and do not generate another payment.'));
     } finally { working.current = false; if (active.current) setBusy(false); }
   }
   async function refresh(silent = false) {
@@ -376,12 +401,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   }
   useEffect(() => {
     if (!id || !order || ['expired', 'cancelled', 'refunded', 'creation_failed'].includes(order.status)
-      || (order.status === 'paid' && order.fiscalStatus === 'issued')) return undefined;
+      || (order.status === 'paid' && (order.fiscalStatus === 'issued' || order.method === VOUCHER_METHOD))) return undefined;
     const timer = setInterval(() => refresh(true), 5000);
     return () => clearInterval(timer);
     // Polling reads the existing order only; it never creates payments.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, order?.status, order?.fiscalStatus]);
+  }, [id, order?.status, order?.fiscalStatus, order?.method]);
 
   function newPurchase() {
     if (!supplementary || order?.status !== 'paid' || order.fiscalStatus !== 'issued' || order.capacityStatus === 'review_required' || working.current) return;
@@ -421,7 +446,8 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   function changeDiscountCode(value) {
     setDiscountInput(value); setPreview(null); setConfirmed(false); setError('');
   }
-  const customer = preview?.paymentKey === paymentKey ? preview.billing : null;
+  const customer = reviewedQuote?.billing;
+  const voucherOrder = order?.method === VOUCHER_METHOD;
   const currentMethod = order?.method || method;
   const methodLabel = methodNames[currentMethod]?.[en ? 1 : 0] || t('Pagamento', 'Payment');
   const bank = order?.method === 'bank_transfer' ? order.bankTransfer : null;
@@ -451,8 +477,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     finally { working.current = false; if (active.current) setBusy(false); }
   }
   return <section className="registration-checkout" aria-label={supplementary ? t('Pagamento do complemento', 'Supplement payment') : t('Pagamento da inscrição', 'Registration payment')} aria-busy={busy}>
-    <h3>{id ? `${t('Pagamento', 'Payment')} · ${methodLabel}` : t('Pagamento', 'Payment')}</h3>
-    <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>
+    <h3>{voucherOnly || voucherOrder ? t('Confirmação da inscrição', 'Registration confirmation')
+      : id ? `${t('Pagamento', 'Payment')} · ${methodLabel}` : t('Pagamento', 'Payment')}</h3>
+    {!voucherOnly && !voucherOrder && <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>}
     {historicalWaiting && <p role="status">{t('A inscrição anterior foi arquivada. Aguarde a atualização da inscrição antes de continuar; os pagamentos e documentos anteriores foram preservados.', 'The previous registration was archived. Wait for the registration update before continuing; earlier payments and documents were preserved.')}</p>}
     {!id && !creationBlocked && <>
       {!billingReady && <section className="registration-billing-required" aria-label={t('Dados obrigatórios para faturação', 'Required billing details')}>
@@ -464,49 +491,58 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <button type="button" disabled={billing.status === 'loading' || busy} onClick={() => { if (!working.current) readBilling(); }}>{t('Atualizar dados de faturação', 'Refresh billing details')}</button>
       </section>}
       {retrySource && <p role="status">{t('Está a preparar uma nova tentativa para um pedido encerrado sem pagamento. Reveja o valor, os dados de faturação e o número MB WAY antes de confirmar.', 'You are preparing another attempt for an order closed without payment. Review the amount, billing details and MB WAY number before confirming.')}</p>}
-      {showDiscount && <details className="registration-discount">
+      {showDiscount && <details className="registration-discount" ref={discountDetails}>
         <summary>{t('Tem um código de desconto?', 'Have a discount code?')}</summary>
         <label className="registration-discount__code">{t('Código de desconto da organização', 'Organiser discount code')}
-          <input type="text" value={discountInput} placeholder="CIRC27-D-…" maxLength={80} autoComplete="off" autoCapitalize="off" spellCheck={false}
+          <input type="text" ref={discountField} value={discountInput} placeholder="CIRC27-D-…" maxLength={80} autoComplete="off" autoCapitalize="off" spellCheck={false}
             aria-describedby={discountHelpId} disabled={busy || recoveryBlocked} onChange={event => changeDiscountCode(event.target.value)} />
         </label>
-        <small id={discountHelpId}>{t('O desconto aplica-se ao congresso. O valor final é apresentado ao rever o pagamento.', 'The discount applies to congress admission. Review the payment to see the final amount.')}</small>
+        <small id={discountHelpId}>{t('Introduza aqui o código que começa por CIRC27-D- e reveja o total. Para a tarifa interna, selecione ULS Coimbra no perfil da inscrição.', 'Enter the code beginning CIRC27-D- here and review the total. Select ULS Coimbra as your attendee category for the internal rate.')}</small>
         {discountCode && <button type="button" className="registration-discount__clear" disabled={busy || recoveryBlocked} onClick={() => changeDiscountCode('')}>{t('Remover código', 'Remove code')}</button>}
       </details>}
-      {methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
+      {!voucherOnly && methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
         {methods.map(value => <label key={value}><input type="radio" name={`payment-method-${kind}`} value={value} checked={method === value} onChange={() => setMethod(value)} />{methodNames[value][en ? 1 : 0]}</label>)}
       </fieldset>}
-      {method === 'mbway' && methods.includes('mbway') && <label className="registration-payment-phone">{t('Número MB WAY', 'MB WAY phone number')}
+      {!voucherOnly && method === 'mbway' && methods.includes('mbway') && <label className="registration-payment-phone">{t('Número MB WAY', 'MB WAY phone number')}
         <input type="tel" inputMode="tel" autoComplete="tel-national" value={phone} maxLength="20" placeholder="+351 9XXXXXXXX" disabled={busy} onChange={event => setPhone(event.target.value)} />
         <small>{t('Número português com 9 algarismos. Pode incluir +351. Receberá o pedido na aplicação MB WAY.', 'A nine-digit Portuguese number, optionally with +351. The request will arrive in the MB WAY app.')}</small>
       </label>}
-      {method === 'stripe_card' && methods.includes('stripe_card') && <p>{t('O pagamento é concluído no checkout seguro da Stripe. Os cartões e as carteiras digitais disponíveis são apresentados aí, de acordo com a conta e o dispositivo.', 'Payment is completed in secure Stripe Checkout. Available cards and digital wallets are shown there according to the account and device.')}</p>}
+      {!voucherOnly && method === 'stripe_card' && methods.includes('stripe_card') && <p>{t('O pagamento é concluído no checkout seguro da Stripe. Os cartões e as carteiras digitais disponíveis são apresentados aí, de acordo com a conta e o dispositivo.', 'Payment is completed in secure Stripe Checkout. Available cards and digital wallets are shown there according to the account and device.')}</p>}
       {!configBusy && methods.length === 0 && <p role={scheduledOpening && !configFailed ? 'status' : 'alert'}>{configFailed ? t('Não foi possível consultar os meios de pagamento. Atualize a página antes de criar um pedido.', 'Payment methods could not be loaded. Refresh this page before creating an order.') : scheduledOpening ? messages['registration-not-open'][en ? 1 : 0] : t('Os pagamentos estão temporariamente indisponíveis.', 'Payments are temporarily unavailable.')}</p>}
-      <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
+      {!voucherOnly && <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
         : method === 'bank_transfer'
           ? t('Após a organização conferir o crédito na conta, o pagamento e a inscrição são confirmados automaticamente. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Once the organisers verify the credited amount, payment and registration are confirmed automatically. The invoice-receipt will be available in My CIRC once issued.')
           : `${REGISTRATION_CAPACITY_ENABLED
             ? t('A inscrição é confirmada após o pagamento e a verificação da lotação aplicável.', 'Registration is confirmed after payment and the applicable capacity check.')
-            : t('A inscrição é confirmada após o pagamento.', 'Registration is confirmed after payment.')} ${t('A fatura-recibo ficará disponível no My CIRC após a emissão.', 'The invoice-receipt will be available in My CIRC once issued.')}`}</p>
-      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !paymentReady || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
+            : t('A inscrição é confirmada após o pagamento.', 'Registration is confirmed after payment.')} ${t('A fatura-recibo ficará disponível no My CIRC após a emissão.', 'The invoice-receipt will be available in My CIRC once issued.')}`}</p>}
+      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !canReview || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : discountCode ? t('Rever desconto e total', 'Review discount and total') : t('Rever valor e faturação', 'Review amount and billing')}</button>
       {customer && <div className="registration-invoice">
-        {preview.quote.discount && <p>{discountLabel(preview.quote.discount)} <strong>−{money(preview.quote.discount.amountCents)}</strong></p>}
-        <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(preview.quote.amountCents)}</strong></p>
-        <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
+        {reviewedQuote.quote.discount && <p>{discountLabel(reviewedQuote.quote.discount)} <strong>−{money(reviewedQuote.quote.discount.amountCents)}</strong></p>}
+        <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(reviewedQuote.quote.amountCents)}</strong></p>
+        {voucherOnly ? <p>{t('O desconto cobre o total. Pode confirmar a inscrição sem pagamento.', 'The discount covers the total. You can confirm registration without payment.')}</p> : <>
+          <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
           <dt>NIF</dt><dd>{customer.customer_tax_registration_number}</dd><dt>{t('Morada', 'Address')}</dt><dd>{customer.customer_address_detail}</dd>
           <dt>{t('Código postal e localidade', 'Postcode and city')}</dt><dd>{customer.customer_postcode} · {customer.customer_city}</dd><dt>{t('País', 'Country')}</dt><dd>{customer.customer_country}</dd></dl>
-        <p>{t('Meio de pagamento', 'Payment method')}: <strong>{methodLabel}</strong>{method === 'mbway' ? ` · +351 ${phoneValue}` : ''}</p>
-        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} /> {t('Conferi o valor, os dados de faturação e o meio de pagamento e pretendo criar este pedido.', 'I reviewed the amount, billing details and payment method and want to create this order.')}</label>
-        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !paymentReady || !billingReady}>{method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : method === 'stripe_card' ? t('Preparar pagamento na Stripe', 'Prepare Stripe payment') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}</button>
+          <p>{t('Meio de pagamento', 'Payment method')}: <strong>{methodLabel}</strong>{method === 'mbway' && phoneValue ? ` · +351 ${phoneValue}` : ''}</p>
+        </>}
+        <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} /> {voucherOnly
+          ? t('Conferi o desconto e pretendo confirmar a inscrição.', 'I reviewed the discount and want to confirm registration.')
+          : t('Conferi o valor, os dados de faturação e o meio de pagamento e pretendo criar este pedido.', 'I reviewed the amount, billing details and payment method and want to create this order.')}</label>
+        <button type="button" className="button button--dark" onClick={create} disabled={busy || !confirmed || !eligible || !(voucherOnly || paymentReady) || !billingReady}>
+          {voucherOnly ? t('Confirmar inscrição com desconto', 'Confirm registration with discount')
+            : method === 'mbway' ? t('Enviar pedido MB WAY', 'Send MB WAY request') : method === 'bank_transfer' ? t('Preparar transferência bancária', 'Prepare bank transfer') : method === 'stripe_card' ? t('Preparar pagamento na Stripe', 'Prepare Stripe payment') : t('Gerar referência Multibanco', 'Generate Multibanco reference')}
+        </button>
       </div>}
     </>}
     {id && <>
       <p>{t('Pedido:', 'Order:')} <code>{id}</code></p>
-      <button type="button" onClick={() => refresh()} disabled={busy}>{t('Atualizar estado do pagamento', 'Refresh payment status')}</button>
-      <p>{t('Use este pedido até à sua conclusão. Uma resposta demorada não exige um novo pagamento.', 'Use this order until it is completed. A slow response does not require a new payment.')}</p>
+      <button type="button" onClick={() => refresh()} disabled={busy}>{voucherOnly || voucherOrder
+        ? t('Atualizar estado da inscrição', 'Refresh registration status') : t('Atualizar estado do pagamento', 'Refresh payment status')}</button>
+      {!voucherOnly && !voucherOrder && <p>{t('Use este pedido até à sua conclusão. Uma resposta demorada não exige um novo pagamento.', 'Use this order until it is completed. A slow response does not require a new payment.')}</p>}
     </>}
     {order && <div className="registration-invoice">
-      <p role="status"><strong>{states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
+      <p role="status"><strong>{voucherOrder ? t('Inscrição confirmada com desconto.', 'Registration confirmed with a discount.')
+        : states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
       {order.discount && <p>{discountLabel(order.discount)} <strong>−{money(order.discount.amountCents)}</strong></p>}
       <p>{t('Valor:', 'Amount:')} {money(order.amountCents)}</p>
       {order.status === 'paid' && order.capacityStatus === 'review_required' && <p role="status">{t('O pagamento foi recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não efetue outro pagamento.', 'Payment was received. The registration or place awaits organiser review because of capacity. Do not make another payment.')}</p>}

@@ -6,6 +6,8 @@ export function formatOrganizationDiscount({ type, value }) {
   return type === 'fixed' ? amount : `${amount}%`;
 }
 
+export const ORGANIZATION_VOUCHER_ULS_AUDIENCE = 'ULS Coimbra · Congresso presencial';
+
 export async function buildOrganizationDiscountVoucherExcel(batch) {
   const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
@@ -19,7 +21,8 @@ export async function buildOrganizationDiscountVoucherExcel(batch) {
     `Identificador do lote ${batch.batchId}`,
     `Emitido em ${new Date(batch.createdAt).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' })} (Lisboa)`,
     'O desconto incide sobre o preço do congresso. Cada código pode ser utilizado uma vez.',
-    'Introduzir o código em https://circ-coimbra.org/conta/inscricoes antes de avançar para o pagamento.',
+    'Em https://circ-coimbra.org/conta/inscricoes, use o campo do código de desconto da organização.',
+    ...(batch.audience === 'uls-onsite' ? [`Válido para ${ORGANIZATION_VOUCHER_ULS_AUDIENCE}.`] : []),
   ];
   lines.forEach((line, i) => {
     sheet.mergeCells(i + 1, 1, i + 1, 3);

@@ -1,6 +1,8 @@
 // Hosted Checkout owns card entry. Only session/intent identifiers and a small
 // funding classification leave this adapter; raw card details never do.
 import { createHash } from 'node:crypto';
+import { CONGRESS_RATES } from '../../src/data/registration2027.js';
+import { allowsFullCongressDiscount } from './quote.mjs';
 export const STRIPE_LIVE_API_VERSION = '2026-09-30.endive';
 export const STRIPE_LIVE_WEBHOOK_PATH = '/api/payments/stripe/live/notifications';
 export const STRIPE_LIVE_FLOW = 'circ-checkout-live';
@@ -80,10 +82,14 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
   }
   return{
     async createPayment(order){
-      const metadata=metadataFor(order),lines=order.quote.lines;
+      const metadata=metadataFor(order),{ lines, discount, selection, ratePeriod }=order.quote;
+      const coveredAdmission = order.kind === 'primary' && allowsFullCongressDiscount(selection, discount)
+        && Number.isSafeInteger(discount.value) && discount.value === CONGRESS_RATES.uls[ratePeriod] * 100
+        && discount.amountCents === discount.value;
       if(!Array.isArray(lines)||!lines.length||lines.length>5||new Set(lines.map(l=>l?.code)).size!==lines.length
         ||lines.some(l=>!l||!Object.hasOwn(NAMES,l.code)||!Number.isSafeInteger(l.quantity)||l.quantity<1
-          ||!Number.isSafeInteger(l.unitAmountCents)||l.unitAmountCents<=0||!Number.isSafeInteger(l.amountCents)
+          ||!Number.isSafeInteger(l.unitAmountCents)||l.unitAmountCents<0||!Number.isSafeInteger(l.amountCents)
+          ||(l.unitAmountCents===0&&!(coveredAdmission&&l.code==='congress-onsite'&&l.quantity===1))
           ||l.amountCents!==l.quantity*l.unitAmountCents)||lines.reduce((sum,l)=>sum+l.amountCents,0)!==order.amountCents)fail('stripe/invalid-quote');
       const landing='https://circ-coimbra.org/conta/inscricoes';
       const body=new URLSearchParams({mode:'payment',client_reference_id:order.identifier,
@@ -91,7 +97,7 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
         'allowed_payment_method_types[0]':'card','automatic_tax[enabled]':'false','adaptive_pricing[enabled]':'false',
         'invoice_creation[enabled]':'false',customer_creation:'if_required'});
       Object.entries(metadata).forEach(([k,v])=>{body.set(`metadata[${k}]`,v);body.set(`payment_intent_data[metadata][${k}]`,v);});
-      lines.forEach((line,index)=>{
+      lines.filter(line => line.amountCents > 0).forEach((line,index)=>{
         body.set(`line_items[${index}][quantity]`,String(line.quantity));body.set(`line_items[${index}][price_data][currency]`,'eur');
         body.set(`line_items[${index}][price_data][unit_amount]`,String(line.unitAmountCents));
         body.set(`line_items[${index}][price_data][product_data][name]`,`CIRC 2027 — ${NAMES[line.code]}`);

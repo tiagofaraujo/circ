@@ -93,10 +93,11 @@ function RegistrationSupplements({ registration, user, en }) {
     && (profile === 'external' || (profile === 'uls' && uls.verified) || (profile === 'student' && student.approved));
   const total = calculateRegistrationTotal({ ...selection, profile, courseAffiliation: profile === 'uls' ? 'uls' : 'external', congressMode: '', period: getRegistrationPeriod() });
   const showOrganizerVoucher = profile === 'uls' && registration.selection?.congressMode === 'onsite'
-    && !registration.voucherId && user.emailVerified === true && (registration.organizerVoucherRedeemed || (!owned.morningCourse && !owned.afternoonCourse));
+    && !registration.voucherId && registration.payment?.method !== 'organization_voucher'
+    && user.emailVerified === true && (registration.organizerVoucherRedeemed || (!owned.morningCourse && !owned.afternoonCourse));
   return <section className="registration-step" aria-labelledby="registration-additions-title">
     <h2 id="registration-additions-title">{en ? 'Add courses or dinner tickets' : 'Adicionar cursos ou bilhetes de jantar'}</h2>
-    <p>{en ? 'Each new purchase has a separate payment and invoice-receipt. Your original registration and its invoice remain unchanged.' : 'Cada compra adicional tem pagamento e fatura-recibo próprios. A inscrição original e a sua fatura mantêm-se.'}</p>
+    <p>{en ? 'Each new purchase has a separate payment and invoice-receipt.' : 'Cada compra adicional tem pagamento e fatura-recibo próprios.'}</p>
     <CapacityNotice capacity={capacity} en={en} />
     {showOrganizerVoucher && <OrganizerVoucher key={registration.id} user={user} registration={registration} en={en} locked={locked} onCapacityRefresh={capacity.refresh} />}
     <SupplementChoices value={chosen} onChange={setChosen} profile={profile} en={en} locked={locked} owned={owned} capacity={capacity} />
@@ -114,7 +115,10 @@ export function ExistingRegistrationAddOns({ registration, user, en = false }) {
   const capacityReview = capacityReviewPending(registration);
   const entitlements = registration.entitlements || (capacityReview ? {} : selection);
   const paid = registration.payment?.status === 'paid';
-  const status = capacityReview ? (en ? 'Payment received · Place under review' : 'Pagamento recebido · Vaga em conferência') : paid ? (en ? 'Paid' : 'Paga') : registration.payment?.status === 'refunded' ? (en ? 'Refund recorded' : 'Reembolso registado') : (en ? 'Under review' : 'Em conferência');
+  const organizationVoucher = paid && registration.payment.method === 'organization_voucher';
+  const status = capacityReview ? (en ? 'Payment received · Place under review' : 'Pagamento recebido · Vaga em conferência')
+    : organizationVoucher ? (en ? 'Confirmed with a discount' : 'Confirmada com desconto')
+      : paid ? (en ? 'Paid' : 'Paga') : registration.payment?.status === 'refunded' ? (en ? 'Refund recorded' : 'Reembolso registado') : (en ? 'Under review' : 'Em conferência');
   const canAdd = registration.status === 'confirmed' && paid && !capacityReview && registration.isTest === false && registration.testMode !== true;
   return <div className="registration-builder registration-builder--addons">
     <section className="registration-summary registration-paid-summary" aria-labelledby="registration-existing-title">
@@ -131,8 +135,8 @@ export function ExistingRegistrationAddOns({ registration, user, en = false }) {
       {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The original invoice belongs to the company purchase.' : 'O documento de faturação original pertence à compra da empresa.'}</p>}
       <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>
       {paid && registration.fiscalPendingOrderId && <p role="status">{en ? 'Payment is confirmed. The invoice-receipt awaits completion by the organisers; do not make another payment.' : 'O pagamento está confirmado. A fatura-recibo está pendente de conclusão pela organização; não efetue outro pagamento.'}</p>}
-      {(!registration.voucherId || Number(registration.documentCount) > 0 || Number(registration.addOnOrderCount) > 0) && <>
-        {registration.voucherId && <p><strong>{en ? 'Documents for your additional purchases' : 'Documentos das suas compras adicionais'}</strong></p>}
+      {((!registration.voucherId && !organizationVoucher) || Number(registration.documentCount) > 0 || Number(registration.addOnOrderCount) > 0) && <>
+        {(registration.voucherId || organizationVoucher) && <p><strong>{en ? 'Documents for your additional purchases' : 'Documentos das suas compras adicionais'}</strong></p>}
         <RegistrationInvoice user={user} registration={registration} en={en} />
       </>}
       <Link to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
@@ -151,6 +155,7 @@ function ProductionRegistrationBuilder({ registration }) {
   const [chosenMode, setMode] = useState('onsite');
   const [chosenItems, setItems] = useState({ morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
   const [checkoutLocked, setCheckoutLocked] = useState(false);
+  const [discountTransfer, setDiscountTransfer] = useState(null);
   const profile = registration?.selection?.profile || chosenProfile;
   const congressMode = registration?.selection?.congressMode || chosenMode;
   const items = registration ? selectionItems(registration.selection) : chosenItems;
@@ -206,9 +211,11 @@ function ProductionRegistrationBuilder({ registration }) {
         {!user.emailVerified && <p role="alert">{en ? 'Verify your account email before creating a payment.' : 'Confirme o email da sua conta antes de criar um pagamento.'}</p>}
         {!categoryReady && user.emailVerified && <p role="status">{en ? 'Complete the eligibility check for this category before continuing.' : 'Conclua a validação da categoria selecionada antes de continuar.'}</p>}
         {!locked && profile === 'external' && hasCapacity(capacity, 'onsite')
-          && <CompanyVoucher eligible={congressMode === 'onsite' && !hasAdditions} />}
+          && <CompanyVoucher eligible={congressMode === 'onsite' && !hasAdditions}
+            onDiscountCode={congressMode === 'courses-only' ? undefined : code => setDiscountTransfer({ code })} />}
         {!locked && profile === 'uls' && congressMode === 'onsite' && <details className="company-voucher">
-          <summary>{en ? 'Have an organiser voucher?' : 'Tem um voucher de organizador?'}</summary>
+          <summary>{en ? 'Organiser voucher for courses and dinner' : 'Voucher de organizador para cursos e jantar'}</summary>
+          <p>{en ? 'For CIRC27-D- codes, use “Have a discount code?” below.' : 'Para códigos CIRC27-D-, use «Tem um código de desconto?» abaixo.'}</p>
           <ol className="mb-0 ps-3">
             <li>{en ? 'Pay for the onsite congress only at the ULS Coimbra rate.' : 'Pague apenas o congresso presencial à tarifa ULS Coimbra.'}
               {hasAdditions && <strong className="d-block">{en ? 'Remove the courses and dinner tickets from your selection before paying.' : 'Retire os cursos e os bilhetes de jantar da seleção antes de pagar.'}</strong>}
@@ -217,7 +224,8 @@ function ProductionRegistrationBuilder({ registration }) {
               : 'Após a confirmação do pagamento, volte a «Inscrições» e aplique o voucher de organizador em «Adicionar cursos ou bilhetes de jantar».'}</li>
           </ol>
         </details>}
-        <PublicLiveCheckout key={`${user.uid}:primary`} user={user} selection={selection} eligible={ready} registration={registration} en={en} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
+        <PublicLiveCheckout key={`${user.uid}:primary`} user={user} selection={selection} eligible={ready} registration={registration} en={en}
+          discountTransfer={discountTransfer} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
       </aside>
     </div>
   </div>;

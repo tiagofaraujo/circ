@@ -86,6 +86,23 @@ test('organisation discounts preserve fiscal items and quantities while invoicin
     /live-fiscal\/source-mismatch/);
 });
 
+test('a fully covered ULS admission leaves only charged items on a positive invoice-receipt', () => {
+  const base = { userId: ctx.uid, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA TESTE', method: 'mec-name-match' };
+  const verified = { ...ctx, uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
+  const discount = { type: 'fixed', value: 5500 };
+  const date = new Date('2026-11-15T12:00:00Z');
+  const source = quotePrimary(selected({ profile: 'uls', morningCourse: true }), verified, null, date, discount);
+  const result = build(source);
+  assert.equal(source.lines[0].unitAmountCents, 0);
+  assert.equal(source.amountCents, 2000);
+  assert.deepEqual(result.lines.map(line => [line.item_id, line.quantity, line.unit_price, line.tax_code]), [[57, 1, 20, 'NOR']]);
+  assert.equal(result.tax_exemption_reason_id, undefined);
+  assert.match(result.notes, /Desconto na inscrição 55,00 €/);
+  const zeroTotal = quotePrimary(selected({ profile: 'uls' }), verified, null, date, discount);
+  assert.throws(() => build(zeroTotal), /live-fiscal\/unsupported-order/);
+});
+
 test('course-only primary order has23 percent VAT and no exemption header',()=>{
   const source=primary({congressMode:'courses-only',morningCourse:true,afternoonCourse:true});const result=build(source);
   assert.equal(source.amountCents,7000);assert.equal(result.tax_exemption_reason_id,undefined);

@@ -205,6 +205,15 @@ export function createCheckoutLiveStore({
       if (Boolean(discountVoucher) !== Boolean(payment.discountVoucherHash) || Boolean(discountVoucher) !== Boolean(payment.quote?.discount)) {
         throw new LiveStoreError('storage_invalid');
       }
+      const covered = payment.method === 'organization_voucher';
+      if (covered ? (!discountVoucher || payment.amountCents !== 0 || payment.quote.amountCents !== 0
+        || payment.status !== 'paid' || payment.provider !== 'internal_organization_voucher'
+        || registration.status !== 'confirmed' || registration.payment?.status !== 'paid'
+        || registration.payment.amountCents !== 0 || registration.payment.method !== payment.method
+        || registration.payment.coveredAmountCents !== payment.quote.discount.amountCents
+        || payment.quote.selection?.profile !== 'uls' || payment.quote.selection.congressMode !== 'onsite'
+        || payment.quote.selection.morningCourse || payment.quote.selection.afternoonCourse || payment.quote.selection.dinnerQuantity !== 0)
+        : payment.amountCents === 0) throw new LiveStoreError('storage_invalid');
       const voucherWrites = [];
       const voucherChecks = [];
       if (discountVoucher) {
@@ -225,7 +234,8 @@ export function createCheckoutLiveStore({
       }
       const checks = [...guards.map(g => ({ name:g.name, version:g.version })), ...voucherChecks, { name: registrationName, version: replacement?replacement.registrationVersion:null }, { name: paymentName(orderId), version: null },
         ...(replacement?[{name:paymentName(replacement.orderId),version:replacement.paymentVersion}]:[])];
-      const result = await capacity.commit({ checks, registrationName, selection: payment.quote?.selection,
+      const result = await capacity.commit({ checks, registrationName,
+        ...(covered ? { nextRegistration: registration } : { selection: payment.quote?.selection }),
         writes: [
           { update: { name: registrationName, fields: fields(registration) }, currentDocument: replacement?{updateTime:replacement.registrationVersion}:{exists:false} },
           { update: { name: paymentName(orderId), fields: fields(payment) }, currentDocument: { exists: false } },

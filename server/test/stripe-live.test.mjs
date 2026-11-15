@@ -78,6 +78,26 @@ test('hosted creation uses fixed EUR item sums, card-only allowlist, replicated 
   assert.ok(![...b.keys()].some(key=>/subscription|tax_rates|customer_email|customer_tax/.test(key)));
   assert.deepEqual(created,{reference:SID,entity:null,stripe:{id:SID,url:f.session.url,expiresAt:f.session.expires_at,status:'open',paymentStatus:'unpaid',paymentIntentId:null}});
 });
+test('Stripe charges only extras when a fixed voucher fully covers ULS onsite admission', async () => {
+  const order = makeOrder();
+  order.amountCents = order.quote.amountCents = 8000;
+  Object.assign(order.quote, { selection: { profile: 'uls', congressMode: 'onsite' }, ratePeriod: 'early',
+    discount: { type: 'fixed', value: 5500, amountCents: 5500 } });
+  Object.assign(order.quote.lines[0], { unitAmountCents: 0, amountCents: 0 });
+  Object.assign(order.quote.lines[1], { unitAmountCents: 2000, amountCents: 2000 });
+  const { provider, requests } = fixture(order);
+  await provider.createPayment(order);
+  const body = new URLSearchParams(requests[0].options.body);
+  assert.equal(body.get('line_items[0][price_data][unit_amount]'), '2000');
+  assert.match(body.get('line_items[0][price_data][product_data][name]'), /Morning course/);
+  assert.equal(body.get('line_items[1][price_data][unit_amount]'), '3000');
+  assert.equal(body.get('line_items[1][quantity]'), '2');
+  assert.equal(body.has('line_items[2][quantity]'), false);
+  const withoutDiscount = structuredClone(order);
+  delete withoutDiscount.quote.discount;
+  await assert.rejects(() => provider.createPayment(withoutDiscount), /stripe\/invalid-quote/);
+  assert.equal(requests.length, 1);
+});
 test('idempotency key is stable for the persisted UUID and changes for a different order',async()=>{
   const f=fixture();await f.provider.createPayment(f.order);await f.provider.createPayment(structuredClone(f.order));
   const first=f.requests[0].options.headers['Idempotency-Key'];assert.equal(typeof first,'string');assert.ok(first.length>16);

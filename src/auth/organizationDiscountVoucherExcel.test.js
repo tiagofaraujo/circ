@@ -21,3 +21,15 @@ test.each([
   expect(sheet.getCell('C9').value).toBe(expected);
   expect(sheet.getCell('C9').numFmt).toBe(numFmt);
 });
+
+test('records the restricted ULS organizer audience in the workbook instructions', async () => {
+  const { buffer } = await buildOrganizationDiscountVoucherExcel({
+    ...batch, discount: { type: 'fixed', value: 5500 }, audience: 'uls-onsite',
+  });
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheet = workbook.getWorksheet('Vouchers');
+  expect(sheet.getCell('A6').value).toContain('campo do código de desconto da organização');
+  expect(sheet.getCell('A7').value).toBe('Válido para ULS Coimbra · Congresso presencial.');
+  expect(sheet.getCell('C9').value).toBe(55);
+});
