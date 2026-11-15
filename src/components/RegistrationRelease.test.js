@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RegistrationRelease from './RegistrationRelease';
 import { useAuth } from '../auth/AuthContext';
+import { TEST_REGISTRATION_ARCHIVE } from '../data/registrationTestArchive2027';
 jest.mock('../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 const registration = { id: 'circ-2027-owner', participantEmail: 'araujotiagofc@gmail.com', participantName: 'Pessoa Exemplo', payment: { status: 'paid', amountCents: 9500 } };
 const preview = { registrationId: registration.id, email: registration.participantEmail, name: registration.participantName,
@@ -38,6 +39,34 @@ test('previews the financial record and requires explicit acknowledgement before
   expect(posts()[0][0]).toBe(`/api/admin/registrations/${registration.id}/release`);
   expect(JSON.parse(posts()[0][1].body)).toEqual({ stamp: preview.stamp, confirmation: 'LIBERTAR NOVA INSCRICAO' });
   expect(onReleased).toHaveBeenCalledTimes(1); expect(onReleased).toHaveBeenCalledWith(released);
+});
+
+test('the test archive reviews the issued document and uses its own endpoint and confirmation', async () => {
+  const registration = {
+    id: 'circ-2027-designated', participantEmail: TEST_REGISTRATION_ARCHIVE.email,
+    status: 'confirmed', documentCount: 1, payment: {
+      status: 'paid', amountCents: TEST_REGISTRATION_ARCHIVE.amountCents, method: TEST_REGISTRATION_ARCHIVE.method,
+    },
+  };
+  const testPreview = { ...preview, registrationId: registration.id, email: registration.participantEmail };
+  const testResult = { ...released, registrationId: registration.id };
+  const onReleased = jest.fn();
+  fetch.mockImplementation(async (_, options) => response(options.method === 'GET' ? testPreview : testResult));
+
+  show({ registration, onReleased, testArchive: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Conferir inscrição de teste' }));
+  const submit = await screen.findByRole('button', { name: 'Arquivar inscrição de teste' });
+  expect(screen.getByText('FR CIRC2027/10')).toBeInTheDocument();
+  expect(screen.getByText(/O pagamento e o documento fiscal ficam no histórico/)).toBeInTheDocument();
+  expect(submit).toBeDisabled();
+  expect(posts()).toHaveLength(0);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(submit);
+
+  await waitFor(() => expect(onReleased).toHaveBeenCalledWith(testResult));
+  const endpoint = `/api/admin/registrations/${registration.id}/archive-test`;
+  expect(fetch.mock.calls.map(([url, options]) => [url, options.method])).toEqual([[endpoint, 'GET'], [endpoint, 'POST']]);
+  expect(JSON.parse(posts()[0][1].body)).toEqual({ stamp: testPreview.stamp, confirmation: 'ARQUIVAR INSCRICAO DE TESTE' });
 });
 
 test.each([

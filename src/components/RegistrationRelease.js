@@ -1,17 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { TEST_REGISTRATION_ARCHIVE } from '../data/registrationTestArchive2027';
 
-const TARGET_EMAIL = 'araujotiagofc@gmail.com';
-const CONFIRMATION = 'LIBERTAR NOVA INSCRICAO';
+const CONFIRMATION = 'ARQUIVAR INSCRICAO DE TESTE';
 const ID = /^circ-2027-[A-Za-z0-9_-]{1,128}$/;
 const STAMP = /^[a-f0-9]{64}$/i;
 const SUPPORT_CODE = /^release-(parse|identity|begin|lookup|inspect|prepare|commit)-(invalid|network|timeout|response|unexpected|http-(400|401|403|404|408|429|500|502|503|504))$/;
 const email = value => String(value || '').trim().toLowerCase();
-const statuses = {
-  paid: 'Pago', pending: 'Pendente', awaiting_confirmation: 'A aguardar confirmação',
-  refunded: 'Reembolso registado', cancelled: 'Cancelado', review_required: 'Em conferência',
-  creating: 'Em processamento', creation_unknown: 'Criação por confirmar', creation_failed: 'Criação recusada',
-};
 const definitive = new Set(['invalid-request', 'confirmation-required', 'sign-in-required', 'invalid-session',
   'admin-required', 'invalid-origin', 'registration-not-found', 'registration-release-blocked', 'registration-changed']);
 const errors = {
@@ -19,20 +14,28 @@ const errors = {
   'invalid-session': 'A sessão expirou. Volte a entrar na conta de administração.',
   'admin-required': 'Esta ação está reservada à conta de administração.',
   'registration-not-found': 'Esta inscrição já não foi encontrada. Atualize a lista para conferir o estado da conta.',
-  'registration-release-blocked': 'O estado desta inscrição não permite libertar uma nova inscrição. Confira os pagamentos e documentos antes de continuar.',
-  'registration-changed': 'A inscrição mudou desde a conferência. Prepare uma nova conferência antes de continuar.',
+  'registration-release-blocked': 'O estado desta inscrição de teste requer conferência antes do arquivo.',
+  'registration-changed': 'A inscrição mudou desde a conferência. Volte a conferir os dados antes de continuar.',
 };
 
 const blockedReasons = new Map([
-  ['registration-state', 'Os dados da inscrição ativa não são compatíveis com a libertação.'],
-  ['profile-mismatch', 'O perfil associado à inscrição não corresponde à conta que pediu a libertação.'],
+  ['registration-state', 'Os dados da inscrição ativa não são compatíveis com o arquivo.'],
+  ['profile-mismatch', 'O perfil associado à inscrição não corresponde à conta que pediu o arquivo.'],
   ['open-payment', 'Ainda existe um pedido de pagamento em aberto. Confirme primeiro o seu estado.'],
   ['fiscal-pending', 'A emissão da fatura-recibo de um pagamento ainda está pendente.'],
   ['linked-order', 'Existe um pedido associado à inscrição que precisa de conferência.'],
   ['document-mismatch', 'Os pagamentos e as faturas-recibo associados não coincidem.'],
-  ['archive-mismatch', 'O histórico da inscrição precisa de conferência antes da libertação.'],
+  ['archive-mismatch', 'O histórico da inscrição precisa de conferência antes do arquivo.'],
   ['closed-attempt-unverified', 'O encerramento sem pagamento de um pedido associado ainda não está confirmado.'],
 ]);
+
+export function matchesTestRegistrationArchive(registration) {
+  return email(registration?.participantEmail) === TEST_REGISTRATION_ARCHIVE.email
+    && registration.status === 'confirmed' && registration.payment?.status === 'paid'
+    && registration.payment?.amountCents === TEST_REGISTRATION_ARCHIVE.amountCents
+    && registration.payment?.method === TEST_REGISTRATION_ARCHIVE.method
+    && registration.documentCount === 1;
+}
 
 function errorMessage(issue, fallback) {
   if (issue.code === 'registration-release-blocked' && issue.status === 409) {
@@ -47,18 +50,19 @@ function errorMessage(issue, fallback) {
 }
 
 function validPreview(value, requestedId) {
-  return value?.allowed === true && value.registrationId === requestedId && email(value.email) === TARGET_EMAIL
+  return value?.allowed === true && value.registrationId === requestedId && email(value.email) === TEST_REGISTRATION_ARCHIVE.email
     && typeof value.name === 'string' && value.name.trim().length > 0 && value.name.length <= 300
-    && Number.isSafeInteger(value.amountCents) && value.amountCents > 0 && value.currency === 'EUR'
-    && Object.prototype.hasOwnProperty.call(statuses, value.paymentStatus) && STAMP.test(value.stamp || '')
-    && Array.isArray(value.documentNumbers) && value.documentNumbers.length <= 100
-    && value.documentNumbers.every(number => typeof number === 'string' && number.trim().length > 0 && number.length <= 200);
+    && value.amountCents === TEST_REGISTRATION_ARCHIVE.amountCents && value.currency === 'EUR'
+    && value.paymentStatus === 'paid' && STAMP.test(value.stamp || '')
+    && Array.isArray(value.documentNumbers) && value.documentNumbers.length === 1
+    && typeof value.documentNumbers[0] === 'string' && value.documentNumbers[0].trim().length > 0
+    && value.documentNumbers[0].length <= 200;
 }
 
 export default function RegistrationRelease({ registration, onReleased }) {
   const { user, isAdmin } = useAuth();
   const eligible = isAdmin === true && Boolean(user?.uid) && typeof user?.getIdToken === 'function'
-    && ID.test(registration?.id || '') && email(registration?.participantEmail) === TARGET_EMAIL;
+    && ID.test(registration?.id || '') && matchesTestRegistrationArchive(registration);
   const scope = `${user?.uid || ''}:${registration?.id || ''}:${eligible}`;
   const [preview, setPreview] = useState(null), [confirmed, setConfirmed] = useState(false);
   const [phase, setPhase] = useState('idle'), [error, setError] = useState(''), [released, setReleased] = useState(null);
@@ -74,7 +78,7 @@ export default function RegistrationRelease({ registration, onReleased }) {
 
   async function api(registrationId, body, signal) {
     const token = await user.getIdToken();
-    const response = await fetch(`/api/admin/registrations/${encodeURIComponent(registrationId)}/release`, {
+    const response = await fetch(`/api/admin/registrations/${encodeURIComponent(registrationId)}/archive-test`, {
       method: body === undefined ? 'GET' : 'POST', cache: 'no-store', signal,
       headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -99,15 +103,15 @@ export default function RegistrationRelease({ registration, onReleased }) {
       setPreview({ ...result, documentNumbers: [...result.documentNumbers] }); setPhase('review');
     } catch (issue) {
       if (controller.signal.aborted || generation.current !== currentGeneration) return;
-      setPhase('idle'); setError(errorMessage(issue, 'Não foi possível conferir os dados desta inscrição. Nenhuma libertação foi pedida.'));
+      setPhase('idle'); setError(errorMessage(issue, 'Não foi possível conferir os dados desta inscrição de teste.'));
     } finally { if (working.current === operation) working.current = null; }
   }
 
-  async function release(event) {
+  async function archive(event) {
     event.preventDefault();
     if (!eligible || working.current || !confirmed || !preview || !validPreview(preview, registration.id)
       || !['review', 'uncertain'].includes(phase)) return;
-    const operation = Symbol('release'), currentGeneration = generation.current;
+    const operation = Symbol('archive'), currentGeneration = generation.current;
     const original = attempt.current || { registrationId: preview.registrationId,
       preview: { ...preview, documentNumbers: [...preview.documentNumbers] },
       payload: { stamp: preview.stamp, confirmation: CONFIRMATION } };
@@ -126,10 +130,10 @@ export default function RegistrationRelease({ registration, onReleased }) {
       if (generation.current !== currentGeneration) return;
       if (definitive.has(issue.code)) {
         attempt.current = null; setPreview(null); setPhase('idle');
-        setError(errorMessage(issue, 'A libertação foi recusada. Prepare uma nova conferência antes de continuar.'));
+        setError(errorMessage(issue, 'O arquivo foi recusado. Volte a conferir a inscrição antes de continuar.'));
       } else {
         setPreview(original.preview); setPhase('uncertain');
-        setError(errorMessage(issue, 'O resultado da libertação não foi confirmado. Conserve esta conferência e consulte o resultado da mesma libertação antes de iniciar outra.'));
+        setError(errorMessage(issue, 'O resultado do arquivo ainda está por confirmar. Use esta conferência para consultar o resultado.'));
       }
     } finally { if (working.current === operation) working.current = null; }
     if (completed && generation.current === currentGeneration && typeof callback.current === 'function') {
@@ -144,22 +148,21 @@ export default function RegistrationRelease({ registration, onReleased }) {
   const money = value => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value / 100);
   return <div className="admin-refund admin-registration-release">
     {phase === 'idle' || phase === 'preparing' ? <button type="button" className="admin-exception" disabled={busy} onClick={prepare}>
-      {busy ? 'A conferir inscrição…' : 'Preparar nova inscrição para esta conta'}
+      {busy ? 'A conferir inscrição…' : 'Conferir inscrição de teste'}
     </button> : null}
-    {preview && phase !== 'done' && <form onSubmit={release} aria-label={`Libertar nova inscrição de ${preview.email}`}>
-      <p><strong>Conferência da inscrição atual</strong></p>
+    {preview && phase !== 'done' && <form onSubmit={archive} aria-label={`Arquivar inscrição de teste de ${preview.email}`}>
+      <p><strong>Conferência da inscrição de teste</strong></p>
       <dl><dt>Titular</dt><dd>{preview.name}</dd><dt>Email</dt><dd>{preview.email}</dd>
-        <dt>Montante registado</dt><dd>{money(preview.amountCents)}</dd><dt>Estado do pagamento</dt><dd>{statuses[preview.paymentStatus]}</dd>
-        <dt>Documentos existentes</dt><dd>{preview.documentNumbers.length ? preview.documentNumbers.join(' · ') : 'Sem documentos indicados nesta conferência'}</dd></dl>
-      <p>Os pagamentos e as faturas-recibo existentes são conservados. Esta ação retira a inscrição atual da lista ativa e permite iniciar outra inscrição; o novo valor terá de ser pago.</p>
-      <p>O perfil e as validações de elegibilidade da conta são mantidos.</p>
-      {uncertain && <p>Voltará a ser enviada a mesma confirmação. Se a libertação já foi concluída, será consultado o respetivo arquivo, sem retirar uma nova inscrição entretanto criada.</p>}
+        <dt>Montante registado</dt><dd>{money(preview.amountCents)}</dd><dt>Estado do pagamento</dt><dd>Pago</dd>
+        <dt>Documento fiscal</dt><dd>{preview.documentNumbers[0]}</dd></dl>
+      <p>Esta ação retira a inscrição de teste da lista ativa. O pagamento e o documento fiscal ficam no histórico.</p>
+      {uncertain && <p>A mesma confirmação será usada para consultar o resultado do arquivo.</p>}
       <label className="admin-refund__ack"><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)} />
-        {uncertain ? 'Confirmo que pretendo concluir ou consultar esta mesma libertação, com os dados conferidos acima.' : 'Conferi os dados e autorizo retirar esta inscrição ativa para permitir uma nova inscrição, com um novo pagamento.'}
+        {uncertain ? 'Confirmo que pretendo consultar o resultado deste arquivo com os dados conferidos acima.' : 'Conferi os dados e confirmo o arquivo desta inscrição de teste.'}
       </label>
-      <button type="submit" disabled={busy || !confirmed}>{busy ? 'A confirmar libertação…' : uncertain ? 'Consultar resultado da libertação' : 'Libertar nova inscrição'}</button>
+      <button type="submit" disabled={busy || !confirmed}>{busy ? 'A confirmar arquivo…' : uncertain ? 'Consultar resultado do arquivo' : 'Arquivar inscrição de teste'}</button>
     </form>}
-    {released && <p role="status">Inscrição libertada. Os pagamentos e documentos anteriores foram conservados. A conta pode iniciar uma nova inscrição e pagar o novo valor.</p>}
+    {released && !onReleased && <p role="status">Inscrição de teste arquivada. O pagamento e o documento fiscal foram conservados.</p>}
     {error && <p role="alert">{error}</p>}
   </div>;
 }
