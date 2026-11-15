@@ -60,7 +60,7 @@ function SupplementChoices({ value, onChange, profile, en, locked = false, owned
     </label>)}
     <div className="registration-purchase-option registration-purchase-option--quantity" role="group" aria-labelledby={dinnerLabelId}>
       <span><strong id={dinnerLabelId}>{dinnerLabel}</strong><small>{formatEuro(DINNER_RATE)} / {en ? 'person' : 'pessoa'}{Number(owned.dinnerQuantity) > 0 ? ` · ${owned.dinnerQuantity} ${en ? 'already included' : 'já incluído(s)'}` : ''}</small></span>
-      <div className="registration-dinner-quantity">
+      <div className="registration-dinner-stepper">
         <button type="button" aria-label={en ? 'Remove one dinner ticket' : 'Retirar um bilhete de jantar'}
           disabled={dinnerQuantity === 0} onClick={() => setDinnerQuantity(dinnerQuantity - 1)}>−</button>
         <input type="number" inputMode="numeric" min="0" step="1" placeholder="0"
