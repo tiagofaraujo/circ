@@ -93,6 +93,29 @@ export function createCheckoutLiveStore({
     async companyConfig() { return readDoc('settings', 'circ-2027-company-vouchers'); },
     async companyVoucher(code) { if (!/^[a-f0-9]{32}$/.test(code || '')) throw new LiveStoreError('invalid_request'); return readDoc('companyVouchers', code); },
     async companyPurchase(id) { return readDoc('companyPurchases', id); },
+    async organizerVoucher(hash) {
+      if (!/^[a-f0-9]{64}$/.test(hash || '')) throw new LiveStoreError('invalid_request');
+      return readDoc('organizerVouchers', hash);
+    },
+    async redeemOrganizerVoucher({ hash, registration, registrationVersion, voucher, voucherVersion, orderId, orderVersion }) {
+      if (!/^[a-f0-9]{64}$/.test(hash || '') || !registrationVersion || !voucherVersion || !orderVersion
+        || registration.userId !== uid || registration.eventId !== EVENT || registration.payment?.orderId !== orderId
+        || registration.organizerVoucherRedeemed !== true || voucher.status !== 'redeemed'
+        || voucher.redeemedBy !== uid || voucher.registrationId !== registrationId) throw new LiveStoreError('storage_invalid');
+      const voucherName = `${root}/organizerVouchers/${hash}`;
+      const registrationUpdate = { organizerVoucherRedeemed: true, entitlements: registration.entitlements, updatedAt: registration.updatedAt };
+      const voucherUpdate = { status: voucher.status, redeemedBy: voucher.redeemedBy, registrationId, redeemedAt: voucher.redeemedAt };
+      return capacity.commit({ registrationName, nextRegistration: registration,
+        checks: [{ name: registrationName, version: registrationVersion }, { name: voucherName, version: voucherVersion },
+          { name: paymentName(orderId), version: orderVersion }],
+        writes: [
+          { update: { name: registrationName, fields: fields(registrationUpdate) }, updateMask: { fieldPaths: Object.keys(registrationUpdate) },
+            currentDocument: { updateTime: registrationVersion } },
+          { update: { name: voucherName, fields: fields(voucherUpdate) }, updateMask: { fieldPaths: Object.keys(voucherUpdate) },
+            currentDocument: { updateTime: voucherVersion } },
+        ],
+      });
+    },
     async redeemCompanyVoucher({ code, registration, voucher, voucherVersion, guards = [] }) {
       if (!/^[a-f0-9]{32}$/.test(code || '') || !voucherVersion || registration.userId !== uid || registration.eventId !== EVENT
         || registration.voucherId !== code || registration.payment?.method !== 'company_voucher' || registration.payment.status !== 'paid'

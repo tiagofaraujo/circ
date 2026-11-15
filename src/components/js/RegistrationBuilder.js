@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
+import OrganizerVoucher from '../OrganizerVoucher';
 import RegistrationInvoice from '../RegistrationInvoice';
 import PublicLiveCheckout from '../PublicLiveCheckout';
 import { useAuth } from '../../auth/AuthContext';
@@ -75,10 +76,13 @@ function RegistrationSupplements({ registration, user, en }) {
     && capacityPermits(capacity, selection)
     && (profile === 'external' || (profile === 'uls' && uls.verified) || (profile === 'student' && student.approved));
   const total = calculateRegistrationTotal({ ...selection, profile, courseAffiliation: profile === 'uls' ? 'uls' : 'external', congressMode: '', period: getRegistrationPeriod() });
+  const showOrganizerVoucher = profile === 'uls' && registration.selection?.congressMode === 'onsite'
+    && !registration.voucherId && user.emailVerified === true && (registration.organizerVoucherRedeemed || (!owned.morningCourse && !owned.afternoonCourse));
   return <section className="registration-step" aria-labelledby="registration-additions-title">
     <h2 id="registration-additions-title">{en ? 'Add courses or dinner tickets' : 'Adicionar cursos ou bilhetes de jantar'}</h2>
     <p>{en ? 'Each new purchase has a separate payment and invoice-receipt. Your original registration and its invoice remain unchanged.' : 'Cada compra adicional tem pagamento e fatura-recibo próprios. A inscrição original e a sua fatura mantêm-se.'}</p>
     <CapacityNotice capacity={capacity} en={en} />
+    {showOrganizerVoucher && <OrganizerVoucher key={registration.id} user={user} registration={registration} en={en} locked={locked} onCapacityRefresh={capacity.refresh} />}
     <SupplementChoices value={chosen} onChange={setChosen} profile={profile} en={en} locked={locked} owned={owned} capacity={capacity} />
     {profile === 'uls' && !uls.verified && <UlsVerification user={user} eligibility={uls} en={en} />}
     {profile === 'student' && !student.approved && <StudentVerification user={user} verification={student} en={en} />}

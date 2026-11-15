@@ -17,6 +17,8 @@ import { createToconlineDraftAcceptanceApi } from './payments/toconline-draft-ac
 import { createBankTransferLiveApi } from './payments/bank-transfer-live.mjs';
 import { createRegistrationReleaseApi } from './payments/registration-release.mjs';
 import { createCompanyVoucherLiveApi } from './payments/company-voucher-live.mjs';
+import { createOrganizerVoucherLiveApi } from './payments/organizer-voucher-live.mjs';
+import { createOrganizerVoucherIssueApi } from './payments/organizer-voucher-issue.mjs';
 import { createRegistrationReportsApi } from './payments/registration-reports.mjs';
 import { createBillingSummaryApi } from './payments/billing-summary.mjs';
 import { hotels2027 } from './hotels2027.mjs';
@@ -70,6 +72,8 @@ export function createWorker(verify = verifyFirebaseToken) {
   const bankTransferLive = createBankTransferLiveApi({ verify });
   const registrationRelease = createRegistrationReleaseApi({ verify });
   const companyVoucherLive = createCompanyVoucherLiveApi({ verify });
+  const organizerVoucherLive = createOrganizerVoucherLiveApi({ verify });
+  const organizerVoucherIssue = createOrganizerVoucherIssueApi({ verify });
   const registrationReports = createRegistrationReportsApi({ verify });
   const billingSummary = createBillingSummaryApi({ verify });
   return {
@@ -110,6 +114,10 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (registrationReleaseResponse) return registrationReleaseResponse;
       const companyVoucherResponse = await companyVoucherLive(request, env);
       if (companyVoucherResponse) return companyVoucherResponse;
+      const organizerVoucherResponse = await organizerVoucherLive(request, env);
+      if (organizerVoucherResponse) return organizerVoucherResponse;
+      const organizerVoucherIssueResponse = await organizerVoucherIssue(request, env);
+      if (organizerVoucherIssueResponse) return organizerVoucherIssueResponse;
       const registrationReportResponse = await registrationReports(request, env);
       if (registrationReportResponse) return registrationReportResponse;
       const billingSummaryResponse = await billingSummary(request, env);

@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createPaidCapacityStore } from '../payments/paid-capacity-store.mjs';
 import { createCheckoutLiveStore } from '../payments/checkout-live-store.mjs';
+import { createOrganizerVoucherLiveApi } from '../payments/organizer-voucher-live.mjs';
 import { quotePrimary, quoteSupplementary } from '../payments/quote.mjs';
 import { buildLivePaymentFR } from '../payments/toconline-live-payload.mjs';
 
@@ -91,7 +93,10 @@ function fixture({ withLock = true, commitHook = null } = {}) {
       for (const write of body.writes) assertPrecondition(write);
       const writeResults = body.writes.map(write => {
         if (write.delete) { documents.delete(write.delete); return {}; }
-        const stored = put(write.update.name, decode({ mapValue: { fields: write.update.fields } }));
+        const update = decode({ mapValue: { fields: write.update.fields } });
+        const stored = put(write.update.name, write.updateMask ? {
+          ...data(write.update.name), ...Object.fromEntries(write.updateMask.fieldPaths.map(key => [key, update[key]])),
+        } : update);
         return { updateTime: stored.updateTime };
       });
       transactions.delete(body.transaction);
@@ -106,6 +111,10 @@ function fixture({ withLock = true, commitHook = null } = {}) {
   }
   if (withLock) put(lockName, { eventId: 'circ-2027', revision: 0 });
   const fetchImpl = async (url, options) => {
+    if (options.method === 'GET') {
+      const document = documents.get(url.split('/v1/')[1]);
+      return document ? Response.json(document) : new Response('', { status: 404 });
+    }
     try { return Response.json(await call(url, options.method, options.body ? JSON.parse(options.body) : undefined)); }
     catch (error) {
       if (error.code === 'conflict') return new Response('', { status: 409 });
@@ -410,6 +419,97 @@ test('actual voucher redemption and PSP settlement serialize against the same fi
     assert.equal(f.data(a.paymentName).capacityStatus, 'review_required');
     assert.equal(f.data(a.name).status, 'submitted');
   }
+});
+
+const organizerCode = '1abcdef00123456789abcdef01234567';
+const organizerHash = createHash('sha256').update(organizerCode).digest('hex');
+const organizerVoucherName = `${root}/organizerVouchers/${organizerHash}`;
+const organizerDate = '2026-11-15T00:00:00.000Z';
+function organizerRegistration(f, { uid = 'organizer', method = 'mbway', changes = {}, paymentChanges = {} } = {}) {
+  const orderId = uid.endsWith('-b') ? '22222222-2222-4222-8222-222222222222' : '11111111-1111-4111-8111-111111111111';
+  const paymentName = `${root}/payments/${orderId}`, name = registrationName(uid);
+  const reference = method === 'bank_transfer' ? orderId : method === 'stripe_card' ? 'cs_live_example' : '987654321';
+  const provider = method === 'bank_transfer' ? 'internal_bank_transfer' : method === 'stripe_card' ? 'stripe' : 'eupago';
+  const ledger = { orderId, status: 'paid', amountCents: 5500, currency: 'EUR', method, reference };
+  const selection = { profile: 'uls', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+  const original = reg(uid, { payment: ledger, selection, documentCount: 1, ...changes });
+  const payment = { id: orderId, kind: 'primary', registrationId: `circ-2027-${uid}`, userId: uid, eventId: 'circ-2027',
+    environment: 'production', status: 'paid', transactionId: 'transaction', paidAt: organizerDate,
+    amountCents: 5500, currency: 'EUR', method, provider, reference, quote: { selection }, ...paymentChanges };
+  f.put(name, original);
+  f.put(paymentName, payment);
+  return { original, payment, paymentName, name };
+}
+
+function organizerRedemption(f, { start = organizerDate } = {}) {
+  f.put(organizerVoucherName, { eventId: 'circ-2027', batchId: 'circ-2027-organizers-01', index: 1,
+    status: 'available', createdBy: 'admin', createdAt: '2026-11-14T12:34:56.000Z' });
+  const api = createOrganizerVoucherLiveApi({ verify: async token => ({ sub: token, email_verified: true }),
+    tokenProvider: async () => 'service', storeFactory: args => createCheckoutLiveStore({ ...args, fetchImpl: f.fetchImpl }), now: () => start });
+  return (uid = 'organizer', code = ` ${organizerCode.toUpperCase().match(/.{4}/g).join('-')} `) => api(new Request('https://circ.test/api/checkout/live/organizer-voucher/redeem', {
+    method: 'POST', headers: { Origin: 'https://circ.test', Authorization: `Bearer ${uid}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  }), { FIREBASE_PROJECT_ID: 'circ-test' });
+}
+
+test('an organizer voucher grants both courses and one additional dinner without changing primary payment or invoice', async () => {
+  for (const method of ['mbway', 'multibanco', 'bank_transfer', 'stripe_card']) {
+    const f = fixture();
+    const redeem = organizerRedemption(f);
+    const { original, name, payment, paymentName } = organizerRegistration(f, { method,
+      changes: { entitlements: { congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 2 } } });
+    const response = await redeem();
+    assert.deepEqual(await response.json(), { registrationId: 'circ-2027-organizer', duplicate: false }, method);
+    assert.equal(response.status, 200);
+    assert.deepEqual(f.data(paymentName), payment);
+    assert.deepEqual(f.data(name), { ...original, organizerVoucherRedeemed: true, updatedAt: organizerDate,
+      entitlements: { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 3 } });
+    assert.equal(f.data(organizerVoucherName).status, 'redeemed');
+    assert.equal(f.data(organizerVoucherName).redeemedBy, 'organizer');
+    assert.equal(f.data(organizerVoucherName).createdBy, 'admin');
+    assert.deepEqual((await f.store.summary()).paid, { onsite: 1, morningCourse: 1, afternoonCourse: 1 });
+    assert.deepEqual(await (await redeem()).json(), { registrationId: 'circ-2027-organizer', duplicate: true });
+    assert.equal(f.data(name).entitlements.dinnerQuantity, 3);
+  }
+});
+
+test('the organizer voucher remains available before opening, with an incompatible registration, or with either course full', async () => {
+  for (const [expected, option, change] of [
+    ['organizer/registration-not-open', { start: '2026-11-14T23:59:59.999Z' }, {}],
+    ['organizer/paid-registration-required', {}, { paymentChanges: { status: 'pending' } }],
+    ['organizer/paid-registration-required', {}, { paymentChanges: { environment: 'sandbox' } }],
+    ['organizer/paid-registration-required', {}, { changes: { status: 'submitted' } }],
+    ['organizer/paid-registration-required', {}, { changes: { isTest: true } }],
+    ['organizer/supplementary-pending', {}, { changes: { openSupplementaryOrderId: 'pending-addition' } }],
+    ['organizer/course-already-owned', {}, { changes: { entitlements: { congressMode: 'onsite', morningCourse: true } } }],
+    ['organizer/capacity-full', {}, {}],
+  ]) {
+    const f = fixture();
+    if (expected === 'organizer/capacity-full') {
+      for (let i = 0; i < 170; i++) f.put(registrationName(`afternoon-${i}`), reg(`afternoon-${i}`, { entitlements: { afternoonCourse: true } }));
+    }
+    const redeem = organizerRedemption(f, option);
+    const { original, name } = organizerRegistration(f, change);
+    const response = await redeem();
+    assert.equal((await response.json()).error, expected);
+    assert.deepEqual(f.data(name), original);
+    assert.equal(f.data(organizerVoucherName).status, 'available');
+  }
+});
+
+test('two paid organizers cannot redeem the same voucher concurrently', async () => {
+  let waiting = 0, release;
+  const ready = new Promise(resolve => { release = resolve; });
+  const f = fixture({ commitHook: async () => { if (++waiting <= 2) { if (waiting === 2) release(); await ready; } } });
+  const redeem = organizerRedemption(f);
+  const a = organizerRegistration(f, { uid: 'organizer-a' });
+  const b = organizerRegistration(f, { uid: 'organizer-b' });
+  const responses = await Promise.all([redeem('organizer-a'), redeem('organizer-b')]);
+  assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
+  assert.equal([a, b].filter(person => f.data(person.name).organizerVoucherRedeemed === true).length, 1);
+  assert.deepEqual((await f.store.summary()).paid, { onsite: 2, morningCourse: 1, afternoonCourse: 1 });
+  const retry = await redeem(f.data(organizerVoucherName).redeemedBy);
+  assert.equal((await retry.json()).duplicate, true);
 });
 
 test('actual full-course settlement preserves all paid legacy selection rights when entitlements are absent', async () => {
