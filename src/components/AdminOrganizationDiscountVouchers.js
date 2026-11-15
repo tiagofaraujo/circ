@@ -5,8 +5,7 @@ import { exportOrganizationDiscountVoucherExcel, formatOrganizationDiscount, ORG
 const API = '/api/admin/registration-management/discount-vouchers';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const CODE = /^CIRC27-D-(?:[a-f0-9]{4}-){7}[a-f0-9]{4}$/;
-const DEFAULT_FORM = { label: '', count: '1', type: 'percentage', value: '', audience: '' };
-const ORGANIZER_FORM = { label: 'Organizadores · CIRC 2027', count: '9', type: 'fixed', value: '55', audience: 'uls-onsite' };
+const DEFAULT_FORM = { label: '', count: '1', value: '', audience: '' };
 const DISCOUNT_MAX = { percentage: 9999, fixed: 9999900 };
 
 function savedValue(key) {
@@ -91,7 +90,10 @@ export default function AdminOrganizationDiscountVouchers() {
       setForm(DEFAULT_FORM);
       setMessage('Lote emitido. Os códigos estão disponíveis para descarregar.');
     } catch (failure) {
-      if (failure.message === 'invalid-request' || failure.message === 'batch-conflict') {
+      if (failure.message === 'fixed-discount-required') {
+        rememberPending(null);
+        setError('O lote em percentagem não chegou a ser emitido. Indique um desconto em euros para criar um lote.');
+      } else if (failure.message === 'invalid-request' || failure.message === 'batch-conflict') {
         rememberPending(null);
         setError(failure.message === 'batch-conflict'
           ? 'O identificador já pertence a outro lote. Volte a emitir para gerar um novo identificador.'
@@ -107,11 +109,10 @@ export default function AdminOrganizationDiscountVouchers() {
     const count = Number(form.count);
     const value = discountValue(form.value);
     const label = form.label.trim();
-    const discount = { type: form.type, value };
+    const discount = { type: 'fixed', value };
     if (!label || !Number.isInteger(count) || count < 1 || count > 50 || !validDiscount(discount)) {
       setMessage('');
-      setError(form.type === 'percentage' ? 'Indique um nome, 1 a 50 códigos e um desconto entre 0,01% e 99,99%.'
-        : 'Indique um nome, 1 a 50 códigos e um desconto entre 0,01 € e 99 999 € com até duas casas decimais.');
+      setError('Indique um nome, 1 a 50 códigos e um desconto em euros com até duas casas decimais.');
       return;
     }
     issue({ batchId: crypto.randomUUID(), label, count, discount, ...(form.audience ? { audience: form.audience } : {}) });
@@ -148,8 +149,8 @@ export default function AdminOrganizationDiscountVouchers() {
   const edit = (key) => (event) => setForm({ ...form, [key]: event.target.value });
 
   return <section className="company-voucher organization-discount-vouchers" aria-labelledby="organization-discount-vouchers-title">
-    <h2 id="organization-discount-vouchers-title">Vouchers de desconto da organização</h2>
-    <p>Emita códigos de utilização única para descontar uma percentagem ou um valor em euros no preço do congresso.</p>
+    <h2 id="organization-discount-vouchers-title">Gerar vouchers</h2>
+    <p>Todos os códigos do lote têm o mesmo desconto em euros e são de utilização única.</p>
     {pending ? <div className="organization-discount-vouchers__batch">
       <h3>Emissão em curso</h3>
       <p>{pending.label} · {pending.count} {pending.count === 1 ? 'código' : 'códigos'} · {formatOrganizationDiscount(pending.discount)}</p>
@@ -157,22 +158,16 @@ export default function AdminOrganizationDiscountVouchers() {
       <p>Identificador do lote <code>{pending.batchId}</code></p>
       <button type="button" disabled={Boolean(busy)} onClick={() => issue(pending)}>{busy === 'issue' ? 'A emitir…' : 'Retomar emissão'}</button>
     </div> : <form onSubmit={submit}>
-      <button type="button" disabled={Boolean(busy)} onClick={() => { setForm(ORGANIZER_FORM); setError(''); setMessage(''); }}>
-        Preencher 9 vouchers de 55 € para organizadores
-      </button>
-      <label>Nome do lote<input required maxLength={100} placeholder="Ex. Inscrição antecipada" value={form.label} onChange={edit('label')} disabled={Boolean(busy)} /></label>
+      <label>Nome do lote<input required maxLength={100} value={form.label} onChange={edit('label')} disabled={Boolean(busy)} /></label>
       <div className="organization-discount-vouchers__fields">
-        <label>Tipo de desconto<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value, value: '' })} disabled={Boolean(busy)}>
-          <option value="percentage">Percentagem</option><option value="fixed">Valor fixo</option>
-        </select></label>
-        <label>{form.type === 'fixed' ? 'Desconto (€)' : 'Desconto (%)'}<input required inputMode="decimal" maxLength={8} value={form.value} onChange={edit('value')} disabled={Boolean(busy)} /></label>
+        <label>Desconto por voucher (€)<input required inputMode="decimal" maxLength={8} value={form.value} onChange={edit('value')} disabled={Boolean(busy)} /></label>
         <label>Número de códigos<input required type="number" min="1" max="50" step="1" value={form.count} onChange={edit('count')} disabled={Boolean(busy)} /></label>
         <label>Destinatários<select value={form.audience} onChange={edit('audience')} disabled={Boolean(busy)}>
           <option value="">Todos os perfis elegíveis</option>
           <option value="uls-onsite">{ORGANIZATION_VOUCHER_ULS_AUDIENCE}</option>
         </select></label>
       </div>
-      <button type="submit" disabled={Boolean(busy)}>Emitir vouchers de desconto</button>
+      <button type="submit" disabled={Boolean(busy)}>Gerar códigos</button>
     </form>}
 
     {batch && <div className="organization-discount-vouchers__batch" aria-labelledby="organization-discount-vouchers-batch">

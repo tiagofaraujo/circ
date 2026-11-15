@@ -132,6 +132,7 @@ export function createOrganizationDiscountVoucherAdminApi({ verify, tokenProvide
       const prior = await store.read(batchId);
       if (request.method === 'GET') return prior ? batchReply(prior) : reply({ error: 'batch-not-found' }, 404);
       if (prior) return priorResult(prior);
+      if (terms.discount.type !== 'fixed') return reply({ error: 'fixed-discount-required' }, 409);
       const batch = { ...terms, createdAt: now(), codes: Array.from({ length: terms.count }, () => randomBytes(16).toString('hex')) };
       try { await store.create(batch, claims.sub); }
       catch {

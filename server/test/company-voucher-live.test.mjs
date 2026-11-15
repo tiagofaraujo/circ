@@ -8,11 +8,12 @@ const time = '2026-11-15T12:34:56.000Z';
 const copy = value => structuredClone(value);
 function request(body = { code }, options = {}) {
   const method = options.method || 'POST';
-  return new Request(`https://circ.test/api/checkout/live/company-voucher/redeem${options.query || ''}`, { method,
+  const path = options.preview ? 'quote' : 'redeem';
+  return new Request(`https://circ.test/api/checkout/live/company-voucher/${path}${options.query || ''}`, { method,
     headers: { Origin: 'https://circ.test', Authorization: 'Bearer session-token', 'Content-Type': 'application/json', ...options.headers },
     ...(method === 'POST' ? { body: typeof body === 'string' ? body : JSON.stringify(body) } : {}) });
 }
-function fixture({ claims = {}, commitError = null, lostAck = false, date = time } = {}) {
+function fixture({ claims = {}, commitError = null, lostAck = false, date = time, capacityEnabled, seatsTaken = 0 } = {}) {
   const data = {
     config: { enabled: true }, profile: { name: 'Pessoa Participante' }, registration: null,
     voucher: { eventId: 'circ-2027', purchaseId: 'purchase', index: 0, companyName: 'Empresa Exemplo', unitAmountCents: 9500,
@@ -26,6 +27,7 @@ function fixture({ claims = {}, commitError = null, lostAck = false, date = time
   const store = { companyConfig: async () => read('config'), profile: async () => read('profile'), registration: async () => read('registration'),
     companyVoucher: async value => { assert.equal(value, code); return read('voucher'); },
     companyPurchase: async id => { assert.equal(id, 'purchase'); return read('purchase'); },
+    capacity: async () => ({ paid: { onsite: seatsTaken, morningCourse: 0, afternoonCourse: 0 } }),
     redeemCompanyVoucher: async args => {
       if (commitError) throw Object.assign(new Error(commitError), { code: commitError });
       if (data.registration || args.voucherVersion !== `voucher-${revision}`) throw { code: 'conflict' };
@@ -37,7 +39,7 @@ function fixture({ claims = {}, commitError = null, lostAck = false, date = time
   const tokenProvider = async () => 'service-identity';
   const api = createCompanyVoucherLiveApi({ verify, tokenProvider, storeFactory: args => {
     assert.equal(args.uid, claims.sub || 'alice'); assert.equal(args.token, 'service-identity'); return store;
-  }, now: () => date });
+  }, now: () => date, capacityEnabled });
   return { api, data, store, reads, writes, commits: () => commits, setDate: value => { date = value; } };
 }
 
@@ -53,6 +55,53 @@ test('paid company voucher creates only covered onsite rights with no personal f
   assert.equal(r.participantName, f.data.profile.name); assert.equal(r.participantEmail, 'alice@example.test');
   assert.equal(f.data.voucher.redeemedBy, 'alice'); assert.equal(f.data.voucher.redeemedAt, time);
   assert.deepEqual(f.writes[0].guards.map(g => g.name), ['documents/config', 'documents/profile', 'documents/purchase']);
+});
+
+test('a company voucher quote validates the allocation and never writes before confirmation', async () => {
+  const f = fixture({ capacityEnabled: true, seatsTaken: 399 });
+  const before = copy(f.data);
+  const response = await f.api(request({ code: code.toUpperCase().match(/.{4}/g).join('-') }, { preview: true }), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { companyVoucher: { amountCents: 9500, currency: 'EUR' } });
+  assert.match(response.headers.get('Cache-Control'), /no-store/);
+  assert.deepEqual(f.data, before);
+  assert.equal(f.commits(), 0);
+  assert.equal((await f.api(request(), env)).status, 200);
+  assert.equal(f.commits(), 1);
+  const repeatQuote = await f.api(request({ code }, { preview: true }), env);
+  assert.equal(repeatQuote.status, 409);
+  assert.deepEqual(await repeatQuote.json(), { error: 'company/existing' });
+});
+
+test('company quote distinguishes an absent code from invalid allocation and unavailable storage', async () => {
+  const f = fixture();
+  const quote = () => f.api(request({ code }, { preview: true }), env);
+  const voucher = f.data.voucher;
+  f.data.voucher = null;
+  const missing = await quote();
+  assert.equal(missing.status, 404);
+  assert.deepEqual(await missing.json(), { error: 'company/not-found' });
+  f.data.voucher = { ...voucher, status: 'cancelled' };
+  const cancelled = await quote();
+  assert.equal(cancelled.status, 400);
+  assert.deepEqual(await cancelled.json(), { error: 'company/invalid-code' });
+  f.store.companyVoucher = async () => { throw new Error('private storage details'); };
+  const failed = await quote();
+  assert.equal(failed.status, 503);
+  assert.deepEqual(await failed.json(), { error: 'company/unavailable' });
+  assert.equal(f.commits(), 0);
+});
+
+test('company preview requires a seat when capacity is enforced and a verified same-origin user', async () => {
+  const f = fixture({ capacityEnabled: true, seatsTaken: 400 });
+  const full = await f.api(request({ code }, { preview: true }), env);
+  assert.equal(full.status, 409);
+  assert.deepEqual(await full.json(), { error: 'company/capacity-full' });
+  const unverified = fixture({ claims: { email_verified: false } });
+  assert.equal((await unverified.api(request({ code }, { preview: true }), env)).status, 403);
+  assert.deepEqual(unverified.reads, []);
+  assert.equal((await f.api(request({ code }, { preview: true, headers: { Origin: 'https://other.test' } }), env)).status, 403);
+  assert.equal(f.commits(), 0);
 });
 
 test('voucher redemption respects the exact opening boundary and an existing redemption remains recoverable before opening', async () => {

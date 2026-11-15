@@ -7,7 +7,9 @@ const origin = 'https://circ.test';
 const url = `${origin}/api/admin/registration-management/discount-vouchers`;
 const env = { FIREBASE_PROJECT_ID: 'test-circ' };
 const admin = { sub: 'admin-uid', email: 'circ.chuc@gmail.com', email_verified: true };
-const terms = { batchId: '12345678-abcd-4000-a000-123456789abc', label: 'Parceiros científicos', count: 2, discount: { type: 'percentage', value: 1250 } };
+const terms = { batchId: '12345678-abcd-4000-a000-123456789abc', label: 'Parceiros científicos', count: 2, discount: { type: 'fixed', value: 1750 } };
+const legacyTerms = { ...terms, discount: { type: 'percentage', value: 1250 } };
+const legacyCodes = ['d'.repeat(32), 'e'.repeat(32)];
 
 function request({ body = terms, method = 'POST', headers = {}, query = '' } = {}) {
   return new Request(url + query, { method,
@@ -16,8 +18,17 @@ function request({ body = terms, method = 'POST', headers = {}, query = '' } = {
   });
 }
 
-function fixture({ claims = admin, loseCommitResponse = false } = {}) {
+function fixture({ claims = admin, loseCommitResponse = false, withLegacyBatch = false } = {}) {
   const batches = new Map();
+  if (withLegacyBatch) {
+    const name = `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/organizationDiscountVoucherBatches/${legacyTerms.batchId}`;
+    batches.set(name, { name, fields: {
+      eventId: { stringValue: 'circ-2027' }, label: { stringValue: legacyTerms.label },
+      count: { integerValue: String(legacyTerms.count) }, createdAt: { stringValue: '2026-11-15T12:00:00.000Z' },
+      discount: { mapValue: { fields: { type: { stringValue: legacyTerms.discount.type }, value: { integerValue: String(legacyTerms.discount.value) } } } },
+      codes: { arrayValue: { values: legacyCodes.map(stringValue => ({ stringValue })) } },
+    } });
+  }
   const commits = [];
   const reads = [];
   const api = createOrganizationDiscountVoucherAdminApi({ verify: async () => claims, tokenProvider: async () => 'service',
@@ -44,7 +55,7 @@ function fixture({ claims = admin, loseCommitResponse = false } = {}) {
   return { api, commits, reads };
 }
 
-test('issues percentage and fixed vouchers in separate atomic batches and limits plaintext to the private manifest', async () => {
+test('issues fixed vouchers in an atomic batch and limits plaintext to the private manifest', async () => {
   const { api, commits } = fixture();
   const query = `?batchId=${terms.batchId}`;
   assert.equal((await api(request({ method: 'GET', query }), env)).status, 404);
@@ -69,16 +80,34 @@ test('issues percentage and fixed vouchers in separate atomic batches and limits
     assert.ok(name.endsWith(`/organizationDiscountVouchers/${hash}`));
     assert.equal(fields.batchId.stringValue, batch.batchId);
     assert.equal(fields.status.stringValue, 'available');
-    assert.equal(fields.discount.mapValue.fields.type.stringValue, 'percentage');
-    assert.equal(fields.discount.mapValue.fields.value.integerValue, '1250');
+    assert.equal(fields.discount.mapValue.fields.type.stringValue, 'fixed');
+    assert.equal(fields.discount.mapValue.fields.value.integerValue, '1750');
     assert.ok(rawCodes.every(code => !JSON.stringify(fields).includes(code)));
   });
   assert.deepEqual(await (await api(request({ method: 'GET', query }), env)).json(), batch);
 
-  const fixed = { ...terms, batchId: '12345678-abcd-4000-a000-123456789abd', count: 1, discount: { type: 'fixed', value: 1750 } };
-  assert.equal((await api(request({ body: fixed }), env)).status, 201);
-  assert.equal(commits[1][1].update.fields.discount.mapValue.fields.value.integerValue, '1750');
-  assert.equal(commits[1][1].update.fields.discount.mapValue.fields.type.stringValue, 'fixed');
+  assert.equal(commits.length, 1);
+});
+
+test('rejects new percentage batches and keeps retrieval and identical retries of issued percentage batches', async () => {
+  const newBatch = fixture();
+  const blocked = await newBatch.api(request({ body: legacyTerms }), env);
+  assert.equal(blocked.status, 409);
+  assert.deepEqual(await blocked.json(), { error: 'fixed-discount-required' });
+  assert.equal(newBatch.commits.length, 0);
+
+  const { api, commits } = fixture({ withLegacyBatch: true });
+  const query = `?batchId=${legacyTerms.batchId}`;
+  const retrieved = await api(request({ method: 'GET', query }), env);
+  const retried = await api(request({ body: legacyTerms }), env);
+  assert.equal(retrieved.status, 200);
+  assert.equal(retried.status, 200);
+  const previous = await retrieved.json();
+  assert.deepEqual(await retried.json(), previous);
+  assert.deepEqual(previous.discount, legacyTerms.discount);
+  assert.deepEqual(previous.codes.map(code => code.replace(/^CIRC27-D-/, '').replaceAll('-', '')), legacyCodes);
+  assert.equal((await api(request(), env)).status, 409);
+  assert.equal(commits.length, 0);
 });
 
 test('issues nine 55 euro vouchers with ULS onsite eligibility on each voucher and the recoverable batch', async () => {

@@ -1,11 +1,14 @@
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore } from './checkout-live-store.mjs';
-import { isRegistrationOpen } from '../../src/data/registration2027.js';
+import { capacityDecision } from './paid-capacity.mjs';
+import { isRegistrationOpen, REGISTRATION_CAPACITY_ENABLED } from '../../src/data/registration2027.js';
 
 const EVENT = 'circ-2027';
-const PATH = '/api/checkout/live/company-voucher/redeem';
+const REDEEM_PATH = '/api/checkout/live/company-voucher/redeem';
+const QUOTE_PATH = '/api/checkout/live/company-voucher/quote';
 const CODE = /^[a-f0-9]{32}$/;
 const UID = /^[A-Za-z0-9_-]{1,128}$/;
+const entitlements = { congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
 const headers = { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store', Vary: 'Authorization', 'X-Content-Type-Options': 'nosniff' };
 const reply = (body, status = 200) => Response.json(body, { status, headers });
 const fail = (code, status = 400) => { throw Object.assign(new Error(code), { code, status }); };
@@ -59,11 +62,12 @@ function ownRedemption(registration, voucher, code, uid, registrationId) {
 }
 
 export function createCompanyVoucherLiveApi({ verify, tokenProvider = createPaymentsServiceTokenProvider(),
-  storeFactory = createCheckoutLiveStore, now = () => new Date().toISOString(),
+  storeFactory = createCheckoutLiveStore, now = () => new Date().toISOString(), capacityEnabled = REGISTRATION_CAPACITY_ENABLED,
 } = {}) {
   return async function handle(request, env) {
     const url = new URL(request.url);
-    if (url.pathname !== PATH) return null;
+    const preview = url.pathname === QUOTE_PATH;
+    if (!preview && url.pathname !== REDEEM_PATH) return null;
     if (request.method !== 'POST') return reply({ error: 'method-not-allowed' }, 405);
     if (url.search) return reply({ error: 'invalid-request' }, 400);
     if (request.headers.get('Origin') !== url.origin) return reply({ error: 'invalid-origin' }, 403);
@@ -77,32 +81,38 @@ export function createCompanyVoucherLiveApi({ verify, tokenProvider = createPaym
     try {
       const code = await readCode(request);
       const serviceToken = await tokenProvider(env);
-      const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, uid: claims.sub, token: serviceToken });
+      const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, uid: claims.sub, token: serviceToken, capacityEnabled });
       const registrationId = `${EVENT}-${claims.sub}`;
       const [config, profile, existing, locatedVoucher] = await Promise.all([
         store.companyConfig(), store.profile(), store.registration(), store.companyVoucher(code),
       ]);
       const voucher = locatedVoucher?.data;
+      if (preview && !voucher) fail('company/not-found', 404);
       if (!voucher || !/^[A-Za-z0-9_-]{1,180}$/.test(voucher.purchaseId || '')) fail('company/invalid-code');
       const purchase = await store.companyPurchase(voucher.purchaseId);
       if (!validAllocation(voucher, purchase?.data, code)) fail('company/invalid-code');
       if (existing?.data) {
-        if (ownRedemption(existing.data, voucher, code, claims.sub, registrationId)) return reply({ registrationId, duplicate: true });
+        if (!preview && ownRedemption(existing.data, voucher, code, claims.sub, registrationId)) return reply({ registrationId, duplicate: true });
         fail('company/existing', 409);
       }
-      if (!isRegistrationOpen(now())) fail('company/registration-not-open', 403);
+      const timestamp = now();
+      if (!isRegistrationOpen(timestamp)) fail('company/registration-not-open', 403);
       if (config?.data?.enabled !== true) fail('company/closed', 409);
       if (voucher.status !== 'available' || voucher.redeemedBy !== null || voucher.registrationId !== null || voucher.redeemedAt !== null) fail('company/invalid-code');
       const rawName = profile?.data?.name;
       const name = typeof rawName === 'string' ? rawName.trim() : '';
       if (name.length < 5 || name.length > 200 || /[\u0000-\u001f\u007f]/.test(name)) fail('company/profile', 409);
-      const timestamp = now();
+      if (preview) {
+        if (capacityEnabled && !capacityDecision(await store.capacity(), { selection: entitlements }).allocated) {
+          fail('company/capacity-full', 409);
+        }
+        return reply({ companyVoucher: { amountCents: voucher.unitAmountCents, currency: 'EUR' } });
+      }
       const registration = { eventId: EVENT, userId: claims.sub, registrationKey: `${EVENT}:${claims.sub}`,
         primaryRegistration: true, participantName: name, participantEmail: claims.email,
         registrationType: 'CIRC 2027 · Presencial', status: 'confirmed', isTest: false, testMode: false,
-        selection: { profile: 'external', courseAffiliation: 'external', congressMode: 'onsite', morningCourse: false,
-          afternoonCourse: false, dinner: false, dinnerQuantity: 0, ratePeriod: 'company' },
-        entitlements: { congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 },
+        selection: { profile: 'external', courseAffiliation: 'external', ...entitlements, dinner: false, ratePeriod: 'company' },
+        entitlements,
         payment: { status: 'paid', amountCents: 0, coveredAmountCents: voucher.unitAmountCents, currency: 'EUR',
           method: 'company_voucher', reference: voucher.purchaseId, payer: voucher.companyName },
         voucherId: code, companyPurchaseId: voucher.purchaseId, addOnOrderCount: 0, documentCount: 0,

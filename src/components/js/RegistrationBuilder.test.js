@@ -19,7 +19,7 @@ jest.mock('../../data/registration2027', () => ({
 }));
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
 jest.mock('./StudentVerification', () => () => <div>Student document form</div>);
-jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => <div>Tem um voucher de empresa?</div>, CompanyRegistrationGate: ({ children }) => children(null) }));
+jest.mock('../CompanyVoucher', () => ({ CompanyRegistrationGate: ({ children }) => children(null) }));
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
 const capacity = { status: 'ready', limits: { onsite: 400, morningCourse: 170, afternoonCourse: 170 }, remaining: { onsite: 10, morningCourse: 10, afternoonCourse: 10 }, refresh: jest.fn() };
 beforeEach(() => { jest.clearAllMocks(); mockCapacityEnabled = false; useRegistrationCapacity.mockReturnValue(capacity); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); useUlsEligibility.mockReturnValue({ verified: false }); });
@@ -46,7 +46,7 @@ test('student and ULS rates require eligibility even for the administrator', () 
 test('onsite ULS participants keep their selections and use the checkout for organiser discount codes', () => {
  useUlsEligibility.mockReturnValue({ verified: true });
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
- expect(screen.getByText('Tem um voucher de empresa?')).toBeInTheDocument();
+ expect(screen.queryByText('Tem um voucher de empresa?')).not.toBeInTheDocument();
  expect(screen.queryByText('Voucher de organizador para cursos e jantar')).not.toBeInTheDocument();
 
  fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
@@ -62,6 +62,20 @@ test('onsite ULS participants keep their selections and use the checkout for org
  } });
  expect(screen.queryByText('Voucher de organizador para cursos e jantar')).not.toBeInTheDocument();
  expect(screen.queryByText(/Retire os cursos|Após a confirmação do pagamento/)).not.toBeInTheDocument();
+});
+test('a company voucher covers the registration in the same summary even with a negotiated unit price', () => {
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ const { onVoucherQuote } = PublicLiveCheckout.mock.calls.at(-1)[0];
+ act(() => onVoucherQuote({ kind: 'company-voucher', amountCents: 0, currency: 'EUR',
+  companyVoucher: { amountCents: 6500, currency: 'EUR' } }));
+ expect(screen.getByText('Inscrição coberta pelo voucher de empresa.')).toBeVisible();
+ expect(screen.getByText('Total a pagar').parentElement).toHaveTextContent('0,00 €');
+ expect(screen.queryByText('Subtotal')).not.toBeInTheDocument();
+ expect(screen.queryByText('Valor estimado')).not.toBeInTheDocument();
+
+ act(() => onVoucherQuote(null));
+ expect(screen.getByText('Valor estimado')).toBeVisible();
+ expect(screen.queryByText('Inscrição coberta pelo voucher de empresa.')).not.toBeInTheDocument();
 });
 test.each([
  ['organiser benefit', { organizerBenefit: { amountCents: 7000 }, amountCents: 8500 }, 'Voucher de organizador', '155,00 €', '−70,00 €', '85,00 €'],

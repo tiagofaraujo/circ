@@ -14,7 +14,7 @@ jest.mock('../RegistrationInvoice', () => () => <div>Registration invoice</div>)
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
 jest.mock('./StudentVerification', () => () => <div>Student verification</div>);
 let mockRegistration = null;
-jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => null, CompanyRegistrationGate: ({ children }) => children(mockRegistration) }));
+jest.mock('../CompanyVoucher', () => ({ CompanyRegistrationGate: ({ children }) => children(mockRegistration) }));
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
 const show = () => render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
 const checkout = () => PublicLiveCheckout.mock.calls.at(-1)[0];

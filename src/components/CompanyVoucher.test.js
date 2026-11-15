@@ -1,51 +1,58 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
+import { act, render, screen } from '@testing-library/react';
 import { useAuth } from '../auth/AuthContext';
-import { redeemCompanyVoucher, subscribeCompanyConfig } from '../auth/companyVouchers';
-import CompanyVoucher from './CompanyVoucher';
+import { subscribeCompanyRegistration } from '../auth/companyVouchers';
+import { CompanyRegistrationGate } from './CompanyVoucher';
+
 jest.mock('../auth/AuthContext', () => ({ useAuth: jest.fn() }));
-jest.mock('../auth/companyVouchers', () => ({ redeemCompanyVoucher: jest.fn(), subscribeCompanyConfig: jest.fn(), companyError: () => 'Envio falhou.' }));
-beforeEach(() => { jest.useFakeTimers().setSystemTime(new Date('2026-11-15T00:00:00Z')); jest.clearAllMocks(); useAuth.mockReturnValue({ user: { uid: 'u', emailVerified: true } }); subscribeCompanyConfig.mockImplementation((next) => { next(true); return () => {}; }); });
-afterEach(() => jest.useRealTimers());
-test('voucher submission stays disabled before the public opening even when codes are enabled', () => {
-  jest.setSystemTime(new Date('2026-11-14T23:59:59.999Z'));
-  render(<CompanyVoucher eligible />);fireEvent.click(screen.getByText('Tem um voucher de empresa?'));
-  fireEvent.change(screen.getByLabelText('Código do voucher de empresa'),{target:{value:'a'.repeat(32)}});
-  expect(screen.getByRole('button')).toBeDisabled();expect(screen.getByRole('status')).toHaveTextContent('15 de novembro de 2026');
-  fireEvent.submit(screen.getByRole('form',{name:'Confirmar inscrição com voucher de empresa'}));expect(redeemCompanyVoucher).not.toHaveBeenCalled();
+jest.mock('../auth/companyVouchers', () => ({ subscribeCompanyRegistration: jest.fn() }));
+
+const user = { uid: 'participant', emailVerified: true };
+let publish, fail, unsubscribe;
+beforeEach(() => {
+  jest.clearAllMocks();
+  useAuth.mockReturnValue({ user });
+  unsubscribe = jest.fn();
+  subscribeCompanyRegistration.mockImplementation((currentUser, next, onError) => {
+    publish = next;
+    fail = onError;
+    return unsubscribe;
+  });
 });
-test('a voucher form left open becomes available automatically at the opening without redeeming the code', () => {
-  jest.setSystemTime(new Date('2026-11-14T23:59:58Z'));
-  render(<CompanyVoucher eligible />);fireEvent.click(screen.getByText('Tem um voucher de empresa?'));
-  fireEvent.change(screen.getByLabelText('Código do voucher de empresa'),{target:{value:'a'.repeat(32)}});
-  expect(screen.getByRole('button')).toBeDisabled();
-  act(()=>{jest.advanceTimersByTime(2025);});
-  expect(screen.getByRole('button')).toBeEnabled();expect(screen.queryByRole('status')).not.toBeInTheDocument();expect(redeemCompanyVoucher).not.toHaveBeenCalled();
+
+function show() {
+  return render(<CompanyRegistrationGate>
+    {registration => <p>{registration?.id || 'Nova inscrição'}</p>}
+  </CompanyRegistrationGate>);
+}
+
+test('passes an existing company-covered registration from the authenticated owner to checkout', () => {
+  const { unmount } = show();
+  expect(screen.getByRole('status')).toHaveTextContent('A consultar a sua inscrição…');
+  expect(subscribeCompanyRegistration).toHaveBeenCalledWith(user, expect.any(Function), expect.any(Function));
+  act(() => publish({ id: 'circ-2027-participant', userId: user.uid, voucherId: 'company-voucher' }));
+  expect(screen.getByText('circ-2027-participant')).toBeVisible();
+  unmount();
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
 });
-test('requires eligible external onsite selection without extras and explicit confirmation', async () => {
-  redeemCompanyVoucher.mockResolvedValue('circ-2027-u');
-  const { rerender } = render(<CompanyVoucher eligible={false} />);
-  fireEvent.click(screen.getByText('Tem um voucher de empresa?'));
-  fireEvent.change(screen.getByLabelText('Código do voucher de empresa'), { target: { value: 'a'.repeat(32) } });
-  expect(screen.getByRole('button')).toBeDisabled(); expect(redeemCompanyVoucher).not.toHaveBeenCalled();
-  rerender(<CompanyVoucher eligible />); fireEvent.click(screen.getByRole('button'));
-  expect(await screen.findByText('Inscrição confirmada com voucher.')).toBeInTheDocument();
-  expect(redeemCompanyVoucher).toHaveBeenCalledTimes(1);
+
+test('only shows an existing registration when it belongs to the authenticated account', () => {
+  show();
+  act(() => publish({ id: 'circ-2027-other', userId: 'other' }));
+  expect(screen.getByText('Nova inscrição')).toBeInTheDocument();
+  expect(screen.queryByText('circ-2027-other')).not.toBeInTheDocument();
 });
-test('failed redemption keeps code for retry and does not claim confirmation', async () => {
-  redeemCompanyVoucher.mockRejectedValue(new Error('unavailable'));
-  render(<CompanyVoucher eligible />); fireEvent.click(screen.getByText('Tem um voucher de empresa?')); fireEvent.change(screen.getByLabelText('Código do voucher de empresa'), { target: { value: 'a'.repeat(32) } });
-  fireEvent.click(screen.getByRole('button')); expect(await screen.findByRole('alert')).toHaveTextContent('Envio falhou.');
-  expect(screen.getByLabelText('Código do voucher de empresa')).toHaveValue('a'.repeat(32));
-  expect(screen.queryByText('Inscrição confirmada com voucher.')).not.toBeInTheDocument();
+
+test('does not block eligibility instructions while the account email is unverified', () => {
+  useAuth.mockReturnValue({ user: { ...user, emailVerified: false } });
+  show();
+  expect(screen.getByText('Nova inscrição')).toBeInTheDocument();
+  expect(subscribeCompanyRegistration).not.toHaveBeenCalled();
 });
-test('an organisation discount in the company form is forwarded without redeeming or requiring company eligibility', () => {
-  const onDiscountCode = jest.fn();
-  const code = 'CIRC27-D-0123-4567-89ab-cdef-0123-4567-89ab-cdef';
-  render(<CompanyVoucher eligible={false} onDiscountCode={onDiscountCode} />);
-  fireEvent.click(screen.getByText('Tem um voucher de empresa?'));
-  fireEvent.change(screen.getByLabelText('Código do voucher de empresa'), { target: { value: ` ${code} ` } });
-  fireEvent.click(screen.getByRole('button', { name: 'Usar código de desconto' }));
-  expect(onDiscountCode).toHaveBeenCalledWith(code);
-  expect(redeemCompanyVoucher).not.toHaveBeenCalled();
-  expect(screen.getByText('Tem um voucher de empresa?').parentElement).not.toHaveAttribute('open');
+
+test('leaves checkout blocked while the existing registration is unknown', () => {
+  show();
+  act(() => fail());
+  expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível consultar a inscrição.');
+  expect(screen.queryByText('Nova inscrição')).not.toBeInTheDocument();
 });
