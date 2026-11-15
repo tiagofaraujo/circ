@@ -14,7 +14,7 @@ const capacityLimits={onsite:400,morningCourse:170,afternoonCourse:170};
 const capacityFor=(paid={})=>({limits:{...capacityLimits},paid:{onsite:0,morningCourse:0,afternoonCourse:0,...paid},
   remaining:Object.fromEntries(Object.entries(capacityLimits).map(([key,limit])=>[key,Math.max(0,limit-(paid[key]||0))]))});
 
-function fixture({identity=claims,date='2026-11-15T12:00:00Z',context={},onCreate}={}){
+function fixture({identity=claims,date='2026-11-15T12:00:00Z',context={},onCreate,capacityEnabled}={}){
   let registration=null,payment=null,providerCalls=0,currentCapacity=capacityFor(),capacityError=null,reservationError=null,reservations=0;
   const currentProfile=structuredClone(profile);
   const store={
@@ -32,7 +32,7 @@ function fixture({identity=claims,date='2026-11-15T12:00:00Z',context={},onCreat
   const api=createCheckoutLiveApi({
     verify:async()=>identity,tokenProvider:async()=> 'service-token',storeFactory:()=>store,
     providerFactory:()=>({createPayment:async input=>{providerCalls++;return onCreate?onCreate(input):{reference:'123456789',entity:'12345'};}}),
-    now:()=> date,
+    now:()=> date,capacityEnabled,
   });
   const previewApi=createLivePilotPreviewApi({verify:async()=>identity,tokenProvider:async()=> 'service-token',storeFactory:()=>store,now:()=>date});
   const req=(path,body)=>new Request(`https://circ.local/api/checkout/live${path}`,{method:body===undefined?'GET':'POST',
@@ -73,7 +73,7 @@ test('minimum field readiness agrees with quote admission and never creates a pa
 });
 
 test('capacity summary exposes paid totals and vacancies independently of payment-provider activation',async()=>{
-  const f=fixture();f.setCapacity({onsite:400,morningCourse:170,afternoonCourse:169});
+  const f=fixture({capacityEnabled:true});f.setCapacity({onsite:400,morningCourse:170,afternoonCourse:169});
   const response=await f.call('/capacity',undefined,{FIREBASE_PROJECT_ID:env.FIREBASE_PROJECT_ID,LIVE_CHECKOUT_ENABLED:'false'});
   assert.equal(response.status,200);assert.deepEqual(await response.json(),capacityFor({onsite:400,morningCourse:170,afternoonCourse:169}));
   assert.equal(f.providerCalls(),0);assert.equal(f.reservations(),0);
@@ -89,7 +89,7 @@ test('finite selection capacity matrix blocks full options before any payment re
     [{...selection,morningCourse:true,afternoonCourse:true},{onsite:400,morningCourse:170,afternoonCourse:170},409,['onsite','morningCourse','afternoonCourse']],
     [{...selection,morningCourse:true,afternoonCourse:true},{onsite:399,morningCourse:169,afternoonCourse:169},200,[]],
   ]){
-    const f=fixture({date:'2026-11-15T12:00:00Z'});f.setCapacity(paid);
+    const f=fixture({capacityEnabled:true});f.setCapacity(paid);
     const response=await f.call('/quote',{selection:selected});assert.equal(response.status,status);
     const result=await response.json();if(status===409){assert.equal(result.error,'capacity-full');assert.deepEqual(result.unavailable,unavailable);}
     else assert.equal(result.quote.selection.congressMode,selected.congressMode);
@@ -99,7 +99,7 @@ test('finite selection capacity matrix blocks full options before any payment re
 
 test('capacity changes after a quote or at atomic reservation cannot create a provider payment',async()=>{
   for(const atomic of [false,true]){
-    const f=fixture({date:'2026-11-15T12:00:00Z'}),q=await(await f.call('/quote',{selection})).json();
+    const f=fixture({capacityEnabled:true}),q=await(await f.call('/quote',{selection})).json();
     if(atomic)f.setReservationError(Object.assign(new Error('capacity-full'),{code:'capacity-full',unavailable:['onsite']}));
     else f.setCapacity({onsite:400});
     const response=await f.call('/orders',{id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'});
@@ -108,9 +108,30 @@ test('capacity changes after a quote or at atomic reservation cannot create a pr
   }
 });
 
+test('the live capacity suspension bypasses unavailable counts for quote and order creation',async()=>{
+  const f=fixture();
+  f.setCapacityError(new Error('capacity query unavailable'));
+  const capacity=await f.call('/capacity');
+  assert.equal(capacity.status,200);
+  assert.deepEqual(await capacity.json(),{enabled:false});
+
+  const selected={...selection,morningCourse:true,afternoonCourse:true,dinnerQuantity:1};
+  const quoteResponse=await f.call('/quote',{selection:selected});
+  assert.equal(quoteResponse.status,200);
+  const {quote,stamp,billingStamp}=await quoteResponse.json();
+  assert.deepEqual(quote.selection,{...selected,courseAffiliation:'external'});
+  assert.equal(f.providerCalls(),0);
+
+  const input={id:ID,selection:selected,stamp,billingStamp,method:'multibanco'};
+  assert.equal((await f.call('/orders',input)).status,201);
+  assert.equal((await f.call('/orders',input)).status,200);
+  assert.equal(f.providerCalls(),1);
+  assert.equal(f.reservations(),1);
+});
+
 test('an existing payment remains recoverable and idempotent when capacity becomes full or unavailable',async()=>{
   for(const paid of [false,true]){
-    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},date:'2026-11-15T12:00:00Z'});
+    const f=fixture({identity:{sub:'participant',email:'participant@example.test',email_verified:true},capacityEnabled:true});
     const q=await(await f.call('/quote',{selection})).json(),input={id:ID,selection,stamp:q.stamp,billingStamp:q.billingStamp,method:'multibanco'};
     assert.equal((await f.call('/orders',input)).status,201);
     if(paid){Object.assign(f.payment(),{status:'paid',paidAt:'2026-11-15T12:01:00Z',transactionId:'paid-proof'});f.registration().status='confirmed';f.registration().payment.status='paid';}

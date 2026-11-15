@@ -11,14 +11,14 @@ import { useStudentVerification } from '../../auth/studentVerificationStore';
 import { useRegistrationCapacity } from '../../auth/registrationCapacity';
 import UlsVerification from './UlsVerification';
 import StudentVerification from './StudentVerification';
-import { CONGRESS_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE, getCourseRate, calculateRegistrationTotal, formatEuro, getRegistrationPeriod } from '../../data/registration2027';
+import { CONGRESS_RATES, DINNER_RATE, REGISTRATION_CAPACITY_ENABLED, VIRTUAL_CONGRESS_RATE, getCourseRate, calculateRegistrationTotal, formatEuro, getRegistrationPeriod } from '../../data/registration2027';
 import '../css/RegistrationBuilder.css';
 import { mriCourseTitle } from '../MriCourseDescription';
 import { strokeCourseTitle } from '../StrokeCourseDescription';
 
 const selectionItems = selection => ({ morningCourse: Boolean(selection?.morningCourse), afternoonCourse: Boolean(selection?.afternoonCourse), dinnerQuantity: Number(selection?.dinnerQuantity) || 0 });
 const modeLabel = (mode, en) => mode === 'virtual' ? (en ? 'Virtual congress' : 'Congresso virtual') : mode === 'onsite' ? (en ? 'Onsite congress' : 'Congresso presencial') : (en ? 'Pre-congress courses' : 'Cursos pré-congresso');
-const hasCapacity = (capacity, key) => capacity.status === 'ready' && capacity.remaining[key] > 0;
+const hasCapacity = (capacity, key) => !REGISTRATION_CAPACITY_ENABLED || (capacity.status === 'ready' && capacity.remaining[key] > 0);
 const capacityPermits = (capacity, selection) => (selection.congressMode !== 'onsite' || hasCapacity(capacity, 'onsite'))
   && (!selection.morningCourse || hasCapacity(capacity, 'morningCourse'))
   && (!selection.afternoonCourse || hasCapacity(capacity, 'afternoonCourse'));
@@ -26,6 +26,7 @@ const capacityReviewPending = registration => Boolean(registration.capacityRevie
   || registration.payment?.capacityStatus === 'review_required' || registration.capacityStatus === 'review_required');
 
 function CapacityNotice({ capacity, en }) {
+  if (!REGISTRATION_CAPACITY_ENABLED) return null;
   return <section className="registration-capacity" aria-label={en ? 'Available places' : 'Lugares disponíveis'}>
     <h3>{en ? 'Available places' : 'Lugares disponíveis'}</h3>
     {capacity.status === 'ready' ? <dl>{[
@@ -69,7 +70,7 @@ function RegistrationSupplements({ registration, user, en }) {
   const [locked, setLocked] = useState(false);
   const uls = useUlsEligibility(user);
   const student = useStudentVerification(user, profile === 'student');
-  const capacity = useRegistrationCapacity(user);
+  const capacity = useRegistrationCapacity(user, REGISTRATION_CAPACITY_ENABLED);
   const selection = { morningCourse: chosen.morningCourse && !owned.morningCourse, afternoonCourse: chosen.afternoonCourse && !owned.afternoonCourse, dinnerQuantity: chosen.dinnerQuantity };
   const hasItems = selection.morningCourse || selection.afternoonCourse || selection.dinnerQuantity > 0;
   const eligible = user.emailVerified === true && hasItems && !registration.fiscalPendingOrderId && !capacityReview
@@ -143,7 +144,7 @@ function ProductionRegistrationBuilder({ registration }) {
   const period = getRegistrationPeriod();
   const existingAddOns = Boolean(registration && (registration.payment?.status === 'paid'
     || ['cancelled', 'refunded'].includes(registration.payment?.status) || registration.status === 'cancelled'));
-  const capacity = useRegistrationCapacity(user, !existingAddOns && registration?.isTest !== true && registration?.testMode !== true);
+  const capacity = useRegistrationCapacity(user, REGISTRATION_CAPACITY_ENABLED && !existingAddOns && registration?.isTest !== true && registration?.testMode !== true);
   const categoryReady = user.emailVerified === true && (profile === 'external' || (profile === 'uls' && uls.verified) || (profile === 'student' && student.approved));
   const selection = { profile, congressMode, ...items };
   const ready = categoryReady && (congressMode !== 'courses-only' || items.morningCourse || items.afternoonCourse)

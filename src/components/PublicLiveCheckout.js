@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { REGISTRATION_CAPACITY_ENABLED } from '../data/registration2027';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const stamp = value => /^[a-f0-9]{64}$/.test(value || '');
@@ -443,7 +444,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
         : method === 'bank_transfer'
           ? t('Após a organização conferir o crédito na conta, o pagamento e a inscrição são confirmados automaticamente. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Once the organisers verify the credited amount, payment and registration are confirmed automatically. The invoice-receipt will be available in My CIRC once issued.')
-          : t('A inscrição é confirmada após o pagamento e a verificação da lotação aplicável. A fatura-recibo ficará disponível no My CIRC após a emissão.', 'Registration is confirmed after payment and the applicable capacity check. The invoice-receipt will be available in My CIRC once issued.')}</p>
+          : `${REGISTRATION_CAPACITY_ENABLED
+            ? t('A inscrição é confirmada após o pagamento e a verificação da lotação aplicável.', 'Registration is confirmed after payment and the applicable capacity check.')
+            : t('A inscrição é confirmada após o pagamento.', 'Registration is confirmed after payment.')} ${t('A fatura-recibo ficará disponível no My CIRC após a emissão.', 'The invoice-receipt will be available in My CIRC once issued.')}`}</p>
       <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !paymentReady || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
       {customer && <div className="registration-invoice">
         <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(preview.quote.amountCents)}</strong></p>

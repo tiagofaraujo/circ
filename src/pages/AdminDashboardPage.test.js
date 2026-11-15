@@ -60,10 +60,10 @@ test('searching the participant list never changes congress-wide dashboard figur
  participantName:`Participante ${uid}`,selection:{profile:'external',congressMode:'onsite'},entitlements:{congressMode:'onsite'},payment:{status:'paid',amountCents:9500}})));
  render(<MemoryRouter future={{v7_startTransition:true,v7_relativeSplatPath:true}}><AdminDashboardPage/></MemoryRouter>);
  const onsite=screen.getByRole('article',{name:'Congresso presencial'});
- expect(within(onsite).getByText('398')).toBeInTheDocument();
+ expect(within(onsite).getByText('Pagas e confirmadas').closest('div')).toHaveTextContent('Pagas e confirmadas2');
  fireEvent.change(screen.getByPlaceholderText('Nome, email ou ID'),{target:{value:'Participante one'}});
  expect(screen.queryByRole('row',{name:/Participante two/})).not.toBeInTheDocument();
- expect(within(onsite).getByText('398')).toBeInTheDocument();
+ expect(within(onsite).getByText('Pagas e confirmadas').closest('div')).toHaveTextContent('Pagas e confirmadas2');
  expect(screen.getByRole('row',{name:/Participante one/})).toBeInTheDocument();
 });
 
