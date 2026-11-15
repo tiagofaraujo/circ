@@ -23,7 +23,8 @@ const canRetryOrder = order => order?.method === 'mbway' && ['expired', 'cancell
 const validDiscount = discount => Number.isSafeInteger(discount?.amountCents) && discount.amountCents > 0
   && Number.isSafeInteger(discount.value) && discount.value > 0
   && (discount.type === 'percentage' ? discount.value < 10000 : discount.type === 'fixed' && discount.value === discount.amountCents);
-const sameDiscount = (left, right) => left?.type === right?.type && left?.value === right?.value && left?.amountCents === right?.amountCents;
+const sameDiscount = (left, right) => left?.type === right?.type && left?.value === right?.value
+  && left?.amountCents === right?.amountCents && left?.scope === right?.scope;
 const validOrganizerBenefit = benefit => Number.isSafeInteger(benefit?.amountCents) && benefit.amountCents > 0;
 const voucherPayload = code => !code ? {} : /^CIRC27-D-/i.test(code) ? { discountCode: code } : { organizerCode: code };
 const canUseCompanyVoucher = selection => selection.profile === 'external' && selection.congressMode === 'onsite'
@@ -81,7 +82,7 @@ const messages = {
   'capacity-review-required': ['Um pagamento recebido aguarda conferência da organização sobre a vaga. Não efetue outro pagamento.', 'A received payment awaits organiser review of its place. Do not make another payment.'],
   'discount-voucher-invalid': ['O código de desconto é inválido ou já não está disponível. Confira o código ou remova-o para continuar.', 'The discount code is invalid or no longer available. Check the code or remove it to continue.'],
   'discount-voucher-uls-onsite': ['Este voucher é exclusivo para o congresso presencial na categoria ULS Coimbra. Selecione ambas as opções e conclua a validação ULS.', 'This voucher is for onsite congress attendance in the ULS Coimbra category. Select both options and complete ULS verification.'],
-  'discount-not-applicable': ['O desconto não se aplica à seleção atual. Se houver um valor a pagar, tem de ser de pelo menos 1 €.', 'This discount does not apply to the current selection. If there is an amount to pay, it must be at least €1.'],
+  'discount-not-applicable': ['O desconto tem de caber no subtotal. Se houver um valor a pagar, o mínimo é 1 €.', 'The discount must fit within the subtotal. If there is an amount to pay, the minimum is €1.'],
   'discount-voucher-changed': ['O desconto desta nova tentativa tem de corresponder ao do pedido anterior. Contacte a organização para confirmar o código.', 'This attempt must use the discount from the previous order. Contact the organisers to check the code.'],
   'organizer-voucher-invalid': ['O voucher de organizador é inválido ou já não está disponível. Confira o código ou remova-o para continuar.', 'The organiser voucher is invalid or no longer available. Check the code or remove it to continue.'],
   'organizer-voucher-uls-onsite': ['Este voucher exige a categoria ULS Coimbra validada e a inscrição no congresso presencial.', 'This voucher requires a verified ULS Coimbra category and onsite congress registration.'],

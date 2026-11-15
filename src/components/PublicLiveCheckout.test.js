@@ -5,6 +5,7 @@ import PublicLiveCheckout from './PublicLiveCheckout';
 const ID = '11111111-1111-4111-8111-111111111111';
 const user = { uid: 'user', emailVerified: true, getIdToken: async () => 'session' };
 const selection = { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+const ulsWithExtras = { ...selection, profile: 'uls', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 };
 const order = { id: ID, status: 'pending', amountCents: 9500, currency: 'EUR', method: 'multibanco', entity: '12345', reference: '123456789' };
 const preview = { quote: { amountCents: 9500, currency: 'EUR' }, stamp: 'a'.repeat(64), billingStamp: 'b'.repeat(64), billing: { customer_business_name: 'Pessoa', customer_tax_registration_number: '123456789', customer_address_detail: 'Morada', customer_postcode: '3000-001', customer_city: 'Coimbra', customer_country: 'PT' } };
 const discountCode = 'CIRC27-D-0123-4567-89ab-cdef-0123-4567-89ab-cdef';
@@ -128,10 +129,27 @@ test('removing a voucher invalidates the reviewed discount and requires a new ac
  expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/95,00\s?€/);
  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection});
 });
-test('a voucher covering the full ULS congress price confirms registration without requesting a payment or a phone', async () => {
+test('a fixed voucher greater than the ULS congress price reduces the full selection before payment', async () => {
+ const discount={type:'fixed',value:7000,amountCents:7000,scope:'registration'};
+ const quote={kind:'primary',currency:'EUR',amountCents:5500,discount,selection:ulsWithExtras};
+ const onVoucherQuote=jest.fn();
+ transport.mockResolvedValueOnce(response({quote})).mockResolvedValueOnce(response({...preview,quote}))
+  .mockResolvedValueOnce(response({order:{...order,amountCents:5500,discount,selection:ulsWithExtras}}));
+ show({selection:ulsWithExtras,onVoucherQuote}); await ready(); enterDiscount();
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
+ await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith(quote));
+ expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:ulsWithExtras,discountCode,priceOnly:true});
+ await reviewAndAcknowledge();
+ expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/55,00\s?€/);
+ fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ await screen.findByText('A aguardar pagamento');
+ expect(JSON.parse(transport.mock.calls[2][1].body)).toMatchObject({selection:ulsWithExtras,discountCode,stamp:preview.stamp});
+});
+test.each([
+ ['legacy ULS congress voucher', {...selection,profile:'uls'}, {type:'fixed',value:5500,amountCents:5500}],
+ ['fixed voucher for the full registration', ulsWithExtras, {type:'fixed',value:12500,amountCents:12500,scope:'registration'}],
+])('a %s confirms registration without requesting a payment or a phone', async (_name,chosen,discount) => {
  configuration={...configuration,methods:['mbway']};
- const discount={type:'fixed',value:5500,amountCents:5500};
- const chosen={...selection,profile:'uls'};
  const fullDiscount={...preview,quote:{kind:'primary',currency:'EUR',amountCents:0,discount}};
  const redeemed={id:ID,kind:'primary',status:'paid',amountCents:0,currency:'EUR',method:'organization_voucher',discount};
  transport.mockResolvedValueOnce(response({quote:fullDiscount.quote})).mockResolvedValueOnce(response(fullDiscount))
@@ -209,6 +227,7 @@ test('shows the sum with a discount code even before billing data is complete', 
 test.each([
  [response({error:'discount-voucher-invalid'},false,409), /código de desconto é inválido/],
  [response({error:'discount-voucher-uls-onsite'},false,409), /exclusivo para o congresso presencial na categoria ULS Coimbra/],
+ [response({error:'discount-not-applicable'},false,409), /desconto tem de caber no subtotal/],
  [response(preview), /Não foi possível preparar o pagamento/],
 ])('a refused or unconfirmed discount never proceeds with the full price', async (result,message) => {
  transport.mockResolvedValueOnce(result);

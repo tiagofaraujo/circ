@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { quotePrimary, quoteSupplementary } from '../payments/quote.mjs';
+import { fixedRegistrationDiscountLines, quotePrimary, quoteSupplementary, REGISTRATION_DISCOUNT_SCOPE } from '../payments/quote.mjs';
 
 const now = new Date('2026-11-15T12:00:00Z');
 const context = { uid: 'participant', emailVerified: true, profileName: 'Pessoa Exemplo' };
@@ -66,6 +66,51 @@ test('fixed €55 vouchers cover verified early ULS onsite admission while price
   assert.throws(() => quotePrimary(onsite, context, null, now, discount), /uls-not-verified/);
   assert.throws(() => quotePrimary(onsite, verified, null, now, { ...discount, value: 5501 }), /discount-not-applicable/);
   assert.throws(() => quotePrimary({ ...onsite, congressMode: 'virtual' }, verified, null, now, { ...discount, value: 6000 }), /discount-not-applicable/);
+});
+test('new fixed vouchers apply to the full verified ULS registration, apportioned at the cent across items', () => {
+  const base = { userId: context.uid, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA EXEMPLO', method: 'mec-name-match' };
+  const verified = { ...context, uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
+  const onsite = { profile: 'uls', congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 };
+  const discount = { type: 'fixed', value: 7000, scope: REGISTRATION_DISCOUNT_SCOPE };
+  const q = quotePrimary(onsite, verified, null, now, discount);
+  assert.deepEqual(q.discount, { ...discount, amountCents: 7000 });
+  assert.equal(q.amountCents, 5500);
+  assert.deepEqual(q.lines.map(line => line.amountCents), [2420, 880, 880, 1320]);
+  assert.deepEqual(fixedRegistrationDiscountLines(q), q.lines);
+  assert.deepEqual(quotePrimary(q.selection, verified, null, now, q.discount), q);
+  assert.equal(quotePrimary(q.selection, verified, null, new Date('2027-02-01T12:00:00Z'), q.discount).amountCents, 9000);
+
+  const legacy = quotePrimary(onsite, verified, null, now, { type: 'fixed', value: 5500, amountCents: 5500 });
+  assert.deepEqual(legacy.lines.map(line => line.amountCents), [0, 2000, 2000, 3000]);
+  assert.equal(legacy.discount.scope, undefined);
+  assert.equal(quotePrimary(onsite, verified, null, now, { ...discount, value: 5500 }).amountCents, 7000);
+});
+test('new fixed vouchers cover the exact total, reject excess face value and preserve the minimum positive balance', () => {
+  const onsite = { ...selection, dinnerQuantity: 1 };
+  const discount = value => ({ type: 'fixed', value, scope: REGISTRATION_DISCOUNT_SCOPE });
+  const q = quotePrimary(onsite, context, null, now, discount(16000));
+  assert.equal(q.amountCents, 0);
+  assert.deepEqual(q.lines.map(line => [line.quantity, line.amountCents]), [[1, 0], [1, 0], [1, 0]]);
+  assert.deepEqual(fixedRegistrationDiscountLines(q), q.lines);
+  assert.equal(quotePrimary(onsite, context, null, now, discount(15900)).amountCents, 100);
+  for (const value of [15901, 16001]) {
+    assert.throws(() => quotePrimary(onsite, context, null, now, discount(value)), /discount-not-applicable/);
+  }
+  assert.throws(() => quotePrimary(onsite, context, null, now, { ...discount(1000), type: 'percentage' }), /invalid-discount/);
+  assert.throws(() => fixedRegistrationDiscountLines({ ...q, amountCents: 1 }), /invalid-amount/);
+  assert.throws(() => fixedRegistrationDiscountLines({ ...q, discount: { ...q.discount, amountCents: 1 } }), /invalid-discount/);
+});
+test('proportional allocation splits a multi-quantity line over at most two adjacent unit prices', () => {
+  const discount = { type: 'fixed', value: 7008, scope: REGISTRATION_DISCOUNT_SCOPE };
+  const q = quotePrimary(selection, context, null, now, discount);
+  assert.equal(q.amountCents, 11992);
+  const dinner = q.lines.filter(line => line.code === 'dinner');
+  assert.deepEqual(dinner, [
+    { code: 'dinner', quantity: 1, unitAmountCents: 1893, amountCents: 1893 },
+    { code: 'dinner', quantity: 1, unitAmountCents: 1894, amountCents: 1894 },
+  ]);
+  assert.deepEqual(fixedRegistrationDiscountLines(q), q.lines);
 });
 test('no primary quote without a checked absence or verified login', () => {
   assert.throws(() => quote(selection, context, {}), /registration-exists/);

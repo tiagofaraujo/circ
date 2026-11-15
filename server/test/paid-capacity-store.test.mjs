@@ -5,7 +5,7 @@ import { createPaidCapacityStore } from '../payments/paid-capacity-store.mjs';
 import { createCheckoutLiveApi } from '../payments/checkout-live.mjs';
 import { createCheckoutLiveStore } from '../payments/checkout-live-store.mjs';
 import { createOrganizerVoucherLiveApi } from '../payments/organizer-voucher-live.mjs';
-import { quotePrimary, quoteSupplementary } from '../payments/quote.mjs';
+import { quotePrimary, quoteSupplementary, REGISTRATION_DISCOUNT_SCOPE } from '../payments/quote.mjs';
 import { buildLivePaymentFR } from '../payments/toconline-live-payload.mjs';
 
 const root = 'projects/circ-test/databases/(default)/documents';
@@ -375,7 +375,7 @@ test('a scoped €55 voucher confirms one verified onsite ULS registration atomi
   assert.equal(preview.status, 200);
   const { quote, stamp, billingStamp } = await preview.json();
   assert.equal(quote.amountCents, 0);
-  assert.deepEqual(quote.discount, { ...terms, amountCents: 5500 });
+  assert.deepEqual(quote.discount, { ...terms, amountCents: 5500, scope: REGISTRATION_DISCOUNT_SCOPE });
   assert.equal(f.data(voucher.name).status, 'available');
   assert.equal(f.data(registrationName(uid)), null);
   const request = { id, selection, discountCode, stamp, billingStamp, method: 'organization_voucher' };
@@ -416,17 +416,24 @@ test('a scoped €55 voucher confirms one verified onsite ULS registration atomi
   assert.equal((await extras.json()).quote.amountCents, 2000);
 });
 
-test('a scoped €55 voucher with extras cannot bypass payment and charges only the selected extras', async () => {
+test('a fixed €70 voucher on €125 of onsite ULS selections previews and charges €55', async () => {
   const f = fixture({ capacityEnabled: false }), checkout = discountCheckout(f), uid = 'organizer-with-extras';
   checkout.addParticipant(uid);
   checkout.verifyUls(uid, '345');
-  const voucher = discountVoucher(f, '7'.repeat(32), { type: 'fixed', value: 5500 }, 'uls-onsite');
-  const selection = { profile: 'uls', congressMode: 'onsite', morningCourse: true, dinnerQuantity: 1 };
+  const voucher = discountVoucher(f, '7'.repeat(32), { type: 'fixed', value: 7000 }, 'uls-onsite');
+  const selection = { profile: 'uls', congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 };
   const discountCode = voucher.code;
+  const display = await checkout.call(uid, '/quote', { selection, discountCode, priceOnly: true });
+  assert.equal(display.status, 200);
+  const { quote: displayed } = await display.json();
+  assert.equal(displayed.amountCents, 5500);
+  assert.equal(displayed.discount.amountCents, 7000);
+  assert.equal(f.data(voucher.name).status, 'available');
+  assert.equal(checkout.sentToProvider.length, 0);
   const preview = await checkout.call(uid, '/quote', { selection, discountCode });
   assert.equal(preview.status, 200);
   const { quote, stamp, billingStamp } = await preview.json();
-  assert.equal(quote.amountCents, 5000);
+  assert.deepEqual(quote, displayed);
   const id = orderIdFor(61);
   const request = { id, selection, discountCode, stamp, billingStamp };
   const bypass = await checkout.call(uid, '/orders', { ...request, method: 'organization_voucher' });
@@ -436,10 +443,40 @@ test('a scoped €55 voucher with extras cannot bypass payment and charges only 
   assert.equal(f.data(registrationName(uid)), null);
   const created = await checkout.call(uid, '/orders', { ...request, method: 'multibanco' });
   assert.equal(created.status, 201);
-  assert.equal((await created.json()).order.amountCents, 5000);
+  assert.equal((await created.json()).order.amountCents, 5500);
   assert.equal(checkout.sentToProvider.length, 1);
-  assert.equal(checkout.sentToProvider[0].amountCents, 5000);
+  assert.equal(checkout.sentToProvider[0].amountCents, 5500);
   assert.equal(f.data(registrationName(uid)).status, 'submitted');
+});
+
+test('a €125 voucher covers all selected ULS benefits, confirms them and recovers the same zero-balance order', async () => {
+  const f = fixture(), checkout = discountCheckout(f), uid = 'organizer-zero-with-extras', id = orderIdFor(62);
+  checkout.addParticipant(uid);
+  checkout.verifyUls(uid, '456');
+  const voucher = discountVoucher(f, '8'.repeat(32), { type: 'fixed', value: 12500 }, 'uls-onsite');
+  const entitlements = { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 };
+  const selection = { profile: 'uls', ...entitlements };
+  const input = { selection, discountCode: voucher.code };
+  const preview = await checkout.call(uid, '/quote', input);
+  assert.equal(preview.status, 200);
+  const { quote, stamp, billingStamp } = await preview.json();
+  assert.equal(quote.amountCents, 0);
+  assert.ok(quote.lines.every(line => line.amountCents === 0));
+  assert.equal(f.data(voucher.name).status, 'available');
+
+  const confirmed = await checkout.call(uid, '/orders', { ...input, id, stamp, billingStamp, method: 'organization_voucher' });
+  assert.equal(confirmed.status, 201);
+  const { order } = await confirmed.json();
+  assert.equal(order.status, 'paid');
+  assert.equal(order.amountCents, 0);
+  assert.deepEqual(f.data(registrationName(uid)).entitlements, entitlements);
+  assert.equal(f.data(registrationName(uid)).payment.coveredAmountCents, 12500);
+  assert.equal(f.data(voucher.name).status, 'claimed');
+  assert.equal(checkout.sentToProvider.length, 0);
+  assert.equal(f.data(`${root}/documents/${id}`), null);
+  const recovered = await checkout.call(uid, '/primary-order');
+  assert.equal(recovered.status, 200);
+  assert.deepEqual((await recovered.json()).order, order);
 });
 
 test('discount checkout previews without claiming and charges the reviewed amount only once', async () => {
@@ -505,7 +542,7 @@ test('two participants cannot reserve one discount voucher concurrently with cap
     const preview = await checkout.call(uid, '/quote', { selection: discountSelection, discountCode: voucher.code });
     assert.equal(preview.status, 200);
     const { stamp, billingStamp, quote } = await preview.json();
-    assert.deepEqual(quote.discount, { ...terms, amountCents: 2000 });
+    assert.deepEqual(quote.discount, { ...terms, amountCents: 2000, scope: REGISTRATION_DISCOUNT_SCOPE });
     return { id: orderIdFor(index + 12), selection: discountSelection, discountCode: voucher.code, stamp, billingStamp, method: 'multibanco' };
   }));
   const responses = await Promise.all(orders.map((order, index) => checkout.call(participants[index], '/orders', order)));

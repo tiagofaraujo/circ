@@ -20,6 +20,8 @@ test.each([
   expect(sheet.getCell('A2').formula).toBeUndefined();
   expect(sheet.getCell('C9').value).toBe(expected);
   expect(sheet.getCell('C9').numFmt).toBe(numFmt);
+  expect(sheet.getCell('A5').value).toContain(type === 'fixed'
+    ? 'total da inscrição, incluindo cursos e jantar' : 'preço do congresso');
 });
 
 test('records the restricted ULS organizer audience in the workbook instructions', async () => {
@@ -29,7 +31,7 @@ test('records the restricted ULS organizer audience in the workbook instructions
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const sheet = workbook.getWorksheet('Vouchers');
-  expect(sheet.getCell('A6').value).toContain('campo do código de desconto da organização');
+  expect(sheet.getCell('A6').value).toContain('Tem um voucher?');
   expect(sheet.getCell('A7').value).toBe('Válido para ULS Coimbra · Congresso presencial.');
   expect(sheet.getCell('C9').value).toBe(55);
 });

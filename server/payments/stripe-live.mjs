@@ -2,7 +2,7 @@
 // funding classification leave this adapter; raw card details never do.
 import { createHash } from 'node:crypto';
 import { CONGRESS_RATES } from '../../src/data/registration2027.js';
-import { allowsFullCongressDiscount, hasOrganizerBenefit } from './quote.mjs';
+import { allowsFullCongressDiscount, fixedRegistrationDiscountLines, hasOrganizerBenefit } from './quote.mjs';
 export const STRIPE_LIVE_API_VERSION = '2026-09-30.endive';
 export const STRIPE_LIVE_WEBHOOK_PATH = '/api/payments/stripe/live/notifications';
 export const STRIPE_LIVE_FLOW = 'circ-checkout-live';
@@ -34,6 +34,32 @@ function metadataFor(order){
     ||order.quote.amountCents!==order.amountCents||(order.provider!==undefined&&order.provider!=='stripe'))fail('stripe/mismatch');
   return{integration:STRIPE_LIVE_FLOW,environment:'production',event_id:'circ-2027',owner:order.userId,
     registration_id:order.registrationId,order_id:order.id,identifier:order.identifier,order_kind:order.kind};
+}
+function validatePaymentLines(quote) {
+  const { lines, discount, selection, ratePeriod } = quote;
+  if (discount?.scope !== undefined) {
+    let expected;
+    try { expected = fixedRegistrationDiscountLines(quote); }
+    catch { fail('stripe/invalid-quote'); }
+    if (!Array.isArray(lines) || lines.length !== expected.length || expected.some((line, index) => {
+      const actual = lines[index];
+      return !actual || actual.code !== line.code || actual.quantity !== line.quantity
+        || actual.unitAmountCents !== line.unitAmountCents || actual.amountCents !== line.amountCents;
+    })) fail('stripe/invalid-quote');
+    return;
+  }
+  const coveredAdmission = quote.kind === 'primary' && allowsFullCongressDiscount(selection, discount)
+    && Number.isSafeInteger(discount.value) && discount.value === CONGRESS_RATES.uls[ratePeriod] * 100
+    && discount.amountCents === discount.value;
+  const coveredCourses = hasOrganizerBenefit(quote);
+  const allowedZero = line => line.quantity === 1 && (coveredAdmission && line.code === 'congress-onsite'
+    || coveredCourses && ['course-morning', 'course-afternoon'].includes(line.code));
+  if (!Array.isArray(lines) || !lines.length || lines.length > 5 || new Set(lines.map(line => line?.code)).size !== lines.length
+    || lines.some(line => !line || !Object.hasOwn(NAMES, line.code) || !Number.isSafeInteger(line.quantity) || line.quantity < 1
+      || !Number.isSafeInteger(line.unitAmountCents) || line.unitAmountCents < 0 || !Number.isSafeInteger(line.amountCents)
+      || (line.unitAmountCents === 0 && !allowedZero(line))
+      || line.amountCents !== line.quantity * line.unitAmountCents)
+    || lines.reduce((sum, line) => sum + line.amountCents, 0) !== quote.amountCents) fail('stripe/invalid-quote');
 }
 export function safeLiveCheckoutUrl(value,sessionId){
   if(typeof value!=='string'||value.length>4096||!STRIPE_LIVE_SESSION_ID.test(sessionId||''))return null;
@@ -82,25 +108,15 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
   }
   return{
     async createPayment(order){
-      const metadata=metadataFor(order),{ lines, discount, selection, ratePeriod }=order.quote;
-      const coveredAdmission = order.kind === 'primary' && allowsFullCongressDiscount(selection, discount)
-        && Number.isSafeInteger(discount.value) && discount.value === CONGRESS_RATES.uls[ratePeriod] * 100
-        && discount.amountCents === discount.value;
-      const coveredCourses = hasOrganizerBenefit(order.quote);
-      const allowedZero = line => line.quantity === 1 && (coveredAdmission && line.code === 'congress-onsite'
-        || coveredCourses && ['course-morning', 'course-afternoon'].includes(line.code));
-      if(!Array.isArray(lines)||!lines.length||lines.length>5||new Set(lines.map(l=>l?.code)).size!==lines.length
-        ||lines.some(l=>!l||!Object.hasOwn(NAMES,l.code)||!Number.isSafeInteger(l.quantity)||l.quantity<1
-          ||!Number.isSafeInteger(l.unitAmountCents)||l.unitAmountCents<0||!Number.isSafeInteger(l.amountCents)
-          ||(l.unitAmountCents===0&&!allowedZero(l))
-          ||l.amountCents!==l.quantity*l.unitAmountCents)||lines.reduce((sum,l)=>sum+l.amountCents,0)!==order.amountCents)fail('stripe/invalid-quote');
+      const metadata=metadataFor(order);
+      validatePaymentLines(order.quote);
       const landing='https://circ-coimbra.org/conta/inscricoes';
       const body=new URLSearchParams({mode:'payment',client_reference_id:order.identifier,
         success_url:`${landing}?stripe=return&order=${order.id}`,cancel_url:`${landing}?stripe=cancel&order=${order.id}`,locale:'auto',
         'allowed_payment_method_types[0]':'card','automatic_tax[enabled]':'false','adaptive_pricing[enabled]':'false',
         'invoice_creation[enabled]':'false',customer_creation:'if_required'});
       Object.entries(metadata).forEach(([k,v])=>{body.set(`metadata[${k}]`,v);body.set(`payment_intent_data[metadata][${k}]`,v);});
-      lines.filter(line => line.amountCents > 0).forEach((line,index)=>{
+      order.quote.lines.filter(line => line.amountCents > 0).forEach((line,index)=>{
         body.set(`line_items[${index}][quantity]`,String(line.quantity));body.set(`line_items[${index}][price_data][currency]`,'eur');
         body.set(`line_items[${index}][price_data][unit_amount]`,String(line.unitAmountCents));
         body.set(`line_items[${index}][price_data][product_data][name]`,`CIRC 2027 — ${NAMES[line.code]}`);

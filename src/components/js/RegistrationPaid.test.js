@@ -46,11 +46,15 @@ test('a voucher participant can access invoices for their own additional purchas
  expect(screen.getByText('Issued invoice')).toBeInTheDocument();
  expect(screen.getByText(/O documento de faturação original pertence à compra da empresa/)).toBeInTheDocument();
 });
-test('a ULS registration covered by a discount shows its confirmation and offers separate purchases',()=>{
- const covered={...registration,voucherId:null,selection:{profile:'uls',congressMode:'onsite'},entitlements:{congressMode:'onsite'},
-   payment:{status:'paid',amountCents:0,method:'organization_voucher'}};
+test('a ULS registration covered by a discount shows its selected benefits and offers separate purchases',()=>{
+ const selectedExtras={congressMode:'onsite',morningCourse:true,afternoonCourse:true,dinnerQuantity:1};
+ const covered={...registration,voucherId:null,selection:{profile:'uls',...selectedExtras},entitlements:selectedExtras,
+   payment:{status:'paid',amountCents:0,coveredAmountCents:12500,method:'organization_voucher'}};
  const {rerender}=show(covered);
  expect(screen.getByText('Confirmada com desconto')).toBeInTheDocument();
+ expect(screen.getByText('Desconto aplicado')).toHaveTextContent(/125,00\s?€/);
+ expect(screen.getByText('Curso da manhã incluído')).toBeInTheDocument();
+ expect(screen.getByText('Curso da tarde incluído')).toBeInTheDocument();
  expect(screen.queryByText('Issued invoice')).not.toBeInTheDocument();
  expect(screen.queryByText('Tem um voucher de organizador?')).not.toBeInTheDocument();
  expect(screen.getByRole('heading',{name:'Adicionar cursos ou bilhetes de jantar'})).toBeInTheDocument();

@@ -150,7 +150,7 @@ export default function AdminOrganizationDiscountVouchers() {
 
   return <section className="company-voucher organization-discount-vouchers" aria-labelledby="organization-discount-vouchers-title">
     <h2 id="organization-discount-vouchers-title">Gerar vouchers</h2>
-    <p>Todos os códigos do lote têm o mesmo desconto em euros e são de utilização única.</p>
+    <p>O desconto fixo incide sobre o total da inscrição. Os códigos do lote têm o mesmo valor e são de utilização única.</p>
     {pending ? <div className="organization-discount-vouchers__batch">
       <h3>Emissão em curso</h3>
       <p>{pending.label} · {pending.count} {pending.count === 1 ? 'código' : 'códigos'} · {formatOrganizationDiscount(pending.discount)}</p>
