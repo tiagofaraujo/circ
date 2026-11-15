@@ -69,7 +69,7 @@ async function inspect(store,id,uid,tx,testFingerprint){
   if(profile.data?.email!==email||!profile.version||!profile.fields)blocked('profile-mismatch');
   if(testArchive&&(r.status!=='confirmed'||r.payment.status!=='paid'||r.payment.method!=='multibanco'||r.payment.amountCents!==9500
     ||typeof r.payment.reference!=='string'||liveDataStamp({registrationId:id,paymentReference:r.payment.reference})!==testFingerprint
-    ||r.addOnOrderCount!==0||r.documentCount!==1||r.lastClosedSupplementaryOrderId))blocked('registration-state');
+    ||r.addOnOrderCount!==0||r.documentCount!==1))blocked('registration-state');
   const payments=await store.related('payments',id,tx),documents=await store.related('documents',id,tx),legacy=await store.related('registrationOrders',id,tx);
   if(payments.length>25||documents.length>25||legacy.length||!payments.length)blocked('linked-order');
   const archiveCache=new Map();

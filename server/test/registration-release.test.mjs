@@ -86,8 +86,8 @@ function fixture({testArchive=false}={}){
 }
 const confirmation=stamp=>({stamp,confirmation:'LIBERTAR NOVA INSCRICAO'});
 
-test('archives only the exact €95 Multibanco test and preserves the issued invoice and payment',async()=>{
-  const f=fixture({testArchive:true});
+test('archives only the exact €95 Multibanco test and preserves the issued invoice and linked orders',async()=>{
+  const f=fixture({testArchive:true}), closed=addClosedSupplement(f,'expired');
   assert.equal((await f.call(undefined,{registrationId})).status,404);
   const preview=await f.preview();
   assert.equal(preview.amountCents,9500);
@@ -102,6 +102,8 @@ test('archives only the exact €95 Multibanco test and preserves the issued inv
   assert.equal(f.registration,null);
   assert.equal(f.payments[0].data.status,'paid');
   assert.equal(f.payments[0].data.reference,testPaymentReference);
+  assert.equal(closed.data.status,'expired');
+  assert.equal(closed.data.registrationArchiveId,result.archiveId);
   assert.equal(f.documents[0].data.providerDocumentNo,'FR CIRC2027/7');
   assert.equal(f.documents[0].data.registrationArchiveId,result.archiveId);
   assert.deepEqual(await (await f.call(payload)).json(),result);
@@ -224,7 +226,7 @@ const closedId='33333333-3333-4333-8333-333333333333';
 function addClosedSupplement(f,status='cancelled'){
   const identifier=`circ_live_${closedId.replaceAll('-','')}`,reference='82980768';
   const row=f.record('payments',closedId,{
-    id:closedId,eventId:'circ-2027',registrationId,userId:uid,environment:'production',
+    id:closedId,eventId:'circ-2027',registrationId:f.registration.id,userId:f.registration.data.userId,environment:'production',
     kind:'supplementary',quote:{kind:'supplementary',eventId:'circ-2027',amountCents:4000,currency:'EUR'},
     amountCents:4000,currency:'EUR',provider:'eupago',method:'mbway',identifier,reference,entity:null,
     status,providerState:status,retryAllowed:true,transactionId:null,paidAt:null,
