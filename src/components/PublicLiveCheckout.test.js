@@ -89,7 +89,8 @@ test('a voucher covering the full ULS congress price confirms registration witho
  const chosen={...selection,profile:'uls'};
  const fullDiscount={...preview,quote:{kind:'primary',currency:'EUR',amountCents:0,discount}};
  const redeemed={id:ID,kind:'primary',status:'paid',amountCents:0,currency:'EUR',method:'organization_voucher',discount};
- transport.mockResolvedValueOnce(response(fullDiscount)).mockResolvedValueOnce(response({order:redeemed}));
+ transport.mockResolvedValueOnce(response({quote:fullDiscount.quote})).mockResolvedValueOnce(response(fullDiscount))
+  .mockResolvedValueOnce(response({order:redeemed}));
  show({selection:chosen, discountTransfer:{code:discountCode}});
  const field=await screen.findByRole('textbox',{name:'Código de desconto da organização'});
  expect(field).toHaveValue(discountCode);
@@ -105,11 +106,58 @@ test('a voucher covering the full ULS congress price confirms registration witho
  fireEvent.click(screen.getByRole('checkbox',{name:'Conferi o desconto e pretendo confirmar a inscrição.'}));
  fireEvent.click(confirm);
  expect(await screen.findByText('Inscrição confirmada com desconto.')).toBeInTheDocument();
- expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,discountCode});
- expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({
+ expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,discountCode,priceOnly:true});
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection:chosen,discountCode});
+ expect(JSON.parse(transport.mock.calls[2][1].body)).toEqual({
    id:ID,selection:chosen,stamp:fullDiscount.stamp,billingStamp:fullDiscount.billingStamp,method:'organization_voucher',discountCode,
  });
  expect(screen.queryByRole('button',{name:'Atualizar estado do pagamento'})).not.toBeInTheDocument();
+});
+test('applies the organiser voucher in the summary, updates extras and creates one order', async () => {
+ const organizerCode='0123-4567-89ab-cdef-0123-4567-89ab-cdef';
+ const chosen={...selection,profile:'uls'};
+ const updated={...chosen,dinnerQuantity:2};
+ const organizerBenefit={amountCents:7000};
+ const includeCourses={morningCourse:true,afternoonCourse:true};
+ const firstQuote={kind:'primary',currency:'EUR',amountCents:5500,organizerBenefit,
+  selection:{...chosen,...includeCourses,dinnerQuantity:1}};
+ const finalQuote={...firstQuote,amountCents:8500,selection:{...updated,...includeCourses}};
+ const onVoucherQuote=jest.fn();
+ transport.mockResolvedValueOnce(response({quote:firstQuote})).mockResolvedValueOnce(response({quote:finalQuote}))
+  .mockResolvedValueOnce(response({...preview,quote:finalQuote}))
+  .mockResolvedValueOnce(response({order:{...order,amountCents:8500,organizerBenefit,selection:finalQuote.selection}}));
+ const page=show({selection:chosen,onVoucherQuote});
+ await ready(); enterDiscount(organizerCode);
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
+ await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith(firstQuote));
+ expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,organizerCode,priceOnly:true});
+
+ page.rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={updated} eligible onVoucherQuote={onVoucherQuote} /></MemoryRouter>);
+ await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith(finalQuote));
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection:updated,organizerCode,priceOnly:true});
+ await reviewAndAcknowledge();
+ expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/85,00\s?€/);
+ fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ await screen.findByText('A aguardar pagamento');
+ const writes=transport.mock.calls.filter(([url])=>url==='/api/checkout/live/orders');
+ expect(writes).toHaveLength(1);
+ expect(JSON.parse(writes[0][1].body)).toMatchObject({selection:updated,organizerCode,stamp:preview.stamp});
+});
+test('shows the sum with a discount code even before billing data is complete', async () => {
+ billingReadiness={ready:false,issues:['billing-address-required']};
+ const onVoucherQuote=jest.fn();
+ const chosen={...selection,profile:'uls',morningCourse:true,afternoonCourse:true,dinnerQuantity:1};
+ const discount={type:'fixed',value:5500,amountCents:5500};
+ const quote={kind:'primary',currency:'EUR',amountCents:7000,discount,selection:chosen};
+ transport.mockResolvedValueOnce(response({quote}));
+ show({selection:chosen,onVoucherQuote});
+ await screen.findByRole('link',{name:'Completar dados obrigatórios no Perfil'});
+ enterDiscount();
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Aplicar voucher'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
+ await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith(quote));
+ expect(screen.getByRole('button',{name:'Rever desconto e total'})).toBeDisabled();
+ expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,discountCode,priceOnly:true});
 });
 test.each([
  [response({error:'discount-voucher-invalid'},false,409), /código de desconto é inválido/],

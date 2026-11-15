@@ -23,11 +23,24 @@ const validDiscount = discount => Number.isSafeInteger(discount?.amountCents) &&
   && Number.isSafeInteger(discount.value) && discount.value > 0
   && (discount.type === 'percentage' ? discount.value < 10000 : discount.type === 'fixed' && discount.value === discount.amountCents);
 const sameDiscount = (left, right) => left?.type === right?.type && left?.value === right?.value && left?.amountCents === right?.amountCents;
+const validOrganizerBenefit = benefit => Number.isSafeInteger(benefit?.amountCents) && benefit.amountCents > 0;
+const voucherPayload = code => !code ? {} : /^CIRC27-D-/i.test(code) ? { discountCode: code } : { organizerCode: code };
+function matchesVoucherQuote(quote, { discount, organizer, supplementary }) {
+  if (!Number.isSafeInteger(quote?.amountCents) || quote.amountCents < 0 || quote.currency !== 'EUR'
+    || (supplementary && quote.kind !== 'supplementary')) return false;
+  if ((discount ? !validDiscount(quote.discount) : quote.discount != null)
+    || (organizer ? !validOrganizerBenefit(quote.organizerBenefit) : quote.organizerBenefit != null)) return false;
+  if (organizer && (quote.selection?.profile !== 'uls' || quote.selection?.congressMode !== 'onsite'
+    || quote.selection?.morningCourse !== true || quote.selection?.afternoonCourse !== true
+    || !Number.isSafeInteger(quote.selection?.dinnerQuantity) || quote.selection.dinnerQuantity < 1)) return false;
+  return quote.amountCents > 0 || (discount && !supplementary && quote.kind === 'primary');
+}
 const retryConflicts = new Set(['registration-exists', 'replacement-required', 'idempotency-conflict', 'replacement-check-unavailable', 'replacement-not-closed']);
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
   'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable', 'capacity-full', 'capacity-unavailable', 'capacity-review-required',
-  'discount-voucher-invalid', 'discount-not-applicable', 'discount-voucher-changed', 'discount-voucher-uls-onsite']);
+  'discount-voucher-invalid', 'discount-not-applicable', 'discount-voucher-changed', 'discount-voucher-uls-onsite',
+  'organizer-voucher-invalid', 'organizer-voucher-uls-onsite', 'organizer-voucher-conflict']);
 const billingIssueMessages = {
   'profile-incomplete': ['Nome completo: preencha entre 5 e 200 caracteres.', 'Full name: enter 5 to 200 characters.'],
   'billing-name-required': ['Nome de faturação: indique até 180 caracteres; pode usar o nome do participante.', 'Billing name: enter up to 180 characters; you can use the participant name.'],
@@ -67,9 +80,12 @@ const messages = {
   'discount-voucher-uls-onsite': ['Este voucher é exclusivo para o congresso presencial na categoria ULS Coimbra. Selecione ambas as opções e conclua a validação ULS.', 'This voucher is for onsite congress attendance in the ULS Coimbra category. Select both options and complete ULS verification.'],
   'discount-not-applicable': ['O desconto não se aplica à seleção atual. Se houver um valor a pagar, tem de ser de pelo menos 1 €.', 'This discount does not apply to the current selection. If there is an amount to pay, it must be at least €1.'],
   'discount-voucher-changed': ['O desconto desta nova tentativa tem de corresponder ao do pedido anterior. Contacte a organização para confirmar o código.', 'This attempt must use the discount from the previous order. Contact the organisers to check the code.'],
+  'organizer-voucher-invalid': ['O voucher de organizador é inválido ou já não está disponível. Confira o código ou remova-o para continuar.', 'The organiser voucher is invalid or no longer available. Check the code or remove it to continue.'],
+  'organizer-voucher-uls-onsite': ['Este voucher exige a categoria ULS Coimbra validada e a inscrição no congresso presencial.', 'This voucher requires a verified ULS Coimbra category and onsite congress registration.'],
+  'organizer-voucher-conflict': ['Use apenas um voucher neste pedido. Numa nova tentativa de pagamento, mantém-se o voucher do pedido anterior.', 'Use one voucher for this order. A retry keeps the original order’s voucher.'],
 };
 
-export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, discountTransfer = null, onLock = () => {}, onNewPurchase = () => {}, onCapacityRefresh = () => {} }) {
+export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, discountTransfer = null, onVoucherQuote, onLock = () => {}, onNewPurchase = () => {}, onCapacityRefresh = () => {} }) {
   const supplementary = kind === 'supplementary';
   const key = supplementary ? `circ-production-supplementary-order:${user.uid}` : `circ-production-order:${user.uid}`;
   const path = name => supplementary ? `/supplementary/${name}` : `/${name}`;
@@ -87,6 +103,8 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [method, setMethod] = useState('multibanco');
   const [phone, setPhone] = useState('');
   const [discountInput, setDiscountInput] = useState('');
+  const [appliedCode, setAppliedCode] = useState(null);
+  const [voucherPrice, setVoucherPrice] = useState(null);
   const discountHelpId = useId();
   const discountDetails = useRef(null);
   const discountField = useRef(null);
@@ -117,14 +135,21 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const selectionKey = JSON.stringify(selection);
   const phoneValue = normalizedPhone(phone);
   const showDiscount = !supplementary && !retrySource && ['onsite', 'virtual'].includes(selection.congressMode);
-  const discountCode = showDiscount ? discountInput.trim() : '';
-  const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}:${discountCode}:${retrySource}`;
+  const enteredCode = showDiscount ? discountInput.trim() : '';
+  const { discountCode, organizerCode } = voucherPayload(enteredCode);
+  const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}:${enteredCode}:${retrySource}`;
   const paymentReady = methods.includes(method) && (method !== 'mbway' || Boolean(phoneValue));
-  const canReview = paymentReady || (Boolean(discountCode || retry?.discount) && methods.length > 0);
+  const hasPaymentMethods = methods.length > 0;
+  const canReview = paymentReady || (Boolean(enteredCode || retry?.discount || retry?.organizerBenefit) && hasPaymentMethods);
   const creationBlocked = !supplementary && Boolean(registration) && !retrySource;
   const billingReady = billing.status === 'ready';
   const reviewedQuote = preview?.paymentKey === paymentKey ? preview : null;
-  const voucherOnly = reviewedQuote?.quote.amountCents === 0;
+  const canPriceVoucher = showDiscount && eligible && !configBusy && hasPaymentMethods && !id && !creationBlocked && !recoveryBlocked;
+  const activePrice = canPriceVoucher && appliedCode?.code === enteredCode && voucherPrice?.attempt === appliedCode
+    && voucherPrice.selectionKey === selectionKey ? voucherPrice : null;
+  const pricedQuote = order || reviewedQuote?.quote || activePrice?.quote;
+  const currentVoucherQuote = pricedQuote && (pricedQuote.discount || pricedQuote.organizerBenefit) ? pricedQuote : null;
+  const voucherOnly = currentVoucherQuote?.amountCents === 0;
   currentSelection.current = paymentKey;
 
   async function request(path, body, signal, existingToken) {
@@ -178,12 +203,13 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       || (voucherOrder ? supplementary || value.status !== 'paid' || value.amountCents !== 0 || !validDiscount(value.discount)
         : value.amountCents <= 0 || !knownMethods.includes(value.method))
       || (value.discount != null && (supplementary || !validDiscount(value.discount)))
+      || (value.organizerBenefit != null && (supplementary || value.discount != null || !validOrganizerBenefit(value.organizerBenefit)))
       || (value.replacementOrderId && (!UUID.test(value.replacementOrderId) || value.replacementOrderId === value.id))) throw new Error('invalid-order');
   }
   function acceptOrder(value, expectedId = null) {
     validateOrder(value, expectedId);
     if (value.historicalRegistration === true) throw new Error('historical-order');
-    setOrder(value); setId(value.id); setRetry(null); setDiscountInput(''); onLock(true);
+    setOrder(value); setId(value.id); setRetry(null); setDiscountInput(''); setAppliedCode(null); onLock(true);
     try { localStorage.setItem(key, value.id); } catch { /* An existing server order remains recoverable. */ }
     if (value.status === 'paid' && capacityPaidOrder.current !== value.id) {
       capacityPaidOrder.current = value.id; refreshCapacity();
@@ -288,11 +314,31 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   useEffect(() => {
     if (!discountTransfer || appliedDiscountTransfer.current === discountTransfer || !showDiscount || busy || !discountDetails.current) return;
     appliedDiscountTransfer.current = discountTransfer;
-    setDiscountInput(discountTransfer.code); setError('');
+    setDiscountInput(discountTransfer.code); setError(''); setAppliedCode({ code: discountTransfer.code.trim() });
     discountDetails.current.open = true;
     discountDetails.current.scrollIntoView?.({ block: 'nearest' });
     discountField.current?.focus();
   }, [discountTransfer, showDiscount, busy]);
+  useEffect(() => {
+    if (!canPriceVoucher || !appliedCode || appliedCode.code !== enteredCode
+      || (voucherPrice?.attempt === appliedCode && voucherPrice.selectionKey === selectionKey)) return undefined;
+    const controller = new AbortController();
+    const offered = voucherPayload(appliedCode.code);
+    request('/quote', { selection, ...offered, priceOnly: true }, controller.signal).then(({ quote }) => {
+      if (!matchesVoucherQuote(quote, { discount: Boolean(offered.discountCode), organizer: Boolean(offered.organizerCode) })) {
+        throw new Error('invalid-voucher-quote');
+      }
+      if (!controller.signal.aborted) setVoucherPrice({ attempt: appliedCode, selectionKey, quote });
+    }).catch(issue => {
+      if (!controller.signal.aborted) setVoucherPrice({ attempt: appliedCode, selectionKey, error: issue });
+    });
+    return () => controller.abort();
+    // Changes to the serialized selection are the only relevant selection changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPriceVoucher, enteredCode, appliedCode, selectionKey, user, voucherPrice]);
+  useEffect(() => {
+    onVoucherQuote?.(currentVoucherQuote);
+  }, [onVoucherQuote, currentVoucherQuote]);
 
   async function recoverSupplement(value) {
     setRecoveryBlocked(true); onLock(true); setPreview(null); setConfirmed(false);
@@ -308,17 +354,21 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !canReview || !billingGate.current) return;
     working.current = true; setBusy(true); setError(''); setPreview(null); setConfirmed(false);
     try {
-      const result = await request(path('quote'), { selection, ...(discountCode ? { discountCode } : {}),
+      const result = await request(path('quote'), { selection, ...voucherPayload(enteredCode),
         ...(!supplementary && retrySource ? { replacesOrderId: retrySource } : {}) });
-      if (!stamp(result.stamp) || !stamp(result.billingStamp) || !result.billing || !Number.isSafeInteger(result.quote?.amountCents)
-        || result.quote.amountCents < 0 || result.quote.currency !== 'EUR'
-        || (supplementary && result.quote.kind !== 'supplementary')) throw new Error('invalid-preview');
+      if (!stamp(result.stamp) || !stamp(result.billingStamp) || !result.billing
+        || !matchesVoucherQuote(result.quote, { discount: Boolean(discountCode || retry?.discount),
+          organizer: Boolean(organizerCode || retry?.organizerBenefit), supplementary })) throw new Error('invalid-preview');
       const discount = result.quote.discount;
-      const expectsDiscount = Boolean(discountCode || retry?.discount);
-      if (expectsDiscount ? !validDiscount(discount) : discount != null) throw new Error('invalid-discount-preview');
-      if (result.quote.amountCents === 0 && (!expectsDiscount || supplementary || result.quote.kind !== 'primary')) throw new Error('invalid-preview');
       if (retry?.discount && (retry.discount.type !== discount.type || retry.discount.value !== discount.value)) throw new Error('retry-discount-changed');
-      if (active.current && currentSelection.current === paymentKey) setPreview({ ...result, paymentKey });
+      if (active.current && currentSelection.current === paymentKey) {
+        setPreview({ ...result, paymentKey });
+        if (enteredCode && appliedCode?.code !== enteredCode) {
+          const attempt = { code: enteredCode };
+          setAppliedCode(attempt);
+          setVoucherPrice({ attempt, selectionKey, quote: result.quote });
+        }
+      }
     } catch (issue) {
       if (!active.current || currentSelection.current !== paymentKey) return;
       preparationError(issue);
@@ -345,9 +395,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       // this request is running. It must not abort the payment creation response.
       const result = await request(path('orders'), { id: orderId, selection, stamp: reviewedQuote.stamp, billingStamp: reviewedQuote.billingStamp, method: orderMethod,
         ...(orderMethod === 'mbway' ? { phone: phoneValue } : {}), ...(retrySource ? { replacesOrderId:retrySource } : {}),
-        ...(discountCode ? { discountCode } : {}) }, null, token);
+        ...voucherPayload(enteredCode) }, null, token);
       if (result.order?.method !== orderMethod || !sameDiscount(reviewedQuote.quote.discount, result.order.discount)
-        || (reviewedQuote.quote.discount && reviewedQuote.quote.amountCents !== result.order.amountCents)) throw new Error('invalid-order');
+        || reviewedQuote.quote.organizerBenefit?.amountCents !== result.order.organizerBenefit?.amountCents
+        || ((reviewedQuote.quote.discount || reviewedQuote.quote.organizerBenefit) && reviewedQuote.quote.amountCents !== result.order.amountCents)) throw new Error('invalid-order');
       if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
@@ -439,12 +490,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (working.current || busy || !canRetryOrder(order)) return;
     const source = order.id;
     try { localStorage.removeItem(key); } catch { setError(t('Não foi possível preparar outra tentativa neste navegador.', 'Could not prepare another attempt in this browser.')); return; }
-    setRetry({ id: source, discount: order.discount }); setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError(''); setPhone('');
+    setRetry({ id: source, discount: order.discount, organizerBenefit: order.organizerBenefit }); setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError(''); setPhone('');
     setMethod(methods.includes('mbway') ? 'mbway' : methods[0] || '');
     onLock(false);
   }
   function changeDiscountCode(value) {
-    setDiscountInput(value); setPreview(null); setConfirmed(false); setError('');
+    setDiscountInput(value); setAppliedCode(null); setVoucherPrice(null); setPreview(null); setConfirmed(false); setError('');
   }
   const customer = reviewedQuote?.billing;
   const voucherOrder = order?.method === VOUCHER_METHOD;
@@ -494,11 +545,21 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       {showDiscount && <details className="registration-discount" ref={discountDetails}>
         <summary>{t('Tem um código de desconto?', 'Have a discount code?')}</summary>
         <label className="registration-discount__code">{t('Código de desconto da organização', 'Organiser discount code')}
-          <input type="text" ref={discountField} value={discountInput} placeholder="CIRC27-D-…" maxLength={80} autoComplete="off" autoCapitalize="off" spellCheck={false}
+          <input type="text" ref={discountField} value={discountInput} maxLength={80} autoComplete="off" autoCapitalize="off" spellCheck={false}
             aria-describedby={discountHelpId} disabled={busy || recoveryBlocked} onChange={event => changeDiscountCode(event.target.value)} />
         </label>
-        <small id={discountHelpId}>{t('Introduza aqui o código que começa por CIRC27-D- e reveja o total. Para a tarifa interna, selecione ULS Coimbra no perfil da inscrição.', 'Enter the code beginning CIRC27-D- here and review the total. Select ULS Coimbra as your attendee category for the internal rate.')}</small>
-        {discountCode && <button type="button" className="registration-discount__clear" disabled={busy || recoveryBlocked} onClick={() => changeDiscountCode('')}>{t('Remover código', 'Remove code')}</button>}
+        <small id={discountHelpId}>{t('Use o seu código CIRC27-D- ou o voucher de organizador para cursos e jantar.', 'Use your CIRC27-D- code or your organiser voucher for courses and dinner.')}</small>
+        {enteredCode && <>
+          <button type="button" disabled={!canPriceVoucher || busy || Boolean(activePrice?.quote)}
+            onClick={() => { setAppliedCode({ code: enteredCode }); setError(''); }}>
+            {t('Aplicar voucher', 'Apply voucher')}
+          </button>
+          {' '}
+          <button type="button" className="registration-discount__clear" disabled={busy || recoveryBlocked} onClick={() => changeDiscountCode('')}>{t('Remover código', 'Remove code')}</button>
+        </>}
+        {canPriceVoucher && appliedCode && !activePrice && <p role="status">{t('A calcular o total com o voucher…', 'Calculating the total with the voucher…')}</p>}
+        {activePrice?.error && !error && !reviewedQuote && <p role="alert">{preparationMessage(activePrice.error, t('Não foi possível verificar o voucher. Volte a aplicar o código.', 'The voucher could not be verified. Apply the code again.'))}</p>}
+        {activePrice?.quote && <p role="status">{t('Voucher aplicado. Total a pagar', 'Voucher applied. Amount to pay')} <strong>{money(activePrice.quote.amountCents)}</strong></p>}
       </details>}
       {!voucherOnly && methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
         {methods.map(value => <label key={value}><input type="radio" name={`payment-method-${kind}`} value={value} checked={method === value} onChange={() => setMethod(value)} />{methodNames[value][en ? 1 : 0]}</label>)}
@@ -515,9 +576,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
           : `${REGISTRATION_CAPACITY_ENABLED
             ? t('A inscrição é confirmada após o pagamento e a verificação da lotação aplicável.', 'Registration is confirmed after payment and the applicable capacity check.')
             : t('A inscrição é confirmada após o pagamento.', 'Registration is confirmed after payment.')} ${t('A fatura-recibo ficará disponível no My CIRC após a emissão.', 'The invoice-receipt will be available in My CIRC once issued.')}`}</p>}
-      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !canReview || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : discountCode ? t('Rever desconto e total', 'Review discount and total') : t('Rever valor e faturação', 'Review amount and billing')}</button>
+      <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !canReview || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : enteredCode ? t('Rever desconto e total', 'Review discount and total') : t('Rever valor e faturação', 'Review amount and billing')}</button>
       {customer && <div className="registration-invoice">
         {reviewedQuote.quote.discount && <p>{discountLabel(reviewedQuote.quote.discount)} <strong>−{money(reviewedQuote.quote.discount.amountCents)}</strong></p>}
+        {reviewedQuote.quote.organizerBenefit && <p>{t('Voucher de organizador', 'Organiser voucher')} <strong>−{money(reviewedQuote.quote.organizerBenefit.amountCents)}</strong></p>}
         <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(reviewedQuote.quote.amountCents)}</strong></p>
         {voucherOnly ? <p>{t('O desconto cobre o total. Pode confirmar a inscrição sem pagamento.', 'The discount covers the total. You can confirm registration without payment.')}</p> : <>
           <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
@@ -544,6 +606,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       <p role="status"><strong>{voucherOrder ? t('Inscrição confirmada com desconto.', 'Registration confirmed with a discount.')
         : states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
       {order.discount && <p>{discountLabel(order.discount)} <strong>−{money(order.discount.amountCents)}</strong></p>}
+      {order.organizerBenefit && <p>{t('Voucher de organizador', 'Organiser voucher')} <strong>−{money(order.organizerBenefit.amountCents)}</strong></p>}
       <p>{t('Valor:', 'Amount:')} {money(order.amountCents)}</p>
       {order.status === 'paid' && order.capacityStatus === 'review_required' && <p role="status">{t('O pagamento foi recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não efetue outro pagamento.', 'Payment was received. The registration or place awaits organiser review because of capacity. Do not make another payment.')}</p>}
       {order.status === 'pending' && order.method === 'multibanco' && <dl><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference}</dd></dl>}

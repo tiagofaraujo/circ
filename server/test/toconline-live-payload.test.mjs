@@ -110,6 +110,22 @@ test('course-only primary order has23 percent VAT and no exemption header',()=>{
   assert.ok(result.lines.every(line=>line.tax_code==='NOR'&&line.tax_percentage===23));
 });
 
+test('organizer coverage bills only the congress and dinners beyond the included one', () => {
+  const base = { userId: ctx.uid, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA TESTE', method: 'mec-name-match' };
+  const verified = { ...ctx, uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
+  const date = new Date('2026-11-15T12:00:00Z');
+  const included = quotePrimary(selected({ profile: 'uls' }), verified, null, date, undefined, true);
+  assert.deepEqual(build(included).lines.map(line => [line.item_id, line.quantity, line.unit_price]), [[55, 1, 55]]);
+  const extras = quotePrimary(selected({ profile: 'uls', dinnerQuantity: 3 }), verified, null, date, undefined, true);
+  assert.deepEqual(build(extras).lines.map(line => [line.item_id, line.quantity, line.unit_price]), [[55, 1, 55], [59, 2, 30]]);
+  const invalid = structuredClone(extras);
+  invalid.organizerBenefit.amountCents++;
+  assert.throws(() => build(invalid), /live-fiscal\/source-mismatch/);
+  delete invalid.organizerBenefit;
+  assert.throws(() => build(invalid), /live-fiscal\/source-mismatch/);
+});
+
 test('supplementary dinner and course orders are independent FRs with unchanged catalogue quantities and rules',()=>{
   const dinner=build(supplementary({dinnerQuantity:3}));
   assert.equal(dinner.lines.length,1);assert.equal(dinner.lines[0].quantity,3);assert.equal(dinner.lines[0].unit_price,30);

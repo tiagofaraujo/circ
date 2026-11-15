@@ -9,6 +9,7 @@ import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { livePaymentMethods, liveBankTransferAccount, MBWAY_APPROVAL_WINDOW_MS } from './live-payment-methods.mjs';
 import { quotePrimary, quoteSupplementary } from './quote.mjs';
+import { availableOrganizerVoucher, claimedOrganizerVoucher, organizerVoucherHash } from './organizer-voucher-record.mjs';
 import { REGISTRATION_OPEN_DATE, REGISTRATION_OPEN_AT, REGISTRATION_CAPACITY_ENABLED, isRegistrationOpen } from '../../src/data/registration2027.js';
 import { isClosedUnpaidMbway, canReplaceUnpaidPrimary, holdUnconfirmedMbwayClosure } from './live-mbway-lifecycle.mjs';
 import { liveDataStamp as stamp, isLivePilotConfigured, isLiveCheckoutEnabled, isPrivatePilotWindow, livePilotDeadline, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
@@ -25,9 +26,10 @@ const providerMethods = ['multibanco', 'mbway', 'bank_transfer', 'stripe_card'];
 const paymentProvider = method => ({
   bank_transfer: 'internal_bank_transfer', stripe_card: 'stripe', organization_voucher: 'internal_organization_voucher',
 })[method] || 'eupago';
-const quoteStamp = (quote, discountVoucherHash) => discountVoucherHash
-  ? stamp({ quote, discountVoucherHash })
-  : stamp(quote);
+function quoteStamp(quote, discountVoucherHash, organizerHash) {
+  if (organizerHash) return stamp({ quote, organizerVoucherHash: organizerHash });
+  return discountVoucherHash ? stamp({ quote, discountVoucherHash }) : stamp(quote);
+}
 
 function hashDiscountCode(code) {
   if (code === undefined) return null;
@@ -61,9 +63,30 @@ async function loadDiscountVoucher(store, requestedHash, replacement, uid, selec
   return { ...voucher, hash };
 }
 
+async function loadOrganizerVoucher(store, requestedHash, replacement, uid, selection) {
+  const retainedHash = replacement?.payment.organizerVoucherHash;
+  if (retainedHash && requestedHash && retainedHash !== requestedHash) fail('organizer-voucher-conflict', 409);
+  const hash = retainedHash || requestedHash;
+  if (!hash) return null;
+  if (selection.profile !== 'uls' || selection.congressMode !== 'onsite') fail('organizer-voucher-uls-onsite', 409);
+  const located = await store.organizerVoucher(hash);
+  const valid = retainedHash ? claimedOrganizerVoucher(located?.data, uid, replacement.orderId)
+    : availableOrganizerVoucher(located?.data);
+  if (!located?.version || !valid) fail('organizer-voucher-invalid', 409);
+  return { ...located, hash };
+}
+
+async function checkQuoteCapacity(store, selection, enabled) {
+  if (!enabled || !Object.values(selectionFootprint(selection)).some(value => value > 0)) return;
+  const available = await store.capacity();
+  const decision = capacityDecision(available, { selection });
+  if (!decision.allocated) fail('capacity-full', 409, { unavailable: decision.unavailable });
+}
+
 export const publicLiveOrder=(id,p,{canRetry=false}={})=>({id,kind:orderKind(p),selection:p.quote?.selection||null,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
   reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,
   ...(p.quote?.discount?{discount:p.fiscalQuote?.discount||p.quote.discount}:{}),
+  ...(p.quote?.organizerBenefit?{organizerBenefit:p.fiscalQuote?.organizerBenefit||p.quote.organizerBenefit}:{}),
   ...(historical(p)?{historicalRegistration:true}:{}),
   ...(p.capacityStatus==='review_required'?{capacityStatus:'review_required',capacityUnavailable:p.capacityUnavailable||[]}:{}),
   ...(p.method==='stripe_card'?{stripe:{id:p.reference||null,url:safeLiveCheckoutUrl(p.stripe?.url,p.reference),expiresAt:p.stripe?.expiresAt||null,
@@ -227,9 +250,16 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       const data=await body(request);
       const fields = quoting ? ['selection', 'pilotAcknowledged']
         : ['id','selection','stamp','method','phone','replacesOrderId','pilotAcknowledged','billingStamp','pilotConfirmation'];
-      if (kind === 'primary') fields.push(...(quoting ? ['discountCode', 'replacesOrderId'] : ['discountCode']));
+      if (kind === 'primary') {
+        fields.push('discountCode', 'organizerCode');
+        if (quoting) fields.push('replacesOrderId', 'priceOnly');
+      }
       exact(data, fields);
       const requestedDiscountHash = hashDiscountCode(data.discountCode);
+      const requestedOrganizerHash = data.organizerCode === undefined ? null : organizerVoucherHash(data.organizerCode);
+      if (data.organizerCode !== undefined && !requestedOrganizerHash) fail('organizer-voucher-invalid', 409);
+      if (requestedDiscountHash && requestedOrganizerHash) fail('organizer-voucher-conflict', 409);
+      if (data.priceOnly !== undefined && data.priceOnly !== true) fail('invalid-request');
       if (data.replacesOrderId !== undefined && (typeof data.replacesOrderId !== 'string'
         || !LIVE_ORDER_UUID.test(data.replacesOrderId) || data.replacesOrderId === data.id)) fail('invalid-request');
       if(privatePilot&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
@@ -243,8 +273,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const previous=(await store.payment(data.id))?.data;
         if(previous){
           if(previous.environment==='production'&&previous.userId===claims.sub&&historical(previous))return reply({error:'historical-order',order:publicLiveOrder(data.id,previous)},409);
-          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||quoteStamp(previous.quote,previous.discountVoucherHash)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp
+          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||quoteStamp(previous.quote,previous.discountVoucherHash,previous.organizerVoucherHash)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp
             ||(requestedDiscountHash && requestedDiscountHash!==previous.discountVoucherHash)
+            ||(requestedOrganizerHash && requestedOrganizerHash!==previous.organizerVoucherHash)
             ||(previous.method==='mbway'&&previous.methodFingerprint!==stamp({method:data.method,phone:data.phone}))
             ||(previous.replacesOrderId||null)!==(data.replacesOrderId||null))fail('idempotency-conflict',409);
           return reply({order:publicLiveOrder(data.id,previous)});
@@ -280,22 +311,27 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       }
       const selectedProfile=kind==='supplementary'?r.selection?.profile:data.selection.profile;
       const context=await store.context(selectedProfile);
+      if ((requestedDiscountHash || replacement?.payment.discountVoucherHash)
+        && (requestedOrganizerHash || replacement?.payment.organizerVoucherHash)) fail('organizer-voucher-conflict', 409);
       const discountVoucher = kind === 'primary' ? await loadDiscountVoucher(store, requestedDiscountHash, replacement, claims.sub, data.selection) : null;
-      const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now()),discountVoucher?.data.discount):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
+      const organizerVoucher = kind === 'primary' ? await loadOrganizerVoucher(store, requestedOrganizerHash, replacement, claims.sub, data.selection) : null;
+      const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now()),discountVoucher?.data.discount,Boolean(organizerVoucher)):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
       const noPaymentDue = kind === 'primary' && Boolean(discountVoucher) && quote.amountCents === 0;
       if (creating && confirmsWithVoucher !== noPaymentDue) fail('quote-changed', 409);
-      if(privatePilot&&(kind!=='primary'||discountVoucher||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
+      if(privatePilot&&(kind!=='primary'||discountVoucher||organizerVoucher||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
+      if (data.priceOnly) {
+        if (!discountVoucher && !organizerVoucher) fail('invalid-request');
+        await checkQuoteCapacity(store, quote.selection, capacityEnabled);
+        return reply({ quote });
+      }
       const profile=await store.profile(), billing=billingCustomerFromProfile(profile.data);
       if(!billing.ok)fail('billing-customer-unconfirmed',409,{issues:billing.issues});
       context.guards.push(profile);
       const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
       if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
       if (!noPaymentDue) buildLiveMultibancoFR({orderId:creating?data.id:'11111111-1111-4111-8111-111111111111',quote,billing,paymentDate:now().slice(0,10)});
-      if(capacityEnabled&&Object.values(selectionFootprint(quote.selection)).some(value=>value>0)){
-        const available=await store.capacity(),decision=capacityDecision(available,{selection:quote.selection});
-        if(!decision.allocated)fail('capacity-full',409,{unavailable:decision.unavailable});
-      }
-      const currentQuoteStamp = quoteStamp(quote, discountVoucher?.hash);
+      await checkQuoteCapacity(store, quote.selection, capacityEnabled);
+      const currentQuoteStamp = quoteStamp(quote, discountVoucher?.hash, organizerVoucher?.hash);
       if(quoting)return reply({quote,stamp:currentQuoteStamp,billing:billing.customer,billingStamp:stamp(billing.customer)});
       if(data.stamp!==currentQuoteStamp)fail('quote-changed',409);
       if(stamp(billing.customer)!==data.billingStamp)fail('billing-preview-changed',409);
@@ -313,6 +349,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         ...(data.method==='mbway'?{methodFingerprint:stamp({method:data.method,phone:data.phone}),expiresAt:new Date(Date.parse(createdAt)+MBWAY_APPROVAL_WINDOW_MS).toISOString()}:{}),
         ...(replacement?{replacesOrderId:replacement.orderId}:{}),
         ...(discountVoucher?{discountVoucherHash:discountVoucher.hash}:{}),
+        ...(organizerVoucher?{organizerVoucherHash:organizerVoucher.hash}:{}),
         ...(account?{bankTransfer:{status:'awaiting_transfer',revision:0,...account,paymentReference:data.id,reports:[],createdAt}}:{})};
       if (noPaymentDue) {
         registration.status = 'confirmed';
@@ -331,7 +368,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         }
         replacement.payment={...replacement.payment,replacementCheck:{source:'eupago-reference-info',state:hint.providerState,checkedAt:now(),reference:replacement.payment.reference,identifier:replacement.payment.identifier}};
       }
-      const reserved=kind==='primary'?await store.createPendingPrimary({orderId:data.id,registration,payment,guards:context.guards,replacement,discountVoucher}):await store.createPendingSupplementary({orderId:data.id,registration,registrationVersion:existing.version,payment,guards:context.guards,replacement});
+      const reserved=kind==='primary'?await store.createPendingPrimary({orderId:data.id,registration,payment,guards:context.guards,replacement,discountVoucher,organizerVoucher}):await store.createPendingSupplementary({orderId:data.id,registration,registrationVersion:existing.version,payment,guards:context.guards,replacement});
       if(account||noPaymentDue)return reply({order:publicLiveOrder(data.id,payment)},201);
       let created;
       try{created=data.method==='stripe_card'?await stripeFactory({apiKey:env.STRIPE_LIVE_SECRET_KEY}).createPayment(payment)

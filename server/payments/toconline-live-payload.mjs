@@ -1,7 +1,7 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE } from '../../src/data/registration2027.js';
 import { LIVE_FISCAL_PAYMENT_MECHANISMS } from './live-payment-methods.mjs';
-import { congressDiscountCents, MIN_DISCOUNTED_PAYMENT_CENTS } from './quote.mjs';
+import { congressDiscountCents, hasOrganizerBenefit, MIN_DISCOUNTED_PAYMENT_CENTS } from './quote.mjs';
 import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
 const EVENT = 'circ-2027';
@@ -30,10 +30,12 @@ function validateSource(quote) {
   const add = (code, quantity, euro) => { if (quantity) expected.push({ code, quantity, unitAmountCents: Math.round(euro * 100) }); };
   if (selection.congressMode === 'onsite') add('congress-onsite', 1, CONGRESS_RATES[selection.profile][quote.ratePeriod]);
   if (selection.congressMode === 'virtual') add('congress-virtual', 1, VIRTUAL_CONGRESS_RATE);
-  const courseRate = selection.profile === 'uls' ? COURSE_RATES.uls : COURSE_RATES.external;
+  const organizerVoucher = quote.organizerBenefit !== undefined;
+  if (organizerVoucher && !hasOrganizerBenefit(quote)) fail('source-mismatch');
+  const courseRate = organizerVoucher ? 0 : COURSE_RATES[selection.profile === 'uls' ? 'uls' : 'external'];
   add('course-morning', Number(selection.morningCourse), courseRate);
   add('course-afternoon', Number(selection.afternoonCourse), courseRate);
-  add('dinner', selection.dinnerQuantity, DINNER_RATE);
+  add('dinner', selection.dinnerQuantity - Number(organizerVoucher), DINNER_RATE);
   if (quote.discount !== undefined) {
     const admission = expected[0];
     if (quote.kind !== 'primary' || !['congress-onsite', 'congress-virtual'].includes(admission?.code)

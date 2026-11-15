@@ -746,6 +746,132 @@ function organizerRedemption(f, { start = organizerDate } = {}) {
   }), { FIREBASE_PROJECT_ID: 'circ-test' });
 }
 
+const onsiteUls = { profile: 'uls', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+
+test('a price-only organizer quote includes the package immediately without profile or billing data', async () => {
+  const f = fixture();
+  organizerRedemption(f);
+  const checkout = discountCheckout(f), uid = 'organizer-price';
+  checkout.verifyUls(uid, '56100');
+  const request = { selection: onsiteUls, organizerCode, priceOnly: true };
+  const response = await checkout.call(uid, '/quote', request);
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.deepEqual(Object.keys(result), ['quote']);
+  assert.deepEqual(result.quote.organizerBenefit, { amountCents: 7000 });
+  assert.equal(result.quote.amountCents, 5500);
+  assert.deepEqual(result.quote.selection, { ...onsiteUls, courseAffiliation: 'uls', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 });
+  for (const [selection, expected] of [
+    [{ ...onsiteUls, profile: 'external' }, 'organizer-voucher-uls-onsite'],
+    [{ ...onsiteUls, congressMode: 'virtual' }, 'organizer-voucher-uls-onsite'],
+  ]) {
+    const rejected = await checkout.call(uid, '/quote', { ...request, selection });
+    assert.equal((await rejected.json()).error, expected);
+  }
+  const withOtherVoucher = await checkout.call(uid, '/quote', { ...request, discountCode: `CIRC27-D-${'a'.repeat(32)}` });
+  assert.equal((await withOtherVoucher.json()).error, 'organizer-voucher-conflict');
+  const noVoucher = await checkout.call(uid, '/quote', { selection: onsiteUls, priceOnly: true });
+  assert.equal(noVoucher.status, 400);
+  const unaffiliated = await checkout.call('unverified-uls', '/quote', request);
+  assert.equal((await unaffiliated.json()).error, 'uls-not-verified');
+  const fullQuote = await checkout.call(uid, '/quote', { selection: onsiteUls, organizerCode });
+  assert.equal((await fullQuote.json()).error, 'billing-customer-unconfirmed');
+
+  for (let i = 0; i < 170; i++) f.put(registrationName(`morning-org-${i}`), reg(`morning-org-${i}`, {
+    entitlements: { congressMode: '', morningCourse: true, afternoonCourse: false },
+  }));
+  const full = await checkout.call(uid, '/quote', request);
+  assert.deepEqual(await full.json(), { error: 'capacity-full', unavailable: ['morningCourse'] });
+  assert.equal(f.data(organizerVoucherName).status, 'available');
+  assert.equal(f.data(registrationName(uid)), null);
+  assert.equal(f.calls.some(call => call.url.endsWith(':commit')), false);
+  assert.equal(checkout.sentToProvider.length, 0);
+});
+
+test('one organizer order charges only congress and extra dinner, then grants the package once at payment settlement', async () => {
+  const f = fixture({ capacityEnabled: false });
+  const redeemExisting = organizerRedemption(f);
+  const checkout = discountCheckout(f), uid = 'organizer', id = orderIdFor(61), second = 'second-organizer';
+  for (const [participant, mec] of [[uid, '56101'], [second, '56102']]) {
+    checkout.addParticipant(participant);
+    checkout.verifyUls(participant, mec);
+  }
+  const selection = { ...onsiteUls, dinnerQuantity: 2 };
+  const formatted = ` ${organizerCode.toUpperCase().match(/.{4}/g).join('-')} `;
+  const quoteResponse = await checkout.call(uid, '/quote', { selection, organizerCode: formatted });
+  assert.equal(quoteResponse.status, 200);
+  const { quote, stamp, billingStamp } = await quoteResponse.json();
+  assert.equal(quote.amountCents, 8500);
+  assert.equal(quote.selection.dinnerQuantity, 2);
+  const orderInput = { id, selection, stamp, billingStamp, organizerCode: formatted, method: 'multibanco' };
+  const created = await checkout.call(uid, '/orders', orderInput);
+  assert.equal(created.status, 201);
+  const { order } = await created.json();
+  assert.equal(order.amountCents, 8500);
+  assert.deepEqual(order.organizerBenefit, { amountCents: 7000 });
+  assert.equal(order.organizerVoucherHash, undefined);
+  assert.equal((await checkout.call(uid, '/orders', orderInput)).status, 200);
+  assert.equal((await checkout.call(uid, '/primary-order')).status, 200);
+  assert.equal(checkout.sentToProvider.length, 1);
+  assert.equal(checkout.sentToProvider[0].amountCents, 8500);
+  assert.equal(f.data(organizerVoucherName).orderId, id);
+  assert.equal(f.data(organizerVoucherName).status, 'claimed');
+  assert.equal(f.data(registrationName(uid)).entitlements.morningCourse, false);
+  const occupied = await checkout.call(second, '/quote', { selection, organizerCode });
+  assert.equal((await occupied.json()).error, 'organizer-voucher-invalid');
+
+  const paidAt = '2026-11-15T12:02:00.000Z', registered = f.data(registrationName(uid));
+  const payment = { ...f.data(paymentDoc(id)), status: 'paid', paidAt, transactionId: 'test-confirmation', fiscalQuote: quote };
+  const entitlements = { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 };
+  const registration = { ...registered, status: 'confirmed', payment: { ...registered.payment, status: 'paid' }, entitlements };
+  const salesDocument = buildLivePaymentFR({ orderId: id, quote, billing, paymentDate: '2026-11-15', method: 'multibanco' });
+  assert.deepEqual(salesDocument.lines.map(item => [item.item_code, item.quantity, item.unit_price]), [
+    ['CIRC27-CONG-P', 1, 55], ['CIRC27-JANTAR', 1, 30],
+  ]);
+  const liveStore = createCheckoutLiveStore({ projectId: 'circ-test', uid, token: 'in-memory-service', fetchImpl: f.fetchImpl, capacityEnabled: false });
+  await liveStore.confirmPrimaryPaid({ orderId: id, payment, registration,
+    paymentVersion: f.documents.get(paymentDoc(id)).updateTime, registrationVersion: f.documents.get(registrationName(uid)).updateTime,
+    fiscalJob: { id, salesDocument, status: 'pending' } });
+  assert.deepEqual(f.data(registrationName(uid)).entitlements, entitlements);
+  assert.equal(f.data(registrationName(uid)).organizerVoucherRedeemed, true);
+  assert.equal(f.data(organizerVoucherName).status, 'redeemed');
+  assert.equal(f.data(organizerVoucherName).redeemedBy, uid);
+  assert.equal(f.data(organizerVoucherName).redeemedAt, paidAt);
+  assert.deepEqual(await (await redeemExisting()).json(), { registrationId: 'circ-2027-organizer', duplicate: true });
+  assert.deepEqual(f.data(registrationName(uid)).entitlements, entitlements);
+});
+
+test('a verified closed MB WAY organizer order can be replaced without giving the code again', async () => {
+  const f = fixture({ capacityEnabled: false });
+  organizerRedemption(f);
+  const checkout = discountCheckout(f), uid = 'organizer-mbway', first = orderIdFor(62), replacement = orderIdFor(63);
+  checkout.addParticipant(uid);
+  checkout.verifyUls(uid, '56103');
+  const selection = onsiteUls;
+  const preview = await (await checkout.call(uid, '/quote', { selection, organizerCode })).json();
+  assert.equal((await checkout.call(uid, '/orders', { id: first, selection, organizerCode, stamp: preview.stamp,
+    billingStamp: preview.billingStamp, method: 'mbway', phone: '911111111' })).status, 201);
+  const payment = f.data(paymentDoc(first)), registration = f.data(registrationName(uid));
+  f.put(paymentDoc(first), { ...payment, status: 'cancelled', retryAllowed: true, providerClosure: {
+    source: 'eupago-reference-info', state: 'cancelled', reference: payment.reference, identifier: payment.identifier, checkedAt: organizerDate,
+  } });
+  f.put(registrationName(uid), { ...registration, payment: { ...registration.payment, closedUnpaidStatus: 'cancelled' } });
+  const next = { selection, replacesOrderId: first };
+  const quoteResponse = await checkout.call(uid, '/quote', next);
+  assert.equal(quoteResponse.status, 200);
+  const quote = await quoteResponse.json();
+  assert.deepEqual(quote.quote.organizerBenefit, { amountCents: 7000 });
+  const conflictOrder = await checkout.call(uid, '/orders', { ...next, id: replacement, method: 'multibanco',
+    stamp: quote.stamp, billingStamp: quote.billingStamp, organizerCode: 'a'.repeat(32) });
+  assert.equal((await conflictOrder.json()).error, 'organizer-voucher-conflict');
+  assert.equal((await checkout.call(uid, '/orders', { ...next, id: replacement, method: 'multibanco',
+    stamp: quote.stamp, billingStamp: quote.billingStamp })).status, 201);
+  assert.equal(f.data(organizerVoucherName).orderId, replacement);
+  assert.equal(f.data(paymentDoc(first)).replacementOrderId, replacement);
+  assert.equal(f.data(paymentDoc(replacement)).organizerVoucherHash, organizerHash);
+  assert.equal(checkout.sentToProvider[1].amountCents, 5500);
+});
+
 test('an organizer voucher grants both courses and one additional dinner without changing primary payment or invoice', async () => {
   for (const method of ['mbway', 'multibanco', 'bank_transfer', 'stripe_card']) {
     const f = fixture();

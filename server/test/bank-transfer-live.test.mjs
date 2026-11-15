@@ -21,8 +21,13 @@ function request(action = 'review', data = approve(), { method = 'POST', origin 
     ...(method === 'POST' ? { body: JSON.stringify(data) } : {}),
   });
 }
-function fixture({ claims = {}, supplementary = false, currentTime = '2026-11-01T12:00:00Z', resolver, confirmHook, discount } = {}) {
-  const primaryQuote = quotePrimary(initialSelection, context, null, new Date('2026-11-01T12:00:00Z'), discount);
+function fixture({ claims = {}, supplementary = false, currentTime = '2026-11-01T12:00:00Z', resolver, confirmHook, discount,
+  organizerVoucher = false } = {}) {
+  const base = { userId: 'person', eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA EXEMPLO', method: 'mec-name-match' };
+  const contextForOrder = organizerVoucher ? { ...context, uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } } : context;
+  const selection = organizerVoucher ? { ...initialSelection, profile: 'uls', dinnerQuantity: 2 } : initialSelection;
+  const primaryQuote = quotePrimary(selection, contextForOrder, null, new Date('2026-11-01T12:00:00Z'), discount, organizerVoucher);
   let registration = { userId: 'person', eventId: 'circ-2027', primaryRegistration: true, isTest: false, testMode: false,
     status: supplementary ? 'confirmed' : 'submitted', selection: primaryQuote.selection,
     entitlements: { congressMode: supplementary ? 'onsite' : '', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 },
@@ -34,6 +39,7 @@ function fixture({ claims = {}, supplementary = false, currentTime = '2026-11-01
     { ...registration, id: 'circ-2027-person' }, new Date('2026-11-01T12:00:00Z')) : primaryQuote;
   let payment = { id, kind: quote.kind, userId: 'person', eventId: 'circ-2027', registrationId: 'circ-2027-person', environment: 'production',
     provider: 'internal_bank_transfer', method: 'bank_transfer', status: 'pending', amountCents: quote.amountCents, currency: 'EUR',
+    ...(organizerVoucher ? { organizerVoucherHash: 'a'.repeat(64) } : {}),
     identifier: `circ_live_${id.replaceAll('-', '')}`, reference: id, entity: null, quote, billingSnapshot: billing, createdAt: '2026-11-01T09:00:00Z',
     bankTransfer: { status: 'awaiting_transfer', revision: 0, payee: proposedBankAccount.beneficiary, iban: proposedBankAccount.iban,
       paymentReference: id, reports: [] } };
@@ -44,7 +50,7 @@ function fixture({ claims = {}, supplementary = false, currentTime = '2026-11-01
     registrationId: 'circ-2027-person',
     payment: async () => ({ data: payment, version: `p${revision}` }),
     registration: async () => ({ data: registration, version: `r${revision}` }),
-    context: async () => context,
+    context: async () => contextForOrder,
     document: async () => ({ data: job, version: job ? `j${revision}` : null }),
     bankCredit: async () => ({ data: credit }),
     adminBankTransfers: async () => [{ id, data: payment, version: `p${revision}` }],
@@ -134,6 +140,19 @@ test('supplement approval adds only the purchased entitlements and preserves the
   assert.equal(state.registration.entitlements.morningCourse, true); assert.equal(state.registration.entitlements.dinnerQuantity, 1);
   assert.deepEqual(state.registration.paidSupplementaryOrderIds, [id]); assert.equal(state.registration.documentCount, 2);
   assert.equal(state.job.orderKind, 'supplementary');
+});
+
+test('bank credit confirms organizer coverage in the primary registration and invoices the paid items', async () => {
+  const f = fixture({ organizerVoucher: true });
+  const response = await f.api(request('review', approve({ amountCents: 8500 })), env);
+  assert.equal(response.status, 200);
+  const { payment, registration, job, commits, issues } = f.state();
+  assert.deepEqual(payment.fiscalQuote.organizerBenefit, { amountCents: 7000 });
+  assert.deepEqual(registration.entitlements, { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 });
+  assert.equal(registration.payment.amountCents, 8500);
+  assert.deepEqual(job.salesDocument.lines.map(line => [line.item_id, line.quantity, line.unit_price]), [[55, 1, 55], [59, 1, 30]]);
+  assert.equal(commits, 1);
+  assert.equal(issues, 1);
 });
 
 test('invalid frozen billing blocks primary and supplemental bank approval before bank lookup, credit claim or fiscal writes', async () => {

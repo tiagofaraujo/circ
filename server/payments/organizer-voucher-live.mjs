@@ -1,10 +1,9 @@
-import { createHash } from 'node:crypto';
 import { isRegistrationOpen } from '../../src/data/registration2027.js';
 import { createCheckoutLiveStore, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
+import { availableOrganizerVoucher, organizerVoucherHash, validOrganizerVoucher } from './organizer-voucher-record.mjs';
 
 const EVENT = 'circ-2027';
-const BATCH = 'circ-2027-organizers-01';
 const PATH = '/api/checkout/live/organizer-voucher/redeem';
 const PROVIDERS = new Map([
   ['multibanco', 'eupago'], ['mbway', 'eupago'], ['bank_transfer', 'internal_bank_transfer'], ['stripe_card', 'stripe'],
@@ -34,9 +33,9 @@ async function readVoucherHash(request) {
   catch { reject('invalid-request', 400); }
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1
     || typeof body.code !== 'string' || body.code.length > 100) reject('invalid-request', 400);
-  const code = body.code.replace(/[\s-]/g, '').toLowerCase();
-  if (!/^[a-f0-9]{32}$/.test(code)) reject('organizer/invalid-code', 400);
-  return createHash('sha256').update(code).digest('hex');
+  const hash = organizerVoucherHash(body.code);
+  if (!hash) reject('organizer/invalid-code', 400);
+  return hash;
 }
 
 function paidInternalRegistration(registration, uid) {
@@ -59,11 +58,6 @@ function matchesDirectPayment(payment, registration, registrationId) {
     && payment.quote?.selection?.profile === 'uls' && payment.quote.selection.congressMode === 'onsite'
     && payment.method === ledger.method && payment.provider === PROVIDERS.get(ledger.method)
     && payment.currency === ledger.currency && payment.amountCents === ledger.amountCents && payment.reference === ledger.reference;
-}
-
-function validVoucher(voucher) {
-  return voucher?.eventId === EVENT && voucher.batchId === BATCH && Number.isInteger(voucher.index)
-    && voucher.index >= 1 && voucher.index <= 9;
 }
 
 export function createOrganizerVoucherLiveApi({ verify, tokenProvider = createPaymentsServiceTokenProvider(),
@@ -99,13 +93,12 @@ export function createOrganizerVoucherLiveApi({ verify, tokenProvider = createPa
       if (!matchesDirectPayment(locatedPayment?.data, current, registrationId)) reject('organizer/paid-registration-required');
       const voucher = locatedVoucher?.data;
       if (current.organizerVoucherRedeemed === true) {
-        if (validVoucher(voucher) && voucher.status === 'redeemed' && voucher.redeemedBy === claims.sub && voucher.registrationId === registrationId) {
+        if (validOrganizerVoucher(voucher) && voucher.status === 'redeemed' && voucher.redeemedBy === claims.sub && voucher.registrationId === registrationId) {
           return reply({ registrationId, duplicate: true });
         }
         reject('organizer/already-redeemed');
       }
-      if (!validVoucher(voucher) || voucher.status !== 'available' || voucher.redeemedBy != null
-        || voucher.registrationId != null || voucher.redeemedAt != null) reject('organizer/invalid-code', 400);
+      if (!availableOrganizerVoucher(voucher)) reject('organizer/invalid-code', 400);
       if (current.openSupplementaryOrderId || current.capacityReviewOrderId) reject('organizer/supplementary-pending');
       const owned = current.entitlements ?? current.selection;
       if (owned.morningCourse === true || owned.afternoonCourse === true) reject('organizer/course-already-owned');

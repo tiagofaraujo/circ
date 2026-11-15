@@ -2,7 +2,7 @@
 // funding classification leave this adapter; raw card details never do.
 import { createHash } from 'node:crypto';
 import { CONGRESS_RATES } from '../../src/data/registration2027.js';
-import { allowsFullCongressDiscount } from './quote.mjs';
+import { allowsFullCongressDiscount, hasOrganizerBenefit } from './quote.mjs';
 export const STRIPE_LIVE_API_VERSION = '2026-09-30.endive';
 export const STRIPE_LIVE_WEBHOOK_PATH = '/api/payments/stripe/live/notifications';
 export const STRIPE_LIVE_FLOW = 'circ-checkout-live';
@@ -86,10 +86,13 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
       const coveredAdmission = order.kind === 'primary' && allowsFullCongressDiscount(selection, discount)
         && Number.isSafeInteger(discount.value) && discount.value === CONGRESS_RATES.uls[ratePeriod] * 100
         && discount.amountCents === discount.value;
+      const coveredCourses = hasOrganizerBenefit(order.quote);
+      const allowedZero = line => line.quantity === 1 && (coveredAdmission && line.code === 'congress-onsite'
+        || coveredCourses && ['course-morning', 'course-afternoon'].includes(line.code));
       if(!Array.isArray(lines)||!lines.length||lines.length>5||new Set(lines.map(l=>l?.code)).size!==lines.length
         ||lines.some(l=>!l||!Object.hasOwn(NAMES,l.code)||!Number.isSafeInteger(l.quantity)||l.quantity<1
           ||!Number.isSafeInteger(l.unitAmountCents)||l.unitAmountCents<0||!Number.isSafeInteger(l.amountCents)
-          ||(l.unitAmountCents===0&&!(coveredAdmission&&l.code==='congress-onsite'&&l.quantity===1))
+          ||(l.unitAmountCents===0&&!allowedZero(l))
           ||l.amountCents!==l.quantity*l.unitAmountCents)||lines.reduce((sum,l)=>sum+l.amountCents,0)!==order.amountCents)fail('stripe/invalid-quote');
       const landing='https://circ-coimbra.org/conta/inscricoes';
       const body=new URLSearchParams({mode:'payment',client_reference_id:order.identifier,

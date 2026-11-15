@@ -25,14 +25,21 @@ function signed(body){
   return new Request('https://circ.local/api/payments/live/notifications',{method:'POST',
     headers:{'Content-Type':'application/json','X-Signature':sig},body:text});
 }
-function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectReference=async()=>({providerState:'paga'}),discount}={}){
-  const orderQuote=discount===undefined?quote:quotePrimary(selection,{uid:UID,emailVerified:true},null,new Date('2026-11-15T12:00:00Z'),discount);
+function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectReference=async()=>({providerState:'paga'}),discount,organizerVoucher=false}={}){
+  const context = {uid:UID,emailVerified:true,guards:[]};
+  const base = { userId: UID, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA TESTE', method: 'mec-name-match' };
+  if (organizerVoucher) Object.assign(context, { uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } });
+  const orderQuote=discount===undefined&&!organizerVoucher?quote:quotePrimary(
+    organizerVoucher ? { ...selection, profile: 'uls', dinnerQuantity: 2 } : selection,
+    context,null,new Date('2026-11-15T12:00:00Z'),discount,organizerVoucher);
   let payment=initialPayment||{eventId:'circ-2027',id:ID,environment:'production',registrationId:`circ-2027-${UID}`,userId:UID,status:'pending',
     amountCents:orderQuote.amountCents,currency:'EUR',method:'multibanco',identifier,reference:'123456789',entity:'12345',transactionId:null,paidAt:null,
-    provider:'eupago',quote:orderQuote,billingSnapshot:billing,createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
+    provider:'eupago',quote:orderQuote,billingSnapshot:billing,createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z',
+    ...(organizerVoucher ? { organizerVoucherHash: 'a'.repeat(64) } : {})};
   let registration={eventId:'circ-2027',userId:UID,registrationKey:`circ-2027:${UID}`,primaryRegistration:true,participantName:'Pessoa Teste',
     participantEmail:'pessoa@example.test',registrationType:'CIRC 2027 · Presencial',status:'submitted',isTest:false,testMode:false,
-    selection:{...selection,dinner:false,ratePeriod:'early'},entitlements:{congressMode:'',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
+    selection:{...orderQuote.selection,dinner:organizerVoucher,ratePeriod:'early'},entitlements:{congressMode:'',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
     addOnOrderCount:0,documentCount:0,payment:{status:'pending',amountCents:orderQuote.amountCents,currency:'EUR',method:'multibanco',reference:'123456789'},
     createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
   let document=null,providerFeeMicros=null,issueCalls=0,confirmCalls=0,finalizeCalls=0;
@@ -40,7 +47,7 @@ function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectRef
     registration:async()=>({data:structuredClone(registration),version:registration.status==='submitted'?'r1':'r2'}),
     payment:async()=>({data:structuredClone(payment),version:payment.fiscalStatus?'p3':payment.status==='paid'?'p2':'p1'}),
     document:async()=>({data:structuredClone(document),version:document?'d1':null}),
-    context:async()=>({uid:UID,emailVerified:true,guards:[]}),
+    context:async()=>context,
     updatePendingProvider:async({payment:p,registration:r})=>{payment=structuredClone(p);registration=structuredClone(r);return{paymentVersion:'p2',registrationVersion:'r2'};},
     updatePayment:async(id,p)=>{payment=structuredClone(p);},
     confirmPrimaryPaid:async({payment:p,registration:r,fiscalJob,providerFeeMicros:fee})=>{confirmCalls++;payment=structuredClone(p);registration=structuredClone(r);document=structuredClone(fiscalJob);providerFeeMicros=fee;return true;},
@@ -81,6 +88,18 @@ test('duplicate PAID callback never triggers a second fiscal issue',async()=>{
   assert.equal(response.status,200);
   assert.deepEqual(await response.json(),{received:true,duplicate:true,fiscalStatus:'issued'});
   assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+});
+
+test('signed payment confirms the courses and included dinner from the original organizer order', async () => {
+  const f = fixture({ organizerVoucher: true });
+  const response = await f.call(payload({ amount: '85.00000' }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).fiscalStatus, 'issued');
+  const { payment, registration, document } = f.state();
+  assert.deepEqual(payment.fiscalQuote.organizerBenefit, { amountCents: 7000 });
+  assert.equal(registration.payment.amountCents, 8500);
+  assert.deepEqual(registration.entitlements, { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 });
+  assert.deepEqual(document.salesDocument.lines.map(line => [line.item_id, line.quantity, line.unit_price]), [[55, 1, 55], [59, 1, 30]]);
 });
 
 test('TOConline ambiguous outcome is persisted and webhook still acknowledges paid transaction',async()=>{

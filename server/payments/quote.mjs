@@ -3,7 +3,26 @@ import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE,
 
 const EVENT = 'circ-2027';
 export const MIN_DISCOUNTED_PAYMENT_CENTS = 100;
+export const ORGANIZER_BENEFIT_CENTS = Math.round((2 * COURSE_RATES.uls + DINNER_RATE) * 100);
 function fail(code) { throw new Error(`checkout/${code}`); }
+
+export function hasOrganizerBenefit(quote) {
+  const selection = quote?.selection;
+  return quote?.kind === 'primary' && quote.discount === undefined
+    && quote.organizerBenefit?.amountCents === ORGANIZER_BENEFIT_CENTS
+    && selection?.profile === 'uls' && selection.congressMode === 'onsite'
+    && selection.morningCourse === true && selection.afternoonCourse === true
+    && Number.isSafeInteger(selection.dinnerQuantity) && selection.dinnerQuantity >= 1;
+}
+
+export function organizerVoucherOnOrder(payment) {
+  const hash = payment.organizerVoucherHash;
+  if (hash === undefined && payment.quote?.organizerBenefit === undefined) return false;
+  if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash) || !hasOrganizerBenefit(payment.quote)) {
+    fail('organizer-voucher-not-applicable');
+  }
+  return true;
+}
 
 export function allowsFullCongressDiscount(selection, discount) {
   return selection?.profile === 'uls' && selection.congressMode === 'onsite' && discount?.type === 'fixed';
@@ -51,7 +70,7 @@ function itemsFrom(selection) {
     afternoonCourse: selection.afternoonCourse === true, dinnerQuantity: quantity };
 }
 
-function makeQuote(profile, congressMode, items, now, kind, voucherDiscount) {
+function makeQuote(profile, congressMode, items, now, kind, voucherDiscount, organizerVoucher = false) {
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail('invalid-date');
   const ratePeriod = getRegistrationPeriod(now);
   const lines = [];
@@ -61,10 +80,10 @@ function makeQuote(profile, congressMode, items, now, kind, voucherDiscount) {
   };
   if (congressMode === 'onsite') add('congress-onsite', 1, CONGRESS_RATES[profile][ratePeriod]);
   if (congressMode === 'virtual') add('congress-virtual', 1, VIRTUAL_CONGRESS_RATE);
-  const courseRate = profile === 'uls' ? COURSE_RATES.uls : COURSE_RATES.external;
+  const courseRate = organizerVoucher ? 0 : COURSE_RATES[profile === 'uls' ? 'uls' : 'external'];
   add('course-morning', Number(items.morningCourse), courseRate);
   add('course-afternoon', Number(items.afternoonCourse), courseRate);
-  add('dinner', items.dinnerQuantity, DINNER_RATE);
+  add('dinner', items.dinnerQuantity - Number(organizerVoucher), DINNER_RATE);
   let discount;
   if (voucherDiscount !== undefined) {
     if (congressMode === 'courses-only') fail('discount-not-applicable');
@@ -80,18 +99,25 @@ function makeQuote(profile, congressMode, items, now, kind, voucherDiscount) {
   if (discount && amountCents > 0 && amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('discount-not-applicable');
   return { eventId: EVENT, kind, currency: 'EUR', amountCents, ratePeriod, lines,
     selection: { profile, courseAffiliation: profile === 'uls' ? 'uls' : 'external', congressMode, ...items },
+    ...(organizerVoucher ? { organizerBenefit: { amountCents: ORGANIZER_BENEFIT_CENTS } } : {}),
     ...(discount ? { discount } : {}) };
 }
 
-// voucherDiscount, when present, is resolved by the server from its stored voucher.
-export function quotePrimary(selection, context, existingRegistration, now = new Date(), voucherDiscount) {
+// Voucher benefits are resolved from server-held codes before calling this function.
+export function quotePrimary(selection, context, existingRegistration, now = new Date(), voucherDiscount, organizerVoucher = false) {
   // Require a deliberate server-confirmed absence, not an omitted DB lookup.
   if (existingRegistration !== null) fail('registration-exists-or-unchecked');
   const items = itemsFrom(selection);
   assertEligibility(selection.profile, context);
   if (!['onsite', 'virtual', 'courses-only'].includes(selection.congressMode)) fail('invalid-mode');
+  if (organizerVoucher) {
+    if (voucherDiscount !== undefined || selection.profile !== 'uls' || selection.congressMode !== 'onsite') fail('organizer-voucher-not-applicable');
+    items.morningCourse = true;
+    items.afternoonCourse = true;
+    items.dinnerQuantity = Math.max(1, items.dinnerQuantity);
+  }
   if (selection.congressMode === 'courses-only' && !items.morningCourse && !items.afternoonCourse) fail('course-required');
-  return makeQuote(selection.profile, selection.congressMode, items, now, 'primary', voucherDiscount);
+  return makeQuote(selection.profile, selection.congressMode, items, now, 'primary', voucherDiscount, organizerVoucher);
 }
 
 export function quoteSupplementary(selection, context, registration, now = new Date()) {
