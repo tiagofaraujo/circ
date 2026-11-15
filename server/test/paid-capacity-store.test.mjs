@@ -36,7 +36,7 @@ const pending = uid => reg(uid, { status: 'submitted', payment: { status: 'pendi
 // Firestore REST model with transaction snapshots, query projection/pagination,
 // atomic preconditions, and explicit lost-response injection. It holds no
 // financial/provider implementation and never leaves memory.
-function fixture({ withLock = true, commitHook = null } = {}) {
+function fixture({ capacityEnabled = true, withLock = true, commitHook = null } = {}) {
   const documents = new Map(), transactions = new Map(), calls = [];
   let clock = 0, transactionId = 0;
   function put(name, data) {
@@ -122,7 +122,8 @@ function fixture({ withLock = true, commitHook = null } = {}) {
       throw error;
     }
   };
-  return { documents, calls, put, data, fetchImpl, store: createPaidCapacityStore({ root, call, fields, decode }) };
+  return { documents, calls, put, data, fetchImpl, capacityEnabled,
+    store: createPaidCapacityStore({ root, call, fields, decode, capacityEnabled }) };
 }
 
 function admission(f, uid, { nextRegistration = reg(uid), selection, loseAcknowledgement = false } = {}) {
@@ -159,6 +160,28 @@ test('two concurrent payments competing for place 400 allocate one and hold the 
   }
   assert.equal(f.calls.filter(call => call.url.endsWith(':rollback')).length, 1);
   assert.equal(f.calls.filter(call => call.url.endsWith(':commit')).length, 3);
+});
+
+test('suspended capacity permits both concurrent allocations with no count or lock and retains order preconditions', async () => {
+  let commitsWaiting = 0, release;
+  const bothReady = new Promise(resolve => { release = resolve; });
+  const f = fixture({ capacityEnabled: false, commitHook: async () => {
+    if (++commitsWaiting <= 2) { if (commitsWaiting === 2) release(); await bothReady; }
+  } });
+  f.put(lockName, { revision: 'invalid' });
+  for (let i = 0; i < 400; i++) f.put(registrationName(`existing-${i}`), reg(`existing-${i}`));
+  const a = admission(f, 'new-a'), b = admission(f, 'new-b');
+  const results = await Promise.all([f.store.commit(a.input), f.store.commit(b.input)]);
+  assert.deepEqual(results.map(result => result.allocated), [true, true]);
+  for (const attempt of [a, b]) {
+    assert.equal(f.data(attempt.paymentName).status, 'paid');
+    assert.equal(f.data(attempt.jobName).status, 'pending');
+    assert.equal(f.data(attempt.name).status, 'confirmed');
+  }
+  await assert.rejects(f.store.commit(a.input), error => error.code === 'conflict');
+  assert.equal(f.data(lockName).revision, 'invalid');
+  assert.equal(f.calls.some(call => call.url.endsWith(':runQuery') || call.body.documents?.includes(lockName)
+    || call.body.writes?.some(write => write.update?.name === lockName)), false);
 });
 
 test('a full course holds the entire paid bundle without granting other requested entitlements', async () => {
@@ -324,7 +347,7 @@ function actualSettlement(f, uid, { method = 'multibanco', kind = 'primary', ind
     input.audit = { action: 'payment.bank-transfer.confirmed', orderId, registrationId: `circ-2027-${uid}`,
       actor: { uid: 'administrator', email: 'admin@example.test' }, details: { creditKey: key, amountCents: source.amountCents } };
   }
-  const store = createCheckoutLiveStore({ projectId: 'circ-test', uid, token: 'in-memory-service', fetchImpl: f.fetchImpl });
+  const store = createCheckoutLiveStore({ projectId: 'circ-test', uid, token: 'in-memory-service', fetchImpl: f.fetchImpl, capacityEnabled: f.capacityEnabled });
   return { store, input, previous, paymentName, jobName, name };
 }
 
@@ -365,6 +388,27 @@ test('actual primary mixed bundle holds every new right if only the morning cour
   assert.deepEqual((await f.store.summary()).paid, { onsite: 0, morningCourse: 170, afternoonCourse: 0 });
 });
 
+test('suspended capacity settles paid congress and courses and a bank supplement without a quota scan', async () => {
+  const f = fixture({ capacityEnabled: false, withLock: false });
+  for (let i = 0; i < 400; i++) f.put(registrationName(`existing-${i}`), reg(`existing-${i}`, {
+    entitlements: { congressMode: 'onsite', morningCourse: true, afternoonCourse: true },
+  }));
+  const primary = actualSettlement(f, 'mixed-bundle', { index: 1, selection: { profile: 'external', congressMode: 'onsite',
+    morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 } });
+  const transfer = actualSettlement(f, 'bank-addition', { index: 2, method: 'bank_transfer', kind: 'supplementary',
+    selection: { morningCourse: true, afternoonCourse: false, dinnerQuantity: 2 } });
+  const results = await Promise.all([primary.store.confirmPrimaryPaid(primary.input), transfer.store.confirmBankTransferPaid(transfer.input)]);
+  assert.deepEqual(results.map(result => result.allocated), [true, true]);
+  for (const settlement of [primary, transfer]) {
+    assert.deepEqual(f.data(settlement.name), settlement.input.registration);
+    assert.deepEqual(f.data(settlement.paymentName), settlement.input.payment);
+    assert.deepEqual(f.data(settlement.jobName), settlement.input.fiscalJob);
+  }
+  assert.deepEqual(f.data(`${root}/settings/circ-bank-credit-live-${transfer.input.creditClaim.key}`), transfer.input.creditClaim);
+  assert.equal(f.data(lockName), null);
+  assert.equal(f.calls.some(call => call.url.endsWith(':runQuery') || call.body.documents?.includes(lockName)), false);
+});
+
 test('actual bank supplementary settlement holds full-course additions but retains the original paid registration, credit claim and audit', async () => {
   const f = fixture();
   for (let i = 0; i < 170; i++) f.put(registrationName(`morning-${i}`), reg(`morning-${i}`, { entitlements: { morningCourse: true } }));
@@ -401,7 +445,7 @@ test('actual voucher redemption and PSP settlement serialize against the same fi
   const registration = reg(uid, { voucherId: code, companyPurchaseId: 'company-purchase',
     payment: { status: 'paid', method: 'company_voucher', amountCents: 0, coveredAmountCents: 9500 } });
   const voucher = { status: 'redeemed', eventId: 'circ-2027', redeemedBy: uid, registrationId: `circ-2027-${uid}` };
-  const voucherStore = createCheckoutLiveStore({ projectId: 'circ-test', uid, token: 'in-memory-service', fetchImpl: f.fetchImpl });
+  const voucherStore = createCheckoutLiveStore({ projectId: 'circ-test', uid, token: 'in-memory-service', fetchImpl: f.fetchImpl, capacityEnabled: f.capacityEnabled });
   const [psp, redeemed] = await Promise.allSettled([a.store.confirmPrimaryPaid(a.input),
     voucherStore.redeemCompanyVoucher({ code, registration, voucher, voucherVersion })]);
   assert.equal(psp.status, 'fulfilled');
@@ -445,7 +489,7 @@ function organizerRedemption(f, { start = organizerDate } = {}) {
   f.put(organizerVoucherName, { eventId: 'circ-2027', batchId: 'circ-2027-organizers-01', index: 1,
     status: 'available', createdBy: 'admin', createdAt: '2026-11-14T12:34:56.000Z' });
   const api = createOrganizerVoucherLiveApi({ verify: async token => ({ sub: token, email_verified: true }),
-    tokenProvider: async () => 'service', storeFactory: args => createCheckoutLiveStore({ ...args, fetchImpl: f.fetchImpl }), now: () => start });
+    tokenProvider: async () => 'service', storeFactory: args => createCheckoutLiveStore({ ...args, fetchImpl: f.fetchImpl, capacityEnabled: f.capacityEnabled }), now: () => start });
   return (uid = 'organizer', code = ` ${organizerCode.toUpperCase().match(/.{4}/g).join('-')} `) => api(new Request('https://circ.test/api/checkout/live/organizer-voucher/redeem', {
     method: 'POST', headers: { Origin: 'https://circ.test', Authorization: `Bearer ${uid}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -497,10 +541,10 @@ test('the organizer voucher remains available before opening, with an incompatib
   }
 });
 
-test('two paid organizers cannot redeem the same voucher concurrently', async () => {
+test('two paid organizers cannot redeem the same voucher concurrently during suspension', async () => {
   let waiting = 0, release;
   const ready = new Promise(resolve => { release = resolve; });
-  const f = fixture({ commitHook: async () => { if (++waiting <= 2) { if (waiting === 2) release(); await ready; } } });
+  const f = fixture({ capacityEnabled: false, commitHook: async () => { if (++waiting <= 2) { if (waiting === 2) release(); await ready; } } });
   const redeem = organizerRedemption(f);
   const a = organizerRegistration(f, { uid: 'organizer-a' });
   const b = organizerRegistration(f, { uid: 'organizer-b' });

@@ -1,5 +1,6 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { aggregateRegistrationAnalytics } from '../auth/registrationAnalytics';
+import { REGISTRATION_CAPACITY_ENABLED } from '../data/registration2027';
 import './RegistrationAnalytics.css';
 
 const formatNumber = value => new Intl.NumberFormat('pt-PT').format(value);
@@ -29,21 +30,22 @@ function Legend() {
 function OfferingCard({ offering, featured = false }) {
   const details = optionDetails[offering.key];
   const isDinner = offering.key === 'dinnerQuantity';
-  const paidShare = offering.limit ? Math.min(100, (offering.paid / offering.limit) * 100) : 0;
+  const limit = REGISTRATION_CAPACITY_ENABLED && offering.limit;
+  const paidShare = limit ? Math.min(100, (offering.paid / limit) * 100) : 0;
   return <article className={`registration-analytics__offering${featured ? ' is-featured' : ''}${isDinner ? ' is-dinner' : ''}`} aria-label={details.title}>
     <header>
       <span className="registration-analytics__index" aria-hidden="true">{details.icon}</span>
-      <span className="registration-analytics__tag">{offering.limit ? `${formatNumber(offering.limit)} vagas` : isDinner ? 'Bilhetes' : 'Sem limite'}</span>
+      <span className="registration-analytics__tag">{limit ? `${formatNumber(limit)} vagas` : isDinner ? 'Bilhetes' : 'Sem limite'}</span>
     </header>
     <div className="registration-analytics__offering-title"><h4>{details.title}</h4><p>{details.detail}</p></div>
     <dl className="registration-analytics__offering-counts">
       <div><dt>Pagas e confirmadas</dt><dd>{formatNumber(offering.paid)}</dd></div>
       <div className="is-pending"><dt>Pendentes</dt><dd>{formatNumber(offering.pending)}</dd></div>
     </dl>
-    {offering.limit ? <div className="registration-analytics__occupancy">
+    {limit ? <div className="registration-analytics__occupancy">
       <div className="registration-analytics__track" aria-hidden="true"><span style={{ width: `${paidShare}%` }} /></div>
       <p><span><strong>{formatNumber(offering.remaining)}</strong> vagas disponíveis</span><span>{formatPercent(paidShare)}% ocupadas</span></p>
-    </div> : <p className="registration-analytics__offering-note">{isDinner ? 'A contagem inclui todos os bilhetes pagos, incluindo compras adicionais.' : 'A participação virtual não está sujeita a lotação.'}</p>}
+    </div> : isDinner && <p className="registration-analytics__offering-note">A contagem inclui todos os bilhetes pagos, incluindo compras adicionais.</p>}
   </article>;
 }
 
@@ -55,14 +57,14 @@ function Overview({ analytics }) {
       <article><span>Pagas</span><strong>{formatNumber(overview.paid)}</strong><small>pagamento recebido</small></article>
       <article><span>Pendentes</span><strong>{formatNumber(overview.pending)}</strong><small>a aguardar pagamento ou validação</small></article>
     </div>
-    <div className="registration-analytics__section-heading"><div><h3>Participação e lotação</h3><p>Os lugares disponíveis consideram apenas as inscrições pagas e confirmadas.</p></div><Legend /></div>
+    <div className="registration-analytics__section-heading"><div><h3>{REGISTRATION_CAPACITY_ENABLED ? 'Participação e lotação' : 'Participação por modalidade'}</h3><p>{REGISTRATION_CAPACITY_ENABLED ? 'Os lugares disponíveis consideram apenas as inscrições pagas e confirmadas.' : 'A limitação de vagas está temporariamente suspensa.'}</p></div><Legend /></div>
     <div className="registration-analytics__offerings">
       {['onsite', 'virtual', 'dinnerQuantity', 'morningCourse', 'afternoonCourse'].map(key => {
         const offering = offerings.find(item => item.key === key);
         return offering ? <OfferingCard key={key} offering={offering} featured={key === 'onsite'} /> : null;
       })}
     </div>
-    <p className="registration-analytics__footnote">Uma pessoa pode estar inscrita no congresso e nos cursos. O jantar é contado em bilhetes, não em participantes. Os pedidos pendentes não reservam vagas.</p>
+    <p className="registration-analytics__footnote">Uma pessoa pode estar inscrita no congresso e nos cursos. O jantar é contado em bilhetes.{REGISTRATION_CAPACITY_ENABLED && ' Os pedidos pendentes não reservam vagas.'}</p>
     {analytics.pendingSupplementary > 0 && <p className="registration-analytics__supplements">Inclui {formatNumber(analytics.pendingSupplementary)} pedido(s) complementar(es) pendente(s) nas opções acima. Estes pedidos não criam uma segunda inscrição.</p>}
   </div>;
 }

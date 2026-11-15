@@ -6,7 +6,7 @@ const registration={eventId:'circ-2027',userId:'participant',isTest:false,testMo
 const payment={id,kind:'supplementary',environment:'production',userId:'participant',registrationId:'circ-2027-participant'};
 function fixture(stale=false){
  const calls=[];
- const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'fake-service',fetchImpl:async(url,options)=>{
+ const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'fake-service',capacityEnabled:true,fetchImpl:async(url,options)=>{
   const body=options.body?JSON.parse(options.body):null;calls.push({url,options,body});
   if(url.endsWith(':batchGet'))return Response.json(body.documents.map((name,index)=>({...(index===0?{transaction:'transaction-1'}:{}),
     ...(name===`${root}/registrations/circ-2027-participant`?{found:{name,updateTime:stale?'newer-version':'r1'}}:{missing:name})})));

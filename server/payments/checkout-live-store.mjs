@@ -36,6 +36,7 @@ export function createCheckoutLiveStore({
   uid,
   token,
   fetchImpl = fetch,
+  capacityEnabled,
 } = {}) {
   if (!/^[a-z0-9-]+$/.test(projectId || '') || !isUid(uid) || typeof token !== 'string' || !token) throw new LiveStoreError('storage_unavailable');
   const database = `projects/${projectId}/databases/(default)`;
@@ -74,7 +75,7 @@ export function createCheckoutLiveStore({
     const doc = await call(`https://firestore.googleapis.com/v1/${name}`);
     return doc ? { data: decode({ mapValue:{ fields:doc.fields || {} } }), version: doc.updateTime, name } : { data:null, version:null, name };
   }
-  const capacity = createPaidCapacityStore({ root, call, fields, decode });
+  const capacity = createPaidCapacityStore({ root, call, fields, decode, capacityEnabled });
   const settlement = (payment, registration, previous, decision) => {
     if (decision.allocated) return { payment, registration };
     const owned = previous.entitlements ?? (previous.status === 'confirmed' && previous.payment?.status === 'paid' ? previous.selection : null);

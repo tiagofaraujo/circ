@@ -11,12 +11,17 @@ jest.mock('../../context/LanguageContext', () => ({ useLanguage: () => ({ langua
 jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: () => ({ verified: false }) }));
 jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: jest.fn() }));
 jest.mock('../../auth/registrationCapacity', () => ({ useRegistrationCapacity: jest.fn() }));
+let mockCapacityEnabled;
+jest.mock('../../data/registration2027', () => ({
+ ...jest.requireActual('../../data/registration2027'),
+ get REGISTRATION_CAPACITY_ENABLED() { return mockCapacityEnabled; },
+}));
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
 jest.mock('./StudentVerification', () => () => <div>Student document form</div>);
 jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => null, CompanyRegistrationGate: ({ children }) => children(null) }));
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
 const capacity = { status: 'ready', limits: { onsite: 400, morningCourse: 170, afternoonCourse: 170 }, remaining: { onsite: 10, morningCourse: 10, afternoonCourse: 10 }, refresh: jest.fn() };
-beforeEach(() => { jest.clearAllMocks(); useRegistrationCapacity.mockReturnValue(capacity); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); });
+beforeEach(() => { jest.clearAllMocks(); mockCapacityEnabled = false; useRegistrationCapacity.mockReturnValue(capacity); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); });
 test('public registration defaults to onsite and exposes the real catalogue without administrative samples', () => {
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByText('Production checkout')).toBeInTheDocument();
@@ -44,6 +49,7 @@ test('email verification is required before preparing payment', () => {
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
 });
 test('full finite options do not replace the current selection and virtual plus dinner remains available', () => {
+ mockCapacityEnabled = true;
  useRegistrationCapacity.mockReturnValue({ ...capacity, remaining: { onsite: 0, morningCourse: 0, afternoonCourse: 0 } });
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByRole('radio', { name: /Congresso presencial/ })).toBeChecked();
@@ -57,6 +63,7 @@ test('full finite options do not replace the current selection and virtual plus 
  expect(screen.getByText(/Os pedidos pendentes não reservam lugares/)).toBeInTheDocument();
 });
 test.each(['loading', 'error'])('capacity %s blocks finite purchases but permits virtual attendance', status => {
+ mockCapacityEnabled = true;
  useRegistrationCapacity.mockReturnValue({ ...capacity, status, remaining: null });
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
@@ -66,10 +73,25 @@ test.each(['loading', 'error'])('capacity %s blocks finite purchases but permits
  expect(screen.getByRole('radio', { name: /Congresso virtual/ })).toBeEnabled();
 });
 test('remaining places are visible and the manual refresh is passed through to checkout', () => {
+ mockCapacityEnabled = true;
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByText('10 / 400 lugares disponíveis')).toBeInTheDocument();
  expect(screen.getAllByText('10 / 170 lugares disponíveis')).toHaveLength(2);
  fireEvent.click(screen.getByRole('button', { name: 'Atualizar lugares disponíveis' }));
  expect(capacity.refresh).toHaveBeenCalledTimes(1);
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].onCapacityRefresh).toBe(capacity.refresh);
+});
+
+test('suspended capacity allows onsite registration with both courses and dinner even when the lookup is unavailable', () => {
+ useRegistrationCapacity.mockReturnValue({ ...capacity, status: 'error', remaining: null });
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ expect(useRegistrationCapacity).toHaveBeenCalledWith(expect.objectContaining({ uid: 'user' }), false);
+ expect(screen.queryByRole('region', { name: 'Lugares disponíveis' })).not.toBeInTheDocument();
+ expect(screen.getByRole('radio', { name: /Congresso presencial/ })).toBeEnabled();
+ fireEvent.click(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }));
+ fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
+ fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '1' } });
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({ eligible: true, selection: {
+  congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1,
+ } });
 });

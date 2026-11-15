@@ -8,7 +8,7 @@ import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { livePaymentMethods, liveBankTransferAccount, MBWAY_APPROVAL_WINDOW_MS } from './live-payment-methods.mjs';
 import { quotePrimary, quoteSupplementary } from './quote.mjs';
-import { REGISTRATION_OPEN_DATE, REGISTRATION_OPEN_AT, isRegistrationOpen } from '../../src/data/registration2027.js';
+import { REGISTRATION_OPEN_DATE, REGISTRATION_OPEN_AT, REGISTRATION_CAPACITY_ENABLED, isRegistrationOpen } from '../../src/data/registration2027.js';
 import { isClosedUnpaidMbway, canReplaceUnpaidPrimary, holdUnconfirmedMbwayClosure } from './live-mbway-lifecycle.mjs';
 import { liveDataStamp as stamp, isLivePilotConfigured, isLiveCheckoutEnabled, isPrivatePilotWindow, livePilotDeadline, PILOT_CONFIRMATION } from './live-pilot-contract.mjs';
 
@@ -34,7 +34,7 @@ const realRegistration=(r,uid)=>r?.userId===uid&&r.eventId===EVENT&&r.primaryReg
 const retryAllowed=(p,r)=>!historical(p)&&realRegistration(r,p.userId)&&isClosedUnpaidMbway(p)&&(orderKind(p)==='primary'?canReplaceUnpaidPrimary(r,p)
   :r.status==='confirmed'&&r.payment?.status==='paid'&&!r.openSupplementaryOrderId&&!r.fiscalPendingOrderId);
 
-export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServiceTokenProvider(),storeFactory=createCheckoutLiveStore,providerFactory=createEupagoLive,stripeFactory=createStripeLive,now=()=>new Date().toISOString()}={}) {
+export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServiceTokenProvider(),storeFactory=createCheckoutLiveStore,providerFactory=createEupagoLive,stripeFactory=createStripeLive,now=()=>new Date().toISOString(),capacityEnabled=REGISTRATION_CAPACITY_ENABLED}={}) {
   return async function handle(request,env){
     const url=new URL(request.url);
     if(!url.pathname.startsWith(PREFIX))return null;
@@ -71,9 +71,10 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
     const stripeReconcile=request.method==='POST'&&url.pathname.match(/^\/api\/checkout\/live\/orders\/([^/]+)\/stripe-reconcile$/);
     const billingReading=request.method==='GET'&&url.pathname===`${PREFIX}/billing-readiness`;
     const capacityReading=request.method==='GET'&&url.pathname===`${PREFIX}/capacity`;
+    if(capacityReading&&!capacityEnabled)return reply({enabled:false});
     if(!configured&&!billingReading&&!capacityReading&&!readingOrder&&!recoveringPrimary&&!recoveringSupplement&&!reconcileMatch&&!stripeReconcile)return reply({error:'live-checkout-not-configured'},503);
     let storeToken;try{storeToken=(recoveringPrimary||recoveringSupplement)?token:await tokenProvider(env);}catch{return reply({error:'payments-service-unavailable'},503);}
-    let store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:storeToken});
+    let store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:claims.sub,token:storeToken,capacityEnabled});
     try{
       if(billingReading){
         const profile=await store.profile(),billing=billingCustomerFromProfile(profile.data);
@@ -232,7 +233,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
       if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
       buildLiveMultibancoFR({orderId:creating?data.id:'11111111-1111-4111-8111-111111111111',quote,billing,paymentDate:now().slice(0,10)});
-      if(Object.values(selectionFootprint(quote.selection)).some(value=>value>0)){
+      if(capacityEnabled&&Object.values(selectionFootprint(quote.selection)).some(value=>value>0)){
         const available=await store.capacity(),decision=capacityDecision(available,{selection:quote.selection});
         if(!decision.allocated)fail('capacity-full',409,{unavailable:decision.unavailable});
       }

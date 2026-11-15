@@ -23,7 +23,7 @@ const batch = (body,{creditExists=false,guardName,changed=false}={}) => body.doc
 }));
 
 test('bank confirmation atomically claims a unique credit alongside payment, registration, fiscal job and audit',async()=>{
-  const calls=[];const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'service',fetchImpl:async(url,options)=>{
+  const calls=[];const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'service',capacityEnabled:true,fetchImpl:async(url,options)=>{
     const body=JSON.parse(options.body);calls.push({url,body,headers:options.headers});
     if(url.endsWith(':batchGet'))return Response.json(batch(body));
     if(url.endsWith(':runQuery'))return Response.json([]);
@@ -77,7 +77,7 @@ test('bank-credit lookup and bounded admin listing use fixed production collecti
 test('bank confirmation serializes eligibility guards with the credit claim and rejects changed approval before commit',async()=>{
   const root='projects/circ-test/databases/(default)/documents',guardName=`${root}/studentVerifications/participant`;
   for(const changed of [false,true]){
-    const calls=[];const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'service',fetchImpl:async(url,options)=>{
+    const calls=[];const store=createCheckoutLiveStore({projectId:'circ-test',uid:'participant',token:'service',capacityEnabled:true,fetchImpl:async(url,options)=>{
       const body=JSON.parse(options.body);calls.push({url,body});
       if(url.endsWith(':batchGet'))return Response.json(batch(body,{guardName,changed}));
       if(url.endsWith(':runQuery'))return Response.json([]);

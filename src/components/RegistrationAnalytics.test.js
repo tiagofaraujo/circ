@@ -20,17 +20,17 @@ const payments = [
   { id: 'supplement', eventId: 'circ-2027', environment: 'production', registrationId: 'circ-2027-uls', userId: 'uls', kind: 'supplementary', status: 'pending', quote: { selection: { afternoonCourse: true, dinnerQuantity: 3 } } },
 ];
 
-test('overview separates paid rights, pending orders, capacity and quantities without exposing participant data', () => {
+test('overview separates paid rights, pending orders and quantities while capacity is suspended', () => {
   render(<RegistrationAnalytics registrations={registrations} payments={payments} />);
   const onsite = screen.getByRole('article', { name: 'Congresso presencial' });
-  expect(within(onsite).getByText('399')).toBeInTheDocument();
-  expect(within(onsite).getByText('400 vagas')).toBeInTheDocument();
+  expect(within(onsite).getByText('Sem limite')).toBeInTheDocument();
+  expect(within(onsite).queryByText(/vagas disponíveis/)).not.toBeInTheDocument();
   expect(within(onsite).getByText('Pagas e confirmadas')).toBeInTheDocument();
   const dinner = screen.getByRole('article', { name: 'Jantar do congresso' });
   expect(within(dinner).getByText('2')).toBeInTheDocument();
   expect(within(dinner).getByText('4')).toBeInTheDocument();
   expect(screen.getByText(/Inclui 1 pedido\(s\) complementar/)).toBeInTheDocument();
-  expect(screen.getByText(/Os pedidos pendentes não reservam vagas/)).toBeInTheDocument();
+  expect(screen.getByText('A limitação de vagas está temporariamente suspensa.')).toBeInTheDocument();
   expect(screen.queryByText('circ-2027-uls')).not.toBeInTheDocument();
   expect(screen.getByRole('tab', { name: 'Visão geral' })).toHaveAttribute('aria-selected', 'true');
 });
@@ -105,8 +105,8 @@ test('unpaid review notice makes no claim that money has been received', () => {
   expect(screen.queryByText(/Os pagamentos recebidos estão registados/)).not.toBeInTheDocument();
 });
 
-test('historical registrations outside the canonical production ledger are disclosed without occupying places', () => {
+test('historical registrations outside the canonical production ledger are disclosed without affecting confirmed participation', () => {
   render(<RegistrationAnalytics registrations={[{ id: 'historical', status: 'confirmed', payment: { status: 'paid' }, selection: { congressMode: 'onsite' } }]} />);
   expect(screen.getByText(/1 registo\(s\) histórico\(s\) ou incompleto\(s\) fora das estatísticas/)).toBeInTheDocument();
-  expect(within(screen.getByRole('article', { name: 'Congresso presencial' })).getByText('400')).toBeInTheDocument();
+  expect(within(screen.getByRole('article', { name: 'Congresso presencial' })).getByText('Pagas e confirmadas').closest('div')).toHaveTextContent('Pagas e confirmadas0');
 });

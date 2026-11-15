@@ -53,13 +53,15 @@ test('a paid MB WAY registration remains visibly paid while its receipt awaits t
  expect(screen.queryByText('Em conferência')).not.toBeInTheDocument();
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
 });
-test('owned courses consume no additional places while dinner remains available when all capacities are full',()=>{
+test('suspended capacity allows adding a course and dinner without making already owned courses purchasable',()=>{
  useRegistrationCapacity.mockReturnValue({...capacity,remaining:{onsite:0,morningCourse:0,afternoonCourse:0}});
  show();
  expect(screen.getByRole('checkbox',{name:/Pós-processamento em ressonância magnética/})).toBeChecked();
- expect(screen.getByRole('checkbox',{name:/Via Verde AVC/})).toBeDisabled();
+ expect(screen.getByRole('checkbox',{name:/Pós-processamento em ressonância magnética/})).toBeDisabled();
+ expect(screen.getByRole('checkbox',{name:/Via Verde AVC/})).toBeEnabled();
+ fireEvent.click(screen.getByRole('checkbox',{name:/Via Verde AVC/}));
  fireEvent.change(screen.getByRole('spinbutton'),{target:{value:'1'}});
- expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({eligible:true,selection:{morningCourse:false,afternoonCourse:false,dinnerQuantity:1}});
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({eligible:true,selection:{morningCourse:false,afternoonCourse:true,dinnerQuantity:1}});
 });
 test('capacity review preserves the received payment and prevents another purchase without claiming selected entitlements',()=>{
  show({...registration,entitlements:undefined,capacityReviewOrderId:'review-order',selection:{...registration.selection,morningCourse:true},payment:{status:'paid',amountCents:9500}});

@@ -24,16 +24,16 @@ beforeEach(() => {
  useRegistrationCapacity.mockReturnValue(capacity);
  useAuth.mockReturnValue({ user: { uid: 'participant', emailVerified: true }, isAdmin: false });
 });
-test('a selected course that fills up can be removed without changing the remaining catalogue', () => {
+test('a selected course remains payable while capacity is suspended, even if a previous read reported it as full', () => {
  const { rerender } = show();
  fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
  fireEvent.click(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }));
  useRegistrationCapacity.mockReturnValue({ ...capacity, remaining: { ...capacity.remaining, morningCourse: 0 } });
  rerender(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
- expect(morning).toBeChecked(); expect(morning).toBeEnabled(); expect(checkout().eligible).toBe(false);
+ expect(morning).toBeChecked(); expect(morning).toBeEnabled(); expect(checkout().eligible).toBe(true);
  fireEvent.click(morning);
- expect(morning).not.toBeChecked(); expect(morning).toBeDisabled();
+ expect(morning).not.toBeChecked(); expect(morning).toBeEnabled();
  expect(checkout()).toMatchObject({ eligible: true, selection: { congressMode: 'virtual', morningCourse: false } });
 });
 test('an unavailable capacity read does not unmount recovery of an existing pending payment', () => {
@@ -41,13 +41,13 @@ test('an unavailable capacity read does not unmount recovery of an existing pend
  useRegistrationCapacity.mockReturnValue({ ...capacity, status: 'error', remaining: null });
  show();
  expect(screen.getByText('Production checkout')).toBeInTheDocument();
- expect(checkout()).toMatchObject({ registration: mockRegistration, eligible: false });
+ expect(checkout()).toMatchObject({ registration: mockRegistration, eligible: true });
 });
-test('a paid registration disables the primary capacity hook while its supplements own the read', () => {
+test('a paid registration offers supplements with no capacity read during the suspension', () => {
  mockRegistration = { id: 'paid-registration', isTest: false, status: 'confirmed', selection: { profile: 'external', congressMode: 'onsite' }, payment: { status: 'paid', amountCents: 9500 } };
  show();
- expect(useRegistrationCapacity.mock.calls.some(([, enabled]) => enabled === false)).toBe(true);
- expect(useRegistrationCapacity.mock.calls.some(([, enabled]) => enabled !== false)).toBe(true);
+ expect(useRegistrationCapacity).toHaveBeenCalledTimes(2);
+ expect(useRegistrationCapacity.mock.calls.every(([, enabled]) => enabled === false)).toBe(true);
  expect(checkout().kind).toBe('supplementary');
 });
 test('students can buy one or both courses and courses-only requires at least one selection', () => {

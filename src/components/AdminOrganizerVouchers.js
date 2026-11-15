@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatVoucher, newVoucherCode } from '../auth/companyVouchers';
 import { getFirebaseAuth, isAdminUser } from '../auth/firebaseClient';
+import { REGISTRATION_CAPACITY_ENABLED } from '../data/registration2027';
 
 const API = '/api/admin/registration-management/organizer-vouchers/issue';
 const QUANTITY = 9;
@@ -94,7 +95,7 @@ export default function AdminOrganizerVouchers() {
 
   return <section className="company-voucher" aria-labelledby="organizer-vouchers-title">
     <h2 id="organizer-vouchers-title">Vouchers para organizadores</h2>
-    <p>9 códigos de utilização única. Cada organizador paga o congresso presencial à tarifa ULS Coimbra e pode usar o código depois do pagamento para obter os dois cursos e um jantar, sujeito à lotação dos cursos.</p>
+    <p>9 códigos de utilização única. Cada organizador paga o congresso presencial à tarifa ULS Coimbra e pode usar o código depois do pagamento para obter os dois cursos e um jantar{REGISTRATION_CAPACITY_ENABLED ? ', sujeito à lotação dos cursos' : ''}.</p>
     {!batch && issued === null && (error
       ? <button type="button" onClick={() => { setError(''); setStatusAttempt(attempt => attempt + 1); }}>Consultar estado do lote</button>
       : <p role="status">A consultar o estado do lote…</p>)}

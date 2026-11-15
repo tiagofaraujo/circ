@@ -3,6 +3,7 @@ export const REGISTRATION_OPEN_DATE = '2026-11-15';
 // server gate and public interface; a browser clock cannot authorize payment.
 export const REGISTRATION_OPEN_AT = '2026-11-15T00:00:00Z';
 export const EARLY_RATE_END = '2027-01-31T23:59:59Z';
+export const REGISTRATION_CAPACITY_ENABLED = false;
 
 export function isRegistrationOpen(referenceDate = new Date()) {
   const value = referenceDate instanceof Date ? referenceDate.getTime() : Date.parse(referenceDate);
