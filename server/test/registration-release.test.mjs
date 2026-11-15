@@ -2,39 +2,56 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRegistrationReleaseApi } from '../payments/registration-release.mjs';
 import { releaseFields, decodeReleaseValue, RegistrationReleaseStoreError } from '../payments/registration-release-store.mjs';
+import { liveDataStamp } from '../payments/live-pilot-contract.mjs';
 
 const orderId='11111111-1111-4111-8111-111111111111',archiveId='22222222-2222-4222-8222-222222222222';
 const uid='target-person',registrationId=`circ-2027-${uid}`,email='araujotiagofc@gmail.com';
 const time='2026-11-01T12:00:00.000Z',key='a'.repeat(64),requestHash='b'.repeat(64);
 const admin={sub:'administrator',email:'circ.chuc@gmail.com',email_verified:true};
-function fixture(){
+const testUid='test-registration-owner', testPaymentReference='123456789';
+function fixture({testArchive=false}={}){
+  const person=testArchive?{uid:testUid,registrationId:`circ-2027-${testUid}`,email:admin.email}:{uid,registrationId,email};
+  const {uid:ownerId,registrationId:activeId,email:participantEmail}=person;
   const root='projects/circ-demo/databases/(default)/documents';
   const record=(collection,id,data,version=time)=>({id,name:`${root}/${collection}/${id}`,data,fields:releaseFields(data),version});
-  let registration=record('registrations',registrationId,{eventId:'circ-2027',userId:uid,primaryRegistration:true,isTest:false,testMode:false,
-    participantEmail:email,participantName:'Pessoa Modelo',status:'confirmed',documentCount:1,addOnOrderCount:0,
+  let registration=record('registrations',activeId,{eventId:'circ-2027',userId:ownerId,primaryRegistration:true,isTest:false,testMode:false,
+    participantEmail,participantName:'Pessoa Modelo',status:'confirmed',documentCount:1,addOnOrderCount:0,
     payment:{orderId,status:'paid',method:'bank_transfer',reference:orderId,amountCents:5500,currency:'EUR'},
     createdAt:time,updatedAt:time,selection:{profile:'uls',congressMode:'onsite'},entitlements:{congressMode:'onsite'}});
   // The complete original raw Firestore representation must survive in archive.
   registration.fields.createdAt={timestampValue:time};
-  const profile=record('users',uid,{email,name:'Pessoa Modelo',privateProfileField:'retained'});
+  const profile=record('users',ownerId,{email:participantEmail,name:'Pessoa Modelo',privateProfileField:'retained'});
   const payments=[record('payments',orderId,{id:orderId,kind:'primary',quote:{kind:'primary',eventId:'circ-2027',amountCents:5500},
-    eventId:'circ-2027',userId:uid,registrationId,environment:'production',provider:'internal_bank_transfer',method:'bank_transfer',
+    eventId:'circ-2027',userId:ownerId,registrationId:activeId,environment:'production',provider:'internal_bank_transfer',method:'bank_transfer',
     identifier:`circ_live_${orderId.replaceAll('-','')}`,status:'paid',amountCents:5500,currency:'EUR',reference:orderId,
     transactionId:`bank_${key}`,paidAt:time,paymentDate:'2026-11-01',fiscalStatus:'issued',fiscalDocumentId:'750',fiscalDocumentNo:'FR CIRC2027/7',
     bankTransfer:{status:'confirmed',paymentReference:orderId,confirmation:{decisionId:archiveId,requestHash,creditKey:key,
       creditReference:'BANK-REF-42',bookingDate:'2026-11-01',amountCents:5500,currency:'EUR',confirmedAt:time}}})];
-  const documents=[record('documents',orderId,{id:orderId,eventId:'circ-2027',userId:uid,registrationId,environment:'production',provider:'toconline',
+  const documents=[record('documents',orderId,{id:orderId,eventId:'circ-2027',userId:ownerId,registrationId:activeId,environment:'production',provider:'toconline',
     type:'invoice_receipt',orderKind:'primary',status:'issued',amountCents:5500,paymentMethod:'bank_transfer',providerDocumentId:'750',
     providerDocumentNo:'FR CIRC2027/7',issuedAt:time,salesDocument:{type:'FR',payment_mechanism:'TR',document_no:'stored-original'}})];
   const credit=record('settings',`circ-bank-credit-live-${key}`,{key,kind:'bank-credit-live',eventId:'circ-2027',environment:'production',
     orderId,decisionId:archiveId,requestHash,creditReference:'BANK-REF-42',bookingDate:'2026-11-01',amountCents:5500,currency:'EUR'});
+  if(testArchive){
+    const mb={amountCents:9500,method:'multibanco',reference:testPaymentReference};
+    Object.assign(registration.data.payment,mb);
+    delete registration.data.payment.orderId;
+    Object.assign(payments[0].data,mb,{provider:'eupago',transactionId:'test-fixture-transaction'});
+    delete payments[0].data.bankTransfer;
+    payments[0].data.quote.amountCents=mb.amountCents;
+    Object.assign(documents[0].data,{amountCents:mb.amountCents,paymentMethod:mb.method});
+    delete documents[0].data.orderKind;
+    payments.push(record('payments',activeId,{...mb,eventId:'circ-2027',registrationId:activeId,userId:ownerId,
+      participantEmail,currency:'EUR',status:'pending',updatedAt:time,updatedBy:{uid:ownerId,email:participantEmail}}));
+    for(const row of [registration,...payments,...documents])row.fields=releaseFields(row.data);
+  }
   const archives=[],legacy=[],calls=[],storeTokens=[];let commits=0,lostAck=false,conflict=false;
   const store={
     begin:async ({readOnly=true}={})=>{assert.equal(readOnly,true);calls.push(['begin',{readOnly}]);return'fake-transaction';},
     rollback:async tx=>{assert.equal(tx,'fake-transaction');calls.push(['rollback']);},
-    readRegistration:async(id,tx)=>{assert.equal(id,registrationId);assert.equal(tx,'fake-transaction');calls.push(['readRegistration']);return registration||{data:null};},
-    readProfile:async(id,tx)=>{assert.equal(id,uid);assert.equal(tx,'fake-transaction');return profile;},
-    related:async(collection,id,tx)=>{assert.equal(id,registrationId);assert.equal(tx,'fake-transaction');return{payments,documents,registrationOrders:legacy}[collection];},
+    readRegistration:async(id,tx)=>{assert.equal(id,activeId);assert.equal(tx,'fake-transaction');calls.push(['readRegistration']);return registration||{data:null};},
+    readProfile:async(id,tx)=>{assert.equal(id,ownerId);assert.equal(tx,'fake-transaction');return profile;},
+    related:async(collection,id,tx)=>{assert.equal(id,activeId);assert.equal(tx,'fake-transaction');return{payments,documents,registrationOrders:legacy}[collection];},
     readCredit:async(k,tx)=>{assert.equal(k,key);assert.equal(tx,'fake-transaction');return credit;},
     findArchive:async(id,stamp,tx)=>{assert.equal(tx,'fake-transaction');calls.push(['findArchive']);return archives.filter(row=>row.data.registrationId===id&&row.data.stamp===stamp);},
     readArchive:async(id,tx)=>{assert.equal(tx,'fake-transaction');return archives.find(row=>row.data.archiveId===id)||{data:null};},
@@ -52,15 +69,16 @@ function fixture(){
       if(lostAck)throw new Error('lost commit acknowledgement');
     },
   };
-  let claims=admin;
+  let claims=testArchive?{...admin,sub:testUid}:admin;
   const api=createRegistrationReleaseApi({
     verify:async token=>{assert.equal(token,'fake-admin');if(!claims)throw new Error('invalid-session');return claims;},
-    storeFactory:({projectId,token})=>{
-      assert.equal(projectId,'circ-demo');assert.equal(token,'fake-admin');storeTokens.push(token);return store;
+    storeFactory:({projectId,token,withoutReadTransaction})=>{
+      assert.equal(projectId,'circ-demo');assert.equal(token,'fake-admin');assert.equal(withoutReadTransaction,testArchive);storeTokens.push(token);return store;
     },
     now:()=>time,makeArchiveId:()=>archiveId,
+    testArchiveFingerprint:liveDataStamp({registrationId:`circ-2027-${testUid}`,paymentReference:testPaymentReference}),
   });
-  const request=(body,options={})=>new Request(`https://circ.test/api/admin/registrations/${registrationId}/release`,{
+  const request=(body,options={})=>new Request(`https://circ.test/api/admin/registrations/${options.registrationId||activeId}/${testArchive?'archive-test':'release'}`,{
     method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer fake-admin',Origin:'https://circ.test',...(body===undefined?{}:{'Content-Type':'application/json'}),...options.headers},
     ...(body===undefined?{}:{body:JSON.stringify(body)})});
   const call=(body,options)=>api(request(body,options),{FIREBASE_PROJECT_ID:'circ-demo'});
@@ -71,6 +89,43 @@ function fixture(){
     setClaims:value=>{claims=value;},setLostAck:()=>{lostAck=true;},setConflict:()=>{conflict=true;}};
 }
 const confirmation=stamp=>({stamp,confirmation:'LIBERTAR NOVA INSCRICAO'});
+
+test('archives only the exact €95 Multibanco test and preserves the issued invoice and linked orders',async()=>{
+  const f=fixture({testArchive:true}), closed=addClosedSupplement(f,'expired');
+  assert.equal((await f.call(undefined,{registrationId})).status,404);
+  const preview=await f.preview();
+  assert.equal(preview.amountCents,9500);
+  assert.equal(preview.email,admin.email);
+  assert.deepEqual(preview.documentNumbers,['FR CIRC2027/7']);
+  assert.equal((await f.call(confirmation(preview.stamp))).status,400);
+  const payload={stamp:preview.stamp,confirmation:'ARQUIVAR INSCRICAO DE TESTE'};
+  const response=await f.call(payload);
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.released,true);
+  assert.equal(f.registration,null);
+  assert.equal(f.payments[0].data.status,'paid');
+  assert.equal(f.payments[0].data.reference,testPaymentReference);
+  assert.equal(f.payments[1].data.status,'pending');
+  assert.equal(f.payments[1].data.registrationArchiveId,result.archiveId);
+  assert.equal(closed.data.status,'expired');
+  assert.equal(closed.data.registrationArchiveId,result.archiveId);
+  assert.equal(f.documents[0].data.providerDocumentNo,'FR CIRC2027/7');
+  assert.equal(f.documents[0].data.registrationArchiveId,result.archiveId);
+  assert.deepEqual(await (await f.call(payload)).json(),result);
+  assert.equal(f.commits,1);
+});
+
+test('test archive requires the administering account UID and the exact payment reference',async()=>{
+  const f=fixture({testArchive:true});
+  f.setClaims(admin);
+  assert.equal((await f.call()).status,404);
+  f.setClaims({...admin,sub:testUid});
+  f.registration.data.payment.reference='999999999';
+  f.sync(f.registration);
+  assert.equal((await f.call()).status,409);
+  assert.equal(f.commits,0);
+});
 
 test('preview is read-only and returns only the target confirmation data',async()=>{
   const f=fixture(),p=await f.preview();
@@ -177,7 +232,7 @@ const closedId='33333333-3333-4333-8333-333333333333';
 function addClosedSupplement(f,status='cancelled'){
   const identifier=`circ_live_${closedId.replaceAll('-','')}`,reference='82980768';
   const row=f.record('payments',closedId,{
-    id:closedId,eventId:'circ-2027',registrationId,userId:uid,environment:'production',
+    id:closedId,eventId:'circ-2027',registrationId:f.registration.id,userId:f.registration.data.userId,environment:'production',
     kind:'supplementary',quote:{kind:'supplementary',eventId:'circ-2027',amountCents:4000,currency:'EUR'},
     amountCents:4000,currency:'EUR',provider:'eupago',method:'mbway',identifier,reference,entity:null,
     status,providerState:status,retryAllowed:true,transactionId:null,paidAt:null,

@@ -5,13 +5,13 @@ import AdminDashboardPage from './AdminDashboardPage';
 import {useAuth} from '../auth/AuthContext';
 import {subscribeToRegistrations,subscribeToRegistrationPayments,subscribeToRegistrationNotes} from '../auth/adminStore';
 import {subscribeToUserStats} from '../auth/presenceStore';
+import {TEST_REGISTRATION_ARCHIVE} from '../data/registrationTestArchive2027';
 const defaultRows=[{id:'circ-2027-pending',eventId:'circ-2027',userId:'pending',participantName:'Pessoa Pendente',status:'submitted',payment:{status:'pending',amountCents:9500,currency:'EUR'}},
   {id:'legacy',participantName:'Registo Histórico',status:'draft',payment:{status:'paid',amountCents:0,currency:'EUR'}}];
 const mockRows=[];
 const mockPayments=[];
 jest.mock('../auth/AuthContext',()=>({useAuth:jest.fn()}));
 jest.mock('../components/AdminModuleNav',()=>()=>null);
-jest.mock('../components/RegistrationRelease',()=>({registration,onReleased})=><button type="button" onClick={()=>onReleased({released:true,registrationId:registration.id,archiveId:'archive'})}>Libertar inscrição de {registration.participantEmail}</button>);
 jest.mock('../auth/adminStore',()=>({paymentStatuses:['pending','paid','refunded'],subscribeToRegistrations:jest.fn(fn=>{fn(mockRows);return()=>{};}),
   subscribeToRegistrationPayments:jest.fn(fn=>{fn(mockPayments);return()=>{};}),
   subscribeToRegistrationNotes:jest.fn(fn=>{fn({});return()=>{};}),updateRegistrationNote:jest.fn()}));
@@ -34,14 +34,19 @@ test('normal registration and payment statuses are read-only and historical mism
   expect(screen.getByText('Estados por conferir — registo histórico')).toBeInTheDocument();
   expect(screen.queryByRole('button',{name:'Registar reembolso efetuado'})).not.toBeInTheDocument();
 });
-test('only the designated participant row exposes release and a completed archive is acknowledged',()=>{
- mockRows.push({...defaultRows[0],id:'circ-2027-designated',participantName:'Participante designado',participantEmail:'araujotiagofc@gmail.com'},
-  {...defaultRows[0],id:'circ-2027-other',participantName:'Outro participante',participantEmail:'other@example.com'});
+test('the registration dashboard only offers to review the designated test and removes the former action',()=>{
+ const auth=useAuth();
+ useAuth.mockReturnValue({...auth,user:{...auth.user,getIdToken:jest.fn(async()=>'admin-token')}});
+ const testRegistration={...defaultRows[0],id:'circ-2027-designated',participantName:'Inscrição de teste',
+  participantEmail:TEST_REGISTRATION_ARCHIVE.email,status:'confirmed',documentCount:1,
+  payment:{...defaultRows[0].payment,status:'paid',method:TEST_REGISTRATION_ARCHIVE.method,amountCents:TEST_REGISTRATION_ARCHIVE.amountCents}};
+ mockRows.push(testRegistration,
+  {...testRegistration,id:'circ-2027-ordinary',participantName:'Participante designado',participantEmail:'araujotiagofc@gmail.com'},
+  {...testRegistration,id:'circ-2027-without-document',participantName:'Sem documento',documentCount:0});
  render(<MemoryRouter future={{v7_startTransition:true,v7_relativeSplatPath:true}}><AdminDashboardPage/></MemoryRouter>);
- const release=screen.getByRole('button',{name:'Libertar inscrição de araujotiagofc@gmail.com'});
- expect(screen.queryByRole('button',{name:'Libertar inscrição de other@example.com'})).not.toBeInTheDocument();
- fireEvent.click(release);
- expect(screen.getByRole('status')).toHaveTextContent('Os pagamentos e documentos anteriores foram preservados');
+ expect(screen.getAllByRole('button',{name:'Conferir inscrição de teste'})).toHaveLength(1);
+ expect(within(screen.getByRole('row',{name:/Inscrição de teste/})).getByRole('button',{name:'Conferir inscrição de teste'})).toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Preparar nova inscrição para esta conta'})).not.toBeInTheDocument();
 });
 
 function CurrentLocation(){const location=useLocation();return <output aria-label="Localização atual">{location.pathname}{location.search}</output>;}

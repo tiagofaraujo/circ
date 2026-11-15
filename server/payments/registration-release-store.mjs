@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 // The verified administrator's ID token is subject to Firestore security rules.
 // As in the Firestore Web SDK, writes use an atomic commit with version checks.
 export class RegistrationReleaseStoreError extends Error {
@@ -8,6 +10,16 @@ const supportStatuses = new Set([400, 401, 403, 404, 408, 429, 500, 502, 503, 50
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const regId = /^circ-2027-[A-Za-z0-9_-]{1,128}$/;
 const hash = /^[a-f0-9]{64}$/;
+
+export function testRegistrationArchiveId(registrationId, stamp) {
+  if (!regId.test(registrationId || '') || !hash.test(stamp || '')) invalid();
+  const bytes = createHash('sha256').update(`circ-test-registration-archive:${registrationId}:${stamp}`).digest();
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex', 0, 16);
+  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+}
+
 export function encodeReleaseValue(value) {
   if (value === null) return { nullValue: null };
   if (typeof value === 'string') return { stringValue: value };
@@ -33,12 +45,17 @@ export function decodeReleaseValue(value) {
   // release based on an unsupported decoded source value.
   return null;
 }
-export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}={}) {
+export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch,withoutReadTransaction=false}={}) {
   if (!/^[a-z0-9-]+$/.test(projectId || '') || typeof token !== 'string' || !token) return invalid();
   const root = `projects/${projectId}/databases/(default)/documents`;
   const endpoint = `https://firestore.googleapis.com/v1/${root}`;
   const name = (collection,id) => `${root}/${collection}/${id}`;
   const validTx = transaction => { if (typeof transaction !== 'string' || !transaction || transaction.length > 4096) invalid(); };
+  const directRead = Symbol('direct registration archive reads');
+  function validateRead(transaction) {
+    if (!withoutReadTransaction) return validTx(transaction);
+    if (transaction !== directRead) invalid();
+  }
   async function call(url,method='GET',body) {
     let response;
     try { response = await fetchImpl(url,{method,redirect:'manual',cache:'no-store',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
@@ -67,20 +84,24 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
     return {id,name:doc.name,fields:doc.fields,data:decodeReleaseValue({mapValue:{fields:doc.fields}}),version:doc.updateTime};
   }
   async function read(collection,id,transaction) {
-    validTx(transaction);
-    const doc = await call(`${endpoint}/${collection}/${encodeURIComponent(id)}?transaction=${encodeURIComponent(transaction)}`);
+    validateRead(transaction);
+    const suffix = withoutReadTransaction ? '' : `?transaction=${encodeURIComponent(transaction)}`;
+    const doc = await call(`${endpoint}/${collection}/${encodeURIComponent(id)}${suffix}`);
     return doc ? record(doc,collection) : {id,name:name(collection,id),data:null,fields:null,version:null};
   }
   const equal = (fieldPath,value) => ({fieldFilter:{field:{fieldPath},op:'EQUAL',value:encodeReleaseValue(value)}});
   async function query(collection,filters,limit,transaction) {
-    validTx(transaction);
-    const rows=await call(`${endpoint}:runQuery`,'POST',{transaction,structuredQuery:{from:[{collectionId:collection}],
-      where:filters.length===1?filters[0]:{compositeFilter:{op:'AND',filters}},limit}});
+    validateRead(transaction);
+    const body = { structuredQuery: { from: [{ collectionId: collection }],
+      where: filters.length === 1 ? filters[0] : { compositeFilter: { op: 'AND', filters } }, limit } };
+    if (!withoutReadTransaction) body.transaction = transaction;
+    const rows = await call(`${endpoint}:runQuery`, 'POST', body);
     if (!Array.isArray(rows)) invalid();
     return rows.filter(row=>row.document).map(row=>record(row.document,collection));
   }
   return {
     async begin() {
+      if (withoutReadTransaction) return directRead;
       const result=await call(`${endpoint}:beginTransaction`,'POST',{options:{readOnly:{}}});
       validTx(result?.transaction); return result.transaction;
     },
@@ -93,6 +114,10 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
     },
     async findArchive(id,stamp,tx) {
       if (!regId.test(id || '') || !hash.test(stamp || '')) invalid();
+      if (withoutReadTransaction) {
+        const archive = await read('settings', `circ-registration-release-${testRegistrationArchiveId(id, stamp)}`, tx);
+        return archive.data ? [archive] : [];
+      }
       return query('settings',[equal('kind','registration-release'),equal('eventId','circ-2027'),equal('registrationId',id),equal('stamp',stamp)],2,tx);
     },
     async readArchive(id,tx) {
@@ -108,7 +133,8 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
       const auditName=name('auditLogs',`registration-release-${archiveId}`);
       const seen = new Set([registration.name,archiveName,auditName]);
       const patches = (rows,collection) => rows.map(row=>{
-        if (!uuid.test(row?.id || '') || row.name!==name(collection,row.id) || !row.version || seen.has(row.name)
+        const matchingProjection=withoutReadTransaction&&collection==='payments'&&row?.id===registration.id;
+        if ((!uuid.test(row?.id || '')&&!matchingProjection) || row.name!==name(collection,row.id) || !row.version || seen.has(row.name)
           || row.data?.registrationArchiveId || row.data?.registrationArchivedAt) invalid();
         seen.add(row.name);
         return {update:{name:row.name,fields:marker},updateMask:{fieldPaths:['registrationArchiveId','registrationArchivedAt']},currentDocument:{updateTime:row.version}};
@@ -121,7 +147,8 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
         {delete:registration.name,currentDocument:{updateTime:registration.version}}];
       for (const row of guards) {
         const path=row?.name;
-        const historical=uuid.test(row?.id || '')&&(path===name('payments',row.id)||path===name('documents',row.id));
+        const historical=uuid.test(row?.id || '')&&(path===name('payments',row.id)||path===name('documents',row.id))
+          ||withoutReadTransaction&&row?.id===registration.id&&path===name('payments',registration.id);
         const setting=typeof row?.id==='string'&&path===name('settings',row.id)&&(
           row.id.startsWith('circ-registration-release-')&&uuid.test(row.id.slice('circ-registration-release-'.length))
           ||row.id.startsWith('circ-bank-credit-live-')&&hash.test(row.id.slice('circ-bank-credit-live-'.length)));
@@ -134,6 +161,9 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch}
       if (!seen.has(name('users',registration.id.slice('circ-2027-'.length)))) invalid();
       await call(`${endpoint}:commit`,'POST',{writes});
     },
-    async rollback(transaction) { validTx(transaction); await call(`${endpoint}:rollback`,'POST',{transaction}); },
+    async rollback(transaction) {
+      validateRead(transaction);
+      if (!withoutReadTransaction) await call(`${endpoint}:rollback`,'POST',{transaction});
+    },
   };
 }

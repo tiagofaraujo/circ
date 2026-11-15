@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
-import { createRegistrationReleaseStore, RegistrationReleaseStoreError, releaseFields } from './registration-release-store.mjs';
+import { createRegistrationReleaseStore, RegistrationReleaseStoreError, releaseFields, testRegistrationArchiveId } from './registration-release-store.mjs';
 
 const EVENT='circ-2027', ADMIN='circ.chuc@gmail.com', TARGET='araujotiagofc@gmail.com';
+// Binds the one-off archive to the registration ID and Multibanco reference without publishing either.
+const TEST_ARCHIVE_FINGERPRINT='a628c36c4fcf95f843de22ead6dfa68bad97fd4d37233e52fb70959654eba0e6';
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const HASH=/^[a-f0-9]{64}$/;
 const headers={'Cache-Control':'private, no-store','CDN-Cache-Control':'no-store',Vary:'Authorization','X-Content-Type-Options':'nosniff'};
@@ -15,6 +17,8 @@ const positive=value=>Number.isSafeInteger(value)&&value>0;
 const providerId=value=>typeof value==='string'&&/^[1-9]\d{0,17}$/.test(value)||positive(value);
 const rowIdentity=(row,uid,id)=>row?.data&&row.version&&row.fields&&row.data.userId===uid&&row.data.eventId===EVENT&&row.data.registrationId===id;
 const snap=row=>({id:row.id,name:row.name,version:row.version,fields:row.fields});
+const legacyProjectionFields=new Set(['eventId','userId','registrationId','participantEmail','status','method','reference',
+  'amountCents','currency','updatedAt','updatedBy']);
 
 function unavailableResponse(stage,error){
   const allowed=/^(?:network|timeout|response|http-(?:400|401|403|404|408|429|500|502|503|504))$/;
@@ -24,7 +28,7 @@ function unavailableResponse(stage,error){
   return reply({error:'registration-release-unavailable',diagnostic:`release-${stage}-${cause}`},503);
 }
 
-async function bodyOf(request){
+async function bodyOf(request,testArchive){
   if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type')||''))fail('invalid-request',400);
   const reader=request.body?.getReader();if(!reader)fail('invalid-request',400);
   const chunks=[];let size=0;
@@ -32,12 +36,12 @@ async function bodyOf(request){
     if(size>1024){await reader.cancel();fail('invalid-request',400);}chunks.push(Buffer.from(value));}
   let body;try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{fail('invalid-request',400);}
   if(!body||Array.isArray(body)||typeof body!=='object'||Object.keys(body).length!==2||Object.keys(body).some(k=>!['stamp','confirmation'].includes(k))||!HASH.test(body.stamp||''))fail('invalid-request',400);
-  if(body.confirmation!=='LIBERTAR NOVA INSCRICAO')fail('confirmation-required',400);
+  if(body.confirmation!==(testArchive?'ARQUIVAR INSCRICAO DE TESTE':'LIBERTAR NOVA INSCRICAO'))fail('confirmation-required',400);
   return body;
 }
-function validArchive(row,id,stamp){
+function validArchive(row,id,email,stamp){
   const a=row?.data;
-  return a?.kind==='registration-release'&&a.eventId===EVENT&&a.registrationId===id&&a.email===TARGET&&a.released===true
+  return a?.kind==='registration-release'&&a.eventId===EVENT&&a.registrationId===id&&a.email===email&&a.released===true
     &&UUID.test(a.archiveId||'')&&row.id===`circ-registration-release-${a.archiveId}`&&HASH.test(a.stamp||'')
     &&(stamp===undefined||a.stamp===stamp)&&date(a.archivedAt)&&Array.isArray(a.paymentIds)&&Array.isArray(a.documentIds);
 }
@@ -53,16 +57,23 @@ function validClosedSupplement(row,uid,registrationId){
     &&!p.replacesOrderId&&!p.paymentDate&&!p.fiscalStatus&&!p.fiscalDocumentNo&&!p.fiscalQuote;
 }
 
-async function inspect(store,id,uid,tx){
+async function inspect(store,id,uid,tx,testFingerprint){
+  const testArchive=Boolean(testFingerprint);
+  const email=testArchive?ADMIN:TARGET;
   const registration=await store.readRegistration(id,tx),r=registration.data;
   if(!r)fail('registration-not-found',404);
+  const orderId=r.payment?.orderId;
+  const hasOrderId=orderId!==undefined&&orderId!==null;
   if(!registration.version||!registration.fields||r.userId!==uid||r.eventId!==EVENT||r.primaryRegistration!==true||r.isTest!==false||r.testMode!==false
-    ||r.participantEmail!==TARGET||r.voucherId||r.companyPurchaseId||r.registrationArchiveId||r.registrationArchivedAt
-    ||!['confirmed','cancelled'].includes(r.status)||!UUID.test(r.payment?.orderId||''))blocked('registration-state');
+    ||r.participantEmail!==email||r.voucherId||r.companyPurchaseId||r.registrationArchiveId||r.registrationArchivedAt
+    ||!['confirmed','cancelled'].includes(r.status)||((!testArchive||hasOrderId)&&!UUID.test(orderId||'')))blocked('registration-state');
   if(r.openSupplementaryOrderId||!['paid','refunded'].includes(r.payment?.status))blocked('open-payment');
   if(r.fiscalPendingOrderId)blocked('fiscal-pending');
   const profile=await store.readProfile(uid,tx);
-  if(profile.data?.email!==TARGET||!profile.version||!profile.fields)blocked('profile-mismatch');
+  if(profile.data?.email!==email||!profile.version||!profile.fields)blocked('profile-mismatch');
+  if(testArchive&&(r.status!=='confirmed'||r.payment.status!=='paid'||r.payment.method!=='multibanco'||r.payment.amountCents!==9500
+    ||typeof r.payment.reference!=='string'||liveDataStamp({registrationId:id,paymentReference:r.payment.reference})!==testFingerprint
+    ||r.addOnOrderCount!==0||r.documentCount!==1))blocked('registration-state');
   const payments=await store.related('payments',id,tx),documents=await store.related('documents',id,tx),legacy=await store.related('registrationOrders',id,tx);
   if(payments.length>25||documents.length>25||legacy.length||!payments.length)blocked('linked-order');
   const archiveCache=new Map();
@@ -72,7 +83,7 @@ async function inspect(store,id,uid,tx){
     if(!UUID.test(marker)||!date(row.data.registrationArchivedAt)||!rowIdentity(row,uid,id))blocked('archive-mismatch');
     if(!archiveCache.has(marker))archiveCache.set(marker,await store.readArchive(marker,tx));
     const archive=archiveCache.get(marker);
-    if(!validArchive(archive,id)||archive.data.userId!==uid||archive.data.archivedAt!==row.data.registrationArchivedAt
+    if(!validArchive(archive,id,email)||archive.data.userId!==uid||archive.data.archivedAt!==row.data.registrationArchivedAt
       ||!archive.data[collection==='payments'?'paymentIds':'documentIds'].includes(row.id))blocked('archive-mismatch');
     return true;
   }
@@ -83,12 +94,23 @@ async function inspect(store,id,uid,tx){
   if(closedId&&(r.status!=='confirmed'||r.payment.status!=='paid'
     ||!validClosedSupplement(activePayments.find(p=>p.id===closedId),uid,id)
     ||documents.some(d=>d.id===closedId)))blocked('closed-attempt-unverified');
-  const settledPayments=activePayments.filter(p=>p.id!==closedId);
+  // The test has an older manual payment projection stored under the registration ID.
+  // It can be archived alongside the provider payment only if it has no independent payment data.
+  const projection=testArchive?activePayments.find(row=>row.id===id):null;
+  if(projection){
+    const p=projection.data;
+    if(!rowIdentity(projection,uid,id)||p.participantEmail!==email||p.status!=='pending'||p.method!==r.payment.method
+      ||p.reference!==r.payment.reference||p.amountCents!==r.payment.amountCents||p.currency!==r.payment.currency
+      ||Object.keys(p).some(field=>!legacyProjectionFields.has(field)))blocked('linked-order');
+  }
+  const settledPayments=activePayments.filter(p=>p.id!==closedId&&p!==projection);
   if(!settledPayments.length)blocked('linked-order');
   if(settledPayments.some(row=>!['paid','refunded'].includes(row.data?.status)))blocked('open-payment');
   if(activeDocuments.length!==settledPayments.length)blocked('document-mismatch');
   const primary=settledPayments.filter(p=>(p.data.kind||p.data.quote?.kind)==='primary');
-  if(primary.length!==1||primary[0].id!==r.payment.orderId)blocked('linked-order');
+  // The older test projection has no order ID. Its sole primary order must still
+  // match the exact registration, payment reference and issued invoice below.
+  if(primary.length!==1||(hasOrderId&&primary[0].id!==orderId))blocked('linked-order');
   const credits=[],supplementary=[];
   for(const row of settledPayments){
     const p=row.data,kind=p.kind||p.quote?.kind;
@@ -101,7 +123,8 @@ async function inspect(store,id,uid,tx){
     const document=activeDocuments.find(d=>d.id===row.id),d=document?.data;
     if(!document||!rowIdentity(document,uid,id)||d.id!==row.id||d.environment!=='production'||d.provider!=='toconline'
       ||d.type!=='invoice_receipt'||d.status!=='issued'||d.amountCents!==p.amountCents||d.paymentMethod!==p.method
-      ||d.orderKind!==kind||!date(d.issuedAt)||!providerId(d.providerDocumentId)||String(d.providerDocumentId)!==String(p.fiscalDocumentId)
+      ||(d.orderKind!==kind&&!(testArchive&&kind==='primary'&&d.orderKind===undefined))
+      ||!date(d.issuedAt)||!providerId(d.providerDocumentId)||String(d.providerDocumentId)!==String(p.fiscalDocumentId)
       ||typeof d.providerDocumentNo!=='string'||!/^FR\s\S.{0,100}$/.test(d.providerDocumentNo)||p.fiscalDocumentNo!==d.providerDocumentNo)blocked('document-mismatch');
     if(p.provider==='stripe'&&(!/^cs_live_[A-Za-z0-9]{8,240}$/.test(p.reference||'')||!/^pi_[A-Za-z0-9]{8,240}$/.test(p.transactionId||'')||p.stripe?.id!==p.reference
       ||p.stripe.status!=='complete'||p.stripe.paymentStatus!=='paid'||p.stripe.paymentIntentId!==p.transactionId
@@ -131,15 +154,16 @@ async function inspect(store,id,uid,tx){
   const sources=[registration,profile,...payments,...documents,...credits,...archiveCache.values()].map(snap).sort((a,b)=>a.name.localeCompare(b.name));
   const changedNames=new Set([registration,...activePayments,...activeDocuments].map(row=>row.name));
   const guards=sources.filter(source=>!changedNames.has(source.name));
-  const stamp=liveDataStamp({operation:'registration-release-v1',registrationId:id,email:TARGET,sources});
+  const stamp=liveDataStamp({operation:testArchive?'test-registration-archive-v1':'registration-release-v1',registrationId:id,email,sources});
   return {registration,payments:activePayments,documents:activeDocuments,credits,guards,stamp,
-    preview:{registrationId:id,email:TARGET,name:typeof r.participantName==='string'?r.participantName:'',amountCents:p.amountCents,currency:'EUR',
+    preview:{registrationId:id,email,name:typeof r.participantName==='string'?r.participantName:'',amountCents:p.amountCents,currency:'EUR',
       paymentStatus:p.status,documentNumbers:activeDocuments.map(d=>d.data.providerDocumentNo).sort(),stamp,allowed:true}};
 }
 
-export function createRegistrationReleaseApi({verify,storeFactory=createRegistrationReleaseStore,now=()=>new Date().toISOString(),makeArchiveId=randomUUID}={}){
+export function createRegistrationReleaseApi({verify,storeFactory=createRegistrationReleaseStore,now=()=>new Date().toISOString(),
+  makeArchiveId=randomUUID,testArchiveFingerprint=TEST_ARCHIVE_FINGERPRINT}={}){
   return async function handle(request,env){
-    const url=new URL(request.url),match=url.pathname.match(/^\/api\/admin\/registrations\/(circ-2027-([A-Za-z0-9_-]{1,128}))\/release$/);
+    const url=new URL(request.url),match=url.pathname.match(/^\/api\/admin\/registrations\/(circ-2027-([A-Za-z0-9_-]{1,128}))\/(release|archive-test)$/);
     if(!match)return null;
     if(!['GET','POST'].includes(request.method))return reply({error:'method-not-allowed'},405);
     if(url.search)return reply({error:'invalid-request'},400);
@@ -149,30 +173,33 @@ export function createRegistrationReleaseApi({verify,storeFactory=createRegistra
     if(!env.FIREBASE_PROJECT_ID)return reply({error:'registration-release-unavailable'},503);
     let claims;try{claims=await verify(token,env.FIREBASE_PROJECT_ID);}catch{return reply({error:'invalid-session'},401);}
     if(claims?.email!==ADMIN||claims.email_verified!==true||!/^[-A-Za-z0-9_]{1,128}$/.test(claims.sub||''))return reply({error:'admin-required'},403);
+    const [,id,uid,action]=match;
+    const testArchive=action==='archive-test';
+    if(testArchive&&uid!==claims.sub)return reply({error:'registration-not-found'},404);
+    const email=testArchive?ADMIN:TARGET;
     let store,tx,stage='parse';
     try{
-      const body=request.method==='POST'?await bodyOf(request):null;
+      const body=request.method==='POST'?await bodyOf(request,testArchive):null;
       stage='begin';
-      store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token});
+      store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,token,withoutReadTransaction:testArchive});
       tx=await store.begin();
-      const id=match[1],uid=match[2];
       if(body){
         stage='lookup';
         const prior=await store.findArchive(id,body.stamp,tx);
         if(prior.length){
-          if(prior.length!==1||!validArchive(prior[0],id,body.stamp)||prior[0].data.userId!==uid)blocked('archive-mismatch');
+          if(prior.length!==1||!validArchive(prior[0],id,email,body.stamp)||prior[0].data.userId!==uid)blocked('archive-mismatch');
           return reply({released:true,archiveId:prior[0].data.archiveId,registrationId:id});
         }
       }
       stage='inspect';
-      const current=await inspect(store,id,uid,tx);
+      const current=await inspect(store,id,uid,tx,testArchive?testArchiveFingerprint:null);
       if(!body)return reply(current.preview);
       if(body.stamp!==current.stamp)fail('registration-changed');
       stage='prepare';
-      const archiveId=makeArchiveId(),archivedAt=now();
+      const archiveId=testArchive?testRegistrationArchiveId(id,current.stamp):makeArchiveId(),archivedAt=now();
       if(!UUID.test(archiveId)||!date(archivedAt))fail('registration-release-unavailable',503);
       const actor={uid:claims.sub,email:ADMIN};
-      const archiveFields={...releaseFields({kind:'registration-release',version:1,eventId:EVENT,registrationId:id,userId:uid,email:TARGET,archiveId,
+      const archiveFields={...releaseFields({kind:'registration-release',version:1,eventId:EVENT,registrationId:id,userId:uid,email,archiveId,
         released:true,stamp:current.stamp,archivedAt,actor,paymentIds:current.payments.map(p=>p.id).sort(),documentIds:current.documents.map(d=>d.id).sort(),
         creditClaimIds:current.credits.map(c=>c.id).sort(),sourceVersions:[current.registration,...current.payments,...current.documents,...current.credits].map(row=>({name:row.name,version:row.version}))}),
         registration:{mapValue:{fields:current.registration.fields}}};
@@ -180,13 +207,14 @@ export function createRegistrationReleaseApi({verify,storeFactory=createRegistra
       stage='commit';
       await store.commit({registration:current.registration,payments:current.payments,documents:current.documents,guards:current.guards,archiveId,archiveFields,
         archivedAt,auditFields:releaseFields({action:'registration.released',eventId:EVENT,registrationId:id,archiveId,actor,createdAt:archivedAt,
-          details:{email:TARGET,stamp:current.stamp,paymentIds:current.payments.map(p=>p.id),documentIds:current.documents.map(d=>d.id)}})});
+          details:{email,stamp:current.stamp,paymentIds:current.payments.map(p=>p.id),documentIds:current.documents.map(d=>d.id),
+            ...(testArchive?{reason:'test-registration'}:{})}})});
       return reply({released:true,archiveId,registrationId:id});
     }catch(error){
       if(error?.code==='conflict')return reply({error:'registration-changed'},409);
       if(error?.code==='registration-release-blocked')return reply({error:error.code,reason:error.reason},409);
       if(error?.status&&error.code)return reply({error:error.code},error.status);
-      return request.method==='POST'?unavailableResponse(stage,error):reply({error:'registration-release-unavailable'},503);
+      return request.method==='POST'||testArchive?unavailableResponse(stage,error):reply({error:'registration-release-unavailable'},503);
     }finally{if(tx&&store)try{await store.rollback(tx);}catch{/* The read snapshot may already have expired. */}}
   };
 }

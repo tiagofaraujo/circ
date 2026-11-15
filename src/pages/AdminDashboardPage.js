@@ -12,8 +12,8 @@ import { subscribeToUserStats } from '../auth/presenceStore';
 import { useRegistrationReport } from '../auth/registrationReport';
 import AdminModuleNav from '../components/AdminModuleNav';
 import RegistrationRefund from '../components/RegistrationRefund';
+import RegistrationRelease, { matchesTestRegistrationArchive } from '../components/RegistrationRelease';
 import RegistrationFiscalStatus from '../components/RegistrationFiscalStatus';
-import RegistrationRelease from '../components/RegistrationRelease';
 import RegistrationAnalytics from '../components/RegistrationAnalytics';
 import '../admin.css';
 import '../adminOperations.css';
@@ -95,7 +95,7 @@ export default function AdminDashboardPage() {
   const [noteDrafts, setNoteDrafts] = useState({});
   const [userStats, setUserStats] = useState({ total: null, online: null });
   const [userStatsUnavailable, setUserStatsUnavailable] = useState(false);
-  const [releaseMessage, setReleaseMessage] = useState('');
+  const [testArchiveCompleted, setTestArchiveCompleted] = useState(false);
 
   const registrations = canManage ? adminRegistrations : report.registrations;
   const payments = canManage ? adminPayments : report.payments;
@@ -105,7 +105,7 @@ export default function AdminDashboardPage() {
   const paymentsError = canManage ? adminPaymentsError : report.error;
 
   useEffect(() => {
-    setRegistrations([]); setLoading(true); setRegistrationError('');
+    setRegistrations([]); setLoading(true); setRegistrationError(''); setTestArchiveCompleted(false);
     if (!canManage) return undefined;
     return subscribeToRegistrations(
     (items) => {
@@ -137,7 +137,7 @@ export default function AdminDashboardPage() {
   }, [canManage, user?.uid]);
 
   useEffect(() => {
-    setRegistrationNotes({}); setNoteDrafts({}); setError(''); setReleaseMessage('');
+    setRegistrationNotes({}); setNoteDrafts({}); setError('');
     if (!canManage) return undefined;
     return subscribeToRegistrationNotes(
     setRegistrationNotes,
@@ -281,8 +281,8 @@ export default function AdminDashboardPage() {
 
         <p className="admin-status-help">Os estados são atualizados pelo pagamento confirmado. Nas transferências, a validação do crédito confirma o pagamento e a inscrição. Os reembolsos já efetuados têm um registo administrativo próprio.</p>
         {canManage && error && <div className="admin-alert" role="alert">{error}</div>}
+        {canManage && testArchiveCompleted && <p role="status">Inscrição de teste arquivada. O pagamento e o documento fiscal foram conservados.</p>}
         {registrationError && <div className="admin-alert" role="alert">{registrationError}</div>}
-        {canManage && releaseMessage && <p role="status">{releaseMessage}</p>}
         {loading && <div className="admin-empty">A carregar inscrições…</div>}
         {!loading && !registrationError && !visibleRegistrations.length && (
           <div className="admin-empty">
@@ -325,7 +325,9 @@ export default function AdminDashboardPage() {
                         {registrationLabels[item.status || 'draft'] || 'Requer conferência'}
                       </span>
                       {item.payment?.status === 'paid' && item.status !== 'confirmed' && <small>Estados por conferir — registo histórico</small>}
-                      {canManage && String(item.participantEmail || '').trim().toLowerCase() === 'araujotiagofc@gmail.com' && <RegistrationRelease registration={item} onReleased={() => setReleaseMessage('A inscrição de araujotiagofc@gmail.com foi libertada para nova inscrição. Os pagamentos e documentos anteriores foram preservados.')} />}
+                      {canManage && matchesTestRegistrationArchive(item) && (
+                        <RegistrationRelease registration={item} onReleased={() => setTestArchiveCompleted(true)} />
+                      )}
                     </td>
                     <td>
                       <span className={`admin-state admin-status--${item.payment?.status || 'pending'}`} aria-label={`Estado do pagamento de ${item.participantName || item.participantEmail}`}>
