@@ -70,3 +70,33 @@ test('capacity review preserves the received payment and prevents another purcha
  expect(screen.queryByRole('heading',{name:'Adicionar cursos ou bilhetes de jantar'})).not.toBeInTheDocument();
  expect(PublicLiveCheckout).not.toHaveBeenCalled();
 });
+
+test('a paid onsite ULS participant can claim the organiser offer and refresh capacity', async () => {
+ const internal = {
+   ...registration, voucherId: null, selection: { profile: 'uls', congressMode: 'onsite' },
+   entitlements: { congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 },
+   payment: { status: 'paid', amountCents: 5500 },
+ };
+ const token = jest.fn().mockResolvedValue('participant-id-token');
+ const code = '0540aa1e46b9232be8b21241b3fac067';
+ const originalFetch = global.fetch;
+ global.fetch = jest.fn().mockResolvedValue({
+   ok: true, json: async () => ({ registrationId: internal.id, duplicate: false }),
+ });
+ try {
+   render(<MemoryRouter><ExistingRegistrationAddOns registration={internal} user={{ ...user, getIdToken: token }} /></MemoryRouter>);
+   fireEvent.click(screen.getByText('Tem um voucher de organizador?'));
+   const submit = screen.getByRole('button', { name: 'Aplicar voucher de organizador' });
+   expect(submit).toBeDisabled();
+   fireEvent.change(screen.getByLabelText('Código do voucher'), { target: { value: '0540AA1E-46B9232B-E8B21241-B3FAC067' } });
+   fireEvent.click(submit);
+   expect(await screen.findByText(/Voucher de organizador aplicado/)).toBeInTheDocument();
+   expect(global.fetch).toHaveBeenCalledWith('/api/checkout/live/organizer-voucher/redeem', expect.objectContaining({
+     method: 'POST', body: JSON.stringify({ code }),
+     headers: { Authorization: 'Bearer participant-id-token', 'Content-Type': 'application/json' },
+   }));
+   expect(capacity.refresh).toHaveBeenCalledTimes(1);
+ } finally {
+   global.fetch = originalFetch;
+ }
+});
