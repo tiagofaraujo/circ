@@ -133,7 +133,8 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch,
       const auditName=name('auditLogs',`registration-release-${archiveId}`);
       const seen = new Set([registration.name,archiveName,auditName]);
       const patches = (rows,collection) => rows.map(row=>{
-        if (!uuid.test(row?.id || '') || row.name!==name(collection,row.id) || !row.version || seen.has(row.name)
+        const matchingProjection=withoutReadTransaction&&collection==='payments'&&row?.id===registration.id;
+        if ((!uuid.test(row?.id || '')&&!matchingProjection) || row.name!==name(collection,row.id) || !row.version || seen.has(row.name)
           || row.data?.registrationArchiveId || row.data?.registrationArchivedAt) invalid();
         seen.add(row.name);
         return {update:{name:row.name,fields:marker},updateMask:{fieldPaths:['registrationArchiveId','registrationArchivedAt']},currentDocument:{updateTime:row.version}};
@@ -146,7 +147,8 @@ export function createRegistrationReleaseStore({projectId,token,fetchImpl=fetch,
         {delete:registration.name,currentDocument:{updateTime:registration.version}}];
       for (const row of guards) {
         const path=row?.name;
-        const historical=uuid.test(row?.id || '')&&(path===name('payments',row.id)||path===name('documents',row.id));
+        const historical=uuid.test(row?.id || '')&&(path===name('payments',row.id)||path===name('documents',row.id))
+          ||withoutReadTransaction&&row?.id===registration.id&&path===name('payments',registration.id);
         const setting=typeof row?.id==='string'&&path===name('settings',row.id)&&(
           row.id.startsWith('circ-registration-release-')&&uuid.test(row.id.slice('circ-registration-release-'.length))
           ||row.id.startsWith('circ-bank-credit-live-')&&hash.test(row.id.slice('circ-bank-credit-live-'.length)));

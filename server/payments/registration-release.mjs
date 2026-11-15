@@ -17,6 +17,8 @@ const positive=value=>Number.isSafeInteger(value)&&value>0;
 const providerId=value=>typeof value==='string'&&/^[1-9]\d{0,17}$/.test(value)||positive(value);
 const rowIdentity=(row,uid,id)=>row?.data&&row.version&&row.fields&&row.data.userId===uid&&row.data.eventId===EVENT&&row.data.registrationId===id;
 const snap=row=>({id:row.id,name:row.name,version:row.version,fields:row.fields});
+const legacyProjectionFields=new Set(['eventId','userId','registrationId','participantEmail','status','method','reference',
+  'amountCents','currency','updatedAt','updatedBy']);
 
 function unavailableResponse(stage,error){
   const allowed=/^(?:network|timeout|response|http-(?:400|401|403|404|408|429|500|502|503|504))$/;
@@ -60,9 +62,11 @@ async function inspect(store,id,uid,tx,testFingerprint){
   const email=testArchive?ADMIN:TARGET;
   const registration=await store.readRegistration(id,tx),r=registration.data;
   if(!r)fail('registration-not-found',404);
+  const orderId=r.payment?.orderId;
+  const hasOrderId=orderId!==undefined&&orderId!==null;
   if(!registration.version||!registration.fields||r.userId!==uid||r.eventId!==EVENT||r.primaryRegistration!==true||r.isTest!==false||r.testMode!==false
     ||r.participantEmail!==email||r.voucherId||r.companyPurchaseId||r.registrationArchiveId||r.registrationArchivedAt
-    ||!['confirmed','cancelled'].includes(r.status)||!UUID.test(r.payment?.orderId||''))blocked('registration-state');
+    ||!['confirmed','cancelled'].includes(r.status)||((!testArchive||hasOrderId)&&!UUID.test(orderId||'')))blocked('registration-state');
   if(r.openSupplementaryOrderId||!['paid','refunded'].includes(r.payment?.status))blocked('open-payment');
   if(r.fiscalPendingOrderId)blocked('fiscal-pending');
   const profile=await store.readProfile(uid,tx);
@@ -90,12 +94,23 @@ async function inspect(store,id,uid,tx,testFingerprint){
   if(closedId&&(r.status!=='confirmed'||r.payment.status!=='paid'
     ||!validClosedSupplement(activePayments.find(p=>p.id===closedId),uid,id)
     ||documents.some(d=>d.id===closedId)))blocked('closed-attempt-unverified');
-  const settledPayments=activePayments.filter(p=>p.id!==closedId);
+  // The test has an older manual payment projection stored under the registration ID.
+  // It can be archived alongside the provider payment only if it has no independent payment data.
+  const projection=testArchive?activePayments.find(row=>row.id===id):null;
+  if(projection){
+    const p=projection.data;
+    if(!rowIdentity(projection,uid,id)||p.participantEmail!==email||p.status!=='pending'||p.method!==r.payment.method
+      ||p.reference!==r.payment.reference||p.amountCents!==r.payment.amountCents||p.currency!==r.payment.currency
+      ||Object.keys(p).some(field=>!legacyProjectionFields.has(field)))blocked('linked-order');
+  }
+  const settledPayments=activePayments.filter(p=>p.id!==closedId&&p!==projection);
   if(!settledPayments.length)blocked('linked-order');
   if(settledPayments.some(row=>!['paid','refunded'].includes(row.data?.status)))blocked('open-payment');
   if(activeDocuments.length!==settledPayments.length)blocked('document-mismatch');
   const primary=settledPayments.filter(p=>(p.data.kind||p.data.quote?.kind)==='primary');
-  if(primary.length!==1||primary[0].id!==r.payment.orderId)blocked('linked-order');
+  // The older test projection has no order ID. Its sole primary order must still
+  // match the exact registration, payment reference and issued invoice below.
+  if(primary.length!==1||(hasOrderId&&primary[0].id!==orderId))blocked('linked-order');
   const credits=[],supplementary=[];
   for(const row of settledPayments){
     const p=row.data,kind=p.kind||p.quote?.kind;
@@ -108,7 +123,8 @@ async function inspect(store,id,uid,tx,testFingerprint){
     const document=activeDocuments.find(d=>d.id===row.id),d=document?.data;
     if(!document||!rowIdentity(document,uid,id)||d.id!==row.id||d.environment!=='production'||d.provider!=='toconline'
       ||d.type!=='invoice_receipt'||d.status!=='issued'||d.amountCents!==p.amountCents||d.paymentMethod!==p.method
-      ||d.orderKind!==kind||!date(d.issuedAt)||!providerId(d.providerDocumentId)||String(d.providerDocumentId)!==String(p.fiscalDocumentId)
+      ||(d.orderKind!==kind&&!(testArchive&&kind==='primary'&&d.orderKind===undefined))
+      ||!date(d.issuedAt)||!providerId(d.providerDocumentId)||String(d.providerDocumentId)!==String(p.fiscalDocumentId)
       ||typeof d.providerDocumentNo!=='string'||!/^FR\s\S.{0,100}$/.test(d.providerDocumentNo)||p.fiscalDocumentNo!==d.providerDocumentNo)blocked('document-mismatch');
     if(p.provider==='stripe'&&(!/^cs_live_[A-Za-z0-9]{8,240}$/.test(p.reference||'')||!/^pi_[A-Za-z0-9]{8,240}$/.test(p.transactionId||'')||p.stripe?.id!==p.reference
       ||p.stripe.status!=='complete'||p.stripe.paymentStatus!=='paid'||p.stripe.paymentIntentId!==p.transactionId

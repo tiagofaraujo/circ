@@ -35,10 +35,14 @@ function fixture({testArchive=false}={}){
   if(testArchive){
     const mb={amountCents:9500,method:'multibanco',reference:testPaymentReference};
     Object.assign(registration.data.payment,mb);
+    delete registration.data.payment.orderId;
     Object.assign(payments[0].data,mb,{provider:'eupago',transactionId:'test-fixture-transaction'});
     delete payments[0].data.bankTransfer;
     payments[0].data.quote.amountCents=mb.amountCents;
     Object.assign(documents[0].data,{amountCents:mb.amountCents,paymentMethod:mb.method});
+    delete documents[0].data.orderKind;
+    payments.push(record('payments',activeId,{...mb,eventId:'circ-2027',registrationId:activeId,userId:ownerId,
+      participantEmail,currency:'EUR',status:'pending',updatedAt:time,updatedBy:{uid:ownerId,email:participantEmail}}));
     for(const row of [registration,...payments,...documents])row.fields=releaseFields(row.data);
   }
   const archives=[],legacy=[],calls=[],storeTokens=[];let commits=0,lostAck=false,conflict=false;
@@ -102,6 +106,8 @@ test('archives only the exact €95 Multibanco test and preserves the issued inv
   assert.equal(f.registration,null);
   assert.equal(f.payments[0].data.status,'paid');
   assert.equal(f.payments[0].data.reference,testPaymentReference);
+  assert.equal(f.payments[1].data.status,'pending');
+  assert.equal(f.payments[1].data.registrationArchiveId,result.archiveId);
   assert.equal(closed.data.status,'expired');
   assert.equal(closed.data.registrationArchiveId,result.archiveId);
   assert.equal(f.documents[0].data.providerDocumentNo,'FR CIRC2027/7');
