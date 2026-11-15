@@ -13,3 +13,29 @@ details.company-voucher { display: block; padding: 14px 18px; }
 .company-voucher li { margin: 8px 0; }
 .company-table { overflow-x: auto; }
 .company-table th, .company-table td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+
+.organization-discount-vouchers__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(155px, 100%), 1fr));
+  gap: 12px;
+}
+.organization-discount-vouchers select {
+  width: 100%;
+  padding: 10px;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #9b9cb8;
+  border-radius: 5px;
+  font: inherit;
+}
+.organization-discount-vouchers button { justify-self: start; }
+.organization-discount-vouchers__batch {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: #f4f4fa;
+  border: 1px solid #cdcde0;
+  border-radius: 8px;
+}
+.organization-discount-vouchers__lookup { border-top: 1px solid #cdcde0; padding-top: 12px; }
+.organization-discount-vouchers__lookup form { margin-top: 12px; }

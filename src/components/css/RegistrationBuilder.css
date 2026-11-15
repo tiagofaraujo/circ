@@ -1177,6 +1177,14 @@
 .registration-checkout { margin-top: 1.5rem; }
 .registration-checkout label { display: block; margin: 1rem 0; font-size: 0.9rem; }
 .registration-checkout button { margin: 0.5rem 0; }
+.registration-discount { margin: 1rem 0; padding: .75rem 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; }
+.registration-discount summary { min-height: 2.75rem; align-content: center; cursor: pointer; font-weight: 650; }
+.registration-discount .registration-discount__code { display: grid; gap: .5rem; margin: .5rem 0; }
+.registration-discount input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: .6rem .75rem; border: 1px solid var(--line, #d9dbe4); border-radius: .3rem; font: inherit; }
+.registration-discount small { display: block; color: var(--ink-soft, #53576d); line-height: 1.5; }
+.registration-discount__clear { min-height: 44px; padding: .35rem 0; border: 0; color: var(--blue, #2b2bb4); background: transparent; font: inherit; text-decoration: underline; }
+.registration-discount__clear:disabled { opacity: .55; }
+.registration-discount :focus-visible { outline: 3px solid var(--coral, #e55041); outline-offset: 3px; }
 .registration-payment-methods { min-width: 0; margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; }
 .registration-payment-methods legend { width: auto; padding: 0 .35rem; font-size: 1rem; font-weight: 700; }
 .registration-payment-methods label { display: flex; align-items: center; gap: .6rem; }

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createPaidCapacityStore } from '../payments/paid-capacity-store.mjs';
+import { createCheckoutLiveApi } from '../payments/checkout-live.mjs';
 import { createCheckoutLiveStore } from '../payments/checkout-live-store.mjs';
 import { createOrganizerVoucherLiveApi } from '../payments/organizer-voucher-live.mjs';
 import { quotePrimary, quoteSupplementary } from '../payments/quote.mjs';
@@ -86,7 +87,7 @@ function fixture({ capacityEnabled = true, withLock = true, commitHook = null } 
       });
     }
     if (url.endsWith(':commit')) {
-      if (!transactions.has(body.transaction)) throw unavailable();
+      if (body.transaction && !transactions.has(body.transaction)) throw unavailable();
       await commitHook?.({ body, documents, data, put, calls });
       // Check every write before applying any. In particular every admission
       // and rejection shares the lock CAS, even for different participants.
@@ -307,6 +308,162 @@ test('malformed lock metadata fails closed before rights, financial or fiscal wr
 const orderIdFor = index => `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`;
 const billing = { customer: { customer_business_name: 'Pessoa Modelo', customer_tax_registration_number: '203821432',
   customer_address_detail: 'Rua Modelo 1', customer_postcode: '3030-471', customer_city: 'Coimbra', customer_country: 'PT' } };
+
+function discountCheckout(f) {
+  const sentToProvider = [];
+  const env = { FIREBASE_PROJECT_ID: 'circ-test', LIVE_CHECKOUT_ENABLED: 'true', EUPAGO_LIVE_API_KEY: 'live-key',
+    FIREBASE_PAYMENTS_SERVICE_ACCOUNT: 'configured', EUPAGO_LIVE_WEBHOOK_KEY: 'webhook-key', EUPAGO_LIVE_CHANNEL: 'CIRC 2027',
+    TOCONLINE_OAUTH_CLIENT_ID: 'client', TOCONLINE_OAUTH_CLIENT_SECRET: 'secret', TOCONLINE_OAUTH_URL: 'https://oauth.example.test',
+    TOCONLINE_API_URL: 'https://api.example.test/api', TOCONLINE_SESSION_KEY: 'session-key', LIVE_MBWAY_ENABLED: 'true', LIVE_MBWAY_VALIDATION_ONLY: 'false' };
+  const api = createCheckoutLiveApi({
+    verify: async uid => ({ sub: uid, email: `${uid}@example.test`, email_verified: true }),
+    tokenProvider: async () => 'in-memory-service',
+    storeFactory: args => createCheckoutLiveStore({ ...args, fetchImpl: f.fetchImpl }),
+    providerFactory: () => ({
+      createPayment: async payment => { sentToProvider.push(payment); return { reference: '123456789', entity: '12345' }; },
+      inspectReference: async () => ({ providerState: 'cancelled' }),
+    }),
+    now: () => '2026-11-15T12:00:00.000Z', capacityEnabled: f.capacityEnabled,
+  });
+  return {
+    sentToProvider,
+    addParticipant: uid => f.put(`${root}/users/${uid}`, { name: 'Pessoa Modelo', taxNumber: '203821432',
+      billingAddress: 'Rua Modelo 1', billingPostalCode: '3030-471', billingCity: 'Coimbra', billingCountry: 'Portugal' }),
+    async call(uid, path, body) {
+      return api(new Request(`https://circ.test/api/checkout/live${path}`, { method: body ? 'POST' : 'GET',
+        headers: { Authorization: `Bearer ${uid}`, Origin: 'https://circ.test', 'Content-Type': 'application/json' },
+        ...(body ? { body: JSON.stringify(body) } : {}) }), env);
+    },
+  };
+}
+
+function discountVoucher(f, rawCode, discount) {
+  const hash = createHash('sha256').update(rawCode).digest('hex');
+  const name = `${root}/organizationDiscountVouchers/${hash}`;
+  const code = `CIRC27-D-${rawCode.match(/.{4}/g).join('-')}`;
+  f.put(name, { eventId: 'circ-2027', status: 'available', batchId: orderIdFor(10), index: 1,
+    createdAt: '2026-11-15T11:00:00.000Z', createdBy: 'admin', discount });
+  return { name, code, hash };
+}
+
+const discountSelection = { profile: 'external', congressMode: 'onsite', morningCourse: true, afternoonCourse: false, dinnerQuantity: 1 };
+const paymentDoc = id => `${root}/payments/${id}`;
+
+test('discount checkout previews without claiming and charges the reviewed amount only once', async () => {
+  const f = fixture({ capacityEnabled: false });
+  const checkout = discountCheckout(f), uid = 'voucher-participant', id = orderIdFor(11);
+  checkout.addParticipant(uid);
+  const terms = { type: 'percentage', value: 2500 };
+  const first = discountVoucher(f, 'a'.repeat(32), terms);
+  const other = discountVoucher(f, 'b'.repeat(32), terms);
+  const preview = await checkout.call(uid, '/quote', { selection: discountSelection, discountCode: ` ${first.code.toLowerCase()} ` });
+  assert.equal(preview.status, 200);
+  const { quote, stamp, billingStamp } = await preview.json();
+  const discount = { ...terms, amountCents: 2375 };
+  assert.deepEqual(quote.discount, discount);
+  assert.deepEqual(quote.lines.map(line => [line.code, line.amountCents]), [
+    ['congress-onsite', 7125], ['course-morning', 3500], ['dinner', 3000],
+  ]);
+  assert.equal(quote.amountCents, 13625);
+  assert.equal(f.data(first.name).status, 'available');
+  assert.equal(f.data(registrationName(uid)), null);
+  assert.equal(checkout.sentToProvider.length, 0);
+  const order = { id, selection: discountSelection, stamp, billingStamp, method: 'multibanco', discountCode: first.code };
+  for (const [discountCode, expected] of [[`CIRC27-D-${'c'.repeat(32)}`, 'discount-voucher-invalid'], [other.code, 'quote-changed']]) {
+    const rejection = await checkout.call(uid, '/orders', { ...order, discountCode });
+    assert.equal(rejection.status, 409);
+    assert.equal((await rejection.json()).error, expected);
+    assert.equal(f.data(first.name).status, 'available');
+    assert.equal(f.data(other.name).status, 'available');
+    assert.equal(f.data(paymentDoc(id)), null);
+    assert.equal(checkout.sentToProvider.length, 0);
+  }
+  const created = await checkout.call(uid, '/orders', order);
+  assert.equal(created.status, 201);
+  const payload = await created.json();
+  assert.deepEqual(payload.order.discount, discount);
+  assert.equal(payload.order.amountCents, 13625);
+  assert.ok(!JSON.stringify(payload).includes(first.hash));
+  assert.equal(f.data(first.name).status, 'claimed');
+  assert.equal(f.data(first.name).userId, uid);
+  assert.equal(f.data(first.name).orderId, id);
+  assert.equal(f.data(other.name).status, 'available');
+  assert.equal(f.data(paymentDoc(id)).discountVoucherHash, first.hash);
+  assert.ok(!JSON.stringify(f.data(paymentDoc(id))).includes(first.code));
+  assert.equal((await checkout.call(uid, '/orders', order)).status, 200);
+  assert.equal(checkout.sentToProvider.length, 1);
+  assert.equal(checkout.sentToProvider[0].amountCents, 13625);
+});
+
+test('two participants cannot reserve one discount voucher concurrently with capacity suspended', async () => {
+  let commitsWaiting = 0, release;
+  const bothReady = new Promise(resolve => { release = resolve; });
+  const f = fixture({ capacityEnabled: false, withLock: false, commitHook: async ({ body }) => {
+    if (body.transaction && ++commitsWaiting <= 2) {
+      if (commitsWaiting === 2) release();
+      await bothReady;
+    }
+  } });
+  const checkout = discountCheckout(f), terms = { type: 'fixed', value: 2000 };
+  const voucher = discountVoucher(f, 'd'.repeat(32), terms);
+  const participants = ['voucher-first', 'voucher-second'];
+  const orders = await Promise.all(participants.map(async (uid, index) => {
+    checkout.addParticipant(uid);
+    const preview = await checkout.call(uid, '/quote', { selection: discountSelection, discountCode: voucher.code });
+    assert.equal(preview.status, 200);
+    const { stamp, billingStamp, quote } = await preview.json();
+    assert.deepEqual(quote.discount, { ...terms, amountCents: 2000 });
+    return { id: orderIdFor(index + 12), selection: discountSelection, discountCode: voucher.code, stamp, billingStamp, method: 'multibanco' };
+  }));
+  const responses = await Promise.all(orders.map((order, index) => checkout.call(participants[index], '/orders', order)));
+  assert.deepEqual(responses.map(response => response.status).sort(), [201, 409]);
+  assert.equal(checkout.sentToProvider.length, 1);
+  const winner = responses.findIndex(response => response.status === 201), loser = 1 - winner;
+  assert.equal(f.data(voucher.name).userId, participants[winner]);
+  assert.equal(f.data(voucher.name).orderId, orders[winner].id);
+  assert.equal(f.data(paymentDoc(orders[loser].id)), null);
+  assert.equal(f.data(registrationName(participants[loser])), null);
+  const reuse = await checkout.call(participants[loser], '/quote', { selection: discountSelection, discountCode: voucher.code });
+  assert.equal(reuse.status, 409);
+  assert.equal((await reuse.json()).error, 'discount-voucher-invalid');
+});
+
+test('a confirmed unpaid MB WAY replacement retains the same discount voucher', async () => {
+  const f = fixture({ capacityEnabled: false });
+  const checkout = discountCheckout(f), uid = 'voucher-retry', id = orderIdFor(14), replaces = orderIdFor(15);
+  checkout.addParticipant(uid);
+  const first = discountVoucher(f, 'e'.repeat(32), { type: 'fixed', value: 2000 });
+  const other = discountVoucher(f, 'f'.repeat(32), { type: 'fixed', value: 2000 });
+  const preview = await checkout.call(uid, '/quote', { selection: discountSelection, discountCode: first.code });
+  assert.equal(preview.status, 200);
+  const { quote, stamp, billingStamp } = await preview.json();
+  const originalOrder = { id: replaces, selection: discountSelection, discountCode: first.code, stamp, billingStamp, method: 'mbway', phone: '911111111' };
+  assert.equal((await checkout.call(uid, '/orders', originalOrder)).status, 201);
+  const previous = f.data(paymentDoc(replaces)), registration = f.data(registrationName(uid));
+  f.put(paymentDoc(replaces), { ...previous, status: 'cancelled', retryAllowed: true,
+    providerClosure: { source: 'eupago-reference-info', state: 'cancelled', reference: previous.reference,
+      identifier: previous.identifier, checkedAt: '2026-11-15T12:00:00.000Z' } });
+  f.put(registrationName(uid), { ...registration, payment: { ...registration.payment, closedUnpaidStatus: 'cancelled' } });
+  const retryData = { selection: discountSelection, replacesOrderId: replaces };
+  const retryPreview = await checkout.call(uid, '/quote', retryData);
+  assert.equal(retryPreview.status, 200);
+  const revised = await retryPreview.json();
+  assert.deepEqual(revised.quote.discount, quote.discount);
+  assert.equal(f.data(first.name).orderId, replaces);
+  const replacement = { ...retryData, id, stamp: revised.stamp, billingStamp: revised.billingStamp, method: 'multibanco' };
+  const reassign = await checkout.call(uid, '/orders', { ...replacement, discountCode: other.code });
+  assert.equal(reassign.status, 409);
+  assert.equal((await reassign.json()).error, 'discount-voucher-changed');
+  assert.equal(f.data(other.name).status, 'available');
+  assert.equal((await checkout.call(uid, '/orders', replacement)).status, 201);
+  assert.equal((await checkout.call(uid, '/orders', replacement)).status, 200);
+  assert.equal(f.data(first.name).orderId, id);
+  assert.equal(f.data(first.name).userId, uid);
+  assert.equal(f.data(paymentDoc(replaces)).replacementOrderId, id);
+  assert.equal(f.data(paymentDoc(id)).discountVoucherHash, first.hash);
+  assert.equal(checkout.sentToProvider.length, 2);
+  assert.equal(checkout.sentToProvider[1].amountCents, quote.amountCents);
+});
 
 function actualSettlement(f, uid, { method = 'multibanco', kind = 'primary', index = 1, legacy = false,
   selection = { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 } } = {}) {

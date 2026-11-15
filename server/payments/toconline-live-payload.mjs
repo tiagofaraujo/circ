@@ -1,6 +1,7 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE } from '../../src/data/registration2027.js';
 import { LIVE_FISCAL_PAYMENT_MECHANISMS } from './live-payment-methods.mjs';
+import { congressDiscountCents, MIN_DISCOUNTED_PAYMENT_CENTS } from './quote.mjs';
 import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
 const EVENT = 'circ-2027';
@@ -33,6 +34,16 @@ function validateSource(quote) {
   add('course-morning', Number(selection.morningCourse), courseRate);
   add('course-afternoon', Number(selection.afternoonCourse), courseRate);
   add('dinner', selection.dinnerQuantity, DINNER_RATE);
+  if (quote.discount !== undefined) {
+    const admission = expected[0];
+    if (quote.kind !== 'primary' || !['congress-onsite', 'congress-virtual'].includes(admission?.code)
+      || quote.amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('source-mismatch');
+    let discountCents;
+    try { discountCents = congressDiscountCents(admission.unitAmountCents, quote.discount); }
+    catch { fail('source-mismatch'); }
+    if (discountCents !== quote.discount.amountCents) fail('source-mismatch');
+    admission.unitAmountCents -= discountCents;
+  }
   if (expected.length !== quote.lines.length) fail();
   let total = 0;
   for (let index = 0; index < expected.length; index++) {
@@ -72,7 +83,8 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
       tax_code: rule.taxCode, tax_percentage: rule.percentage, tax_country_region: 'PT' };
   });
   const legacyOnsite = quote.kind === 'primary' && quote.lines.length === 1 && quote.lines[0].code === 'congress-onsite';
-  const notes=legacyOnsite?'CIRC 2027 — inscrição presencial':quote.kind==='supplementary'?'CIRC 2027 — pedido complementar':'CIRC 2027 — inscrição';
+  const baseNotes=legacyOnsite?'CIRC 2027 — inscrição presencial':quote.kind==='supplementary'?'CIRC 2027 — pedido complementar':'CIRC 2027 — inscrição';
+  const notes=quote.discount ? `${baseNotes} · Desconto na inscrição ${(quote.discount.amountCents / 100).toFixed(2).replace('.', ',')} €` : baseNotes;
   return { document_type: 'FR', document_series_id: policy.series.id, date: paymentDate, due_date: paymentDate,
     currency_iso_code: 'EUR', ...billing.customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
     notes: method==='mbway'?`${notes} · MB WAY via EuPago`:method==='stripe_card'?`${notes} · Cartão via Stripe`:notes,

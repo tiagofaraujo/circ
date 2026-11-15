@@ -126,12 +126,13 @@ export function createLivePaymentWebhook({
       const ctx=await store.context(payment.quote?.selection?.profile);
       let expected;
       try{
-        expected=kind==='primary'?quotePrimary(payment.quote.selection,{...ctx,emailVerified:true},null,new Date(`${paymentDate.date}T12:00:00Z`))
+        expected=kind==='primary'?quotePrimary(payment.quote.selection,{...ctx,emailVerified:true},null,new Date(`${paymentDate.date}T12:00:00Z`),payment.quote.discount)
           :quoteSupplementary({morningCourse:payment.quote.selection.morningCourse,afternoonCourse:payment.quote.selection.afternoonCourse,dinnerQuantity:payment.quote.selection.dinnerQuantity},
             {...ctx,emailVerified:true},{...original,id:store.registrationId},new Date(`${paymentDate.date}T12:00:00Z`));
       }catch(error){
         if(['checkout/uls-not-verified','checkout/student-not-approved'].includes(error.message))return await review('payment-eligibility-review');
         if(['checkout/course-already-owned','checkout/paid-registration-required','checkout/invalid-addition'].includes(error.message))return await review('supplementary-entitlement-review');
+        if(['checkout/invalid-discount','checkout/discount-not-applicable'].includes(error.message))return await review('payment-discount-review');
         throw error;
       }
       const cutoffAmbiguous=paymentDate.timezoneUnspecified&&['2027-01-31','2027-02-01'].includes(paymentDate.date);

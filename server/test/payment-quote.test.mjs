@@ -20,6 +20,34 @@ test('early-rate boundary uses the existing catalogue date', () => {
   assert.equal(quote(selection, context, null, new Date('2027-01-31T23:59:59Z')).amountCents, 19000);
   assert.equal(quote(selection, context, null, new Date('2027-02-01T00:00:00Z')).amountCents, 24500);
 });
+test('organisation discounts use integer rounding and affect only congress admission', () => {
+  const full = quote();
+  const percentage = quotePrimary(selection, context, null, now, { type: 'percentage', value: 3333 });
+  assert.deepEqual(percentage.discount, { type: 'percentage', value: 3333, amountCents: 3166 });
+  assert.equal(percentage.amountCents, 15834);
+  assert.deepEqual(percentage.lines[0], { code: 'congress-onsite', quantity: 1, unitAmountCents: 6334, amountCents: 6334 });
+  assert.deepEqual(percentage.lines.slice(1), full.lines.slice(1));
+  assert.deepEqual(percentage.selection, full.selection);
+  assert.equal(Object.hasOwn(full, 'discount'), false);
+  const virtual = quotePrimary({ ...selection, congressMode: 'virtual' }, context, null, now, { type: 'fixed', value: 1375 });
+  assert.deepEqual(virtual.discount, { type: 'fixed', value: 1375, amountCents: 1375 });
+  assert.equal(virtual.lines[0].unitAmountCents, 4625);
+  assert.deepEqual(virtual.lines.slice(1), full.lines.slice(1));
+});
+test('organisation discounts require a positive admission price and a payable balance of at least one euro', () => {
+  const onsiteOnly = { profile: 'external', congressMode: 'onsite' };
+  for (const discount of [null, { type: 'unsupported', value: 10 }, { type: 'percentage', value: 10000 },
+    { type: 'percentage', value: 1.5 }, { type: 'fixed', value: '100' }]) {
+    assert.throws(() => quotePrimary(onsiteOnly, context, null, now, discount), /invalid-discount/);
+  }
+  for (const value of [9401, 9500, 9501]) {
+    assert.throws(() => quotePrimary(onsiteOnly, context, null, now, { type: 'fixed', value }), /discount-not-applicable/);
+  }
+  assert.equal(quotePrimary(onsiteOnly, context, null, now, { type: 'fixed', value: 9400 }).amountCents, 100);
+  assert.equal(quotePrimary(selection, context, null, now, { type: 'fixed', value: 9499 }).lines[0].unitAmountCents, 1);
+  assert.throws(() => quotePrimary({ ...selection, congressMode: 'courses-only' }, context, null, now,
+    { type: 'fixed', value: 100 }), /discount-not-applicable/);
+});
 test('no primary quote without a checked absence or verified login', () => {
   assert.throws(() => quote(selection, context, {}), /registration-exists/);
   assert.throws(() => quotePrimary(selection, context, undefined), /unchecked/);

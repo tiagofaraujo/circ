@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { REGISTRATION_CAPACITY_ENABLED } from '../data/registration2027';
 
@@ -18,10 +18,15 @@ function stripeCheckoutUrl(order) {
 const normalizedPhone = value => String(value || '').replace(/[\s().-]/g, '').match(/^(?:(?:\+|00)?351)?(9\d{8})$/)?.[1] || '';
 const canRetryOrder = order => order?.method === 'mbway' && ['expired', 'cancelled'].includes(order.status)
   && order.canRetry === true && order.historicalRegistration !== true && !order.replacementOrderId && !order.paidAt && !order.fiscalDocumentId;
+const validDiscount = discount => Number.isSafeInteger(discount?.amountCents) && discount.amountCents > 0
+  && Number.isSafeInteger(discount.value) && discount.value > 0
+  && (discount.type === 'percentage' ? discount.value < 10000 : discount.type === 'fixed' && discount.value === discount.amountCents);
+const sameDiscount = (left, right) => left?.type === right?.type && left?.value === right?.value && left?.amountCents === right?.amountCents;
 const retryConflicts = new Set(['registration-exists', 'replacement-required', 'idempotency-conflict', 'replacement-check-unavailable', 'replacement-not-closed']);
 const rejectedBeforeCreation = new Set(['quote-changed', 'billing-preview-changed', 'billing-customer-unconfirmed', 'profile-incomplete',
   'sign-in-required', 'invalid-session', 'verified-email-required', 'registration-exists', 'registration-not-open', 'live-checkout-not-configured', 'live-scope-not-enabled', 'uls-not-verified', 'student-not-approved',
-  'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable', 'capacity-full', 'capacity-unavailable', 'capacity-review-required']);
+  'paid-registration-required', 'invalid-addition', 'course-already-owned', 'fiscal-pending', 'invalid-request', 'payment-method-unavailable', 'capacity-full', 'capacity-unavailable', 'capacity-review-required',
+  'discount-voucher-invalid', 'discount-not-applicable', 'discount-voucher-changed']);
 const billingIssueMessages = {
   'profile-incomplete': ['Nome completo: preencha entre 5 e 200 caracteres.', 'Full name: enter 5 to 200 characters.'],
   'billing-name-required': ['Nome de faturação: indique até 180 caracteres; pode usar o nome do participante.', 'Billing name: enter up to 180 characters; you can use the participant name.'],
@@ -57,6 +62,9 @@ const messages = {
   'capacity-full': ['A lotação da opção selecionada foi atingida. Atualize a lotação e escolha uma opção disponível.', 'The selected option is full. Refresh capacity and choose an available option.'],
   'capacity-unavailable': ['Não foi possível confirmar a lotação. Atualize a disponibilidade antes de preparar o pagamento.', 'Capacity could not be confirmed. Refresh availability before preparing payment.'],
   'capacity-review-required': ['Um pagamento recebido aguarda conferência da organização sobre a vaga. Não efetue outro pagamento.', 'A received payment awaits organiser review of its place. Do not make another payment.'],
+  'discount-voucher-invalid': ['O código de desconto é inválido ou já não está disponível. Confira o código ou remova-o para continuar.', 'The discount code is invalid or no longer available. Check the code or remove it to continue.'],
+  'discount-not-applicable': ['O desconto não se aplica à seleção atual. O congresso tem de manter um valor positivo e o total a pagar tem de ser de pelo menos 1 €.', 'This discount does not apply to the current selection. The congress price must stay above zero and the total payable must be at least €1.'],
+  'discount-voucher-changed': ['O desconto desta nova tentativa tem de corresponder ao do pedido anterior. Contacte a organização para confirmar o código.', 'This attempt must use the discount from the previous order. Contact the organisers to check the code.'],
 };
 
 export default function PublicLiveCheckout({ user, selection, eligible, registration = null, kind = 'primary', en = false, onLock = () => {}, onNewPurchase = () => {}, onCapacityRefresh = () => {} }) {
@@ -71,10 +79,13 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const [error, setError] = useState('');
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
   const [historicalWaiting, setHistoricalWaiting] = useState(false);
-  const [retrySource, setRetrySource] = useState('');
+  const [retry, setRetry] = useState(null);
+  const retrySource = retry?.id || '';
   const [methods, setMethods] = useState([]);
   const [method, setMethod] = useState('multibanco');
   const [phone, setPhone] = useState('');
+  const [discountInput, setDiscountInput] = useState('');
+  const discountHelpId = useId();
   const [configBusy, setConfigBusy] = useState(true);
   const [configFailed, setConfigFailed] = useState(false);
   const [scheduledOpening, setScheduledOpening] = useState(false);
@@ -92,9 +103,17 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
   const abort = useRef(null);
   const t = (pt, english) => en ? english : pt;
   const money = cents => new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+  const discountLabel = discount => {
+    const label = t('Desconto da organização', 'Organiser discount');
+    if (discount.type !== 'percentage') return label;
+    const percent = new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', { style: 'percent', maximumFractionDigits: 2 });
+    return `${label} (${percent.format(discount.value / 10000)})`;
+  };
   const selectionKey = JSON.stringify(selection);
   const phoneValue = normalizedPhone(phone);
-  const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}`;
+  const showDiscount = !supplementary && !retrySource && ['onsite', 'virtual'].includes(selection.congressMode);
+  const discountCode = showDiscount ? discountInput.trim() : '';
+  const paymentKey = `${selectionKey}:${method}:${method === 'mbway' ? phoneValue : ''}:${discountCode}:${retrySource}`;
   const paymentReady = methods.includes(method) && (method !== 'mbway' || Boolean(phoneValue));
   const creationBlocked = !supplementary && Boolean(registration) && !retrySource;
   const billingReady = billing.status === 'ready';
@@ -147,12 +166,13 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (!value || !UUID.test(value.id || '') || value.currency !== 'EUR' || !Number.isSafeInteger(value.amountCents) || value.amountCents <= 0
       || (expectedId && value.id !== expectedId) || (value.kind && value.kind !== kind)
       || (supplementary && value.kind !== 'supplementary') || !knownMethods.includes(value.method)
+      || (value.discount != null && (supplementary || !validDiscount(value.discount)))
       || (value.replacementOrderId && (!UUID.test(value.replacementOrderId) || value.replacementOrderId === value.id))) throw new Error('invalid-order');
   }
   function acceptOrder(value, expectedId = null) {
     validateOrder(value, expectedId);
     if (value.historicalRegistration === true) throw new Error('historical-order');
-    setOrder(value); setId(value.id); setRetrySource(''); onLock(true);
+    setOrder(value); setId(value.id); setRetry(null); setDiscountInput(''); onLock(true);
     try { localStorage.setItem(key, value.id); } catch { /* An existing server order remains recoverable. */ }
     if (value.status === 'paid' && capacityPaidOrder.current !== value.id) {
       capacityPaidOrder.current = value.id; refreshCapacity();
@@ -185,7 +205,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       const saved = localStorage.getItem(key);
       if (saved && saved !== existing.id) throw new Error('saved-order-changed');
       if (saved === existing.id) localStorage.removeItem(key);
-      setId(''); setOrder(null); setRetrySource(''); setPreview(null); setConfirmed(false); setPhone('');
+      setId(''); setOrder(null); setRetry(null); setPreview(null); setConfirmed(false); setPhone('');
       setHistoricalWaiting(Boolean(registration)); setRecoveryBlocked(Boolean(registration)); onLock(Boolean(registration));
       return null;
     }
@@ -269,15 +289,21 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (working.current || busy || configBusy || id || creationBlocked || recoveryBlocked || !eligible || !paymentReady || !billingGate.current) return;
     working.current = true; setBusy(true); setError(''); setPreview(null); setConfirmed(false);
     try {
-      const result = await request(path('quote'), { selection });
+      const result = await request(path('quote'), { selection, ...(discountCode ? { discountCode } : {}),
+        ...(!supplementary && retrySource ? { replacesOrderId: retrySource } : {}) });
       if (!stamp(result.stamp) || !stamp(result.billingStamp) || !result.billing || !Number.isSafeInteger(result.quote?.amountCents)
         || result.quote.amountCents <= 0 || result.quote.currency !== 'EUR'
         || (supplementary && result.quote.kind !== 'supplementary')) throw new Error('invalid-preview');
+      const discount = result.quote.discount;
+      const expectsDiscount = Boolean(discountCode || retry?.discount);
+      if (expectsDiscount ? !validDiscount(discount) : discount != null) throw new Error('invalid-discount-preview');
+      if (retry?.discount && (retry.discount.type !== discount.type || retry.discount.value !== discount.value)) throw new Error('retry-discount-changed');
       if (active.current && currentSelection.current === paymentKey) setPreview({ ...result, paymentKey });
     } catch (issue) {
-      if (active.current) preparationError(issue);
-      if (active.current && supplementary && issue.code === 'supplementary-order-exists') await recoverSupplement(issue.order);
-      else if (active.current) setError(preparationMessage(issue, t('Não foi possível preparar o pagamento. Atualize a página ou contacte a organização.', 'Could not prepare payment. Refresh the page or contact the organisers.')));
+      if (!active.current || currentSelection.current !== paymentKey) return;
+      preparationError(issue);
+      if (supplementary && issue.code === 'supplementary-order-exists') await recoverSupplement(issue.order);
+      else setError(preparationMessage(issue, t('Não foi possível preparar o pagamento. Atualize a página ou contacte a organização.', 'Could not prepare payment. Refresh the page or contact the organisers.')));
     }
     finally { working.current = false; if (active.current) setBusy(false); }
   }
@@ -288,6 +314,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     try {
       const token = await user.getIdToken();
       if (!active.current) return;
+      if (currentSelection.current !== paymentKey) throw new Error('selection-changed');
       orderId = crypto.randomUUID();
       if (!UUID.test(orderId) || orderId === retrySource) throw new Error('invalid-new-order');
       localStorage.setItem(key, orderId);
@@ -296,8 +323,10 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       // A newly saved registration can update the parent subscription while
       // this request is running. It must not abort the payment creation response.
       const result = await request(path('orders'), { id: orderId, selection, stamp: preview.stamp, billingStamp: preview.billingStamp, method,
-        ...(method === 'mbway' ? { phone: phoneValue } : {}), ...(retrySource ? { replacesOrderId:retrySource } : {}) }, null, token);
-      if (result.order?.method !== method) throw new Error('invalid-order');
+        ...(method === 'mbway' ? { phone: phoneValue } : {}), ...(retrySource ? { replacesOrderId:retrySource } : {}),
+        ...(discountCode ? { discountCode } : {}) }, null, token);
+      if (result.order?.method !== method || !sameDiscount(preview.quote.discount, result.order.discount)
+        || (preview.quote.discount && preview.quote.amountCents !== result.order.amountCents)) throw new Error('invalid-order');
       if (active.current) { acceptOrder(result.order, orderId); setPhone(''); }
     } catch (issue) {
       if (!active.current) return;
@@ -385,11 +414,14 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     if (working.current || busy || !canRetryOrder(order)) return;
     const source = order.id;
     try { localStorage.removeItem(key); } catch { setError(t('Não foi possível preparar outra tentativa neste navegador.', 'Could not prepare another attempt in this browser.')); return; }
-    setRetrySource(source); setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError(''); setPhone('');
+    setRetry({ id: source, discount: order.discount }); setId(''); setOrder(null); setPreview(null); setConfirmed(false); setRecoveryBlocked(false); setError(''); setPhone('');
     setMethod(methods.includes('mbway') ? 'mbway' : methods[0] || '');
     onLock(false);
   }
-  const customer = preview?.billing;
+  function changeDiscountCode(value) {
+    setDiscountInput(value); setPreview(null); setConfirmed(false); setError('');
+  }
+  const customer = preview?.paymentKey === paymentKey ? preview.billing : null;
   const currentMethod = order?.method || method;
   const methodLabel = methodNames[currentMethod]?.[en ? 1 : 0] || t('Pagamento', 'Payment');
   const bank = order?.method === 'bank_transfer' ? order.bankTransfer : null;
@@ -432,6 +464,15 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <button type="button" disabled={billing.status === 'loading' || busy} onClick={() => { if (!working.current) readBilling(); }}>{t('Atualizar dados de faturação', 'Refresh billing details')}</button>
       </section>}
       {retrySource && <p role="status">{t('Está a preparar uma nova tentativa para um pedido encerrado sem pagamento. Reveja o valor, os dados de faturação e o número MB WAY antes de confirmar.', 'You are preparing another attempt for an order closed without payment. Review the amount, billing details and MB WAY number before confirming.')}</p>}
+      {showDiscount && <details className="registration-discount">
+        <summary>{t('Tem um código de desconto?', 'Have a discount code?')}</summary>
+        <label className="registration-discount__code">{t('Código de desconto da organização', 'Organiser discount code')}
+          <input type="text" value={discountInput} placeholder="CIRC27-D-…" maxLength={80} autoComplete="off" autoCapitalize="off" spellCheck={false}
+            aria-describedby={discountHelpId} disabled={busy || recoveryBlocked} onChange={event => changeDiscountCode(event.target.value)} />
+        </label>
+        <small id={discountHelpId}>{t('O desconto aplica-se ao congresso. O valor final é apresentado ao rever o pagamento.', 'The discount applies to congress admission. Review the payment to see the final amount.')}</small>
+        {discountCode && <button type="button" className="registration-discount__clear" disabled={busy || recoveryBlocked} onClick={() => changeDiscountCode('')}>{t('Remover código', 'Remove code')}</button>}
+      </details>}
       {methods.length > 0 && <fieldset disabled={busy || configBusy} className="registration-payment-methods"><legend>{t('Meio de pagamento', 'Payment method')}</legend>
         {methods.map(value => <label key={value}><input type="radio" name={`payment-method-${kind}`} value={value} checked={method === value} onChange={() => setMethod(value)} />{methodNames[value][en ? 1 : 0]}</label>)}
       </fieldset>}
@@ -449,6 +490,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
             : t('A inscrição é confirmada após o pagamento.', 'Registration is confirmed after payment.')} ${t('A fatura-recibo ficará disponível no My CIRC após a emissão.', 'The invoice-receipt will be available in My CIRC once issued.')}`}</p>
       <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !paymentReady || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : t('Rever valor e faturação', 'Review amount and billing')}</button>
       {customer && <div className="registration-invoice">
+        {preview.quote.discount && <p>{discountLabel(preview.quote.discount)} <strong>−{money(preview.quote.discount.amountCents)}</strong></p>}
         <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(preview.quote.amountCents)}</strong></p>
         <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
           <dt>NIF</dt><dd>{customer.customer_tax_registration_number}</dd><dt>{t('Morada', 'Address')}</dt><dd>{customer.customer_address_detail}</dd>
@@ -465,6 +507,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     </>}
     {order && <div className="registration-invoice">
       <p role="status"><strong>{states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
+      {order.discount && <p>{discountLabel(order.discount)} <strong>−{money(order.discount.amountCents)}</strong></p>}
       <p>{t('Valor:', 'Amount:')} {money(order.amountCents)}</p>
       {order.status === 'paid' && order.capacityStatus === 'review_required' && <p role="status">{t('O pagamento foi recebido. A inscrição ou vaga aguarda conferência da organização por causa da lotação. Não efetue outro pagamento.', 'Payment was received. The registration or place awaits organiser review because of capacity. Do not make another payment.')}</p>}
       {order.status === 'pending' && order.method === 'multibanco' && <dl><dt>{t('Entidade', 'Entity')}</dt><dd>{order.entity}</dd><dt>{t('Referência', 'Reference')}</dt><dd>{order.reference}</dd></dl>}

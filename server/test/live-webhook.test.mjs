@@ -25,14 +25,15 @@ function signed(body){
   return new Request('https://circ.local/api/payments/live/notifications',{method:'POST',
     headers:{'Content-Type':'application/json','X-Signature':sig},body:text});
 }
-function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectReference=async()=>({providerState:'paga'})}={}){
+function fixture({fiscalError=null,initialPayment=null,notFound=false,inspectReference=async()=>({providerState:'paga'}),discount}={}){
+  const orderQuote=discount===undefined?quote:quotePrimary(selection,{uid:UID,emailVerified:true},null,new Date('2026-11-15T12:00:00Z'),discount);
   let payment=initialPayment||{eventId:'circ-2027',id:ID,environment:'production',registrationId:`circ-2027-${UID}`,userId:UID,status:'pending',
-    amountCents:9500,currency:'EUR',method:'multibanco',identifier,reference:'123456789',entity:'12345',transactionId:null,paidAt:null,
-    provider:'eupago',quote,billingSnapshot:billing,createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
+    amountCents:orderQuote.amountCents,currency:'EUR',method:'multibanco',identifier,reference:'123456789',entity:'12345',transactionId:null,paidAt:null,
+    provider:'eupago',quote:orderQuote,billingSnapshot:billing,createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
   let registration={eventId:'circ-2027',userId:UID,registrationKey:`circ-2027:${UID}`,primaryRegistration:true,participantName:'Pessoa Teste',
     participantEmail:'pessoa@example.test',registrationType:'CIRC 2027 · Presencial',status:'submitted',isTest:false,testMode:false,
     selection:{...selection,dinner:false,ratePeriod:'early'},entitlements:{congressMode:'',morningCourse:false,afternoonCourse:false,dinnerQuantity:0},
-    addOnOrderCount:0,documentCount:0,payment:{status:'pending',amountCents:9500,currency:'EUR',method:'multibanco',reference:'123456789'},
+    addOnOrderCount:0,documentCount:0,payment:{status:'pending',amountCents:orderQuote.amountCents,currency:'EUR',method:'multibanco',reference:'123456789'},
     createdAt:'2026-11-15T10:00:00Z',updatedAt:'2026-11-15T10:00:00Z'};
   let document=null,providerFeeMicros=null,issueCalls=0,confirmCalls=0,finalizeCalls=0;
   const store={
@@ -103,6 +104,23 @@ test('regular-period payment with early amount is sent to review and no FR is at
   assert.equal(f.state().payment.reviewReason,'payment-date-tariff-mismatch');
   assert.equal(f.state().registration.status,'submitted');
   assert.deepEqual(f.calls(),{issueCalls:0,confirmCalls:0,finalizeCalls:0});
+});
+
+test('EuPago verifies a persisted fixed discount against the payment date before issuing an FR',async()=>{
+  const discount={type:'fixed',value:1250};
+  const f=fixture({discount});
+  const response=await f.call(payload({amount:'82.50000'}));
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).fiscalStatus,'issued');
+  assert.deepEqual(f.state().payment.fiscalQuote.discount,{...discount,amountCents:1250});
+  assert.equal(f.state().document.salesDocument.lines[0].unit_price,82.5);
+  assert.equal(f.state().registration.payment.amountCents,8250);
+  const late=fixture({discount});
+  const review=await late.call(payload({amount:'82.50000',date:'2027-02-01T12:00:00Z'}));
+  assert.equal(review.status,200);
+  assert.equal((await review.json()).reviewRequired,true);
+  assert.equal(late.state().payment.reviewReason,'payment-date-tariff-mismatch');
+  assert.equal(late.calls().issueCalls,0);
 });
 
 test('timezone-less payment on tariff boundary is reviewed rather than auto-issued',async()=>{

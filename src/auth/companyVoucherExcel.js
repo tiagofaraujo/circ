@@ -43,14 +43,17 @@ export async function buildCompanyVoucherExcel(purchase, vouchers) {
   return { buffer: await workbook.xlsx.writeBuffer(), filename: `circ-2027-vouchers-${name}-${purchase.id}.xlsx` };
 }
 
-export async function exportCompanyVoucherExcel(purchase) {
-  const vouchers = await loadCompanyVouchers(purchase);
-  const { buffer, filename } = await buildCompanyVoucherExcel(purchase, vouchers);
+export function downloadVoucherExcel({ buffer, filename }) {
   const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   try { link.click(); } finally { link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 60000); }
+}
+
+export async function exportCompanyVoucherExcel(purchase) {
+  const vouchers = await loadCompanyVouchers(purchase);
+  downloadVoucherExcel(await buildCompanyVoucherExcel(purchase, vouchers));
   return vouchers;
 }
