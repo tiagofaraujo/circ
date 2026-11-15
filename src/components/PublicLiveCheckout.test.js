@@ -83,13 +83,42 @@ test('removing a voucher invalidates the reviewed discount and requires a new ac
  expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/95,00\s?€/);
  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection});
 });
+test('a voucher covering the full ULS congress price confirms registration without requesting a payment or a phone', async () => {
+ configuration={...configuration,methods:['mbway']};
+ const discount={type:'fixed',value:5500,amountCents:5500};
+ const chosen={...selection,profile:'uls'};
+ const fullDiscount={...preview,quote:{kind:'primary',currency:'EUR',amountCents:0,discount}};
+ const redeemed={id:ID,kind:'primary',status:'paid',amountCents:0,currency:'EUR',method:'organization_voucher',discount};
+ transport.mockResolvedValueOnce(response(fullDiscount)).mockResolvedValueOnce(response({order:redeemed}));
+ show({selection:chosen, discountTransfer:{code:discountCode}});
+ const field=await screen.findByRole('textbox',{name:'Código de desconto da organização'});
+ expect(field).toHaveValue(discountCode);
+ expect(field).toHaveFocus();
+ expect(screen.getByText('Tem um código de desconto?').parentElement).toHaveAttribute('open');
+ const review=await screen.findByRole('button',{name:'Rever desconto e total'});
+ expect(review).toBeEnabled();
+ fireEvent.click(review);
+ const confirm=await screen.findByRole('button',{name:'Confirmar inscrição com desconto'});
+ expect(confirm).toBeDisabled();
+ expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/0,00\s?€/);
+ expect(screen.queryByLabelText('Número MB WAY')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('checkbox',{name:'Conferi o desconto e pretendo confirmar a inscrição.'}));
+ fireEvent.click(confirm);
+ expect(await screen.findByText('Inscrição confirmada com desconto.')).toBeInTheDocument();
+ expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,discountCode});
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({
+   id:ID,selection:chosen,stamp:fullDiscount.stamp,billingStamp:fullDiscount.billingStamp,method:'organization_voucher',discountCode,
+ });
+ expect(screen.queryByRole('button',{name:'Atualizar estado do pagamento'})).not.toBeInTheDocument();
+});
 test.each([
  [response({error:'discount-voucher-invalid'},false,409), /código de desconto é inválido/],
+ [response({error:'discount-voucher-uls-onsite'},false,409), /exclusivo para o congresso presencial na categoria ULS Coimbra/],
  [response(preview), /Não foi possível preparar o pagamento/],
 ])('a refused or unconfirmed discount never proceeds with the full price', async (result,message) => {
  transport.mockResolvedValueOnce(result);
  show(); await ready(); enterDiscount();
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Rever desconto e total'}));
  expect(await screen.findByRole('alert')).toHaveTextContent(message);
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
  expect(transport).toHaveBeenCalledTimes(1);
@@ -108,7 +137,7 @@ test('a discounted quote arriving after a change of registration selection canno
  let resolveQuote;
  transport.mockReturnValueOnce(new Promise(resolve => { resolveQuote = resolve; })).mockResolvedValueOnce(response(preview));
  const {rerender} = show(); await ready(); enterDiscount();
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Rever desconto e total'}));
  await waitFor(() => expect(transport).toHaveBeenCalledTimes(1));
  const updated = {...selection,congressMode:'courses-only',morningCourse:true};
  rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={updated} eligible /></MemoryRouter>);
@@ -259,7 +288,7 @@ const bankOrder = { ...order, method:'bank_transfer', entity:undefined, referenc
  bankTransfer:{ status:'awaiting_transfer', revision:0, payee:'Associação', iban:'PT50 0000 0000 0000 0000 0000 0', paymentReference:ID } };
 async function ready() { await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled()); }
 async function reviewAndAcknowledge() {
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:/Rever (valor e faturação|desconto e total)/}));
  fireEvent.click(await screen.findByRole('checkbox'));
 }
 test('only server-advertised known methods are offered, without a live card option',async()=>{

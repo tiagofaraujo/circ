@@ -34,7 +34,7 @@ test('organisation discounts use integer rounding and affect only congress admis
   assert.equal(virtual.lines[0].unitAmountCents, 4625);
   assert.deepEqual(virtual.lines.slice(1), full.lines.slice(1));
 });
-test('organisation discounts require a positive admission price and a payable balance of at least one euro', () => {
+test('ordinary discounts require a positive admission price and a payable balance of at least one euro', () => {
   const onsiteOnly = { profile: 'external', congressMode: 'onsite' };
   for (const discount of [null, { type: 'unsupported', value: 10 }, { type: 'percentage', value: 10000 },
     { type: 'percentage', value: 1.5 }, { type: 'fixed', value: '100' }]) {
@@ -47,6 +47,25 @@ test('organisation discounts require a positive admission price and a payable ba
   assert.equal(quotePrimary(selection, context, null, now, { type: 'fixed', value: 9499 }).lines[0].unitAmountCents, 1);
   assert.throws(() => quotePrimary({ ...selection, congressMode: 'courses-only' }, context, null, now,
     { type: 'fixed', value: 100 }), /discount-not-applicable/);
+});
+test('fixed €55 vouchers cover verified early ULS onsite admission while priced extras remain chargeable', () => {
+  const base = { userId: context.uid, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA EXEMPLO', method: 'mec-name-match' };
+  const verified = { ...context, uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
+  const onsite = { profile: 'uls', congressMode: 'onsite' };
+  const discount = { type: 'fixed', value: 5500 };
+  const fullyCovered = quotePrimary(onsite, verified, null, now, discount);
+  assert.equal(fullyCovered.amountCents, 0);
+  assert.deepEqual(fullyCovered.discount, { ...discount, amountCents: 5500 });
+  assert.deepEqual(fullyCovered.lines, [{ code: 'congress-onsite', quantity: 1, unitAmountCents: 0, amountCents: 0 }]);
+  const withExtras = quotePrimary({ ...onsite, morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 }, verified, null, now, discount);
+  assert.equal(withExtras.amountCents, 7000);
+  assert.deepEqual(withExtras.lines.map(line => line.amountCents), [0, 2000, 2000, 3000]);
+  const regular = quotePrimary(onsite, verified, null, new Date('2027-02-01T00:00:00Z'), discount);
+  assert.equal(regular.amountCents, 3500);
+  assert.throws(() => quotePrimary(onsite, context, null, now, discount), /uls-not-verified/);
+  assert.throws(() => quotePrimary(onsite, verified, null, now, { ...discount, value: 5501 }), /discount-not-applicable/);
+  assert.throws(() => quotePrimary({ ...onsite, congressMode: 'virtual' }, verified, null, now, { ...discount, value: 6000 }), /discount-not-applicable/);
 });
 test('no primary quote without a checked absence or verified login', () => {
   assert.throws(() => quote(selection, context, {}), /registration-exists/);

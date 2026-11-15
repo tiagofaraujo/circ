@@ -47,11 +47,11 @@ test('onsite ULS participants see how to use an organiser voucher instead of the
  useUlsEligibility.mockReturnValue({ verified: true });
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByText('Tem um voucher de empresa?')).toBeInTheDocument();
- expect(screen.queryByText('Tem um voucher de organizador?')).not.toBeInTheDocument();
+ expect(screen.queryByText('Voucher de organizador para cursos e jantar')).not.toBeInTheDocument();
 
  fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
  expect(screen.queryByText('Tem um voucher de empresa?')).not.toBeInTheDocument();
- fireEvent.click(screen.getByText('Tem um voucher de organizador?'));
+ fireEvent.click(screen.getByText('Voucher de organizador para cursos e jantar'));
  expect(screen.getByText(/Pague apenas o congresso presencial à tarifa ULS Coimbra/)).toBeVisible();
  expect(screen.queryByLabelText(/Código do voucher/)).not.toBeInTheDocument();
  expect(screen.queryByRole('button', { name: 'Aplicar voucher de organizador' })).not.toBeInTheDocument();
@@ -62,7 +62,7 @@ test('onsite ULS participants see how to use an organiser voucher instead of the
  fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
  expect(screen.getByText('Retire os cursos e os bilhetes de jantar da seleção antes de pagar.')).toBeVisible();
  fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
- expect(screen.queryByText('Tem um voucher de organizador?')).not.toBeInTheDocument();
+ expect(screen.queryByText('Voucher de organizador para cursos e jantar')).not.toBeInTheDocument();
 });
 test('email verification is required before preparing payment', () => {
  useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: false }, isAdmin: false });

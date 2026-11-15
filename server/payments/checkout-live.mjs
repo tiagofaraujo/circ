@@ -21,7 +21,10 @@ async function body(request){if(!/^application\/json(?:\s*;|$)/i.test(request.he
 const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'?'CIRC 2027 · Virtual':'Cursos Pré-Congresso';
 const orderKind=p=>p.kind||p.quote?.kind||'primary';
 const historical=p=>Boolean(p?.registrationArchiveId);
-const paymentProvider=method=>method==='bank_transfer'?'internal_bank_transfer':method==='stripe_card'?'stripe':'eupago';
+const providerMethods = ['multibanco', 'mbway', 'bank_transfer', 'stripe_card'];
+const paymentProvider = method => ({
+  bank_transfer: 'internal_bank_transfer', stripe_card: 'stripe', organization_voucher: 'internal_organization_voucher',
+})[method] || 'eupago';
 const quoteStamp = (quote, discountVoucherHash) => discountVoucherHash
   ? stamp({ quote, discountVoucherHash })
   : stamp(quote);
@@ -34,7 +37,7 @@ function hashDiscountCode(code) {
   return createHash('sha256').update(normalized).digest('hex');
 }
 
-async function loadDiscountVoucher(store, requestedHash, replacement, uid) {
+async function loadDiscountVoucher(store, requestedHash, replacement, uid, selection) {
   const retainedHash = replacement?.payment.discountVoucherHash;
   if (retainedHash && requestedHash && requestedHash !== retainedHash) fail('discount-voucher-changed', 409);
   const hash = retainedHash || requestedHash;
@@ -53,6 +56,8 @@ async function loadDiscountVoucher(store, requestedHash, replacement, uid) {
   if (!canUse || !validTerms || !voucher.version || data.eventId !== EVENT || !LIVE_ORDER_UUID.test(data.batchId || '')) {
     fail('discount-voucher-invalid', 409);
   }
+  if (data.audience !== undefined && (data.audience !== 'uls-onsite' || selection.profile !== 'uls'
+    || selection.congressMode !== 'onsite')) fail('discount-voucher-uls-onsite', 409);
   return { ...voucher, hash };
 }
 
@@ -184,9 +189,16 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         if(!located?.data)return reply({error:'not-found'},404);
         if(historical(located.data))return reply({error:'not-found'},404);
         const p=located.data, kind=recoveringSupplement?'supplementary':'primary';
+        const covered = kind === 'primary' && p.method === 'organization_voucher';
         const checks={identifier:LIVE_ORDER_UUID.test(located.id)&&p.id===located.id,owner:p.userId===claims.sub,registration:p.registrationId===store.registrationId,
           real:p.environment==='production',provider:p.provider===paymentProvider(p.method),event:p.eventId===EVENT,kind:orderKind(p)===kind,
-          method:['multibanco','mbway','bank_transfer','stripe_card'].includes(p.method),currency:p.currency==='EUR',amount:Number.isSafeInteger(p.amountCents)&&p.amountCents>0};
+          method:covered||providerMethods.includes(p.method),currency:p.currency==='EUR',
+          amount:covered?p.amountCents===0:Number.isSafeInteger(p.amountCents)&&p.amountCents>0};
+        if (covered) checks.coverage = p.status === 'paid' && r.status === 'confirmed' && r.payment?.status === 'paid'
+          && p.quote?.amountCents === 0 && p.quote.selection?.profile === 'uls' && p.quote.selection?.congressMode === 'onsite'
+          && p.quote.discount?.type === 'fixed' && p.quote.discount.amountCents === r.payment?.coveredAmountCents
+          && Number.isSafeInteger(p.quote.discount.amountCents) && p.quote.discount.amountCents > 0
+          && /^[a-f0-9]{64}$/.test(p.discountVoucherHash || '') && !p.transactionId && !p.paidAt && !p.fiscalStatus;
         if(kind==='primary'){checks.method=checks.method&&p.method===r.payment?.method;checks.currency=checks.currency&&p.currency===r.payment?.currency;
           checks.amount=checks.amount&&p.amountCents===r.payment?.amountCents;checks.reference=(p.reference||'')===(r.payment?.reference||'');}
         const failed=Object.keys(checks).filter(k=>!checks[k]);
@@ -222,7 +234,8 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         || !LIVE_ORDER_UUID.test(data.replacesOrderId) || data.replacesOrderId === data.id)) fail('invalid-request');
       if(privatePilot&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
       const pilot=isAdmin&&data.pilotAcknowledged===true;
-      if(creating&&(!LIVE_ORDER_UUID.test(data.id||'')||!['multibanco','mbway','bank_transfer','stripe_card'].includes(data.method)
+      const confirmsWithVoucher = kind === 'primary' && data.method === 'organization_voucher';
+      if(creating&&(!LIVE_ORDER_UUID.test(data.id||'')||(!confirmsWithVoucher&&!providerMethods.includes(data.method))
         ||(data.method==='mbway'?(typeof data.phone!=='string'||!/^9\d{8}$/.test(data.phone)):data.phone!==undefined)))fail('invalid-request');
       if(pilot&&creating&&(!isLivePilotConfigured(env,Date.parse(now()))||data.pilotConfirmation!==PILOT_CONFIRMATION||!/^[a-f0-9]{64}$/.test(data.billingStamp||'')))fail('pilot-confirmation-required',400);
       exact(data.selection,kind==='supplementary'?['morningCourse','afternoonCourse','dinnerQuantity']:['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
@@ -236,7 +249,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
             ||(previous.replacesOrderId||null)!==(data.replacesOrderId||null))fail('idempotency-conflict',409);
           return reply({order:publicLiveOrder(data.id,previous)});
         }
-        if(!methods.includes(data.method))fail('payment-method-unavailable',409);
+        if(!confirmsWithVoucher&&!methods.includes(data.method))fail('payment-method-unavailable',409);
       }
       const existing=await store.registration(), r=existing.data;
       if(r?.capacityReviewOrderId)fail('capacity-review-required',409);
@@ -267,15 +280,17 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       }
       const selectedProfile=kind==='supplementary'?r.selection?.profile:data.selection.profile;
       const context=await store.context(selectedProfile);
-      const discountVoucher = kind === 'primary' ? await loadDiscountVoucher(store, requestedDiscountHash, replacement, claims.sub) : null;
+      const discountVoucher = kind === 'primary' ? await loadDiscountVoucher(store, requestedDiscountHash, replacement, claims.sub, data.selection) : null;
       const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now()),discountVoucher?.data.discount):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
+      const noPaymentDue = kind === 'primary' && Boolean(discountVoucher) && quote.amountCents === 0;
+      if (creating && confirmsWithVoucher !== noPaymentDue) fail('quote-changed', 409);
       if(privatePilot&&(kind!=='primary'||discountVoucher||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
       const profile=await store.profile(), billing=billingCustomerFromProfile(profile.data);
       if(!billing.ok)fail('billing-customer-unconfirmed',409,{issues:billing.issues});
       context.guards.push(profile);
       const participantName=typeof profile.data?.name==='string'?profile.data.name.replace(/\s+/g,' ').trim():'';
       if(participantName.length<5||participantName.length>200)fail('profile-incomplete',409);
-      buildLiveMultibancoFR({orderId:creating?data.id:'11111111-1111-4111-8111-111111111111',quote,billing,paymentDate:now().slice(0,10)});
+      if (!noPaymentDue) buildLiveMultibancoFR({orderId:creating?data.id:'11111111-1111-4111-8111-111111111111',quote,billing,paymentDate:now().slice(0,10)});
       if(capacityEnabled&&Object.values(selectionFootprint(quote.selection)).some(value=>value>0)){
         const available=await store.capacity(),decision=capacityDecision(available,{selection:quote.selection});
         if(!decision.allocated)fail('capacity-full',409,{unavailable:decision.unavailable});
@@ -299,6 +314,12 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         ...(replacement?{replacesOrderId:replacement.orderId}:{}),
         ...(discountVoucher?{discountVoucherHash:discountVoucher.hash}:{}),
         ...(account?{bankTransfer:{status:'awaiting_transfer',revision:0,...account,paymentReference:data.id,reports:[],createdAt}}:{})};
+      if (noPaymentDue) {
+        registration.status = 'confirmed';
+        registration.entitlements = { congressMode: quote.selection.congressMode, morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+        registration.payment = { ...registration.payment, status: 'paid', coveredAmountCents: quote.discount.amountCents };
+        payment.status = 'paid';
+      }
       if(!creationEnabled())fail('live-checkout-not-configured',503);
       if(replacement){
         let hint;try{hint=await providerFactory({apiKey:env.EUPAGO_LIVE_API_KEY}).inspectReference(replacement.payment);}
@@ -311,7 +332,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         replacement.payment={...replacement.payment,replacementCheck:{source:'eupago-reference-info',state:hint.providerState,checkedAt:now(),reference:replacement.payment.reference,identifier:replacement.payment.identifier}};
       }
       const reserved=kind==='primary'?await store.createPendingPrimary({orderId:data.id,registration,payment,guards:context.guards,replacement,discountVoucher}):await store.createPendingSupplementary({orderId:data.id,registration,registrationVersion:existing.version,payment,guards:context.guards,replacement});
-      if(account)return reply({order:publicLiveOrder(data.id,payment)},201);
+      if(account||noPaymentDue)return reply({order:publicLiveOrder(data.id,payment)},201);
       let created;
       try{created=data.method==='stripe_card'?await stripeFactory({apiKey:env.STRIPE_LIVE_SECRET_KEY}).createPayment(payment)
         :await providerFactory({apiKey:env.EUPAGO_LIVE_API_KEY}).createPayment({...payment,...(data.method==='mbway'?{phone:data.phone}:{})});}

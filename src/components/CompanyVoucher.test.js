@@ -38,3 +38,14 @@ test('failed redemption keeps code for retry and does not claim confirmation', a
   expect(screen.getByLabelText('Código do voucher de empresa')).toHaveValue('a'.repeat(32));
   expect(screen.queryByText('Inscrição confirmada com voucher.')).not.toBeInTheDocument();
 });
+test('an organisation discount in the company form is forwarded without redeeming or requiring company eligibility', () => {
+  const onDiscountCode = jest.fn();
+  const code = 'CIRC27-D-0123-4567-89ab-cdef-0123-4567-89ab-cdef';
+  render(<CompanyVoucher eligible={false} onDiscountCode={onDiscountCode} />);
+  fireEvent.click(screen.getByText('Tem um voucher de empresa?'));
+  fireEvent.change(screen.getByLabelText('Código do voucher de empresa'), { target: { value: ` ${code} ` } });
+  fireEvent.click(screen.getByRole('button', { name: 'Usar código de desconto' }));
+  expect(onDiscountCode).toHaveBeenCalledWith(code);
+  expect(redeemCompanyVoucher).not.toHaveBeenCalled();
+  expect(screen.getByText('Tem um voucher de empresa?').parentElement).not.toHaveAttribute('open');
+});

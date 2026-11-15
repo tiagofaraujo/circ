@@ -329,6 +329,12 @@ function discountCheckout(f) {
     sentToProvider,
     addParticipant: uid => f.put(`${root}/users/${uid}`, { name: 'Pessoa Modelo', taxNumber: '203821432',
       billingAddress: 'Rua Modelo 1', billingPostalCode: '3030-471', billingCity: 'Coimbra', billingCountry: 'Portugal' }),
+    verifyUls(uid, mec) {
+      const eligibility = { userId: uid, eventId: 'circ-2027', mec, nameKey: 'PESSOA MODELO', method: 'mec-name-match' };
+      f.put(`${root}/ulsEligibility/${uid}`, { ...eligibility, status: 'matched' });
+      f.put(`${root}/ulsMecClaims/circ-2027_${mec}`, eligibility);
+      f.put(`${root}/ulsRoster/${mec}`, { eventId: eligibility.eventId, nameKey: eligibility.nameKey, active: true });
+    },
     async call(uid, path, body) {
       return api(new Request(`https://circ.test/api/checkout/live${path}`, { method: body ? 'POST' : 'GET',
         headers: { Authorization: `Bearer ${uid}`, Origin: 'https://circ.test', 'Content-Type': 'application/json' },
@@ -337,17 +343,104 @@ function discountCheckout(f) {
   };
 }
 
-function discountVoucher(f, rawCode, discount) {
+function discountVoucher(f, rawCode, discount, audience) {
   const hash = createHash('sha256').update(rawCode).digest('hex');
   const name = `${root}/organizationDiscountVouchers/${hash}`;
   const code = `CIRC27-D-${rawCode.match(/.{4}/g).join('-')}`;
   f.put(name, { eventId: 'circ-2027', status: 'available', batchId: orderIdFor(10), index: 1,
-    createdAt: '2026-11-15T11:00:00.000Z', createdBy: 'admin', discount });
+    createdAt: '2026-11-15T11:00:00.000Z', createdBy: 'admin', discount, ...(audience ? { audience } : {}) });
   return { name, code, hash };
 }
 
 const discountSelection = { profile: 'external', congressMode: 'onsite', morningCourse: true, afternoonCourse: false, dinnerQuantity: 1 };
 const paymentDoc = id => `${root}/payments/${id}`;
+
+test('a scoped €55 voucher confirms one verified onsite ULS registration atomically with no payment provider or fiscal job', async () => {
+  const f = fixture(), checkout = discountCheckout(f), uid = 'organizer-free', id = orderIdFor(60);
+  const terms = { type: 'fixed', value: 5500 };
+  const voucher = discountVoucher(f, '6'.repeat(32), terms, 'uls-onsite');
+  const selection = { profile: 'uls', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+  const discountCode = voucher.code;
+  checkout.addParticipant(uid);
+  for (const incorrectSelection of [{ ...selection, profile: 'external' }, { ...selection, congressMode: 'virtual' }]) {
+    const result = await checkout.call(uid, '/quote', { selection: incorrectSelection, discountCode });
+    assert.equal(result.status, 409);
+    assert.equal((await result.json()).error, 'discount-voucher-uls-onsite');
+  }
+  const unverified = await checkout.call(uid, '/quote', { selection, discountCode });
+  assert.equal(unverified.status, 403);
+  assert.equal((await unverified.json()).error, 'uls-not-verified');
+  checkout.verifyUls(uid, '123');
+  const preview = await checkout.call(uid, '/quote', { selection, discountCode });
+  assert.equal(preview.status, 200);
+  const { quote, stamp, billingStamp } = await preview.json();
+  assert.equal(quote.amountCents, 0);
+  assert.deepEqual(quote.discount, { ...terms, amountCents: 5500 });
+  assert.equal(f.data(voucher.name).status, 'available');
+  assert.equal(f.data(registrationName(uid)), null);
+  const request = { id, selection, discountCode, stamp, billingStamp, method: 'organization_voucher' };
+  const mismatchedMethod = await checkout.call(uid, '/orders', { ...request, method: 'multibanco' });
+  assert.equal(mismatchedMethod.status, 409);
+  assert.equal((await mismatchedMethod.json()).error, 'quote-changed');
+  assert.equal(f.data(voucher.name).status, 'available');
+  assert.equal(f.data(paymentDoc(id)), null);
+  const confirmed = await checkout.call(uid, '/orders', request);
+  assert.equal(confirmed.status, 201);
+  const { order } = await confirmed.json();
+  assert.equal(order.id, id);
+  assert.equal(order.method, 'organization_voucher');
+  assert.equal(order.status, 'paid');
+  assert.equal(order.amountCents, 0);
+  const registration = f.data(registrationName(uid));
+  assert.equal(registration.status, 'confirmed');
+  assert.equal(registration.selection.profile, 'uls');
+  assert.deepEqual(registration.entitlements, { congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
+  assert.equal(registration.payment.coveredAmountCents, 5500);
+  assert.equal(registration.payment.amountCents, 0);
+  assert.equal(f.data(voucher.name).status, 'claimed');
+  assert.equal(f.data(voucher.name).userId, uid);
+  assert.equal(f.data(voucher.name).orderId, id);
+  assert.equal(f.data(paymentDoc(id)).provider, 'internal_organization_voucher');
+  assert.equal(f.data(paymentDoc(id)).transactionId, null);
+  assert.equal(f.data(`${root}/documents/${id}`), null);
+  assert.equal(checkout.sentToProvider.length, 0);
+  const replayed = await checkout.call(uid, '/orders', request);
+  assert.equal(replayed.status, 200);
+  assert.deepEqual((await replayed.json()).order, order);
+  const recovered = await checkout.call(uid, '/primary-order');
+  assert.equal(recovered.status, 200);
+  assert.deepEqual((await recovered.json()).order, order);
+  assert.equal(f.data(lockName).revision, 1);
+  const extras = await checkout.call(uid, '/supplementary/quote', { selection: { morningCourse: true } });
+  assert.equal(extras.status, 200);
+  assert.equal((await extras.json()).quote.amountCents, 2000);
+});
+
+test('a scoped €55 voucher with extras cannot bypass payment and charges only the selected extras', async () => {
+  const f = fixture({ capacityEnabled: false }), checkout = discountCheckout(f), uid = 'organizer-with-extras';
+  checkout.addParticipant(uid);
+  checkout.verifyUls(uid, '345');
+  const voucher = discountVoucher(f, '7'.repeat(32), { type: 'fixed', value: 5500 }, 'uls-onsite');
+  const selection = { profile: 'uls', congressMode: 'onsite', morningCourse: true, dinnerQuantity: 1 };
+  const discountCode = voucher.code;
+  const preview = await checkout.call(uid, '/quote', { selection, discountCode });
+  assert.equal(preview.status, 200);
+  const { quote, stamp, billingStamp } = await preview.json();
+  assert.equal(quote.amountCents, 5000);
+  const id = orderIdFor(61);
+  const request = { id, selection, discountCode, stamp, billingStamp };
+  const bypass = await checkout.call(uid, '/orders', { ...request, method: 'organization_voucher' });
+  assert.equal(bypass.status, 409);
+  assert.equal((await bypass.json()).error, 'quote-changed');
+  assert.equal(f.data(voucher.name).status, 'available');
+  assert.equal(f.data(registrationName(uid)), null);
+  const created = await checkout.call(uid, '/orders', { ...request, method: 'multibanco' });
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).order.amountCents, 5000);
+  assert.equal(checkout.sentToProvider.length, 1);
+  assert.equal(checkout.sentToProvider[0].amountCents, 5000);
+  assert.equal(f.data(registrationName(uid)).status, 'submitted');
+});
 
 test('discount checkout previews without claiming and charges the reviewed amount only once', async () => {
   const f = fixture({ capacityEnabled: false });

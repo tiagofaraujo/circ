@@ -5,13 +5,18 @@ const EVENT = 'circ-2027';
 export const MIN_DISCOUNTED_PAYMENT_CENTS = 100;
 function fail(code) { throw new Error(`checkout/${code}`); }
 
-export function congressDiscountCents(admissionCents, discount) {
+export function allowsFullCongressDiscount(selection, discount) {
+  return selection?.profile === 'uls' && selection.congressMode === 'onsite' && discount?.type === 'fixed';
+}
+
+export function congressDiscountCents(admissionCents, discount, selection) {
   const { type, value } = discount || {};
   if (!Number.isSafeInteger(value) || value <= 0
     || !['percentage', 'fixed'].includes(type)
     || (type === 'percentage' && value >= 10000)) fail('invalid-discount');
   const amountCents = type === 'fixed' ? value : Math.round(admissionCents * value / 10000);
-  if (amountCents <= 0 || amountCents >= admissionCents) fail('discount-not-applicable');
+  if (amountCents <= 0 || amountCents > admissionCents
+    || (amountCents === admissionCents && !allowsFullCongressDiscount(selection, discount))) fail('discount-not-applicable');
   return amountCents;
 }
 
@@ -64,14 +69,15 @@ function makeQuote(profile, congressMode, items, now, kind, voucherDiscount) {
   if (voucherDiscount !== undefined) {
     if (congressMode === 'courses-only') fail('discount-not-applicable');
     const admission = lines[0];
-    const amountCents = congressDiscountCents(admission.unitAmountCents, voucherDiscount);
+    const amountCents = congressDiscountCents(admission.unitAmountCents, voucherDiscount, { profile, congressMode });
     discount = { type: voucherDiscount.type, value: voucherDiscount.value, amountCents };
     admission.unitAmountCents -= amountCents;
     admission.amountCents = admission.unitAmountCents;
   }
   const amountCents = lines.reduce((total, line) => total + line.amountCents, 0);
-  if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 9999900) fail('invalid-amount');
-  if (discount && amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('discount-not-applicable');
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0 || (!discount && amountCents === 0)
+    || amountCents > 9999900) fail('invalid-amount');
+  if (discount && amountCents > 0 && amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('discount-not-applicable');
   return { eventId: EVENT, kind, currency: 'EUR', amountCents, ratePeriod, lines,
     selection: { profile, courseAffiliation: profile === 'uls' ? 'uls' : 'external', congressMode, ...items },
     ...(discount ? { discount } : {}) };

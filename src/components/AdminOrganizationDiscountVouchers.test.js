@@ -64,3 +64,21 @@ test('retrieves an earlier batch by ID using a read request', async () => {
   expect(fetch).toHaveBeenCalledWith(`/api/admin/registration-management/discount-vouchers?batchId=${batchId}`,
     expect.objectContaining({ method: 'GET', headers: { Authorization: 'Bearer session' } }));
 });
+
+test('prefills the organizer terms and sends the restricted batch only when submitted', async () => {
+  const terms = { batchId, label: 'Organizadores · CIRC 2027', count: 9, discount: { type: 'fixed', value: 5500 }, audience: 'uls-onsite' };
+  const codes = Array.from({ length: 9 }, (_, index) => `${code.slice(0, -1)}${index}`);
+  fetch.mockResolvedValue({ ok: true, json: async () => ({ ...terms, codes, createdAt: '2026-11-15T12:00:00.000Z' }) });
+  render(<AdminOrganizationDiscountVouchers />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Preencher 9 vouchers de 55 € para organizadores' }));
+  expect(fetch).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Nome do lote')).toHaveValue(terms.label);
+  expect(screen.getByLabelText('Número de códigos')).toHaveValue(9);
+  expect(screen.getByLabelText('Desconto (€)')).toHaveValue('55');
+  expect(screen.getByLabelText('Destinatários')).toHaveValue('uls-onsite');
+  fireEvent.click(screen.getByRole('button', { name: 'Emitir vouchers de desconto' }));
+  expect(await screen.findByRole('heading', { name: terms.label })).toBeInTheDocument();
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(terms);
+  expect(screen.getByText('9 códigos emitidos', { exact: false })).toBeInTheDocument();
+});

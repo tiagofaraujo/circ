@@ -46,6 +46,18 @@ test('a voucher participant can access invoices for their own additional purchas
  expect(screen.getByText('Issued invoice')).toBeInTheDocument();
  expect(screen.getByText(/O documento de faturação original pertence à compra da empresa/)).toBeInTheDocument();
 });
+test('a ULS registration covered by a discount shows its confirmation and offers separate purchases',()=>{
+ const covered={...registration,voucherId:null,selection:{profile:'uls',congressMode:'onsite'},entitlements:{congressMode:'onsite'},
+   payment:{status:'paid',amountCents:0,method:'organization_voucher'}};
+ const {rerender}=show(covered);
+ expect(screen.getByText('Confirmada com desconto')).toBeInTheDocument();
+ expect(screen.queryByText('Issued invoice')).not.toBeInTheDocument();
+ expect(screen.queryByText('Tem um voucher de organizador?')).not.toBeInTheDocument();
+ expect(screen.getByRole('heading',{name:'Adicionar cursos ou bilhetes de jantar'})).toBeInTheDocument();
+ rerender(<MemoryRouter><ExistingRegistrationAddOns registration={{...covered,addOnOrderCount:1,documentCount:1}} user={user} /></MemoryRouter>);
+ expect(screen.getByText('Documentos das suas compras adicionais')).toBeInTheDocument();
+ expect(screen.getByText('Issued invoice')).toBeInTheDocument();
+});
 test('a paid MB WAY registration remains visibly paid while its receipt awaits the organisers',()=>{
  show({...registration,voucherId:null,fiscalPendingOrderId:'11111111-1111-4111-8111-111111111111',payment:{status:'paid',method:'mbway',amountCents:9500}});
  expect(screen.getByText('Paga')).toBeInTheDocument();

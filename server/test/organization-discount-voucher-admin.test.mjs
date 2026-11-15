@@ -56,6 +56,7 @@ test('issues percentage and fixed vouchers in separate atomic batches and limits
   assert.equal(batch.label, terms.label);
   assert.equal(batch.batchId, terms.batchId);
   assert.deepEqual(batch.discount, terms.discount);
+  assert.equal(batch.audience, undefined);
   assert.match(batch.codes[0], /^CIRC27-D-(?:[a-f0-9]{4}-){7}[a-f0-9]{4}$/);
   assert.equal(new Set(batch.codes).size, 2);
   const [manifest, ...vouchers] = commits[0];
@@ -80,6 +81,25 @@ test('issues percentage and fixed vouchers in separate atomic batches and limits
   assert.equal(commits[1][1].update.fields.discount.mapValue.fields.type.stringValue, 'fixed');
 });
 
+test('issues nine 55 euro vouchers with ULS onsite eligibility on each voucher and the recoverable batch', async () => {
+  const { api, commits } = fixture();
+  const organizerTerms = { ...terms, label: 'Organizadores · CIRC 2027', count: 9,
+    discount: { type: 'fixed', value: 5500 }, audience: 'uls-onsite' };
+  const created = await api(request({ body: organizerTerms }), env);
+  assert.equal(created.status, 201);
+  const batch = await created.json();
+  assert.equal(batch.audience, organizerTerms.audience);
+  assert.equal(new Set(batch.codes).size, 9);
+  assert.equal(commits[0].length, 10);
+  assert.ok(commits[0].every(({ update: { fields } }) => fields.audience.stringValue === 'uls-onsite'
+    && fields.discount.mapValue.fields.value.integerValue === '5500'));
+  assert.deepEqual(await (await api(request({ method: 'GET', query: `?batchId=${terms.batchId}` }), env)).json(), batch);
+
+  const { audience, ...unrestricted } = organizerTerms;
+  assert.equal((await api(request({ body: unrestricted }), env)).status, 409);
+  assert.equal(commits.length, 1);
+});
+
 test('recovers the same codes when a commit response is lost and refuses to overwrite a batch', async () => {
   const { api, commits } = fixture({ loseCommitResponse: true });
   const first = await api(request(), env);
@@ -101,7 +121,7 @@ test('rejects unprivileged callers and invalid discount inputs before accessing 
   const { api, reads } = fixture();
   assert.equal((await api(request({ headers: { Origin: 'https://other.test' } }), env)).status, 403);
   assert.equal((await api(request({ headers: { Authorization: '' } }), env)).status, 401);
-  for (const invalidTerms of [{ count: 51 }, { batchId: '../elsewhere' }, { label: '\u0000' },
+  for (const invalidTerms of [{ count: 51 }, { batchId: '../elsewhere' }, { label: '\u0000' }, { audience: 'uls' }, { audience: null },
     { discount: { type: 'percentage', value: 10000 } }, { discount: { type: 'fixed', value: 0 } },
     { discount: { type: 'fixed', value: 1.25 } }, { discount: { type: 'constructor', value: 50 } }]) {
     assert.equal((await api(request({ body: { ...terms, ...invalidTerms } }), env)).status, 400);

@@ -39,7 +39,7 @@ function validateSource(quote) {
     if (quote.kind !== 'primary' || !['congress-onsite', 'congress-virtual'].includes(admission?.code)
       || quote.amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('source-mismatch');
     let discountCents;
-    try { discountCents = congressDiscountCents(admission.unitAmountCents, quote.discount); }
+    try { discountCents = congressDiscountCents(admission.unitAmountCents, quote.discount, selection); }
     catch { fail('source-mismatch'); }
     if (discountCents !== quote.discount.amountCents) fail('source-mismatch');
     admission.unitAmountCents -= discountCents;
@@ -71,7 +71,7 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
     || !validateBillingCustomerSnapshot(billing?.customer).ok) fail();
   if (policy.series?.documentType !== 'FR' || !Number.isSafeInteger(policy.series.id) || policy.series.id <= 0
     || policy.exemption?.code !== 'M07' || !Number.isSafeInteger(policy.exemption.id)) fail('policy-invalid');
-  const lines = quote.lines.map(source => {
+  const lines = quote.lines.filter(source => source.amountCents > 0).map(source => {
     const [itemCode, description] = META[source.code] || [];
     const rule = policy.services[itemCode];
     if (!rule || !Number.isSafeInteger(rule.id) || rule.id <= 0 || rule.review
