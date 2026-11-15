@@ -103,6 +103,35 @@ test('a fully covered ULS admission leaves only charged items on a positive invo
   assert.throws(() => build(zeroTotal), /live-fiscal\/unsupported-order/);
 });
 
+test('fixed registration vouchers keep VAT framing and exact split-quantity amounts on every fiscal payment payload', () => {
+  const base = { userId: ctx.uid, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA TESTE', method: 'mec-name-match' };
+  const verified = { ...ctx, uls: { ...base, status: 'matched' }, claim: base,
+    roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
+  const selection = selected({ profile: 'uls', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 });
+  const date = new Date('2026-11-15T12:00:00Z');
+  const source = quotePrimary(selection, verified, null, date, {type: 'fixed', value: 7003, scope: 'registration'});
+  assert.equal(source.amountCents, 8497);
+  for (const [method, extra] of [['multibanco', {}], ['mbway', {}], ['bank_transfer', { bankAccountId: 2 }], ['stripe_card', { cardFunding: 'credit' }]]) {
+    const result = buildLivePaymentFR({orderId: ID, quote: source, billing, paymentDate: '2026-11-15', method, ...extra});
+    assert.deepEqual(result.lines.map(line => [line.item_id, line.quantity, line.unit_price, line.tax_code, line.tax_percentage]), [
+      [55, 1, 30.15, 'ISE', 0], [57, 1, 10.96, 'NOR', 23], [58, 1, 10.97, 'NOR', 23],
+      [59, 1, 16.44, 'ISE', 0], [59, 1, 16.45, 'ISE', 0],
+    ]);
+    assert.equal(result.tax_exemption_reason_id, 9);
+    assert.equal(result.lines.reduce((sum, line) => sum + line.quantity * Math.round(line.unit_price * 100), 0), 8497);
+    assert.match(result.notes, /Desconto na inscrição 70,03 €/);
+  }
+  const altered = structuredClone(source);
+  altered.lines[0].unitAmountCents -= 1;
+  altered.lines[0].amountCents -= 1;
+  altered.lines[1].unitAmountCents += 1;
+  altered.lines[1].amountCents += 1;
+  assert.throws(() => build(altered), /live-fiscal\/source-mismatch/);
+  const zero = quotePrimary(selection, verified, null, date, {type: 'fixed', value: 15500, scope: 'registration'});
+  assert.equal(zero.amountCents, 0);
+  assert.throws(() => build(zero), /live-fiscal\/unsupported-order/);
+});
+
 test('course-only primary order has23 percent VAT and no exemption header',()=>{
   const source=primary({congressMode:'courses-only',morningCourse:true,afternoonCourse:true});const result=build(source);
   assert.equal(source.amountCents,7000);assert.equal(result.tax_exemption_reason_id,undefined);

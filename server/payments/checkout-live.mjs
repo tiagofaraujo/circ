@@ -8,7 +8,7 @@ import { capacityDecision, selectionFootprint } from './paid-capacity.mjs';
 import { billingCustomerFromProfile } from './toconline-billing-customer.mjs';
 import { buildLiveMultibancoFR } from './toconline-live-payload.mjs';
 import { livePaymentMethods, liveBankTransferAccount, MBWAY_APPROVAL_WINDOW_MS } from './live-payment-methods.mjs';
-import { quotePrimary, quoteSupplementary } from './quote.mjs';
+import { fullyCoveredVoucherEntitlements, quotePrimary, quoteSupplementary, REGISTRATION_DISCOUNT_SCOPE } from './quote.mjs';
 import { availableOrganizerVoucher, claimedOrganizerVoucher, organizerVoucherHash } from './organizer-voucher-record.mjs';
 import { REGISTRATION_OPEN_DATE, REGISTRATION_OPEN_AT, REGISTRATION_CAPACITY_ENABLED, isRegistrationOpen } from '../../src/data/registration2027.js';
 import { isClosedUnpaidMbway, canReplaceUnpaidPrimary, holdUnconfirmedMbwayClosure } from './live-mbway-lifecycle.mjs';
@@ -60,7 +60,9 @@ async function loadDiscountVoucher(store, requestedHash, replacement, uid, selec
   }
   if (data.audience !== undefined && (data.audience !== 'uls-onsite' || selection.profile !== 'uls'
     || selection.congressMode !== 'onsite')) fail('discount-voucher-uls-onsite', 409);
-  return { ...voucher, hash };
+  const terms = retainedHash ? replacement.payment.quote.discount
+    : discount.type === 'fixed' ? { ...discount, scope: REGISTRATION_DISCOUNT_SCOPE } : discount;
+  return { ...voucher, hash, terms };
 }
 
 async function loadOrganizerVoucher(store, requestedHash, replacement, uid, selection) {
@@ -218,9 +220,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
           method:covered||providerMethods.includes(p.method),currency:p.currency==='EUR',
           amount:covered?p.amountCents===0:Number.isSafeInteger(p.amountCents)&&p.amountCents>0};
         if (covered) checks.coverage = p.status === 'paid' && r.status === 'confirmed' && r.payment?.status === 'paid'
-          && p.quote?.amountCents === 0 && p.quote.selection?.profile === 'uls' && p.quote.selection?.congressMode === 'onsite'
-          && p.quote.discount?.type === 'fixed' && p.quote.discount.amountCents === r.payment?.coveredAmountCents
-          && Number.isSafeInteger(p.quote.discount.amountCents) && p.quote.discount.amountCents > 0
+          && Boolean(fullyCoveredVoucherEntitlements(p.quote)) && p.quote.discount.amountCents === r.payment?.coveredAmountCents
           && /^[a-f0-9]{64}$/.test(p.discountVoucherHash || '') && !p.transactionId && !p.paidAt && !p.fiscalStatus;
         if(kind==='primary'){checks.method=checks.method&&p.method===r.payment?.method;checks.currency=checks.currency&&p.currency===r.payment?.currency;
           checks.amount=checks.amount&&p.amountCents===r.payment?.amountCents;checks.reference=(p.reference||'')===(r.payment?.reference||'');}
@@ -315,8 +315,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         && (requestedOrganizerHash || replacement?.payment.organizerVoucherHash)) fail('organizer-voucher-conflict', 409);
       const discountVoucher = kind === 'primary' ? await loadDiscountVoucher(store, requestedDiscountHash, replacement, claims.sub, data.selection) : null;
       const organizerVoucher = kind === 'primary' ? await loadOrganizerVoucher(store, requestedOrganizerHash, replacement, claims.sub, data.selection) : null;
-      const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now()),discountVoucher?.data.discount,Boolean(organizerVoucher)):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
-      const noPaymentDue = kind === 'primary' && Boolean(discountVoucher) && quote.amountCents === 0;
+      const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now()),discountVoucher?.terms,Boolean(organizerVoucher)):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
+      const coveredEntitlements = discountVoucher ? fullyCoveredVoucherEntitlements(quote) : null;
+      const noPaymentDue = Boolean(coveredEntitlements);
       if (creating && confirmsWithVoucher !== noPaymentDue) fail('quote-changed', 409);
       if(privatePilot&&(kind!=='primary'||discountVoucher||organizerVoucher||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
       if (data.priceOnly) {
@@ -353,7 +354,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         ...(account?{bankTransfer:{status:'awaiting_transfer',revision:0,...account,paymentReference:data.id,reports:[],createdAt}}:{})};
       if (noPaymentDue) {
         registration.status = 'confirmed';
-        registration.entitlements = { congressMode: quote.selection.congressMode, morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
+        registration.entitlements = coveredEntitlements;
         registration.payment = { ...registration.payment, status: 'paid', coveredAmountCents: quote.discount.amountCents };
         payment.status = 'paid';
       }

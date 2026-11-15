@@ -1,7 +1,7 @@
 import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
 import { availableOrganizerVoucher, claimedOrganizerVoucher } from './organizer-voucher-record.mjs';
 import { createPaidCapacityStore } from './paid-capacity-store.mjs';
-import { hasOrganizerBenefit } from './quote.mjs';
+import { fullyCoveredVoucherEntitlements, hasOrganizerBenefit } from './quote.mjs';
 export const LIVE_ORDER_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const isUid = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const EVENT = 'circ-2027';
@@ -237,13 +237,13 @@ export function createCheckoutLiveStore({
         || Boolean(organizerVoucher) !== Boolean(payment.quote?.organizerBenefit)
         || (organizerVoucher && discountVoucher)) throw new LiveStoreError('storage_invalid');
       const covered = payment.method === 'organization_voucher';
-      if (covered ? (!discountVoucher || payment.amountCents !== 0 || payment.quote.amountCents !== 0
+      const coveredEntitlements = covered ? fullyCoveredVoucherEntitlements(payment.quote) : null;
+      if (covered ? (!discountVoucher || payment.amountCents !== 0 || !coveredEntitlements
         || payment.status !== 'paid' || payment.provider !== 'internal_organization_voucher'
         || registration.status !== 'confirmed' || registration.payment?.status !== 'paid'
         || registration.payment.amountCents !== 0 || registration.payment.method !== payment.method
         || registration.payment.coveredAmountCents !== payment.quote.discount.amountCents
-        || payment.quote.selection?.profile !== 'uls' || payment.quote.selection.congressMode !== 'onsite'
-        || payment.quote.selection.morningCourse || payment.quote.selection.afternoonCourse || payment.quote.selection.dinnerQuantity !== 0)
+        || Object.entries(coveredEntitlements).some(([key, value]) => registration.entitlements?.[key] !== value))
         : payment.amountCents === 0) throw new LiveStoreError('storage_invalid');
       const voucherWrites = [];
       const voucherChecks = [];

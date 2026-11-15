@@ -27,7 +27,7 @@ const voucherCode = `CIRC27-D-${voucherValue.match(/.{4}/g).join('-')}`;
 const voucherHash = createHash('sha256').update(voucherValue).digest('hex');
 const clone = value => structuredClone(value);
 function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env, discount,
-  organizerVoucher = false } = {}) {
+  organizerVoucher = false, ulsEligible = organizerVoucher } = {}) {
   const payments = new Map(), jobs = new Map(), sessions = new Map();
   let registration = null, registrationVersion = 0, currentTime = clock, instrumentStatus = 200, creationFailure = false;
   const httpCalls = [], fiscalCalls = [];
@@ -58,7 +58,7 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
       billingPostalCode: '3000-001', billingCity: 'Coimbra', billingCountry: 'Portugal' } }),
     context: async () => {
       const context = { uid: identity.sub, emailVerified: true, guards: [] };
-      if (!organizerVoucher) return context;
+      if (!ulsEligible) return context;
       const base = { userId: identity.sub, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA EXEMPLO', method: 'mec-name-match' };
       return { ...context, uls: { ...base, status: 'matched' }, claim: base,
         roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
@@ -219,6 +219,29 @@ test('Stripe Checkout and the signed payment callback both use the discounted co
   assert.deepEqual(f.payment(ids[0]).fiscalQuote.discount, { ...discount, amountCents: 1900 });
   assert.equal(f.registration().payment.amountCents, 14100);
   assert.deepEqual(f.fiscalCalls[0].lines.map(line => line.unit_price), [76, 35, 30]);
+});
+
+test('Stripe settles a fixed voucher for the whole registration and invoices the same split quantities', async () => {
+  const discount = { type: 'fixed', value: 7003 };
+  const f = fixture({ discount, ulsEligible: true });
+  const { order } = await f.create(ids[0], { ...primary, profile: 'uls', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 });
+  assert.equal(order.amountCents, 8497);
+  assert.deepEqual(order.discount, { ...discount, amountCents: 7003, scope: 'registration' });
+  const checkout = new URLSearchParams(f.httpCalls[0].body);
+  for (const [index, expected] of ['3015', '1096', '1097', '1644', '1645'].entries()) {
+    assert.equal(checkout.get(`line_items[${index}][price_data][unit_amount]`), expected);
+    assert.equal(checkout.get(`line_items[${index}][quantity]`), '1');
+  }
+  assert.equal(checkout.has('line_items[5][quantity]'), false);
+  assert.match(checkout.get('line_items[3][price_data][product_data][name]'), /Jantar/);
+  assert.match(checkout.get('line_items[4][price_data][product_data][name]'), /Jantar/);
+  f.markPaid();
+  const paid = await f.notify();
+  assert.equal(paid.status, 200, await paid.clone().text());
+  assert.equal((await paid.json()).fiscalStatus, 'issued');
+  assert.deepEqual(f.payment(ids[0]).fiscalQuote.discount, order.discount);
+  assert.deepEqual(f.registration().entitlements, { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 });
+  assert.deepEqual(f.fiscalCalls[0].lines.map(line => [line.quantity, line.unit_price]), [[1, 30.15], [1, 10.96], [1, 10.97], [1, 16.44], [1, 16.45]]);
 });
 
 test('concurrent paid callbacks cannot duplicate the primary financial confirmation or claimed fiscal POST', async () => {

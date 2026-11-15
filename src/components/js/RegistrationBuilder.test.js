@@ -80,6 +80,7 @@ test('a company voucher covers the registration in the same summary even with a 
 test.each([
  ['organiser benefit', { organizerBenefit: { amountCents: 7000 }, amountCents: 8500 }, 'Voucher de organizador', '155,00 €', '−70,00 €', '85,00 €'],
  ['full congress discount', { discount: { amountCents: 5500 }, amountCents: 0 }, 'Código de desconto', '55,00 €', '−55,00 €', '0,00 €'],
+ ['fixed registration discount', { discount: { amountCents: 7000, scope: 'registration' }, amountCents: 5500 }, 'Código de desconto', '125,00 €', '−70,00 €', '55,00 €'],
 ])('the summary uses the applied %s quote and clears it when invalidated', (_name, quote, label, subtotal, savings, due) => {
  useUlsEligibility.mockReturnValue({ verified: true });
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);

@@ -4,6 +4,7 @@ import {
   createStripeLive, stripeLiveConfiguration, STRIPE_LIVE_API_VERSION, STRIPE_LIVE_WEBHOOK_PATH,
   safeLiveCheckoutUrl, matchStripeLiveSession, StripeLiveError,
 } from '../payments/stripe-live.mjs';
+import { quotePrimary } from '../payments/quote.mjs';
 
 const OID='11111111-1111-4111-8111-111111111111',OID2='22222222-2222-4222-8222-222222222222';
 const SID='cs_live_syntheticSession12345',PID='pi_syntheticPayment12345',API_KEY='rk_live_circ-unit-fixture-04';
@@ -97,6 +98,20 @@ test('Stripe charges only extras when a fixed voucher fully covers ULS onsite ad
   delete withoutDiscount.quote.discount;
   await assert.rejects(() => provider.createPayment(withoutDiscount), /stripe\/invalid-quote/);
   assert.equal(requests.length, 1);
+});
+test('Stripe rejects reallocated scoped voucher lines before calling the provider even if the total matches', async () => {
+  const order = makeOrder();
+  order.quote = quotePrimary({ profile: 'external', congressMode: 'onsite', morningCourse: true, dinnerQuantity: 2 },
+    { uid: order.userId, emailVerified: true }, null, new Date('2026-11-15T12:00:00Z'),
+    { type: 'fixed', value: 7003, scope: 'registration' });
+  order.amountCents = order.quote.amountCents;
+  order.quote.lines[0].unitAmountCents -= 1;
+  order.quote.lines[0].amountCents -= 1;
+  order.quote.lines[1].unitAmountCents += 1;
+  order.quote.lines[1].amountCents += 1;
+  const { provider, requests } = fixture(order);
+  await assert.rejects(() => provider.createPayment(order), /stripe\/invalid-quote/);
+  assert.equal(requests.length, 0);
 });
 test('idempotency key is stable for the persisted UUID and changes for a different order',async()=>{
   const f=fixture();await f.provider.createPayment(f.order);await f.provider.createPayment(structuredClone(f.order));

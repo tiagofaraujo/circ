@@ -145,6 +145,8 @@ export function ExistingRegistrationAddOns({ registration, user, en = false }) {
         {entitlements.afternoonCourse && <li>{en ? 'Afternoon course included' : 'Curso da tarde incluído'}</li>}
         {entitlements.dinnerQuantity > 0 && <li>{en ? 'Dinner tickets' : 'Bilhetes de jantar'}: {entitlements.dinnerQuantity}</li>}</ul>
       <div className="registration-summary__total"><span>{en ? 'Original registration amount' : 'Valor da inscrição original'}</span><strong>{formatEuro(Number(registration.voucherId ? registration.payment?.coveredAmountCents || 0 : registration.payment?.amountCents || 0) / 100)}</strong></div>
+      {organizationVoucher && Number.isSafeInteger(registration.payment.coveredAmountCents) && registration.payment.coveredAmountCents > 0
+        && <p>{en ? 'Discount applied' : 'Desconto aplicado'} <strong>{formatQuoteAmount(registration.payment.coveredAmountCents, en)}</strong></p>}
       {Number.isSafeInteger(registration.supplementaryPaidAmountCents) && registration.supplementaryPaidAmountCents > 0 && <p>{en ? 'Paid additional purchases' : 'Compras adicionais pagas'}: <strong>{formatEuro(registration.supplementaryPaidAmountCents / 100)}</strong></p>}
       {registration.voucherId && <p>{en ? 'Paid by' : 'Pago por'}: <strong>{registration.payment?.payer}</strong>. {en ? 'The original invoice belongs to the company purchase.' : 'O documento de faturação original pertence à compra da empresa.'}</p>}
       <p className="registration-paid-reference">{en ? 'Registration reference' : 'Referência da inscrição'}: {registration.id}</p>

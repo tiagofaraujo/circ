@@ -1,7 +1,7 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE } from '../../src/data/registration2027.js';
 import { LIVE_FISCAL_PAYMENT_MECHANISMS } from './live-payment-methods.mjs';
-import { congressDiscountCents, hasOrganizerBenefit, MIN_DISCOUNTED_PAYMENT_CENTS } from './quote.mjs';
+import { congressDiscountCents, fixedRegistrationDiscountLines, hasOrganizerBenefit, MIN_DISCOUNTED_PAYMENT_CENTS } from './quote.mjs';
 import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
 const EVENT = 'circ-2027';
@@ -26,25 +26,30 @@ function validateSource(quote) {
     || selection.courseAffiliation !== (selection.profile === 'uls' ? 'uls' : 'external')) fail();
   if (quote.kind === 'primary' ? !['onsite', 'virtual', 'courses-only'].includes(selection.congressMode) : selection.congressMode !== '') fail();
   if (quote.kind === 'primary' && selection.congressMode === 'courses-only' && !selection.morningCourse && !selection.afternoonCourse) fail();
-  const expected = [];
-  const add = (code, quantity, euro) => { if (quantity) expected.push({ code, quantity, unitAmountCents: Math.round(euro * 100) }); };
-  if (selection.congressMode === 'onsite') add('congress-onsite', 1, CONGRESS_RATES[selection.profile][quote.ratePeriod]);
-  if (selection.congressMode === 'virtual') add('congress-virtual', 1, VIRTUAL_CONGRESS_RATE);
-  const organizerVoucher = quote.organizerBenefit !== undefined;
-  if (organizerVoucher && !hasOrganizerBenefit(quote)) fail('source-mismatch');
-  const courseRate = organizerVoucher ? 0 : COURSE_RATES[selection.profile === 'uls' ? 'uls' : 'external'];
-  add('course-morning', Number(selection.morningCourse), courseRate);
-  add('course-afternoon', Number(selection.afternoonCourse), courseRate);
-  add('dinner', selection.dinnerQuantity - Number(organizerVoucher), DINNER_RATE);
-  if (quote.discount !== undefined) {
-    const admission = expected[0];
-    if (quote.kind !== 'primary' || !['congress-onsite', 'congress-virtual'].includes(admission?.code)
-      || quote.amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('source-mismatch');
-    let discountCents;
-    try { discountCents = congressDiscountCents(admission.unitAmountCents, quote.discount, selection); }
+  let expected = [];
+  if (quote.discount?.scope !== undefined) {
+    try { expected = fixedRegistrationDiscountLines(quote); }
     catch { fail('source-mismatch'); }
-    if (discountCents !== quote.discount.amountCents) fail('source-mismatch');
-    admission.unitAmountCents -= discountCents;
+  } else {
+    const add = (code, quantity, euro) => { if (quantity) expected.push({ code, quantity, unitAmountCents: Math.round(euro * 100) }); };
+    if (selection.congressMode === 'onsite') add('congress-onsite', 1, CONGRESS_RATES[selection.profile][quote.ratePeriod]);
+    if (selection.congressMode === 'virtual') add('congress-virtual', 1, VIRTUAL_CONGRESS_RATE);
+    const organizerVoucher = quote.organizerBenefit !== undefined;
+    if (organizerVoucher && !hasOrganizerBenefit(quote)) fail('source-mismatch');
+    const courseRate = organizerVoucher ? 0 : COURSE_RATES[selection.profile === 'uls' ? 'uls' : 'external'];
+    add('course-morning', Number(selection.morningCourse), courseRate);
+    add('course-afternoon', Number(selection.afternoonCourse), courseRate);
+    add('dinner', selection.dinnerQuantity - Number(organizerVoucher), DINNER_RATE);
+    if (quote.discount !== undefined) {
+      const admission = expected[0];
+      if (quote.kind !== 'primary' || !['congress-onsite', 'congress-virtual'].includes(admission?.code)
+        || quote.amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('source-mismatch');
+      let discountCents;
+      try { discountCents = congressDiscountCents(admission.unitAmountCents, quote.discount, selection); }
+      catch { fail('source-mismatch'); }
+      if (discountCents !== quote.discount.amountCents) fail('source-mismatch');
+      admission.unitAmountCents -= discountCents;
+    }
   }
   if (expected.length !== quote.lines.length) fail();
   let total = 0;
