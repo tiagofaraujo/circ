@@ -147,7 +147,7 @@ export default function AdminOrganizationDiscountVouchers() {
 
   return <section className="company-voucher organization-discount-vouchers" aria-labelledby="organization-discount-vouchers-title">
     <h2 id="organization-discount-vouchers-title">Vouchers de desconto da organização</h2>
-    <p>Crie códigos de utilização única para descontar uma percentagem ou um valor fixo no preço do congresso. O total a pagar tem de ser de pelo menos 1 €.</p>
+    <p>Crie códigos de utilização única para descontar uma percentagem ou um valor fixo no preço do congresso. O desconto tem de ser inferior à tarifa do participante e o total a pagar tem de ser de pelo menos 1 €.</p>
     {pending ? <div className="organization-discount-vouchers__batch">
       <h3>Emissão em curso</h3>
       <p>{pending.label} · {pending.count} {pending.count === 1 ? 'código' : 'códigos'} · {formatOrganizationDiscount(pending.discount)}</p>
