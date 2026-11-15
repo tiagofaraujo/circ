@@ -1198,8 +1198,51 @@
 .registration-purchase-option > input[type="checkbox"] { flex: 0 0 auto; width: 1.15rem; height: 1.15rem; accent-color: var(--blue, #2b2bb4); }
 .registration-purchase-option > span { display: grid; gap: .3rem; }
 .registration-purchase-option small { color: var(--ink-soft, #53576d); }
-.registration-purchase-option--quantity { justify-content: space-between; }
-.registration-purchase-option--quantity input { width: 5.5rem; min-width: 4rem; padding: .5rem; }
+.registration-purchase-option--quantity { flex-wrap: wrap; justify-content: space-between; }
+.registration-dinner-quantity {
+  display: grid;
+  grid-template-columns: 44px minmax(44px, 3.5rem) 44px;
+  border: 1px solid var(--line, #d9dbe4);
+  border-radius: .45rem;
+  color: var(--blue, #2b2bb4);
+  background: var(--paper, #fffdfa);
+}
+.registration-dinner-quantity button,
+.registration-dinner-quantity input {
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+.registration-dinner-quantity button {
+  border-radius: inherit;
+  background: transparent;
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.registration-dinner-quantity button:hover:not(:disabled) { background: #eeedf8; }
+.registration-dinner-quantity button:disabled { opacity: .45; cursor: default; }
+.registration-dinner-quantity input {
+  width: 100%;
+  border-inline: 1px solid var(--line, #d9dbe4);
+  border-radius: 0;
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+.registration-dinner-quantity input::placeholder { color: var(--ink-soft, #53576d); opacity: 1; }
+.registration-dinner-quantity input::-webkit-inner-spin-button,
+.registration-dinner-quantity input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.registration-dinner-quantity :focus-visible { position: relative; outline: 2px solid var(--blue, #2b2bb4); outline-offset: -2px; }
 .registration-purchase-options[disabled] { opacity: .75; }
 .registration-purchase-option.is-unavailable { color: var(--ink-soft, #53576d); background: #f3f2f5; }
 .registration-capacity { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; background: #f6f6fb; }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
 import OrganizerVoucher from '../OrganizerVoucher';
@@ -43,9 +43,12 @@ function CapacityNotice({ capacity, en }) {
 
 function SupplementChoices({ value, onChange, profile, en, locked = false, owned = {}, capacity }) {
   const coursePrice = getCourseRate(profile, profile === 'uls' ? 'uls' : 'external');
-  function quantity(raw) {
-    const number = Number(raw);
-    if (Number.isSafeInteger(number) && number >= 0) onChange({ ...value, dinnerQuantity: number });
+  const dinnerLabelId = useId();
+  const dinnerQuantity = value.dinnerQuantity;
+  const dinnerLabel = en ? 'Dinner tickets' : 'Bilhetes de jantar';
+  function setDinnerQuantity(raw) {
+    const quantity = Number(raw);
+    if (Number.isSafeInteger(quantity) && quantity >= 0) onChange({ ...value, dinnerQuantity: quantity });
   }
   return <fieldset disabled={locked} className="registration-purchase-options">
     <legend>{en ? 'Courses and dinner' : 'Cursos e jantar'}</legend>
@@ -55,10 +58,22 @@ function SupplementChoices({ value, onChange, profile, en, locked = false, owned
         {!owned[key] && !hasCapacity(capacity, key) && <small>{capacity.status === 'ready' ? (en ? 'Full' : 'Esgotado') : (en ? 'Availability unconfirmed' : 'Disponibilidade por confirmar')}</small>}
       </span>
     </label>)}
-    <label className="registration-purchase-option registration-purchase-option--quantity">
-      <span><strong>{en ? 'Dinner tickets' : 'Bilhetes de jantar'}</strong><small>{formatEuro(DINNER_RATE)} / {en ? 'person' : 'pessoa'}{Number(owned.dinnerQuantity) > 0 ? ` · ${owned.dinnerQuantity} ${en ? 'already included' : 'já incluído(s)'}` : ''}</small></span>
-      <input type="number" inputMode="numeric" min="0" step="1" value={value.dinnerQuantity} onChange={event => quantity(event.target.value)} aria-label={en ? 'Additional dinner tickets' : 'Quantidade de bilhetes de jantar'} />
-    </label>
+    <div className="registration-purchase-option registration-purchase-option--quantity" role="group" aria-labelledby={dinnerLabelId}>
+      <span><strong id={dinnerLabelId}>{dinnerLabel}</strong><small>{formatEuro(DINNER_RATE)} / {en ? 'person' : 'pessoa'}{Number(owned.dinnerQuantity) > 0 ? ` · ${owned.dinnerQuantity} ${en ? 'already included' : 'já incluído(s)'}` : ''}</small></span>
+      <div className="registration-dinner-quantity">
+        <button type="button" aria-label={en ? 'Remove one dinner ticket' : 'Retirar um bilhete de jantar'}
+          disabled={dinnerQuantity === 0} onClick={() => setDinnerQuantity(dinnerQuantity - 1)}>−</button>
+        <input type="number" inputMode="numeric" min="0" step="1" placeholder="0"
+          value={dinnerQuantity === 0 ? '' : String(dinnerQuantity)} onChange={event => setDinnerQuantity(event.target.value)}
+          aria-label={en ? 'Additional dinner tickets' : 'Quantidade de bilhetes de jantar'} />
+        <button type="button" aria-label={en ? 'Add one dinner ticket' : 'Adicionar um bilhete de jantar'}
+          onClick={() => setDinnerQuantity(dinnerQuantity + 1)}>+</button>
+      </div>
+      <span className="visually-hidden" aria-live="polite" aria-atomic="true">
+        {dinnerQuantity} {en ? (dinnerQuantity === 1 ? 'dinner ticket selected' : 'dinner tickets selected')
+          : (dinnerQuantity === 1 ? 'bilhete de jantar selecionado' : 'bilhetes de jantar selecionados')}
+      </span>
+    </div>
   </fieldset>;
 }
 

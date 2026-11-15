@@ -21,7 +21,7 @@ test('paid voucher entitlements prevent duplicate courses and supplements have t
  expect(screen.getByRole('checkbox',{name:/Pós-processamento em ressonância magnética/})).toBeChecked();
  expect(screen.getByRole('checkbox',{name:/Pós-processamento em ressonância magnética/})).toBeDisabled();
  fireEvent.click(screen.getByRole('checkbox',{name:/Via Verde AVC/}));
- fireEvent.change(screen.getByRole('spinbutton'),{target:{value:'1'}});
+ fireEvent.click(screen.getByRole('button', { name: 'Adicionar um bilhete de jantar' }));
  expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({kind:'supplementary',eligible:true,selection:{morningCourse:false,afternoonCourse:true,dinnerQuantity:1}});
  expect(screen.queryByText('Issued invoice')).not.toBeInTheDocument();
  expect(screen.getByText('Bilhetes de jantar: 2')).toBeInTheDocument();

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import RegistrationBuilder from './RegistrationBuilder';
@@ -66,11 +66,34 @@ test('course prices retain the external affiliation for students and the ULS rat
  fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ })); expect(morning()).toHaveAccessibleName(/20\s*€/);
  expect(checkout().eligible).toBe(false);
 });
-test('virtual attendance and dinner quantity flow to the frozen server quote without changing the catalogue', () => {
- show(); fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
- fireEvent.change(screen.getByRole('spinbutton', { name: 'Quantidade de bilhetes de jantar' }), { target: { value:'2' } });
+test('dinner controls normalize leading zeroes and update the virtual registration total and checkout selection', () => {
+ show();
+ fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
+ const quantity = screen.getByRole('spinbutton', { name: 'Quantidade de bilhetes de jantar' });
+ const add = screen.getByRole('button', { name: 'Adicionar um bilhete de jantar' });
+ const remove = screen.getByRole('button', { name: 'Retirar um bilhete de jantar' });
+ const summary = within(screen.getByRole('complementary'));
+
+ expect(quantity.value).toBe('');
+ expect(quantity).toHaveAttribute('placeholder', '0');
+ expect(remove).toBeDisabled();
+ fireEvent.change(quantity, { target: { value: '01' } });
+ expect(quantity.value).toBe('1');
+ expect(checkout().selection.dinnerQuantity).toBe(1);
+ expect(summary.getByText(/^90\s*€$/)).toBeInTheDocument();
+
+ fireEvent.click(add);
+ expect(quantity.value).toBe('2');
  expect(checkout().selection).toEqual({ profile:'external', congressMode:'virtual', morningCourse:false, afternoonCourse:false, dinnerQuantity:2 });
- expect(screen.getByText(/120\s*€/)).toBeInTheDocument();
+ expect(summary.getByText(/^120\s*€$/)).toBeInTheDocument();
+
+ fireEvent.click(remove);
+ expect(quantity.value).toBe('1');
+ fireEvent.click(remove);
+ expect(quantity.value).toBe('');
+ expect(remove).toBeDisabled();
+ expect(checkout().selection.dinnerQuantity).toBe(0);
+ expect(summary.getByText(/^60\s*€$/)).toBeInTheDocument();
 });
 test('a pending primary order freezes the existing selection and an admin has no test bypass', () => {
  mockRegistration = { id:'circ-2027-participant', isTest:false, status:'submitted', selection:{ profile:'student', congressMode:'courses-only', morningCourse:true, afternoonCourse:false, dinnerQuantity:1 }, payment:{status:'pending'} };
@@ -79,6 +102,9 @@ test('a pending primary order freezes the existing selection and an admin has no
  expect(screen.getByRole('radio', { name:/Congresso virtual/ })).toBeDisabled();
  expect(screen.getByRole('checkbox', { name:/Pós-processamento em ressonância magnética/ })).toBeChecked();
  expect(screen.getByRole('checkbox', { name:/Via Verde AVC/ })).toBeDisabled();
+ expect(screen.getByRole('spinbutton', { name: 'Quantidade de bilhetes de jantar' })).toBeDisabled();
+ expect(screen.getByRole('button', { name: 'Adicionar um bilhete de jantar' })).toBeDisabled();
+ expect(screen.getByRole('button', { name: 'Retirar um bilhete de jantar' })).toBeDisabled();
  expect(checkout().selection).toMatchObject({ congressMode:'courses-only', morningCourse:true,dinnerQuantity:1 });
  expect(screen.queryByRole('button',{name:/teste|simular/i})).not.toBeInTheDocument();
 });
