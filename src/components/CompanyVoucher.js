@@ -52,12 +52,12 @@ export default function CompanyVoucher({ eligible }) {
     finally { setBusy(false); }
   };
   return <details className="company-voucher">
-    <summary>Tem um voucher?</summary>
-    <form onSubmit={submit} aria-label="Confirmar inscrição com voucher">
-      <label>Código do voucher<input autoComplete="off" spellCheck="false" maxLength={50} value={code} onChange={(e) => setCode(e.target.value)} disabled={busy || done} required /></label>
-      {!eligible && code.trim() && <p>Para utilizar este voucher, selecione «Congressista externo» e «Presencial», sem jantar nem cursos.</p>}
+    <summary>Tem um voucher de empresa?</summary>
+    <form onSubmit={submit} aria-label="Confirmar inscrição com voucher de empresa">
+      {!eligible && <p>Para utilizar um voucher de empresa, selecione «Congressista externo» e «Congresso presencial» e deixe os cursos e o jantar por selecionar.</p>}
+      <label>Código do voucher de empresa<input autoComplete="off" spellCheck="false" maxLength={50} value={code} onChange={(e) => setCode(e.target.value)} disabled={busy || done} required /></label>
       {!registrationOpen && <p role="status">As inscrições com voucher abrem a 15 de novembro de 2026, às 00h00 de Lisboa.</p>}
-      <button disabled={busy || !eligible || done || !code.trim() || !registrationOpen}>{busy ? 'A confirmar…' : 'Confirmar inscrição com voucher'}</button>
+      <button disabled={busy || !eligible || done || !code.trim() || !registrationOpen}>{busy ? 'A confirmar…' : 'Confirmar inscrição com voucher de empresa'}</button>
       <small>O voucher será associado à sua inscrição.</small>
       {error && <p role="alert">{error}</p>}
       {done && <p role="status">Inscrição confirmada com voucher.</p>}

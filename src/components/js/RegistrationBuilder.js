@@ -154,6 +154,7 @@ function ProductionRegistrationBuilder({ registration }) {
   const profile = registration?.selection?.profile || chosenProfile;
   const congressMode = registration?.selection?.congressMode || chosenMode;
   const items = registration ? selectionItems(registration.selection) : chosenItems;
+  const hasAdditions = items.morningCourse || items.afternoonCourse || items.dinnerQuantity > 0;
   const uls = useUlsEligibility(user);
   const student = useStudentVerification(user, profile === 'student');
   const period = getRegistrationPeriod();
@@ -204,7 +205,18 @@ function ProductionRegistrationBuilder({ registration }) {
         <p>{en ? 'The server confirms the amount and billing details before a payment order is created. The applicable congress tariff is based on the payment date.' : 'O servidor confirma o valor e os dados de faturação antes de criar o pedido de pagamento. A tarifa do congresso depende da data de pagamento.'}</p>
         {!user.emailVerified && <p role="alert">{en ? 'Verify your account email before creating a payment.' : 'Confirme o email da sua conta antes de criar um pagamento.'}</p>}
         {!categoryReady && user.emailVerified && <p role="status">{en ? 'Complete the eligibility check for this category before continuing.' : 'Conclua a validação da categoria selecionada antes de continuar.'}</p>}
-        {!registration && !checkoutLocked && hasCapacity(capacity, 'onsite') && <CompanyVoucher eligible={profile === 'external' && congressMode === 'onsite' && !items.morningCourse && !items.afternoonCourse && items.dinnerQuantity === 0} />}
+        {!locked && profile === 'external' && hasCapacity(capacity, 'onsite')
+          && <CompanyVoucher eligible={congressMode === 'onsite' && !hasAdditions} />}
+        {!locked && profile === 'uls' && congressMode === 'onsite' && <details className="company-voucher">
+          <summary>{en ? 'Have an organiser voucher?' : 'Tem um voucher de organizador?'}</summary>
+          <ol className="mb-0 ps-3">
+            <li>{en ? 'Pay for the onsite congress only at the ULS Coimbra rate.' : 'Pague apenas o congresso presencial à tarifa ULS Coimbra.'}
+              {hasAdditions && <strong className="d-block">{en ? 'Remove the courses and dinner tickets from your selection before paying.' : 'Retire os cursos e os bilhetes de jantar da seleção antes de pagar.'}</strong>}
+            </li>
+            <li>{en ? 'Once payment is confirmed, return to Registrations and apply your organiser voucher under “Add courses or dinner tickets”.'
+              : 'Após a confirmação do pagamento, volte a «Inscrições» e aplique o voucher de organizador em «Adicionar cursos ou bilhetes de jantar».'}</li>
+          </ol>
+        </details>}
         <PublicLiveCheckout key={`${user.uid}:primary`} user={user} selection={selection} eligible={ready} registration={registration} en={en} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
       </aside>
     </div>

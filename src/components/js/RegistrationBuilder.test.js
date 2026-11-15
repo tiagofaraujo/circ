@@ -3,12 +3,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RegistrationBuilder from './RegistrationBuilder';
 import { useAuth } from '../../auth/AuthContext';
+import { useUlsEligibility } from '../../auth/ulsEligibilityStore';
 import { useStudentVerification } from '../../auth/studentVerificationStore';
 import { useRegistrationCapacity } from '../../auth/registrationCapacity';
 import PublicLiveCheckout from '../PublicLiveCheckout';
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
-jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: () => ({ verified: false }) }));
+jest.mock('../../auth/ulsEligibilityStore', () => ({ useUlsEligibility: jest.fn() }));
 jest.mock('../../auth/studentVerificationStore', () => ({ useStudentVerification: jest.fn() }));
 jest.mock('../../auth/registrationCapacity', () => ({ useRegistrationCapacity: jest.fn() }));
 let mockCapacityEnabled;
@@ -18,10 +19,10 @@ jest.mock('../../data/registration2027', () => ({
 }));
 jest.mock('./UlsVerification', () => () => <div>ULS validation</div>);
 jest.mock('./StudentVerification', () => () => <div>Student document form</div>);
-jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => null, CompanyRegistrationGate: ({ children }) => children(null) }));
+jest.mock('../CompanyVoucher', () => ({ __esModule: true, default: () => <div>Tem um voucher de empresa?</div>, CompanyRegistrationGate: ({ children }) => children(null) }));
 jest.mock('../PublicLiveCheckout', () => jest.fn(() => <div>Production checkout</div>));
 const capacity = { status: 'ready', limits: { onsite: 400, morningCourse: 170, afternoonCourse: 170 }, remaining: { onsite: 10, morningCourse: 10, afternoonCourse: 10 }, refresh: jest.fn() };
-beforeEach(() => { jest.clearAllMocks(); mockCapacityEnabled = false; useRegistrationCapacity.mockReturnValue(capacity); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); });
+beforeEach(() => { jest.clearAllMocks(); mockCapacityEnabled = false; useRegistrationCapacity.mockReturnValue(capacity); PublicLiveCheckout.mockImplementation(() => <div>Production checkout</div>); useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: true }, isAdmin: false }); useStudentVerification.mockReturnValue({ approved: false }); useUlsEligibility.mockReturnValue({ verified: false }); });
 test('public registration defaults to onsite and exposes the real catalogue without administrative samples', () => {
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByText('Production checkout')).toBeInTheDocument();
@@ -41,6 +42,27 @@ test('student and ULS rates require eligibility even for the administrator', () 
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(true);
  fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
+});
+test('onsite ULS participants see how to use an organiser voucher instead of the company voucher form', () => {
+ useUlsEligibility.mockReturnValue({ verified: true });
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ expect(screen.getByText('Tem um voucher de empresa?')).toBeInTheDocument();
+ expect(screen.queryByText('Tem um voucher de organizador?')).not.toBeInTheDocument();
+
+ fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
+ expect(screen.queryByText('Tem um voucher de empresa?')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByText('Tem um voucher de organizador?'));
+ expect(screen.getByText(/Pague apenas o congresso presencial à tarifa ULS Coimbra/)).toBeVisible();
+ expect(screen.queryByLabelText(/Código do voucher/)).not.toBeInTheDocument();
+ expect(screen.queryByRole('button', { name: 'Aplicar voucher de organizador' })).not.toBeInTheDocument();
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({ eligible: true, selection: {
+  profile: 'uls', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0,
+ } });
+
+ fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
+ expect(screen.getByText('Retire os cursos e os bilhetes de jantar da seleção antes de pagar.')).toBeVisible();
+ fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
+ expect(screen.queryByText('Tem um voucher de organizador?')).not.toBeInTheDocument();
 });
 test('email verification is required before preparing payment', () => {
  useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: false }, isAdmin: false });
