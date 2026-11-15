@@ -49,7 +49,9 @@ export default function AdminCompaniesPage() {
   return <main className="admin-page"><AdminModuleNav /><header><h1>Empresas e vouchers</h1></header>
     <AdminOrganizationDiscountVouchers />
     <AdminOrganizerVouchers />
-    <section className="company-voucher"><h2>Inscrições de empresas</h2><p>Congressista externo · Presencial · Dois dias · Sem jantar nem cursos</p>
+    <details className="admin-company-purchases">
+    <summary>Compras de empresas</summary>
+    <section className="company-voucher"><h2>Utilização dos códigos</h2><p>Congressista externo · Presencial · Dois dias · Sem jantar nem cursos</p>
       <p>{enabled ? 'Ativa: os participantes podem confirmar inscrições com códigos pagos.' : 'Desativada: pode preparar compras e códigos, mas ainda não podem ser utilizados.'}</p>
       <button disabled={busy} onClick={() => run(() => setCompanyCodesEnabled(!enabled))}>{enabled ? 'Desativar utilização de códigos' : 'Ativar utilização de códigos pagos'}</button>
       <small>Esta opção ativa apenas as inscrições pagas por empresas. Não abre os pagamentos individuais.</small></section>
@@ -79,5 +81,6 @@ export default function AdminCompaniesPage() {
         {cancelCode && <div><p>Cancelar definitivamente o código {formatVoucher(cancelCode)}? Esta ação não processa um reembolso.</p><button disabled={busy} onClick={() => run(async () => { await cancelCompanyVoucher(cancelCode); setCancelCode(''); setVouchers(await loadCompanyVouchers(selected)); })}>Confirmar cancelamento</button><button disabled={busy} onClick={() => setCancelCode('')}>Voltar</button></div>}
       </>}
     </section>}
+    </details>
   </main>;
 }

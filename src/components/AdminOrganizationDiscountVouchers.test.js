@@ -36,9 +36,9 @@ test('issues a fixed discount with Portuguese decimal input and recovers the sam
   const { unmount } = render(<AdminOrganizationDiscountVouchers />);
 
   fireEvent.change(screen.getByLabelText('Nome do lote'), { target: { value: label } });
-  fireEvent.change(screen.getByLabelText('Tipo de desconto'), { target: { value: 'fixed' } });
-  fireEvent.change(screen.getByLabelText('Desconto (€)'), { target: { value: '17,50' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Emitir vouchers de desconto' }));
+  expect(screen.queryByLabelText('Tipo de desconto')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Desconto por voucher (€)'), { target: { value: '17,50' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gerar códigos' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('A emissão não foi confirmada');
   unmount();
 
@@ -65,20 +65,34 @@ test('retrieves an earlier batch by ID using a read request', async () => {
     expect.objectContaining({ method: 'GET', headers: { Authorization: 'Bearer session' } }));
 });
 
-test('prefills the organizer terms and sends the restricted batch only when submitted', async () => {
+test('issues a restricted organizer batch using the same fixed discount form', async () => {
   const terms = { batchId, label: 'Organizadores · CIRC 2027', count: 9, discount: { type: 'fixed', value: 5500 }, audience: 'uls-onsite' };
   const codes = Array.from({ length: 9 }, (_, index) => `${code.slice(0, -1)}${index}`);
   fetch.mockResolvedValue({ ok: true, json: async () => ({ ...terms, codes, createdAt: '2026-11-15T12:00:00.000Z' }) });
   render(<AdminOrganizationDiscountVouchers />);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Preencher 9 vouchers de 55 € para organizadores' }));
+  fireEvent.change(screen.getByLabelText('Nome do lote'), { target: { value: terms.label } });
+  fireEvent.change(screen.getByLabelText('Número de códigos'), { target: { value: '9' } });
+  fireEvent.change(screen.getByLabelText('Desconto por voucher (€)'), { target: { value: '55' } });
+  fireEvent.change(screen.getByLabelText('Destinatários'), { target: { value: 'uls-onsite' } });
   expect(fetch).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Nome do lote')).toHaveValue(terms.label);
-  expect(screen.getByLabelText('Número de códigos')).toHaveValue(9);
-  expect(screen.getByLabelText('Desconto (€)')).toHaveValue('55');
-  expect(screen.getByLabelText('Destinatários')).toHaveValue('uls-onsite');
-  fireEvent.click(screen.getByRole('button', { name: 'Emitir vouchers de desconto' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gerar códigos' }));
   expect(await screen.findByRole('heading', { name: terms.label })).toBeInTheDocument();
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(terms);
   expect(screen.getByText('9 códigos emitidos', { exact: false })).toBeInTheDocument();
+});
+
+test('dismisses an unissued percentage batch when recovery is rejected and reopens the fixed form', async () => {
+  const key = 'circ-2027-organization-discount-vouchers:admin:pending';
+  const terms = { batchId, label, count: 1, discount: { type: 'percentage', value: 500 } };
+  window.localStorage.setItem(key, JSON.stringify(terms));
+  fetch.mockResolvedValue({ ok: false, json: async () => ({ error: 'fixed-discount-required' }) });
+  render(<AdminOrganizationDiscountVouchers />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Retomar emissão' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Indique um desconto em euros');
+  expect(screen.getByLabelText('Desconto por voucher (€)')).toBeInTheDocument();
+  expect(window.localStorage.getItem(key)).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(terms);
 });

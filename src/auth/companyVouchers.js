@@ -117,8 +117,7 @@ export async function loadCompanyVouchers(purchase) {
     return { code, ...s.data() };
   }));
 }
-export async function redeemCompanyVoucher(value) {
-  const user = getFirebaseAuth()?.currentUser;
+export async function redeemCompanyVoucher(value, user = getFirebaseAuth()?.currentUser) {
   if (!user?.emailVerified || !user.getIdToken) throw new Error('company/auth');
   const code = normalizeVoucher(value);
   let response;

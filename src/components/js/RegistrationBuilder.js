@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import CompanyVoucher, { CompanyRegistrationGate } from '../CompanyVoucher';
+import { CompanyRegistrationGate } from '../CompanyVoucher';
 import OrganizerVoucher from '../OrganizerVoucher';
 import RegistrationInvoice from '../RegistrationInvoice';
 import PublicLiveCheckout from '../PublicLiveCheckout';
@@ -169,12 +169,10 @@ function ProductionRegistrationBuilder({ registration }) {
   const [chosenMode, setMode] = useState('onsite');
   const [chosenItems, setItems] = useState({ morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
   const [checkoutLocked, setCheckoutLocked] = useState(false);
-  const [discountTransfer, setDiscountTransfer] = useState(null);
   const [voucherQuote, setVoucherQuote] = useState(null);
   const profile = registration?.selection?.profile || chosenProfile;
   const congressMode = registration?.selection?.congressMode || chosenMode;
   const items = registration ? selectionItems(registration.selection) : chosenItems;
-  const hasAdditions = items.morningCourse || items.afternoonCourse || items.dinnerQuantity > 0;
   const uls = useUlsEligibility(user);
   const student = useStudentVerification(user, profile === 'student');
   const period = getRegistrationPeriod();
@@ -188,6 +186,8 @@ function ProductionRegistrationBuilder({ registration }) {
   const total = calculateRegistrationTotal({ ...selection, courseAffiliation: profile === 'uls' ? 'uls' : 'external', period });
   const organizerBenefit = voucherQuote?.organizerBenefit;
   const voucherSavings = (organizerBenefit || voucherQuote?.discount)?.amountCents;
+  const companyCovered = voucherQuote?.kind === 'company-voucher';
+  const hasVoucherTotal = companyCovered || voucherSavings > 0;
   const locked = Boolean(registration) || checkoutLocked;
   if (registration?.isTest === true || registration?.testMode === true) return <p role="alert">{en ? 'An existing registration needs organiser review before another payment can be created.' : 'Existe uma inscrição que necessita de conferência pela organização antes de criar outro pagamento.'}</p>;
   if (existingAddOns) return <ExistingRegistrationAddOns registration={registration} user={user} en={en} />;
@@ -230,18 +230,16 @@ function ProductionRegistrationBuilder({ registration }) {
           </dl>
           {organizerBenefit && <p>{en ? 'Both courses and one dinner ticket are included.' : 'Inclui os dois cursos e um bilhete de jantar.'}</p>}
         </div>}
+        {companyCovered && <p className="registration-summary__voucher">{en ? 'Registration covered by the company voucher.' : 'Inscrição coberta pelo voucher de empresa.'}</p>}
         <div className="registration-summary__total" aria-live="polite" aria-atomic="true">
-          <span>{voucherSavings > 0 ? (en ? 'Amount due' : 'Total a pagar') : (en ? 'Estimated amount' : 'Valor estimado')}</span>
-          <strong>{voucherSavings > 0 ? formatQuoteAmount(voucherQuote.amountCents, en) : formatEuro(total.total)}</strong>
+          <span>{hasVoucherTotal ? (en ? 'Amount due' : 'Total a pagar') : (en ? 'Estimated amount' : 'Valor estimado')}</span>
+          <strong>{hasVoucherTotal ? formatQuoteAmount(voucherQuote.amountCents, en) : formatEuro(total.total)}</strong>
         </div>
-        <p className="registration-summary__tax">{en ? 'The applicable congress tariff is based on the payment date.' : 'A tarifa do congresso depende da data de pagamento.'}</p>
+        {!companyCovered && <p className="registration-summary__tax">{en ? 'The applicable congress tariff is based on the payment date.' : 'A tarifa do congresso depende da data de pagamento.'}</p>}
         {!user.emailVerified && <p role="alert">{en ? 'Verify your account email before creating a payment.' : 'Confirme o email da sua conta antes de criar um pagamento.'}</p>}
         {!categoryReady && user.emailVerified && <p role="status">{en ? 'Complete the eligibility check for this category before continuing.' : 'Conclua a validação da categoria selecionada antes de continuar.'}</p>}
-        {!locked && profile === 'external' && hasCapacity(capacity, 'onsite')
-          && <CompanyVoucher eligible={congressMode === 'onsite' && !hasAdditions}
-            onDiscountCode={congressMode === 'courses-only' ? undefined : code => setDiscountTransfer({ code })} />}
         <PublicLiveCheckout key={`${user.uid}:primary`} user={user} selection={selection} eligible={ready} registration={registration} en={en}
-          discountTransfer={discountTransfer} onVoucherQuote={setVoucherQuote} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
+          onVoucherQuote={setVoucherQuote} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
       </aside>
     </div>
   </div>;

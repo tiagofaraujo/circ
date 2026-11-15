@@ -8,12 +8,26 @@ details.company-voucher { display: block; padding: 14px 18px; }
 .company-voucher input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px; border: 1px solid #9b9cb8; border-radius: 5px; font: inherit; }
 .company-voucher button { padding: 10px 14px; background: #3027c7; color: #fff; border: 0; border-radius: 5px; font: inherit; cursor: pointer; }
 .company-voucher button:disabled { opacity: .5; cursor: not-allowed; }
-.company-voucher :focus-visible { outline: 3px solid #eb574a; outline-offset: 3px; }
+.company-voucher :focus-visible, .admin-company-purchases > summary:focus-visible { outline: 3px solid #eb574a; outline-offset: 3px; }
 .company-voucher [role="alert"] { color: #b32724; }
 .company-voucher li { margin: 8px 0; }
 .company-table { overflow-x: auto; }
 .company-table th, .company-table td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
 
+.admin-company-purchases > summary {
+  padding: 14px 18px;
+  background: #fff;
+  color: #191b4f;
+  border: 1px solid #cdcde0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.admin-voucher-archive {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
 .organization-discount-vouchers__fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(155px, 100%), 1fr));

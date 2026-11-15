@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import PublicLiveCheckout from './PublicLiveCheckout';
 const ID = '11111111-1111-4111-8111-111111111111';
-const user = { uid: 'user', getIdToken: async () => 'session' };
+const user = { uid: 'user', emailVerified: true, getIdToken: async () => 'session' };
 const selection = { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
 const order = { id: ID, status: 'pending', amountCents: 9500, currency: 'EUR', method: 'multibanco', entity: '12345', reference: '123456789' };
 const preview = { quote: { amountCents: 9500, currency: 'EUR' }, stamp: 'a'.repeat(64), billingStamp: 'b'.repeat(64), billing: { customer_business_name: 'Pessoa', customer_tax_registration_number: '123456789', customer_address_detail: 'Morada', customer_postcode: '3000-001', customer_city: 'Coimbra', customer_country: 'PT' } };
@@ -51,9 +51,54 @@ test('reviews server billing and requires acknowledgement before exactly one rea
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
 });
 function enterDiscount(code = discountCode) {
- fireEvent.click(screen.getByText('Tem um código de desconto?'));
- fireEvent.change(screen.getByRole('textbox',{name:'Código de desconto da organização'}),{target:{value:code}});
+ fireEvent.click(screen.getByText('Tem um voucher?'));
+ fireEvent.change(screen.getByRole('textbox',{name:'Código do voucher'}),{target:{value:code}});
 }
+test('the same voucher field shows company coverage and waits for confirmation before redeeming', async () => {
+ configuration={...configuration,enabled:false,methods:[]};
+ billingReadiness={ready:false,issues:['billing-address-required']};
+ const code='0123456789abcdef0123456789abcdef';
+ const companyVoucher={currency:'EUR',amountCents:7200};
+ const onVoucherQuote=jest.fn();
+ transport.mockResolvedValueOnce(response({companyVoucher}))
+  .mockResolvedValueOnce(response({registrationId:'circ-2027-user',duplicate:false}));
+ show({onVoucherQuote});
+ enterDiscount(code);
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Aplicar voucher'})).toBeEnabled());
+ fireEvent.submit(screen.getByRole('textbox',{name:'Código do voucher'}).closest('form'));
+ const confirm=await screen.findByRole('button',{name:'Confirmar inscrição',exact:true});
+ expect(transport).toHaveBeenCalledTimes(1);
+ expect(transport.mock.calls[0][0]).toBe('/api/checkout/live/company-voucher/quote');
+ expect(onVoucherQuote).toHaveBeenLastCalledWith({kind:'company-voucher',currency:'EUR',amountCents:0,companyVoucher});
+ expect(screen.queryByRole('link',{name:'Completar dados obrigatórios no Perfil'})).not.toBeInTheDocument();
+ fireEvent.click(confirm);
+ await screen.findByText('Inscrição confirmada com voucher.');
+ expect(transport).toHaveBeenCalledTimes(2);
+ expect(transport.mock.calls[1][0]).toBe('/api/checkout/live/company-voucher/redeem');
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({code});
+ expect(onVoucherQuote).toHaveBeenLastCalledWith({kind:'company-voucher',currency:'EUR',amountCents:0,companyVoucher});
+});
+test.each([
+ [response({error:'company/invalid-code'},false,400), /inválido/],
+ [response({error:'company/unavailable'},false,503), /Não foi possível verificar/],
+ [response({}), /Não foi possível verificar/],
+])('a company voucher error other than not found cannot fall back or charge', async (reply,message) => {
+ transport.mockResolvedValueOnce(reply);
+ show(); await ready(); enterDiscount('0123456789abcdef0123456789abcdef');
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent(message);
+ expect(transport).toHaveBeenCalledTimes(1);
+ expect(screen.getByRole('button',{name:'Rever desconto e total'})).toBeDisabled();
+ expect(screen.queryByRole('button',{name:'Confirmar inscrição',exact:true})).not.toBeInTheDocument();
+});
+test('a company code explains the qualifying selection if courses or dinner were selected', async () => {
+ transport.mockResolvedValueOnce(response({companyVoucher:{currency:'EUR',amountCents:9500}}));
+ show({selection:{...selection,dinnerQuantity:1}}); await ready(); enterDiscount('0123456789abcdef0123456789abcdef');
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('escolha Congresso presencial como congressista externo');
+ expect(screen.queryByRole('button',{name:'Confirmar inscrição',exact:true})).not.toBeInTheDocument();
+ expect(transport).toHaveBeenCalledTimes(1);
+});
 test.each([
  ['onsite',percentDiscount,7600,/Desconto da organização \(20\s?%\)/,/76,00\s?€/],
  ['virtual',fixedDiscount,4500,/Desconto da organização/,/45,00\s?€/],
@@ -69,7 +114,7 @@ test.each([
  fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
  await screen.findByText('A aguardar pagamento');
  expect(JSON.parse(transport.mock.calls[1][1].body)).toMatchObject({selection:chosen,discountCode,stamp:preview.stamp,billingStamp:preview.billingStamp});
- expect(screen.queryByRole('textbox',{name:'Código de desconto da organização'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('textbox',{name:'Código do voucher'})).not.toBeInTheDocument();
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
 });
 test('removing a voucher invalidates the reviewed discount and requires a new acknowledgement', async () => {
@@ -91,11 +136,10 @@ test('a voucher covering the full ULS congress price confirms registration witho
  const redeemed={id:ID,kind:'primary',status:'paid',amountCents:0,currency:'EUR',method:'organization_voucher',discount};
  transport.mockResolvedValueOnce(response({quote:fullDiscount.quote})).mockResolvedValueOnce(response(fullDiscount))
   .mockResolvedValueOnce(response({order:redeemed}));
- show({selection:chosen, discountTransfer:{code:discountCode}});
- const field=await screen.findByRole('textbox',{name:'Código de desconto da organização'});
- expect(field).toHaveValue(discountCode);
- expect(field).toHaveFocus();
- expect(screen.getByText('Tem um código de desconto?').parentElement).toHaveAttribute('open');
+ show({selection:chosen}); enterDiscount();
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Aplicar voucher'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
+ await screen.findByText('Voucher aplicado.');
  const review=await screen.findByRole('button',{name:'Rever desconto e total'});
  expect(review).toBeEnabled();
  fireEvent.click(review);
@@ -123,18 +167,21 @@ test('applies the organiser voucher in the summary, updates extras and creates o
   selection:{...chosen,...includeCourses,dinnerQuantity:1}};
  const finalQuote={...firstQuote,amountCents:8500,selection:{...updated,...includeCourses}};
  const onVoucherQuote=jest.fn();
- transport.mockResolvedValueOnce(response({quote:firstQuote})).mockResolvedValueOnce(response({quote:finalQuote}))
+ const miss=response({error:'company/not-found'},false,404);
+ transport.mockResolvedValueOnce(miss).mockResolvedValueOnce(response({quote:firstQuote}))
+  .mockResolvedValueOnce(miss).mockResolvedValueOnce(response({quote:finalQuote}))
   .mockResolvedValueOnce(response({...preview,quote:finalQuote}))
   .mockResolvedValueOnce(response({order:{...order,amountCents:8500,organizerBenefit,selection:finalQuote.selection}}));
  const page=show({selection:chosen,onVoucherQuote});
  await ready(); enterDiscount(organizerCode);
  fireEvent.click(screen.getByRole('button',{name:'Aplicar voucher'}));
  await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith(firstQuote));
- expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,organizerCode,priceOnly:true});
+ expect(transport.mock.calls[0][0]).toBe('/api/checkout/live/company-voucher/quote');
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection:chosen,organizerCode,priceOnly:true});
 
  page.rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={updated} eligible onVoucherQuote={onVoucherQuote} /></MemoryRouter>);
  await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith(finalQuote));
- expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection:updated,organizerCode,priceOnly:true});
+ expect(JSON.parse(transport.mock.calls[3][1].body)).toEqual({selection:updated,organizerCode,priceOnly:true});
  await reviewAndAcknowledge();
  expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/85,00\s?€/);
  fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
@@ -206,7 +253,7 @@ test('a creation response missing the reviewed discount keeps the order UUID and
 });
 test('no congress discount field is available for a courses-only purchase', async () => {
  show({selection:{...selection,congressMode:'courses-only',morningCourse:true}}); await ready();
- expect(screen.queryByText('Tem um código de desconto?')).not.toBeInTheDocument();
+ expect(screen.queryByText('Tem um voucher?')).not.toBeInTheDocument();
 });
 test('a lost creation response retains its UUID and prevents another creation', async () => {
  transport.mockResolvedValueOnce(response(preview)).mockRejectedValueOnce(new Error('network'));
@@ -514,7 +561,7 @@ test('an MB WAY replacement reviews and preserves the reserved discount without 
   .mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID,discount,amountCents}}));
  show({registration:mbwayRegistration});
  fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
- expect(screen.queryByText('Tem um código de desconto?')).not.toBeInTheDocument();
+ expect(screen.queryByText('Tem um voucher?')).not.toBeInTheDocument();
  fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'923456789'}});
  await ready(); await reviewAndAcknowledge();
  expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/80,00\s?€/);
