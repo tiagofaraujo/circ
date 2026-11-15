@@ -7,7 +7,7 @@ import { completeLiveFiscalJob } from './live-fiscal-issue.mjs';
 import { publicLiveOrder } from './checkout-live.mjs';
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { proposedBankAccount } from './bank-transfer-account.mjs';
-import { quotePrimary, quoteSupplementary } from './quote.mjs';
+import { organizerVoucherOnOrder, quotePrimary, quoteSupplementary } from './quote.mjs';
 import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
 const EVENT = 'circ-2027', ADMIN = 'circ.chuc@gmail.com', PREFIX = '/api/checkout/live';
@@ -176,7 +176,8 @@ export function createBankTransferLiveApi({ verify, tokenProvider = createPaymen
       let expected;
       try {
         const date = new Date(`${decision.bookingDate}T12:00:00Z`);
-        expected = kind === 'primary' ? quotePrimary(p.quote.selection, { ...context, emailVerified: true }, null, date, p.quote.discount)
+        const organizerVoucher = organizerVoucherOnOrder(p);
+        expected = kind === 'primary' ? quotePrimary(p.quote.selection, { ...context, emailVerified: true }, null, date, p.quote.discount, organizerVoucher)
           : quoteSupplementary({ morningCourse: p.quote.selection.morningCourse, afternoonCourse: p.quote.selection.afternoonCourse,
             dinnerQuantity: p.quote.selection.dinnerQuantity }, { ...context, emailVerified: true }, { ...r, id: store.registrationId }, date);
       } catch { fail('bank-transfer-source-mismatch', 409); }

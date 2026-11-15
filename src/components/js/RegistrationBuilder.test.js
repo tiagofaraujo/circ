@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RegistrationBuilder from './RegistrationBuilder';
 import { useAuth } from '../../auth/AuthContext';
@@ -43,7 +43,7 @@ test('student and ULS rates require eligibility even for the administrator', () 
  fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
  expect(PublicLiveCheckout.mock.calls.at(-1)[0].eligible).toBe(false);
 });
-test('onsite ULS participants see how to use an organiser voucher instead of the company voucher form', () => {
+test('onsite ULS participants keep their selections and use the checkout for organiser discount codes', () => {
  useUlsEligibility.mockReturnValue({ verified: true });
  render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
  expect(screen.getByText('Tem um voucher de empresa?')).toBeInTheDocument();
@@ -51,18 +51,64 @@ test('onsite ULS participants see how to use an organiser voucher instead of the
 
  fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
  expect(screen.queryByText('Tem um voucher de empresa?')).not.toBeInTheDocument();
- fireEvent.click(screen.getByText('Voucher de organizador para cursos e jantar'));
- expect(screen.getByText(/Pague apenas o congresso presencial à tarifa ULS Coimbra/)).toBeVisible();
- expect(screen.queryByLabelText(/Código do voucher/)).not.toBeInTheDocument();
- expect(screen.queryByRole('button', { name: 'Aplicar voucher de organizador' })).not.toBeInTheDocument();
  expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({ eligible: true, selection: {
   profile: 'uls', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0,
  } });
 
  fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
- expect(screen.getByText('Retire os cursos e os bilhetes de jantar da seleção antes de pagar.')).toBeVisible();
- fireEvent.click(screen.getByRole('radio', { name: /Congresso virtual/ }));
+ fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '1' } });
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0]).toMatchObject({ eligible: true, selection: {
+  profile: 'uls', congressMode: 'onsite', morningCourse: false, afternoonCourse: true, dinnerQuantity: 1,
+ } });
  expect(screen.queryByText('Voucher de organizador para cursos e jantar')).not.toBeInTheDocument();
+ expect(screen.queryByText(/Retire os cursos|Após a confirmação do pagamento/)).not.toBeInTheDocument();
+});
+test.each([
+ ['organiser benefit', { organizerBenefit: { amountCents: 7000 }, amountCents: 8500 }, 'Voucher de organizador', '155,00 €', '−70,00 €', '85,00 €'],
+ ['full congress discount', { discount: { amountCents: 5500 }, amountCents: 0 }, 'Código de desconto', '55,00 €', '−55,00 €', '0,00 €'],
+])('the summary uses the applied %s quote and clears it when invalidated', (_name, quote, label, subtotal, savings, due) => {
+ useUlsEligibility.mockReturnValue({ verified: true });
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
+ const onVoucherQuote = PublicLiveCheckout.mock.calls.at(-1)[0].onVoucherQuote;
+ act(() => onVoucherQuote(quote));
+ expect(screen.getByText('Subtotal').parentElement).toHaveTextContent(subtotal);
+ expect(screen.getByText(label).parentElement).toHaveTextContent(savings);
+ expect(screen.getByText('Total a pagar').parentElement).toHaveTextContent(due);
+ if (quote.organizerBenefit) expect(screen.getByText('Inclui os dois cursos e um bilhete de jantar.')).toBeVisible();
+ expect(screen.queryByText('Valor estimado')).not.toBeInTheDocument();
+
+ act(() => onVoucherQuote(null));
+ expect(screen.getByText('Valor estimado')).toBeVisible();
+ expect(screen.queryByText('Total a pagar')).not.toBeInTheDocument();
+});
+test('the organiser voucher displays included options and the stepper adds an extra dinner ticket', () => {
+ useUlsEligibility.mockReturnValue({ verified: true });
+ render(<MemoryRouter><RegistrationBuilder /></MemoryRouter>);
+ fireEvent.click(screen.getByRole('radio', { name: /ULS Coimbra/ }));
+ fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
+ const onVoucherQuote = PublicLiveCheckout.mock.calls.at(-1)[0].onVoucherQuote;
+ const quote = { organizerBenefit: { amountCents: 7000 }, amountCents: 5500 };
+ const morning = screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
+ const afternoon = screen.getByRole('checkbox', { name: /Via Verde AVC/ });
+ const dinners = screen.getByRole('spinbutton');
+ act(() => onVoucherQuote(quote));
+ expect(morning).toBeChecked();
+ expect(afternoon).toBeChecked();
+ expect(morning).toBeDisabled();
+ expect(dinners).toHaveValue(1);
+ expect(screen.getByRole('button', { name: 'Retirar um bilhete de jantar' })).toBeDisabled();
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].selection).toMatchObject({ morningCourse: false, afternoonCourse: true, dinnerQuantity: 0 });
+
+ act(() => onVoucherQuote(null));
+ expect(morning).not.toBeChecked();
+ expect(afternoon).toBeChecked();
+ expect(dinners).toHaveValue(null);
+
+ act(() => onVoucherQuote(quote));
+ fireEvent.click(screen.getByRole('button', { name: 'Adicionar um bilhete de jantar' }));
+ expect(dinners).toHaveValue(2);
+ expect(PublicLiveCheckout.mock.calls.at(-1)[0].selection.dinnerQuantity).toBe(2);
 });
 test('email verification is required before preparing payment', () => {
  useAuth.mockReturnValue({ user: { uid: 'user', emailVerified: false }, isAdmin: false });

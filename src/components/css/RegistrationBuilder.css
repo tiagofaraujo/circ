@@ -705,10 +705,43 @@
   line-height: 1.5;
 }
 
+.registration-summary__voucher {
+  margin: 18px 24px 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.registration-summary__voucher dl,
+.registration-summary__voucher dd {
+  margin: 0;
+}
+
+.registration-summary__voucher dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 5px;
+}
+
+.registration-summary__voucher dd,
+.registration-summary__total strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.registration-summary__voucher dd {
+  font-weight: 700;
+}
+
+.registration-summary__voucher p {
+  margin: 6px 0 0;
+}
+
 .registration-summary__total {
   margin: 18px 24px 0;
   padding-top: 18px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
   gap: 16px;

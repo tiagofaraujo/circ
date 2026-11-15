@@ -1,5 +1,7 @@
 import { isClosedUnpaidMbway } from './live-mbway-lifecycle.mjs';
+import { availableOrganizerVoucher, claimedOrganizerVoucher } from './organizer-voucher-record.mjs';
 import { createPaidCapacityStore } from './paid-capacity-store.mjs';
+import { hasOrganizerBenefit } from './quote.mjs';
 export const LIVE_ORDER_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const isUid = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const EVENT = 'circ-2027';
@@ -56,6 +58,10 @@ export function createCheckoutLiveStore({
     if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new LiveStoreError('invalid_request');
     return `${root}/organizationDiscountVouchers/${hash}`;
   };
+  const organizerVoucherName = hash => {
+    if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new LiveStoreError('invalid_request');
+    return `${root}/organizerVouchers/${hash}`;
+  };
   async function call(url, method = 'GET', body) {
     const accessToken = token;
     let response;
@@ -80,8 +86,30 @@ export function createCheckoutLiveStore({
     return doc ? { data: decode({ mapValue:{ fields:doc.fields || {} } }), version: doc.updateTime, name } : { data:null, version:null, name };
   }
   const capacity = createPaidCapacityStore({ root, call, fields, decode, capacityEnabled });
-  const settlement = (payment, registration, previous, decision) => {
-    if (decision.allocated) return { payment, registration };
+  async function prepareOrganizerRedemption(orderId, payment, registration) {
+    const hash = payment.organizerVoucherHash;
+    const benefit = payment.quote?.organizerBenefit;
+    if (!hash && !benefit) return null;
+    const selection = payment.quote?.selection;
+    const entitlement = registration.entitlements;
+    if (!hash || payment.discountVoucherHash || !hasOrganizerBenefit(payment.quote) || !hasOrganizerBenefit(payment.fiscalQuote)
+      || payment.status !== 'paid' || payment.id !== orderId
+      || payment.userId !== uid || payment.registrationId !== registrationId || !Number.isFinite(Date.parse(payment.paidAt))
+      || registration.userId !== uid || registration.status !== 'confirmed' || registration.payment?.orderId !== orderId
+      || entitlement?.congressMode !== 'onsite' || !entitlement.morningCourse || !entitlement.afternoonCourse
+      || entitlement.dinnerQuantity !== selection.dinnerQuantity
+      || payment.fiscalQuote.selection.dinnerQuantity !== selection.dinnerQuantity) throw new LiveStoreError('storage_invalid');
+    const name = organizerVoucherName(hash);
+    const { data, version } = await readDoc('organizerVouchers', hash);
+    if (!version || !claimedOrganizerVoucher(data, uid, orderId)) throw new LiveStoreError('storage_invalid');
+    const update = { status: 'redeemed', redeemedBy: uid, registrationId, redeemedAt: payment.paidAt };
+    return { check: { name, version }, write: {
+      update: { name, fields: fields(update) }, updateMask: { fieldPaths: Object.keys(update) }, currentDocument: { updateTime: version },
+    } };
+  }
+  const settlement = (payment, registration, previous, decision, organizerRedemption) => {
+    if (decision.allocated) return { payment,
+      registration: organizerRedemption ? { ...registration, organizerVoucherRedeemed: true } : registration };
     const owned = previous.entitlements ?? (previous.status === 'confirmed' && previous.payment?.status === 'paid' ? previous.selection : null);
     return {
       payment: { ...payment, capacityStatus: 'review_required', capacityUnavailable: decision.unavailable },
@@ -99,7 +127,7 @@ export function createCheckoutLiveStore({
     async companyVoucher(code) { if (!/^[a-f0-9]{32}$/.test(code || '')) throw new LiveStoreError('invalid_request'); return readDoc('companyVouchers', code); },
     async companyPurchase(id) { return readDoc('companyPurchases', id); },
     async organizerVoucher(hash) {
-      if (!/^[a-f0-9]{64}$/.test(hash || '')) throw new LiveStoreError('invalid_request');
+      organizerVoucherName(hash);
       return readDoc('organizerVouchers', hash);
     },
     async organizationDiscountVoucher(hash) {
@@ -111,7 +139,7 @@ export function createCheckoutLiveStore({
         || registration.userId !== uid || registration.eventId !== EVENT || registration.payment?.orderId !== orderId
         || registration.organizerVoucherRedeemed !== true || voucher.status !== 'redeemed'
         || voucher.redeemedBy !== uid || voucher.registrationId !== registrationId) throw new LiveStoreError('storage_invalid');
-      const voucherName = `${root}/organizerVouchers/${hash}`;
+      const voucherName = organizerVoucherName(hash);
       const registrationUpdate = { organizerVoucherRedeemed: true, entitlements: registration.entitlements, updatedAt: registration.updatedAt };
       const voucherUpdate = { status: voucher.status, redeemedBy: voucher.redeemedBy, registrationId, redeemedAt: voucher.redeemedAt };
       return capacity.commit({ registrationName, nextRegistration: registration,
@@ -193,7 +221,7 @@ export function createCheckoutLiveStore({
       }
       return result;
     },
-    async createPendingPrimary({ orderId, registration, payment, guards = [], replacement = null, discountVoucher = null }) {
+    async createPendingPrimary({ orderId, registration, payment, guards = [], replacement = null, discountVoucher = null, organizerVoucher = null }) {
       if (!LIVE_ORDER_UUID.test(orderId || '') || registration.eventId !== EVENT || registration.userId !== uid
         || registration.isTest !== false || registration.testMode !== false
         || payment.environment !== 'production' || payment.userId !== uid || payment.registrationId !== registrationId) {
@@ -205,6 +233,9 @@ export function createCheckoutLiveStore({
       if (Boolean(discountVoucher) !== Boolean(payment.discountVoucherHash) || Boolean(discountVoucher) !== Boolean(payment.quote?.discount)) {
         throw new LiveStoreError('storage_invalid');
       }
+      if (Boolean(organizerVoucher) !== Boolean(payment.organizerVoucherHash)
+        || Boolean(organizerVoucher) !== Boolean(payment.quote?.organizerBenefit)
+        || (organizerVoucher && discountVoucher)) throw new LiveStoreError('storage_invalid');
       const covered = payment.method === 'organization_voucher';
       if (covered ? (!discountVoucher || payment.amountCents !== 0 || payment.quote.amountCents !== 0
         || payment.status !== 'paid' || payment.provider !== 'internal_organization_voucher'
@@ -228,6 +259,19 @@ export function createCheckoutLiveStore({
           throw new LiveStoreError('storage_invalid');
         }
         const update = { status: 'claimed', userId: uid, orderId, claimedAt: payment.createdAt };
+        voucherChecks.push({ name, version });
+        voucherWrites.push({ update: { name, fields: fields(update) }, updateMask: { fieldPaths: Object.keys(update) },
+          currentDocument: { updateTime: version } });
+      }
+      if (organizerVoucher) {
+        const { data, version, hash } = organizerVoucher;
+        const name = organizerVoucherName(payment.organizerVoucherHash);
+        const previousHash = replacement?.payment.organizerVoucherHash;
+        const claimable = previousHash ? previousHash === hash && claimedOrganizerVoucher(data, uid, replacement.orderId)
+          : availableOrganizerVoucher(data);
+        if (!version || name !== organizerVoucher.name || hash !== payment.organizerVoucherHash || !claimable
+          || !hasOrganizerBenefit(payment.quote) || payment.amountCents <= 0) throw new LiveStoreError('storage_invalid');
+        const update = { status: 'claimed', userId: uid, orderId, claimedAt: data.claimedAt || payment.createdAt };
         voucherChecks.push({ name, version });
         voucherWrites.push({ update: { name, fields: fields(update) }, updateMask: { fieldPaths: Object.keys(update) },
           currentDocument: { updateTime: version } });
@@ -319,25 +363,29 @@ export function createCheckoutLiveStore({
         || registration.userId !== uid || registration.eventId !== EVENT || fiscalJob.id !== orderId || fiscalJob.paymentMethod !== 'bank_transfer'
         || creditClaim.orderId !== orderId || creditClaim.environment !== 'production' || creditClaim.eventId !== EVENT
         || audit?.orderId !== orderId || audit.registrationId !== registrationId || audit.action !== 'payment.bank-transfer.confirmed') throw new LiveStoreError('storage_invalid');
+      const organizerRedemption = await prepareOrganizerRedemption(orderId, payment, registration);
       return capacity.commit({ registrationName, nextRegistration: registration, onFull: 'hold',
         checks: [...guards.map(g => ({ name: g.name, version: g.version })),
           { name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: paymentVersion },
           { name: documentName(orderId), version: null }, { name: `${root}/settings/circ-bank-credit-live-${key}`, version: null },
-          { name: `${root}/auditLogs/bank-live-${orderId}-${decisionId}`, version: null }],
+          { name: `${root}/auditLogs/bank-live-${orderId}-${decisionId}`, version: null },
+          ...(organizerRedemption ? [organizerRedemption.check] : [])],
         writes: (decision, previous) => {
-          const final = settlement(payment, registration, previous, decision);
+          const final = settlement(payment, registration, previous, decision, organizerRedemption);
           return [
             { update: { name: paymentName(orderId), fields: fields(final.payment) }, currentDocument: { updateTime: paymentVersion } },
             { update: { name: registrationName, fields: fields(final.registration) }, currentDocument: { updateTime: registrationVersion } },
             { update: { name: documentName(orderId), fields: fields(fiscalJob) }, currentDocument: { exists: false } },
             { update: { name: `${root}/settings/circ-bank-credit-live-${key}`, fields: fields(creditClaim) }, currentDocument: { exists: false } },
             { update: { name: `${root}/auditLogs/bank-live-${orderId}-${decisionId}`, fields: fields({ ...audit, capacityStatus: decision.allocated ? 'allocated' : 'review_required' }) }, currentDocument: { exists: false } },
+            ...(decision.allocated && organizerRedemption ? [organizerRedemption.write] : []),
           ];
         },
       });
     },
     async confirmPrimaryPaid({ orderId, payment, paymentVersion, registration, registrationVersion, fiscalJob, providerFeeMicros = null }) {
       if (!paymentVersion || !registrationVersion || fiscalJob.id !== orderId) throw new LiveStoreError('storage_invalid');
+      const organizerRedemption = await prepareOrganizerRedemption(orderId, payment, registration);
       const feeWrites = [];
       if (providerFeeMicros !== null && payment.provider === 'eupago' && payment.environment === 'production'
         && payment.eventId === EVENT && payment.currency === 'EUR' && payment.id === orderId && payment.status === 'paid'
@@ -350,14 +398,16 @@ export function createCheckoutLiveStore({
         }) }, currentDocument: { exists: false } });
       }
       return capacity.commit({ registrationName, nextRegistration: registration, onFull: 'hold',
-        checks: [{ name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: paymentVersion }, { name: documentName(orderId), version: null }],
+        checks: [{ name: registrationName, version: registrationVersion }, { name: paymentName(orderId), version: paymentVersion }, { name: documentName(orderId), version: null },
+          ...(organizerRedemption ? [organizerRedemption.check] : [])],
         writes: (decision, previous) => {
-          const final = settlement(payment, registration, previous, decision);
+          const final = settlement(payment, registration, previous, decision, organizerRedemption);
           return [
             { update: { name: paymentName(orderId), fields: fields(final.payment) }, currentDocument: { updateTime: paymentVersion } },
             { update: { name: registrationName, fields: fields(final.registration) }, currentDocument: { updateTime: registrationVersion } },
             { update: { name: documentName(orderId), fields: fields(fiscalJob) }, currentDocument: { exists: false } },
             ...feeWrites,
+            ...(decision.allocated && organizerRedemption ? [organizerRedemption.write] : []),
           ];
         },
       });

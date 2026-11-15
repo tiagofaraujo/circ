@@ -1,10 +1,9 @@
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
+import { ORGANIZER_VOUCHER_BATCH as BATCH_ID, ORGANIZER_VOUCHER_QUANTITY as QUANTITY } from './organizer-voucher-record.mjs';
 
 const PATH = '/api/admin/registration-management/organizer-vouchers/issue';
 const ADMIN = 'circ.chuc@gmail.com';
 const EVENT = 'circ-2027';
-const BATCH_ID = 'circ-2027-organizers-01';
-const QUANTITY = 9;
 const HASH = /^[a-f0-9]{64}$/;
 const headers = { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store', Vary: 'Authorization', 'X-Content-Type-Options': 'nosniff' };
 const reply = (body, status = 200, extraHeaders = {}) => Response.json(body, { status, headers: { ...headers, ...extraHeaders } });

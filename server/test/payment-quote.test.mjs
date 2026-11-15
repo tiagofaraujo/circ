@@ -72,6 +72,29 @@ test('no primary quote without a checked absence or verified login', () => {
   assert.throws(() => quotePrimary(selection, context, undefined), /unchecked/);
   assert.throws(() => quote(selection, { ...context, emailVerified: false }), /sign-in/);
 });
+test('the organizer code covers both courses and one dinner in the same verified ULS onsite quote', () => {
+  const identity = { userId: context.uid, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA EXEMPLO', method: 'mec-name-match' };
+  const verified = { ...context, uls: { ...identity, status: 'matched' }, claim: identity,
+    roster: { active: true, eventId: 'circ-2027', nameKey: identity.nameKey } };
+  const onsite = { profile: 'uls', congressMode: 'onsite' };
+  const included = quotePrimary(onsite, verified, null, now, undefined, true);
+  assert.equal(included.amountCents, 5500);
+  assert.deepEqual(included.organizerBenefit, { amountCents: 7000 });
+  assert.deepEqual(included.selection, { ...onsite, courseAffiliation: 'uls', morningCourse: true, afternoonCourse: true, dinnerQuantity: 1 });
+  assert.deepEqual(included.lines.map(line => [line.code, line.amountCents]), [
+    ['congress-onsite', 5500], ['course-morning', 0], ['course-afternoon', 0],
+  ]);
+  const extraDinners = quotePrimary({ ...onsite, dinnerQuantity: 3 }, verified, null, now, undefined, true);
+  assert.equal(extraDinners.selection.dinnerQuantity, 3);
+  assert.equal(extraDinners.amountCents, 11500);
+  assert.deepEqual(extraDinners.lines.at(-1), { code: 'dinner', quantity: 2, unitAmountCents: 3000, amountCents: 6000 });
+  const afterTariffChange = quotePrimary(onsite, verified, null, new Date('2027-02-01T12:00:00Z'), undefined, true);
+  assert.equal(afterTariffChange.amountCents, 9000);
+  assert.throws(() => quotePrimary(onsite, context, null, now, undefined, true), /uls-not-verified/);
+  assert.throws(() => quotePrimary({ ...onsite, congressMode: 'virtual' }, verified, null, now, undefined, true), /organizer-voucher-not-applicable/);
+  assert.throws(() => quotePrimary(selection, verified, null, now, undefined, true), /organizer-voucher-not-applicable/);
+  assert.throws(() => quotePrimary(onsite, verified, null, now, { type: 'fixed', value: 5500 }, true), /organizer-voucher-not-applicable/);
+});
 test('rejects malformed selections instead of coercing them into prices', () => {
   for (const dinnerQuantity of [-1, 1.5, '2', Infinity, Number.MAX_SAFE_INTEGER]) {
     assert.throws(() => quote({ ...selection, dinnerQuantity }));

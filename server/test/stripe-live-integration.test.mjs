@@ -26,7 +26,8 @@ const voucherValue = '123456789abcdeffedcba9876543210a';
 const voucherCode = `CIRC27-D-${voucherValue.match(/.{4}/g).join('-')}`;
 const voucherHash = createHash('sha256').update(voucherValue).digest('hex');
 const clone = value => structuredClone(value);
-function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env, discount } = {}) {
+function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env, discount,
+  organizerVoucher = false } = {}) {
   const payments = new Map(), jobs = new Map(), sessions = new Map();
   let registration = null, registrationVersion = 0, currentTime = clock, instrumentStatus = 200, creationFailure = false;
   const httpCalls = [], fiscalCalls = [];
@@ -45,13 +46,23 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
       assert.equal(hash, voucherHash);
       return { data: { eventId: 'circ-2027', batchId: ids[1], status: 'available', discount }, version: 'voucher-v1' };
     },
+    organizerVoucher: async hash => {
+      assert.equal(hash, voucherHash);
+      return { data: { eventId: 'circ-2027', batchId: 'circ-2027-organizers-01', index: 1, status: 'available' }, version: 'organizer-v1' };
+    },
     primaryPayment: async () => {
       const found = [...payments].find(([, row]) => row.data.kind === 'primary' && !row.data.registrationArchiveId);
       return found ? { id: found[0], ...snapshot(payments, found[0]) } : null;
     },
     profile: async () => ({ data: { name: 'Participante Exemplo', taxNumber: '203821432', billingAddress: 'Rua Exemplo 1',
       billingPostalCode: '3000-001', billingCity: 'Coimbra', billingCountry: 'Portugal' } }),
-    context: async () => ({ uid: identity.sub, emailVerified: true, guards: [] }),
+    context: async () => {
+      const context = { uid: identity.sub, emailVerified: true, guards: [] };
+      if (!organizerVoucher) return context;
+      const base = { userId: identity.sub, eventId: 'circ-2027', mec: '123', nameKey: 'PESSOA EXEMPLO', method: 'mec-name-match' };
+      return { ...context, uls: { ...base, status: 'matched' }, claim: base,
+        roster: { active: true, eventId: 'circ-2027', nameKey: base.nameKey } };
+    },
     createPendingPrimary: async ({ orderId, payment, registration: next }) => {
       if (registration || payments.has(orderId)) failConflict();
       registration = clone(next); registrationVersion++; put(payments, orderId, payment);
@@ -136,7 +147,8 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
   };
   async function orderBody(id, selection = primary, kind = 'primary') {
     const prefix = kind === 'primary' ? '' : '/supplementary';
-    const checkout = { selection, ...(discount && kind === 'primary' ? { discountCode: voucherCode } : {}) };
+    const checkout = { selection, ...(discount && kind === 'primary' ? { discountCode: voucherCode } : {}),
+      ...(organizerVoucher && kind === 'primary' ? { organizerCode: voucherValue } : {}) };
     const response = await call(`${prefix}/quote`, checkout); assert.equal(response.status, 200, await response.clone().text());
     const quote = await response.json(); return { id, ...checkout, method: 'stripe_card', stamp: quote.stamp, billingStamp: quote.billingStamp };
   }
@@ -215,6 +227,26 @@ test('concurrent paid callbacks cannot duplicate the primary financial confirmat
   assert.ok(responses.some(response => response.status === 200)); assert.ok(responses.every(response => [200, 503].includes(response.status)));
   assert.equal(f.payment(ids[0]).status, 'paid'); assert.equal(f.fiscalCalls.length, 1); assert.equal(f.registration().documentCount, 1);
   assert.equal((await f.notify()).status, 200); assert.equal(f.fiscalCalls.length, 1);
+});
+
+test('Stripe charges only paid items and settles the original organizer registration with all its entitlements', async () => {
+  const f = fixture({ organizerVoucher: true });
+  const { order } = await f.create(ids[0], { ...primary, profile: 'uls', dinnerQuantity: 2 });
+  assert.equal(order.amountCents, 8500);
+  const checkout = new URLSearchParams(f.httpCalls[0].body);
+  assert.equal(checkout.get('line_items[0][price_data][unit_amount]'), '5500');
+  assert.equal(checkout.get('line_items[1][price_data][unit_amount]'), '3000');
+  assert.equal(checkout.get('line_items[1][quantity]'), '1');
+  assert.equal(checkout.has('line_items[2][quantity]'), false);
+  assert.ok(!f.httpCalls[0].body.includes(voucherValue));
+  assert.ok(!f.httpCalls[0].body.includes(voucherHash));
+  f.markPaid();
+  const paid = await f.notify();
+  assert.equal(paid.status, 200, await paid.clone().text());
+  assert.equal((await paid.json()).fiscalStatus, 'issued');
+  assert.deepEqual(f.payment(ids[0]).fiscalQuote.organizerBenefit, { amountCents: 7000 });
+  assert.deepEqual(f.registration().entitlements, { congressMode: 'onsite', morningCourse: true, afternoonCourse: true, dinnerQuantity: 2 });
+  assert.deepEqual(f.fiscalCalls[0].lines.map(line => [line.quantity, line.unit_price]), [[1, 55], [1, 30]]);
 });
 
 test('a paid debit-card supplement preserves the original payment ledger and adds purchased entitlements exactly once', async () => {

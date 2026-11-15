@@ -2,7 +2,7 @@ import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs
 import { createCheckoutLiveStore,readLivePaymentById,LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 import { createStripeLive,matchStripeLiveSession,stripeLiveConfiguration,STRIPE_LIVE_FLOW,STRIPE_LIVE_WEBHOOK_PATH } from './stripe-live.mjs';
 import { verifyStripeEvent } from './stripe-webhook.mjs';
-import { quotePrimary,quoteSupplementary } from './quote.mjs';
+import { organizerVoucherOnOrder,quotePrimary,quoteSupplementary } from './quote.mjs';
 import { buildLivePaymentFR } from './toconline-live-payload.mjs';
 import { completeLiveFiscalJob } from './live-fiscal-issue.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
@@ -82,12 +82,14 @@ export function createStripeLiveWebhook({tokenProvider=createPaymentsServiceToke
         :r.status!=='confirmed'||r.payment?.status!=='paid'||r.openSupplementaryOrderId!==id)return await review('registration-state-mismatch',{preserveRegistration:true});
       const context=await store.context(p.quote?.selection?.profile);
       let expected;
-      try{expected=kind==='primary'?quotePrimary(p.quote.selection,{...context,emailVerified:true},null,new Date(`${paymentDate}T12:00:00Z`),p.quote.discount)
+      try{
+        const organizerVoucher=organizerVoucherOnOrder(p);
+        expected=kind==='primary'?quotePrimary(p.quote.selection,{...context,emailVerified:true},null,new Date(`${paymentDate}T12:00:00Z`),p.quote.discount,organizerVoucher)
         :quoteSupplementary({morningCourse:p.quote.selection.morningCourse,afternoonCourse:p.quote.selection.afternoonCourse,dinnerQuantity:p.quote.selection.dinnerQuantity},
           {...context,emailVerified:true},{...r,id:store.registrationId},new Date(`${paymentDate}T12:00:00Z`));}
       catch(error){
         if(['checkout/uls-not-verified','checkout/student-not-approved','checkout/course-already-owned','checkout/paid-registration-required','checkout/invalid-addition'].includes(error.message))return await review('payment-eligibility-review');
-        if(['checkout/invalid-discount','checkout/discount-not-applicable'].includes(error.message))return await review('payment-discount-review');
+        if(['checkout/invalid-discount','checkout/discount-not-applicable','checkout/organizer-voucher-not-applicable'].includes(error.message))return await review('payment-discount-review');
         throw error;
       }
       if(expected.amountCents!==p.amountCents)return await review('payment-date-tariff-mismatch');

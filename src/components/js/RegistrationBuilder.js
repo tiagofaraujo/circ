@@ -24,6 +24,9 @@ const capacityPermits = (capacity, selection) => (selection.congressMode !== 'on
   && (!selection.afternoonCourse || hasCapacity(capacity, 'afternoonCourse'));
 const capacityReviewPending = registration => Boolean(registration.capacityReviewOrderId
   || registration.payment?.capacityStatus === 'review_required' || registration.capacityStatus === 'review_required');
+const formatQuoteAmount = (cents, en) => new Intl.NumberFormat(en ? 'en-IE' : 'pt-PT', {
+  style: 'currency', currency: 'EUR',
+}).format(cents / 100);
 
 function CapacityNotice({ capacity, en }) {
   if (!REGISTRATION_CAPACITY_ENABLED) return null;
@@ -41,29 +44,40 @@ function CapacityNotice({ capacity, en }) {
   </section>;
 }
 
-function SupplementChoices({ value, onChange, profile, en, locked = false, owned = {}, capacity }) {
+function SupplementChoices({ value, onChange, profile, en, locked = false, owned = {}, organizerBenefit = false, capacity }) {
   const coursePrice = getCourseRate(profile, profile === 'uls' ? 'uls' : 'external');
   const dinnerLabelId = useId();
-  const dinnerQuantity = value.dinnerQuantity;
+  const minimumDinner = organizerBenefit ? 1 : 0;
+  const dinnerQuantity = Math.max(minimumDinner, value.dinnerQuantity);
   const dinnerLabel = en ? 'Dinner tickets' : 'Bilhetes de jantar';
   function setDinnerQuantity(raw) {
     const quantity = Number(raw);
-    if (Number.isSafeInteger(quantity) && quantity >= 0) onChange({ ...value, dinnerQuantity: quantity });
+    if (Number.isSafeInteger(quantity) && quantity >= minimumDinner) onChange({ ...value, dinnerQuantity: quantity });
   }
   return <fieldset disabled={locked} className="registration-purchase-options">
     <legend>{en ? 'Courses and dinner' : 'Cursos e jantar'}</legend>
-    {[['morningCourse', mriCourseTitle], ['afternoonCourse', strokeCourseTitle]].map(([key, title]) => <label className={`registration-purchase-option${!value[key] && !owned[key] && !hasCapacity(capacity, key) ? ' is-unavailable' : ''}`} key={key}>
-      <input type="checkbox" checked={Boolean(owned[key] || value[key])} disabled={Boolean(owned[key] || (!value[key] && !hasCapacity(capacity, key)))} onChange={event => onChange({ ...value, [key]: event.target.checked })} />
-      <span><strong>{title[en ? 'en' : 'pt']}</strong><small>{owned[key] ? (en ? 'Already included in your registration' : 'Já incluído na inscrição') : `${formatEuro(coursePrice)} / ${en ? 'course' : 'curso'}`}</small>
-        {!owned[key] && !hasCapacity(capacity, key) && <small>{capacity.status === 'ready' ? (en ? 'Full' : 'Esgotado') : (en ? 'Availability unconfirmed' : 'Disponibilidade por confirmar')}</small>}
-      </span>
-    </label>)}
+    {[['morningCourse', mriCourseTitle], ['afternoonCourse', strokeCourseTitle]].map(([key, title]) => {
+      const included = owned[key] || organizerBenefit;
+      const unavailable = !value[key] && !included && !hasCapacity(capacity, key);
+      const priceLabel = owned[key] ? (en ? 'Already included in your registration' : 'Já incluído na inscrição')
+        : organizerBenefit ? (en ? 'Included with the voucher' : 'Incluído no voucher')
+          : `${formatEuro(coursePrice)} / ${en ? 'course' : 'curso'}`;
+      return <label className={`registration-purchase-option${unavailable ? ' is-unavailable' : ''}`} key={key}>
+        <input type="checkbox" checked={Boolean(included || value[key])} disabled={Boolean(included || unavailable)} onChange={event => onChange({ ...value, [key]: event.target.checked })} />
+        <span><strong>{title[en ? 'en' : 'pt']}</strong><small>{priceLabel}</small>
+          {!included && !hasCapacity(capacity, key) && <small>{capacity.status === 'ready' ? (en ? 'Full' : 'Esgotado') : (en ? 'Availability unconfirmed' : 'Disponibilidade por confirmar')}</small>}
+        </span>
+      </label>;
+    })}
     <div className="registration-purchase-option registration-purchase-option--quantity" role="group" aria-labelledby={dinnerLabelId}>
-      <span><strong id={dinnerLabelId}>{dinnerLabel}</strong><small>{formatEuro(DINNER_RATE)} / {en ? 'person' : 'pessoa'}{Number(owned.dinnerQuantity) > 0 ? ` · ${owned.dinnerQuantity} ${en ? 'already included' : 'já incluído(s)'}` : ''}</small></span>
+      <span><strong id={dinnerLabelId}>{dinnerLabel}</strong><small>
+        {organizerBenefit ? (en ? `One ticket included · ${formatEuro(DINNER_RATE)} per additional ticket` : `Um bilhete incluído · ${formatEuro(DINNER_RATE)} por bilhete adicional`)
+          : `${formatEuro(DINNER_RATE)} / ${en ? 'person' : 'pessoa'}${Number(owned.dinnerQuantity) > 0 ? ` · ${owned.dinnerQuantity} ${en ? 'already included' : 'já incluído(s)'}` : ''}`}
+      </small></span>
       <div className="registration-dinner-stepper">
         <button type="button" aria-label={en ? 'Remove one dinner ticket' : 'Retirar um bilhete de jantar'}
-          disabled={dinnerQuantity === 0} onClick={() => setDinnerQuantity(dinnerQuantity - 1)}>−</button>
-        <input type="number" inputMode="numeric" min="0" step="1" placeholder="0"
+          disabled={dinnerQuantity === minimumDinner} onClick={() => setDinnerQuantity(dinnerQuantity - 1)}>−</button>
+        <input type="number" inputMode="numeric" min={minimumDinner} step="1" placeholder="0"
           value={dinnerQuantity === 0 ? '' : String(dinnerQuantity)} onChange={event => setDinnerQuantity(event.target.value)}
           aria-label={en ? 'Additional dinner tickets' : 'Quantidade de bilhetes de jantar'} />
         <button type="button" aria-label={en ? 'Add one dinner ticket' : 'Adicionar um bilhete de jantar'}
@@ -156,6 +170,7 @@ function ProductionRegistrationBuilder({ registration }) {
   const [chosenItems, setItems] = useState({ morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
   const [checkoutLocked, setCheckoutLocked] = useState(false);
   const [discountTransfer, setDiscountTransfer] = useState(null);
+  const [voucherQuote, setVoucherQuote] = useState(null);
   const profile = registration?.selection?.profile || chosenProfile;
   const congressMode = registration?.selection?.congressMode || chosenMode;
   const items = registration ? selectionItems(registration.selection) : chosenItems;
@@ -171,6 +186,8 @@ function ProductionRegistrationBuilder({ registration }) {
   const ready = categoryReady && (congressMode !== 'courses-only' || items.morningCourse || items.afternoonCourse)
     && capacityPermits(capacity, selection);
   const total = calculateRegistrationTotal({ ...selection, courseAffiliation: profile === 'uls' ? 'uls' : 'external', period });
+  const organizerBenefit = voucherQuote?.organizerBenefit;
+  const voucherSavings = (organizerBenefit || voucherQuote?.discount)?.amountCents;
   const locked = Boolean(registration) || checkoutLocked;
   if (registration?.isTest === true || registration?.testMode === true) return <p role="alert">{en ? 'An existing registration needs organiser review before another payment can be created.' : 'Existe uma inscrição que necessita de conferência pela organização antes de criar outro pagamento.'}</p>;
   if (existingAddOns) return <ExistingRegistrationAddOns registration={registration} user={user} en={en} />;
@@ -198,34 +215,33 @@ function ProductionRegistrationBuilder({ registration }) {
             </label>)}
           </div></fieldset>
           <p>{congressMode === 'onsite' ? (en ? '9–10 April 2027 · Convento São Francisco · Coimbra' : '9–10 de abril de 2027 · Convento São Francisco · Coimbra') : congressMode === 'virtual' ? (en ? '9–10 April 2027 · Online attendance' : '9–10 de abril de 2027 · Participação online') : (en ? '8 April 2027 · Morning and afternoon courses' : '8 de abril de 2027 · Cursos da manhã e da tarde')}</p>
-          <SupplementChoices value={items} onChange={setItems} profile={profile} en={en} locked={locked} capacity={capacity} />
+          <SupplementChoices value={items} onChange={setItems} profile={profile} en={en} locked={locked} organizerBenefit={Boolean(organizerBenefit)} capacity={capacity} />
           {congressMode === 'courses-only' && !items.morningCourse && !items.afternoonCourse && <p role="status">{en ? 'Choose at least one pre-congress course to continue.' : 'Selecione pelo menos um curso pré-congresso para continuar.'}</p>}
         </section>
       </div>
       <aside className="registration-summary">
         <div className="registration-summary__rate"><span>{en ? 'Current tariff' : 'Tarifa atual'}</span><strong>{period === 'early' ? (en ? 'Until 31 January 2027' : 'Até 31 de janeiro de 2027') : (en ? 'From 1 February 2027' : 'Desde 1 de fevereiro de 2027')}</strong></div>
         <h2>{registration ? (en ? 'Your pending registration' : 'A sua inscrição pendente') : (en ? 'Registration summary' : 'Resumo da inscrição')}</h2>
-        <p>CIRC 2027 · {modeLabel(congressMode, en)}</p>
-        <div className="registration-summary__total"><span>{en ? 'Estimated amount' : 'Valor estimado'}</span><strong>{formatEuro(total.total)}</strong></div>
-        <p>{en ? 'The server confirms the amount and billing details before a payment order is created. The applicable congress tariff is based on the payment date.' : 'O servidor confirma o valor e os dados de faturação antes de criar o pedido de pagamento. A tarifa do congresso depende da data de pagamento.'}</p>
+        <p className="registration-summary__profile">CIRC 2027 · {modeLabel(congressMode, en)}</p>
+        {voucherSavings > 0 && <div className="registration-summary__voucher">
+          <dl>
+            <div><dt>Subtotal</dt><dd>{formatQuoteAmount(voucherQuote.amountCents + voucherSavings, en)}</dd></div>
+            <div><dt>{organizerBenefit ? (en ? 'Organiser voucher' : 'Voucher de organizador') : (en ? 'Discount code' : 'Código de desconto')}</dt><dd>−{formatQuoteAmount(voucherSavings, en)}</dd></div>
+          </dl>
+          {organizerBenefit && <p>{en ? 'Both courses and one dinner ticket are included.' : 'Inclui os dois cursos e um bilhete de jantar.'}</p>}
+        </div>}
+        <div className="registration-summary__total" aria-live="polite" aria-atomic="true">
+          <span>{voucherSavings > 0 ? (en ? 'Amount due' : 'Total a pagar') : (en ? 'Estimated amount' : 'Valor estimado')}</span>
+          <strong>{voucherSavings > 0 ? formatQuoteAmount(voucherQuote.amountCents, en) : formatEuro(total.total)}</strong>
+        </div>
+        <p className="registration-summary__tax">{en ? 'The applicable congress tariff is based on the payment date.' : 'A tarifa do congresso depende da data de pagamento.'}</p>
         {!user.emailVerified && <p role="alert">{en ? 'Verify your account email before creating a payment.' : 'Confirme o email da sua conta antes de criar um pagamento.'}</p>}
         {!categoryReady && user.emailVerified && <p role="status">{en ? 'Complete the eligibility check for this category before continuing.' : 'Conclua a validação da categoria selecionada antes de continuar.'}</p>}
         {!locked && profile === 'external' && hasCapacity(capacity, 'onsite')
           && <CompanyVoucher eligible={congressMode === 'onsite' && !hasAdditions}
             onDiscountCode={congressMode === 'courses-only' ? undefined : code => setDiscountTransfer({ code })} />}
-        {!locked && profile === 'uls' && congressMode === 'onsite' && <details className="company-voucher">
-          <summary>{en ? 'Organiser voucher for courses and dinner' : 'Voucher de organizador para cursos e jantar'}</summary>
-          <p>{en ? 'For CIRC27-D- codes, use “Have a discount code?” below.' : 'Para códigos CIRC27-D-, use «Tem um código de desconto?» abaixo.'}</p>
-          <ol className="mb-0 ps-3">
-            <li>{en ? 'Pay for the onsite congress only at the ULS Coimbra rate.' : 'Pague apenas o congresso presencial à tarifa ULS Coimbra.'}
-              {hasAdditions && <strong className="d-block">{en ? 'Remove the courses and dinner tickets from your selection before paying.' : 'Retire os cursos e os bilhetes de jantar da seleção antes de pagar.'}</strong>}
-            </li>
-            <li>{en ? 'Once payment is confirmed, return to Registrations and apply your organiser voucher under “Add courses or dinner tickets”.'
-              : 'Após a confirmação do pagamento, volte a «Inscrições» e aplique o voucher de organizador em «Adicionar cursos ou bilhetes de jantar».'}</li>
-          </ol>
-        </details>}
         <PublicLiveCheckout key={`${user.uid}:primary`} user={user} selection={selection} eligible={ready} registration={registration} en={en}
-          discountTransfer={discountTransfer} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
+          discountTransfer={discountTransfer} onVoucherQuote={setVoucherQuote} onLock={setCheckoutLocked} onCapacityRefresh={capacity.refresh} />
       </aside>
     </div>
   </div>;
