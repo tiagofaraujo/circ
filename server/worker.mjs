@@ -19,6 +19,7 @@ import { createRegistrationReleaseApi } from './payments/registration-release.mj
 import { createCompanyVoucherLiveApi } from './payments/company-voucher-live.mjs';
 import { createOrganizerVoucherLiveApi } from './payments/organizer-voucher-live.mjs';
 import { createOrganizerVoucherIssueApi } from './payments/organizer-voucher-issue.mjs';
+import { createOrganizationDiscountVoucherAdminApi } from './payments/organization-discount-voucher-admin.mjs';
 import { createRegistrationReportsApi } from './payments/registration-reports.mjs';
 import { createBillingSummaryApi } from './payments/billing-summary.mjs';
 import { hotels2027 } from './hotels2027.mjs';
@@ -74,6 +75,7 @@ export function createWorker(verify = verifyFirebaseToken) {
   const companyVoucherLive = createCompanyVoucherLiveApi({ verify });
   const organizerVoucherLive = createOrganizerVoucherLiveApi({ verify });
   const organizerVoucherIssue = createOrganizerVoucherIssueApi({ verify });
+  const organizationDiscountVoucherAdmin = createOrganizationDiscountVoucherAdminApi({ verify });
   const registrationReports = createRegistrationReportsApi({ verify });
   const billingSummary = createBillingSummaryApi({ verify });
   return {
@@ -118,6 +120,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (organizerVoucherResponse) return organizerVoucherResponse;
       const organizerVoucherIssueResponse = await organizerVoucherIssue(request, env);
       if (organizerVoucherIssueResponse) return organizerVoucherIssueResponse;
+      const organizationDiscountVoucherAdminResponse = await organizationDiscountVoucherAdmin(request, env);
+      if (organizationDiscountVoucherAdminResponse) return organizationDiscountVoucherAdminResponse;
       const registrationReportResponse = await registrationReports(request, env);
       if (registrationReportResponse) return registrationReportResponse;
       const billingSummaryResponse = await billingSummary(request, env);

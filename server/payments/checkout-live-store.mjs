@@ -52,6 +52,10 @@ export function createCheckoutLiveStore({
     if (!LIVE_ORDER_UUID.test(id || '')) throw new LiveStoreError('invalid_request');
     return `${root}/documents/${id}`;
   };
+  const discountVoucherName = hash => {
+    if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new LiveStoreError('invalid_request');
+    return `${root}/organizationDiscountVouchers/${hash}`;
+  };
   async function call(url, method = 'GET', body) {
     const accessToken = token;
     let response;
@@ -97,6 +101,10 @@ export function createCheckoutLiveStore({
     async organizerVoucher(hash) {
       if (!/^[a-f0-9]{64}$/.test(hash || '')) throw new LiveStoreError('invalid_request');
       return readDoc('organizerVouchers', hash);
+    },
+    async organizationDiscountVoucher(hash) {
+      discountVoucherName(hash);
+      return readDoc('organizationDiscountVouchers', hash);
     },
     async redeemOrganizerVoucher({ hash, registration, registrationVersion, voucher, voucherVersion, orderId, orderVersion }) {
       if (!/^[a-f0-9]{64}$/.test(hash || '') || !registrationVersion || !voucherVersion || !orderVersion
@@ -185,7 +193,7 @@ export function createCheckoutLiveStore({
       }
       return result;
     },
-    async createPendingPrimary({ orderId, registration, payment, guards = [], replacement = null }) {
+    async createPendingPrimary({ orderId, registration, payment, guards = [], replacement = null, discountVoucher = null }) {
       if (!LIVE_ORDER_UUID.test(orderId || '') || registration.eventId !== EVENT || registration.userId !== uid
         || registration.isTest !== false || registration.testMode !== false
         || payment.environment !== 'production' || payment.userId !== uid || payment.registrationId !== registrationId) {
@@ -194,13 +202,35 @@ export function createCheckoutLiveStore({
       if(replacement&&(!replacement.registrationVersion||!replacement.paymentVersion||replacement.orderId===orderId
         ||replacement.payment?.id!==replacement.orderId||replacement.payment.userId!==uid||replacement.payment.registrationId!==registrationId
         ||(replacement.payment.kind||replacement.payment.quote?.kind)!=='primary'||!isClosedUnpaidMbway(replacement.payment)))throw new LiveStoreError('storage_invalid');
-      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), { name: registrationName, version: replacement?replacement.registrationVersion:null }, { name: paymentName(orderId), version: null },
+      if (Boolean(discountVoucher) !== Boolean(payment.discountVoucherHash) || Boolean(discountVoucher) !== Boolean(payment.quote?.discount)) {
+        throw new LiveStoreError('storage_invalid');
+      }
+      const voucherWrites = [];
+      const voucherChecks = [];
+      if (discountVoucher) {
+        const { data, version, hash } = discountVoucher;
+        const name = discountVoucherName(payment.discountVoucherHash);
+        const previousHash = replacement?.payment.discountVoucherHash;
+        const claimable = previousHash
+          ? previousHash === hash && data?.status === 'claimed' && data.userId === uid && data.orderId === replacement.orderId
+          : data?.status === 'available' && !data.userId && !data.orderId;
+        if (!version || name !== discountVoucher.name || hash !== payment.discountVoucherHash || !claimable
+          || data.eventId !== EVENT || data.discount?.type !== payment.quote.discount.type || data.discount?.value !== payment.quote.discount.value) {
+          throw new LiveStoreError('storage_invalid');
+        }
+        const update = { status: 'claimed', userId: uid, orderId, claimedAt: payment.createdAt };
+        voucherChecks.push({ name, version });
+        voucherWrites.push({ update: { name, fields: fields(update) }, updateMask: { fieldPaths: Object.keys(update) },
+          currentDocument: { updateTime: version } });
+      }
+      const checks = [...guards.map(g => ({ name:g.name, version:g.version })), ...voucherChecks, { name: registrationName, version: replacement?replacement.registrationVersion:null }, { name: paymentName(orderId), version: null },
         ...(replacement?[{name:paymentName(replacement.orderId),version:replacement.paymentVersion}]:[])];
       const result = await capacity.commit({ checks, registrationName, selection: payment.quote?.selection,
         writes: [
           { update: { name: registrationName, fields: fields(registration) }, currentDocument: replacement?{updateTime:replacement.registrationVersion}:{exists:false} },
           { update: { name: paymentName(orderId), fields: fields(payment) }, currentDocument: { exists: false } },
           ...(replacement ? [{ update: { name: paymentName(replacement.orderId), fields: fields({ ...replacement.payment, retryAllowed: false, replacementOrderId: orderId, updatedAt: payment.createdAt }) }, currentDocument: { updateTime: replacement.paymentVersion } }] : []),
+          ...voucherWrites,
         ],
       });
       return { registrationVersion: result.writeResults?.[0]?.updateTime || null, paymentVersion: result.writeResults?.[1]?.updateTime || null };

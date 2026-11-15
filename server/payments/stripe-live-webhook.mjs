@@ -82,10 +82,14 @@ export function createStripeLiveWebhook({tokenProvider=createPaymentsServiceToke
         :r.status!=='confirmed'||r.payment?.status!=='paid'||r.openSupplementaryOrderId!==id)return await review('registration-state-mismatch',{preserveRegistration:true});
       const context=await store.context(p.quote?.selection?.profile);
       let expected;
-      try{expected=kind==='primary'?quotePrimary(p.quote.selection,{...context,emailVerified:true},null,new Date(`${paymentDate}T12:00:00Z`))
+      try{expected=kind==='primary'?quotePrimary(p.quote.selection,{...context,emailVerified:true},null,new Date(`${paymentDate}T12:00:00Z`),p.quote.discount)
         :quoteSupplementary({morningCourse:p.quote.selection.morningCourse,afternoonCourse:p.quote.selection.afternoonCourse,dinnerQuantity:p.quote.selection.dinnerQuantity},
           {...context,emailVerified:true},{...r,id:store.registrationId},new Date(`${paymentDate}T12:00:00Z`));}
-      catch(error){if(['checkout/uls-not-verified','checkout/student-not-approved','checkout/course-already-owned','checkout/paid-registration-required','checkout/invalid-addition'].includes(error.message))return await review('payment-eligibility-review');throw error;}
+      catch(error){
+        if(['checkout/uls-not-verified','checkout/student-not-approved','checkout/course-already-owned','checkout/paid-registration-required','checkout/invalid-addition'].includes(error.message))return await review('payment-eligibility-review');
+        if(['checkout/invalid-discount','checkout/discount-not-applicable'].includes(error.message))return await review('payment-discount-review');
+        throw error;
+      }
       if(expected.amountCents!==p.amountCents)return await review('payment-date-tariff-mismatch');
       const linked={...p,reference:current.id,stripe:current};
       let instrument=null;try{instrument=minimalStripeInstrument(await provider.inspectInstrument(linked,current));}catch{/* Financial proof is already complete; classify fiscal readiness separately. */}

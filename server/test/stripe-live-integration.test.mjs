@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { createCheckoutLiveApi } from '../payments/checkout-live.mjs';
 import { createStripeLiveWebhook } from '../payments/stripe-live-webhook.mjs';
 import { createStripeLive, STRIPE_LIVE_FLOW, STRIPE_LIVE_WEBHOOK_PATH } from '../payments/stripe-live.mjs';
@@ -22,8 +22,11 @@ const env = {
 };
 const primary = { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
 const extras = { morningCourse: true, afternoonCourse: false, dinnerQuantity: 1 };
+const voucherValue = '123456789abcdeffedcba9876543210a';
+const voucherCode = `CIRC27-D-${voucherValue.match(/.{4}/g).join('-')}`;
+const voucherHash = createHash('sha256').update(voucherValue).digest('hex');
 const clone = value => structuredClone(value);
-function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env } = {}) {
+function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env, discount } = {}) {
   const payments = new Map(), jobs = new Map(), sessions = new Map();
   let registration = null, registrationVersion = 0, currentTime = clock, instrumentStatus = 200, creationFailure = false;
   const httpCalls = [], fiscalCalls = [];
@@ -38,6 +41,10 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
     capacity:async()=>({limits:{onsite:400,morningCourse:170,afternoonCourse:170},paid:{onsite:0,morningCourse:0,afternoonCourse:0},remaining:{onsite:400,morningCourse:170,afternoonCourse:170}}),
     registration: async () => ({ data: clone(registration), version: registration ? String(registrationVersion) : null }),
     payment: async id => snapshot(payments, id), document: async id => snapshot(jobs, id),
+    organizationDiscountVoucher: async hash => {
+      assert.equal(hash, voucherHash);
+      return { data: { eventId: 'circ-2027', batchId: ids[1], status: 'available', discount }, version: 'voucher-v1' };
+    },
     primaryPayment: async () => {
       const found = [...payments].find(([, row]) => row.data.kind === 'primary' && !row.data.registrationArchiveId);
       return found ? { id: found[0], ...snapshot(payments, found[0]) } : null;
@@ -129,8 +136,9 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
   };
   async function orderBody(id, selection = primary, kind = 'primary') {
     const prefix = kind === 'primary' ? '' : '/supplementary';
-    const response = await call(`${prefix}/quote`, { selection }); assert.equal(response.status, 200, await response.clone().text());
-    const quote = await response.json(); return { id, selection, method: 'stripe_card', stamp: quote.stamp, billingStamp: quote.billingStamp };
+    const checkout = { selection, ...(discount && kind === 'primary' ? { discountCode: voucherCode } : {}) };
+    const response = await call(`${prefix}/quote`, checkout); assert.equal(response.status, 200, await response.clone().text());
+    const quote = await response.json(); return { id, ...checkout, method: 'stripe_card', stamp: quote.stamp, billingStamp: quote.billingStamp };
   }
   async function create(id = ids[0], selection = primary, kind = 'primary') {
     const body = await orderBody(id, selection, kind), prefix = kind === 'primary' ? '' : '/supplementary';
@@ -179,6 +187,26 @@ test('production Stripe checkout persists one hosted session per UUID and a sign
   const publicOrder = (await (await f.call(`/orders/${ids[0]}`)).json()).order;
   assert.doesNotMatch(JSON.stringify(publicOrder), /pi_|paymentIntentId|last4|exp_year|4242/);
   assert.doesNotMatch(JSON.stringify([f.payment(ids[0]), f.job(ids[0])]), /last4|exp_year|4242/);
+});
+
+test('Stripe Checkout and the signed payment callback both use the discounted congress line and full-priced extras', async () => {
+  const discount = { type: 'percentage', value: 2000 };
+  const f = fixture({ discount });
+  const { order } = await f.create(ids[0], { ...primary, ...extras });
+  assert.equal(order.amountCents, 14100);
+  const checkout = new URLSearchParams(f.httpCalls[0].body);
+  for (const [index, expected] of [[0, '7600'], [1, '3500'], [2, '3000']]) {
+    assert.equal(checkout.get(`line_items[${index}][price_data][unit_amount]`), expected);
+  }
+  assert.ok(!f.httpCalls[0].body.includes(voucherCode));
+  assert.ok(!f.httpCalls[0].body.includes(voucherHash));
+  f.markPaid();
+  const paid = await f.notify();
+  assert.equal(paid.status, 200, await paid.clone().text());
+  assert.equal((await paid.json()).fiscalStatus, 'issued');
+  assert.deepEqual(f.payment(ids[0]).fiscalQuote.discount, { ...discount, amountCents: 1900 });
+  assert.equal(f.registration().payment.amountCents, 14100);
+  assert.deepEqual(f.fiscalCalls[0].lines.map(line => line.unit_price), [76, 35, 30]);
 });
 
 test('concurrent paid callbacks cannot duplicate the primary financial confirmation or claimed fiscal POST', async () => {

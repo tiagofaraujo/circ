@@ -64,6 +64,28 @@ test('mixed basket retains gross catalogue prices and the established header-onl
   assert.equal(result.lines.reduce((total,line)=>total+Math.round(line.unit_price*100)*line.quantity,0),source.amountCents);
 });
 
+test('organisation discounts preserve fiscal items and quantities while invoicing the amount paid and indicating the discount',()=>{
+  const source=quotePrimary(selected({morningCourse:true,dinnerQuantity:2}),ctx,null,new Date('2026-11-15T12:00:00Z'),
+    {type:'percentage',value:2000});
+  for(const [method,extra] of [['multibanco',{}],['mbway',{}],['bank_transfer',{bankAccountId:2}],['stripe_card',{cardFunding:'credit'}]]){
+    const result=buildLivePaymentFR({orderId:ID,quote:source,billing,paymentDate:'2026-11-15',method,...extra});
+    assert.deepEqual(result.lines.map(line=>[line.item_id,line.quantity,line.unit_price,line.tax_code]),[
+      [55,1,76,'ISE'],[57,1,35,'NOR'],[59,2,30,'ISE'],
+    ]);
+    assert.equal(result.lines.reduce((total,line)=>total+Math.round(line.unit_price*100)*line.quantity,0),source.amountCents);
+    assert.match(result.notes,/Desconto na inscrição 19,00 €/);
+  }
+  for(const mutate of [
+    value=>{value.discount.amountCents++;}, value=>{value.discount.type='unknown';},
+    value=>{value.lines[1].unitAmountCents--;value.lines[1].amountCents--;value.amountCents--;}, value=>{delete value.discount;},
+  ]){
+    const tampered=structuredClone(source);mutate(tampered);
+    assert.throws(()=>build(tampered),/live-fiscal\/source-mismatch/);
+  }
+  assert.throws(()=>build({...supplementary({morningCourse:true}),discount:{type:'fixed',value:100,amountCents:100}}),
+    /live-fiscal\/source-mismatch/);
+});
+
 test('course-only primary order has23 percent VAT and no exemption header',()=>{
   const source=primary({congressMode:'courses-only',morningCourse:true,afternoonCourse:true});const result=build(source);
   assert.equal(source.amountCents,7000);assert.equal(result.tax_exemption_reason_id,undefined);

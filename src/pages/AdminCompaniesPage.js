@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AdminModuleNav from '../components/AdminModuleNav';
 import AdminOrganizerVouchers from '../components/AdminOrganizerVouchers';
+import AdminOrganizationDiscountVouchers from '../components/AdminOrganizationDiscountVouchers';
 import { exportCompanyVoucherExcel } from '../auth/companyVoucherExcel';
 import { cancelCompanyVoucher, companyError, confirmCompanyTransfer, createCompanyPurchase, formatVoucher,
   loadCompanyPurchases, loadCompanyVouchers, setCompanyCodesEnabled, subscribeCompanyConfig } from '../auth/companyVouchers';
@@ -45,9 +46,11 @@ export default function AdminCompaniesPage() {
   };
   const create = (e) => { e.preventDefault(); run(async () => { await createCompanyPurchase(form); setForm(initial()); await refresh(); setMessage('Compra registada. Aguarda confirmação da entrada da transferência.'); }); };
   const confirm = (e) => { e.preventDefault(); if (!checked) return; run(async () => { await confirmCompanyTransfer(selected.id, reference, fiscal); setSelected(null); await refresh(); setMessage('Transferência confirmada. Abra a compra para consultar e copiar os códigos.'); }); };
-  return <main className="admin-page"><AdminModuleNav /><header><h1>Inscrições de empresas</h1><p>Congressista externo · Presencial · Dois dias · Sem jantar nem cursos</p></header>
+  return <main className="admin-page"><AdminModuleNav /><header><h1>Empresas e vouchers</h1></header>
+    <AdminOrganizationDiscountVouchers />
     <AdminOrganizerVouchers />
-    <section className="company-voucher"><h2>Utilização dos códigos</h2><p>{enabled ? 'Ativa: os participantes podem confirmar inscrições com códigos pagos.' : 'Desativada: pode preparar compras e códigos, mas ainda não podem ser utilizados.'}</p>
+    <section className="company-voucher"><h2>Inscrições de empresas</h2><p>Congressista externo · Presencial · Dois dias · Sem jantar nem cursos</p>
+      <p>{enabled ? 'Ativa: os participantes podem confirmar inscrições com códigos pagos.' : 'Desativada: pode preparar compras e códigos, mas ainda não podem ser utilizados.'}</p>
       <button disabled={busy} onClick={() => run(() => setCompanyCodesEnabled(!enabled))}>{enabled ? 'Desativar utilização de códigos' : 'Ativar utilização de códigos pagos'}</button>
       <small>Esta opção ativa apenas as inscrições pagas por empresas. Não abre os pagamentos individuais.</small></section>
     <form className="company-voucher" onSubmit={create}><h2>Registar compra</h2>

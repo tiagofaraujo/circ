@@ -2,7 +2,18 @@ import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE,
   getRegistrationPeriod } from '../../src/data/registration2027.js';
 
 const EVENT = 'circ-2027';
+export const MIN_DISCOUNTED_PAYMENT_CENTS = 100;
 function fail(code) { throw new Error(`checkout/${code}`); }
+
+export function congressDiscountCents(admissionCents, discount) {
+  const { type, value } = discount || {};
+  if (!Number.isSafeInteger(value) || value <= 0
+    || !['percentage', 'fixed'].includes(type)
+    || (type === 'percentage' && value >= 10000)) fail('invalid-discount');
+  const amountCents = type === 'fixed' ? value : Math.round(admissionCents * value / 10000);
+  if (amountCents <= 0 || amountCents >= admissionCents) fail('discount-not-applicable');
+  return amountCents;
+}
 
 // Domain layer only. These records MUST come from authenticated server reads,
 // never the request body. The future checkout transaction must re-read them.
@@ -35,7 +46,7 @@ function itemsFrom(selection) {
     afternoonCourse: selection.afternoonCourse === true, dinnerQuantity: quantity };
 }
 
-function makeQuote(profile, congressMode, items, now, kind) {
+function makeQuote(profile, congressMode, items, now, kind, voucherDiscount) {
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail('invalid-date');
   const ratePeriod = getRegistrationPeriod(now);
   const lines = [];
@@ -49,20 +60,32 @@ function makeQuote(profile, congressMode, items, now, kind) {
   add('course-morning', Number(items.morningCourse), courseRate);
   add('course-afternoon', Number(items.afternoonCourse), courseRate);
   add('dinner', items.dinnerQuantity, DINNER_RATE);
+  let discount;
+  if (voucherDiscount !== undefined) {
+    if (congressMode === 'courses-only') fail('discount-not-applicable');
+    const admission = lines[0];
+    const amountCents = congressDiscountCents(admission.unitAmountCents, voucherDiscount);
+    discount = { type: voucherDiscount.type, value: voucherDiscount.value, amountCents };
+    admission.unitAmountCents -= amountCents;
+    admission.amountCents = admission.unitAmountCents;
+  }
   const amountCents = lines.reduce((total, line) => total + line.amountCents, 0);
   if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 9999900) fail('invalid-amount');
+  if (discount && amountCents < MIN_DISCOUNTED_PAYMENT_CENTS) fail('discount-not-applicable');
   return { eventId: EVENT, kind, currency: 'EUR', amountCents, ratePeriod, lines,
-    selection: { profile, courseAffiliation: profile === 'uls' ? 'uls' : 'external', congressMode, ...items } };
+    selection: { profile, courseAffiliation: profile === 'uls' ? 'uls' : 'external', congressMode, ...items },
+    ...(discount ? { discount } : {}) };
 }
 
-export function quotePrimary(selection, context, existingRegistration, now = new Date()) {
+// voucherDiscount, when present, is resolved by the server from its stored voucher.
+export function quotePrimary(selection, context, existingRegistration, now = new Date(), voucherDiscount) {
   // Require a deliberate server-confirmed absence, not an omitted DB lookup.
   if (existingRegistration !== null) fail('registration-exists-or-unchecked');
   const items = itemsFrom(selection);
   assertEligibility(selection.profile, context);
   if (!['onsite', 'virtual', 'courses-only'].includes(selection.congressMode)) fail('invalid-mode');
   if (selection.congressMode === 'courses-only' && !items.morningCourse && !items.afternoonCourse) fail('course-required');
-  return makeQuote(selection.profile, selection.congressMode, items, now, 'primary');
+  return makeQuote(selection.profile, selection.congressMode, items, now, 'primary', voucherDiscount);
 }
 
 export function quoteSupplementary(selection, context, registration, now = new Date()) {

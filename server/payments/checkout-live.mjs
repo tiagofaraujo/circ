@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { canResumeLiveFiscalJob,isUnstartedStripeInstrumentJob } from './live-fiscal-issue.mjs';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
@@ -21,8 +22,43 @@ const typeLabel=mode=>mode==='onsite'?'CIRC 2027 · Presencial':mode==='virtual'
 const orderKind=p=>p.kind||p.quote?.kind||'primary';
 const historical=p=>Boolean(p?.registrationArchiveId);
 const paymentProvider=method=>method==='bank_transfer'?'internal_bank_transfer':method==='stripe_card'?'stripe':'eupago';
+const quoteStamp = (quote, discountVoucherHash) => discountVoucherHash
+  ? stamp({ quote, discountVoucherHash })
+  : stamp(quote);
+
+function hashDiscountCode(code) {
+  if (code === undefined) return null;
+  if (typeof code !== 'string' || code.length > 80 || !/^CIRC27-D-/i.test(code.trim())) fail('discount-voucher-invalid', 409);
+  const normalized = code.trim().slice('CIRC27-D-'.length).replace(/[\s-]/g, '').toLowerCase();
+  if (!/^[a-f0-9]{32}$/.test(normalized)) fail('discount-voucher-invalid', 409);
+  return createHash('sha256').update(normalized).digest('hex');
+}
+
+async function loadDiscountVoucher(store, requestedHash, replacement, uid) {
+  const retainedHash = replacement?.payment.discountVoucherHash;
+  if (retainedHash && requestedHash && requestedHash !== retainedHash) fail('discount-voucher-changed', 409);
+  const hash = retainedHash || requestedHash;
+  if (!hash) return null;
+  const voucher = await store.organizationDiscountVoucher(hash);
+  const data = voucher?.data;
+  const discount = data?.discount;
+  const validTerms = Number.isSafeInteger(discount?.value) && discount.value > 0
+    && (discount.type === 'percentage' && discount.value < 10000
+      || discount.type === 'fixed' && discount.value <= 9999900);
+  const canUse = retainedHash
+    ? data?.status === 'claimed' && data.orderId === replacement.orderId && data.userId === uid
+      && discount?.type === replacement.payment.quote?.discount?.type
+      && discount?.value === replacement.payment.quote?.discount?.value
+    : data?.status === 'available' && !data.userId && !data.orderId;
+  if (!canUse || !validTerms || !voucher.version || data.eventId !== EVENT || !LIVE_ORDER_UUID.test(data.batchId || '')) {
+    fail('discount-voucher-invalid', 409);
+  }
+  return { ...voucher, hash };
+}
+
 export const publicLiveOrder=(id,p,{canRetry=false}={})=>({id,kind:orderKind(p),selection:p.quote?.selection||null,status:p.status,amountCents:p.amountCents,currency:p.currency,method:p.method,
   reference:p.reference||null,entity:p.entity||null,paidAt:p.paidAt||null,fiscalStatus:p.fiscalStatus||null,
+  ...(p.quote?.discount?{discount:p.fiscalQuote?.discount||p.quote.discount}:{}),
   ...(historical(p)?{historicalRegistration:true}:{}),
   ...(p.capacityStatus==='review_required'?{capacityStatus:'review_required',capacityUnavailable:p.capacityUnavailable||[]}:{}),
   ...(p.method==='stripe_card'?{stripe:{id:p.reference||null,url:safeLiveCheckoutUrl(p.stripe?.url,p.reference),expiresAt:p.stripe?.expiresAt||null,
@@ -177,19 +213,25 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       const creating=request.method==='POST'&&url.pathname===`${PREFIX}${kind==='supplementary'?'/supplementary':''}/orders`;
       if(!quoting&&!creating)return reply({error:'not-found'},404);
       const data=await body(request);
-      exact(data,quoting?['selection','pilotAcknowledged']:['id','selection','stamp','method','phone','replacesOrderId','pilotAcknowledged','billingStamp','pilotConfirmation']);
+      const fields = quoting ? ['selection', 'pilotAcknowledged']
+        : ['id','selection','stamp','method','phone','replacesOrderId','pilotAcknowledged','billingStamp','pilotConfirmation'];
+      if (kind === 'primary') fields.push(...(quoting ? ['discountCode', 'replacesOrderId'] : ['discountCode']));
+      exact(data, fields);
+      const requestedDiscountHash = hashDiscountCode(data.discountCode);
+      if (data.replacesOrderId !== undefined && (typeof data.replacesOrderId !== 'string'
+        || !LIVE_ORDER_UUID.test(data.replacesOrderId) || data.replacesOrderId === data.id)) fail('invalid-request');
       if(privatePilot&&!(isAdmin&&data.pilotAcknowledged===true))fail('registration-not-open',403);
       const pilot=isAdmin&&data.pilotAcknowledged===true;
       if(creating&&(!LIVE_ORDER_UUID.test(data.id||'')||!['multibanco','mbway','bank_transfer','stripe_card'].includes(data.method)
-        ||(data.method==='mbway'?(typeof data.phone!=='string'||!/^9\d{8}$/.test(data.phone)):data.phone!==undefined)
-        ||(data.replacesOrderId!==undefined&&(!LIVE_ORDER_UUID.test(data.replacesOrderId)||data.replacesOrderId===data.id))))fail('invalid-request');
+        ||(data.method==='mbway'?(typeof data.phone!=='string'||!/^9\d{8}$/.test(data.phone)):data.phone!==undefined)))fail('invalid-request');
       if(pilot&&creating&&(!isLivePilotConfigured(env,Date.parse(now()))||data.pilotConfirmation!==PILOT_CONFIRMATION||!/^[a-f0-9]{64}$/.test(data.billingStamp||'')))fail('pilot-confirmation-required',400);
       exact(data.selection,kind==='supplementary'?['morningCourse','afternoonCourse','dinnerQuantity']:['profile','congressMode','morningCourse','afternoonCourse','dinnerQuantity']);
       if(creating){
         const previous=(await store.payment(data.id))?.data;
         if(previous){
           if(previous.environment==='production'&&previous.userId===claims.sub&&historical(previous))return reply({error:'historical-order',order:publicLiveOrder(data.id,previous)},409);
-          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||stamp(previous.quote)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp
+          if(previous.environment!=='production'||previous.userId!==claims.sub||previous.method!==data.method||orderKind(previous)!==kind||quoteStamp(previous.quote,previous.discountVoucherHash)!==data.stamp||stamp(previous.billingSnapshot)!==data.billingStamp
+            ||(requestedDiscountHash && requestedDiscountHash!==previous.discountVoucherHash)
             ||(previous.method==='mbway'&&previous.methodFingerprint!==stamp({method:data.method,phone:data.phone}))
             ||(previous.replacesOrderId||null)!==(data.replacesOrderId||null))fail('idempotency-conflict',409);
           return reply({order:publicLiveOrder(data.id,previous)});
@@ -202,7 +244,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       if(kind==='primary'&&r){
         const previous=LIVE_ORDER_UUID.test(r.payment?.orderId||'')?await store.payment(r.payment.orderId):null;
         if(!realRegistration(r,claims.sub)||!previous?.data||historical(previous.data)||!canReplaceUnpaidPrimary(r,previous.data))fail('registration-exists',409);
-        if(creating&&data.replacesOrderId!==previous.data.id)fail('replacement-required',409);
+        if((creating||data.replacesOrderId)&&data.replacesOrderId!==previous.data.id)fail('replacement-required',409);
         if((await store.document(previous.data.id))?.data)fail('mbway-order-not-retryable',409);
         replacement={orderId:previous.data.id,payment:previous.data,paymentVersion:previous.version,registrationVersion:existing.version};
       }else if(kind==='primary'&&data.replacesOrderId)fail('replacement-required',409);
@@ -225,8 +267,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       }
       const selectedProfile=kind==='supplementary'?r.selection?.profile:data.selection.profile;
       const context=await store.context(selectedProfile);
-      const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now())):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
-      if(privatePilot&&(kind!=='primary'||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
+      const discountVoucher = kind === 'primary' ? await loadDiscountVoucher(store, requestedDiscountHash, replacement, claims.sub) : null;
+      const quote=kind==='primary'?quotePrimary(data.selection,{...context,emailVerified:true},null,new Date(now()),discountVoucher?.data.discount):quoteSupplementary(data.selection,{...context,emailVerified:true},{...r,id:store.registrationId},new Date(now()));
+      if(privatePilot&&(kind!=='primary'||discountVoucher||quote.selection.congressMode!=='onsite'||quote.selection.morningCourse||quote.selection.afternoonCourse||quote.selection.dinnerQuantity||quote.amountCents!==9500))fail('live-scope-not-enabled',409);
       const profile=await store.profile(), billing=billingCustomerFromProfile(profile.data);
       if(!billing.ok)fail('billing-customer-unconfirmed',409,{issues:billing.issues});
       context.guards.push(profile);
@@ -237,8 +280,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const available=await store.capacity(),decision=capacityDecision(available,{selection:quote.selection});
         if(!decision.allocated)fail('capacity-full',409,{unavailable:decision.unavailable});
       }
-      if(quoting)return reply({quote,stamp:stamp(quote),billing:billing.customer,billingStamp:stamp(billing.customer)});
-      if(data.stamp!==stamp(quote))fail('quote-changed',409);
+      const currentQuoteStamp = quoteStamp(quote, discountVoucher?.hash);
+      if(quoting)return reply({quote,stamp:currentQuoteStamp,billing:billing.customer,billingStamp:stamp(billing.customer)});
+      if(data.stamp!==currentQuoteStamp)fail('quote-changed',409);
       if(stamp(billing.customer)!==data.billingStamp)fail('billing-preview-changed',409);
       const createdAt=now();
       const registration=kind==='primary'?{...(replacement?r:{}),eventId:EVENT,userId:claims.sub,registrationKey:`${EVENT}:${claims.sub}`,primaryRegistration:true,
@@ -253,6 +297,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         identifier:`circ_live_${data.id.replaceAll('-','')}`,reference:account?data.id:null,entity:null,transactionId:null,paidAt:null,provider:paymentProvider(data.method),quote,billingSnapshot:billing.customer,createdAt,updatedAt:createdAt,
         ...(data.method==='mbway'?{methodFingerprint:stamp({method:data.method,phone:data.phone}),expiresAt:new Date(Date.parse(createdAt)+MBWAY_APPROVAL_WINDOW_MS).toISOString()}:{}),
         ...(replacement?{replacesOrderId:replacement.orderId}:{}),
+        ...(discountVoucher?{discountVoucherHash:discountVoucher.hash}:{}),
         ...(account?{bankTransfer:{status:'awaiting_transfer',revision:0,...account,paymentReference:data.id,reports:[],createdAt}}:{})};
       if(!creationEnabled())fail('live-checkout-not-configured',503);
       if(replacement){
@@ -265,7 +310,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         }
         replacement.payment={...replacement.payment,replacementCheck:{source:'eupago-reference-info',state:hint.providerState,checkedAt:now(),reference:replacement.payment.reference,identifier:replacement.payment.identifier}};
       }
-      const reserved=kind==='primary'?await store.createPendingPrimary({orderId:data.id,registration,payment,guards:context.guards,replacement}):await store.createPendingSupplementary({orderId:data.id,registration,registrationVersion:existing.version,payment,guards:context.guards,replacement});
+      const reserved=kind==='primary'?await store.createPendingPrimary({orderId:data.id,registration,payment,guards:context.guards,replacement,discountVoucher}):await store.createPendingSupplementary({orderId:data.id,registration,registrationVersion:existing.version,payment,guards:context.guards,replacement});
       if(account)return reply({order:publicLiveOrder(data.id,payment)},201);
       let created;
       try{created=data.method==='stripe_card'?await stripeFactory({apiKey:env.STRIPE_LIVE_SECRET_KEY}).createPayment(payment)
@@ -288,7 +333,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       }
       return reply({order:publicLiveOrder(data.id,p)},201);
     }catch(error){const code=error.code||(typeof error.message==='string'?error.message.replace(/^checkout\//,''):'service-unavailable');
-      const conflict=['registration-exists','paid-registration-required','invalid-addition','course-already-owned','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict','fiscal-pending','capacity-full','capacity-review-required','conflict'].includes(code);
+      const conflict=['registration-exists','paid-registration-required','invalid-addition','course-already-owned','quote-changed','billing-preview-changed','live-scope-not-enabled','billing-customer-unconfirmed','profile-incomplete','idempotency-conflict','fiscal-pending','capacity-full','capacity-review-required','discount-not-applicable','invalid-discount','conflict'].includes(code);
       return reply({error:code,...(error.details||{}),...(error.unavailable?{unavailable:error.unavailable}:{})},Number(error.status)||(conflict?409:['registration-not-open','uls-not-verified','student-not-approved','sign-in-required'].includes(code)?403:503));}
   };
 }

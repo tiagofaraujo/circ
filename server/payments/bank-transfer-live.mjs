@@ -176,7 +176,7 @@ export function createBankTransferLiveApi({ verify, tokenProvider = createPaymen
       let expected;
       try {
         const date = new Date(`${decision.bookingDate}T12:00:00Z`);
-        expected = kind === 'primary' ? quotePrimary(p.quote.selection, { ...context, emailVerified: true }, null, date)
+        expected = kind === 'primary' ? quotePrimary(p.quote.selection, { ...context, emailVerified: true }, null, date, p.quote.discount)
           : quoteSupplementary({ morningCourse: p.quote.selection.morningCourse, afternoonCourse: p.quote.selection.afternoonCourse,
             dinnerQuantity: p.quote.selection.dinnerQuantity }, { ...context, emailVerified: true }, { ...r, id: store.registrationId }, date);
       } catch { fail('bank-transfer-source-mismatch', 409); }

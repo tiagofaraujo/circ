@@ -67,7 +67,7 @@ export default function MyCircShell({ children }) {
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management', false],
     access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor', false],
     access?.canReviewSubmissions && ['/conta/revisoes', 'pen-to-square', 'As minhas avaliações', 'My evaluations', false],
-    access?.canManageRegistrations && ['/admin/empresas', 'users', 'Empresas', 'Companies', false],
+    access?.canManageRegistrations && ['/admin/empresas', 'users', 'Empresas e vouchers', 'Companies and vouchers', false],
     access?.canUseSecretariat && ['/admin/estudantes', 'graduation-cap', 'Validar estudantes', 'Student verification', false],
     access?.canUseSecretariat && ['/admin/secretariado', 'id-card', 'Secretariado', 'Event desk', false],
   ].filter(Boolean).map(([to, icon, pt, english, end]) => (

@@ -7,6 +7,10 @@ const user = { uid: 'user', getIdToken: async () => 'session' };
 const selection = { profile: 'external', congressMode: 'onsite', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 };
 const order = { id: ID, status: 'pending', amountCents: 9500, currency: 'EUR', method: 'multibanco', entity: '12345', reference: '123456789' };
 const preview = { quote: { amountCents: 9500, currency: 'EUR' }, stamp: 'a'.repeat(64), billingStamp: 'b'.repeat(64), billing: { customer_business_name: 'Pessoa', customer_tax_registration_number: '123456789', customer_address_detail: 'Morada', customer_postcode: '3000-001', customer_city: 'Coimbra', customer_country: 'PT' } };
+const discountCode = 'CIRC27-D-0123-4567-89ab-cdef-0123-4567-89ab-cdef';
+const fixedDiscount = {type:'fixed',value:1500,amountCents:1500};
+const percentDiscount = {type:'percentage',value:2000,amountCents:1900};
+const discountPreview = (discount, amountCents) => ({...preview,quote:{...preview.quote,discount,amountCents}});
 const response = (data, ok = true, status = ok ? 200 : 503) => ({ ok, status, json: async () => data });
 function show(props = {}) { return render(<MemoryRouter><PublicLiveCheckout user={user} selection={selection} eligible {...props} /></MemoryRouter>); }
 const transport = jest.fn();
@@ -45,6 +49,87 @@ test('reviews server billing and requires acknowledgement before exactly one rea
  expect(transport).toHaveBeenCalledTimes(2);
  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({ id: ID, selection, stamp: preview.stamp, billingStamp: preview.billingStamp, method: 'multibanco' });
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+function enterDiscount(code = discountCode) {
+ fireEvent.click(screen.getByText('Tem um código de desconto?'));
+ fireEvent.change(screen.getByRole('textbox',{name:'Código de desconto da organização'}),{target:{value:code}});
+}
+test.each([
+ ['onsite',percentDiscount,7600,/Desconto da organização \(20\s?%\)/,/76,00\s?€/],
+ ['virtual',fixedDiscount,4500,/Desconto da organização/,/45,00\s?€/],
+])('a %s voucher is quoted, reviewed and forwarded to the order endpoint', async (congressMode,discount,amountCents,label,amount) => {
+ const chosen = {...selection,congressMode};
+ transport.mockResolvedValueOnce(response(discountPreview(discount,amountCents)))
+  .mockResolvedValueOnce(response({order:{...order,discount,amountCents}}));
+ show({selection:chosen}); await ready(); enterDiscount(` ${discountCode} `);
+ await reviewAndAcknowledge();
+ expect(screen.getByText(label)).toBeInTheDocument();
+ expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(amount);
+ expect(JSON.parse(transport.mock.calls[0][1].body)).toEqual({selection:chosen,discountCode});
+ fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ await screen.findByText('A aguardar pagamento');
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toMatchObject({selection:chosen,discountCode,stamp:preview.stamp,billingStamp:preview.billingStamp});
+ expect(screen.queryByRole('textbox',{name:'Código de desconto da organização'})).not.toBeInTheDocument();
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+});
+test('removing a voucher invalidates the reviewed discount and requires a new acknowledgement', async () => {
+ transport.mockResolvedValueOnce(response(discountPreview(fixedDiscount,8000))).mockResolvedValueOnce(response(preview));
+ show(); await ready(); enterDiscount(); await reviewAndAcknowledge();
+ fireEvent.click(screen.getByRole('button',{name:'Remover código'}));
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ expect(transport).toHaveBeenCalledTimes(1);
+ fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ expect(await screen.findByRole('button',{name:'Gerar referência Multibanco'})).toBeDisabled();
+ expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/95,00\s?€/);
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection});
+});
+test.each([
+ [response({error:'discount-voucher-invalid'},false,409), /código de desconto é inválido/],
+ [response(preview), /Não foi possível preparar o pagamento/],
+])('a refused or unconfirmed discount never proceeds with the full price', async (result,message) => {
+ transport.mockResolvedValueOnce(result);
+ show(); await ready(); enterDiscount();
+ fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent(message);
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ expect(transport).toHaveBeenCalledTimes(1);
+});
+test('a voucher rejected before payment creation can be removed after the refusal', async () => {
+ transport.mockResolvedValueOnce(response(discountPreview(fixedDiscount,8000)))
+  .mockResolvedValueOnce(response({error:'discount-voucher-invalid'},false,409));
+ show(); await ready(); enterDiscount(); await reviewAndAcknowledge();
+ fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent(/código de desconto é inválido/);
+ expect(localStorage.getItem('circ-production-order:user')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Remover código'})).toBeEnabled();
+});
+test('a discounted quote arriving after a change of registration selection cannot be confirmed', async () => {
+ let resolveQuote;
+ transport.mockReturnValueOnce(new Promise(resolve => { resolveQuote = resolve; })).mockResolvedValueOnce(response(preview));
+ const {rerender} = show(); await ready(); enterDiscount();
+ fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ await waitFor(() => expect(transport).toHaveBeenCalledTimes(1));
+ const updated = {...selection,congressMode:'courses-only',morningCourse:true};
+ rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={updated} eligible /></MemoryRouter>);
+ await act(async () => resolveQuote(response(discountPreview(fixedDiscount,8000))));
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+ await ready(); fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ expect(await screen.findByRole('button',{name:'Gerar referência Multibanco'})).toBeDisabled();
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection:updated});
+});
+test('a creation response missing the reviewed discount keeps the order UUID and requires recovery', async () => {
+ transport.mockResolvedValueOnce(response(discountPreview(fixedDiscount,8000))).mockResolvedValueOnce(response({order}));
+ show(); await ready(); enterDiscount(); await reviewAndAcknowledge();
+ fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('O pedido pode já existir');
+ expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
+ expect(screen.queryByText(order.reference)).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
+});
+test('no congress discount field is available for a courses-only purchase', async () => {
+ show({selection:{...selection,congressMode:'courses-only',morningCourse:true}}); await ready();
+ expect(screen.queryByText('Tem um código de desconto?')).not.toBeInTheDocument();
 });
 test('a lost creation response retains its UUID and prevents another creation', async () => {
  transport.mockResolvedValueOnce(response(preview)).mockRejectedValueOnce(new Error('network'));
@@ -337,10 +422,31 @@ test('only explicit MB WAY reconciliation and a fresh billing, phone and consent
  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(create);
  await screen.findByText(/Confirme este pedido na aplicação MB WAY/);
  expect(uuid).toHaveBeenCalledTimes(1);
- expect(JSON.parse(transport.mock.calls[2][1].body)).toEqual({selection});
+ expect(JSON.parse(transport.mock.calls[2][1].body)).toEqual({selection,replacesOrderId:ID});
  expect(JSON.parse(transport.mock.calls[3][1].body)).toEqual({id:PRIMARY_ID,selection,stamp:preview.stamp,billingStamp:preview.billingStamp,method:'mbway',phone:'923456789',replacesOrderId:ID});
  expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
  expect(onLock).toHaveBeenCalledWith(false);
+});
+test('an MB WAY replacement reviews and preserves the reserved discount without sending the code again',async()=>{
+ configuration.methods=['mbway'];
+ Object.defineProperty(window,'crypto',{configurable:true,value:{randomUUID:()=>PRIMARY_ID}});
+ const discount = fixedDiscount;
+ const amountCents = 8000;
+ transport.mockResolvedValueOnce(response({order:{...closedMbwayOrder,discount,amountCents}}))
+  .mockResolvedValueOnce(response(discountPreview(discount,amountCents)))
+  .mockResolvedValueOnce(response({order:{...liveMbwayOrder,id:PRIMARY_ID,discount,amountCents}}));
+ show({registration:mbwayRegistration});
+ fireEvent.click(await screen.findByRole('button',{name:'Preparar nova tentativa de pagamento'}));
+ expect(screen.queryByText('Tem um código de desconto?')).not.toBeInTheDocument();
+ fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'923456789'}});
+ await ready(); await reviewAndAcknowledge();
+ expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/80,00\s?€/);
+ fireEvent.click(screen.getByRole('button',{name:'Enviar pedido MB WAY'}));
+ await screen.findByText(/Confirme este pedido na aplicação MB WAY/);
+ expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection,replacesOrderId:ID});
+ const request = JSON.parse(transport.mock.calls[2][1].body);
+ expect(request).toMatchObject({id:PRIMARY_ID,replacesOrderId:ID});
+ expect(request).not.toHaveProperty('discountCode');
 });
 test.each([
  ['pending',true,null],['expired',false,null],['cancelled',undefined,null],['expired','true',null],['expired',true,'2026-11-01T12:00:00Z'],

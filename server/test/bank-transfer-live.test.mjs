@@ -21,14 +21,14 @@ function request(action = 'review', data = approve(), { method = 'POST', origin 
     ...(method === 'POST' ? { body: JSON.stringify(data) } : {}),
   });
 }
-function fixture({ claims = {}, supplementary = false, currentTime = '2026-11-01T12:00:00Z', resolver, confirmHook } = {}) {
-  const primaryQuote = quotePrimary(initialSelection, context, null, new Date('2026-11-01T12:00:00Z'));
+function fixture({ claims = {}, supplementary = false, currentTime = '2026-11-01T12:00:00Z', resolver, confirmHook, discount } = {}) {
+  const primaryQuote = quotePrimary(initialSelection, context, null, new Date('2026-11-01T12:00:00Z'), discount);
   let registration = { userId: 'person', eventId: 'circ-2027', primaryRegistration: true, isTest: false, testMode: false,
     status: supplementary ? 'confirmed' : 'submitted', selection: primaryQuote.selection,
     entitlements: { congressMode: supplementary ? 'onsite' : '', morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 },
     payment: { orderId: supplementary ? '44444444-4444-4444-8444-444444444444' : id,
       status: supplementary ? 'paid' : 'pending', method: supplementary ? 'multibanco' : 'bank_transfer',
-      reference: supplementary ? '123456789' : id, amountCents: 9500, currency: 'EUR' }, documentCount: supplementary ? 1 : 0,
+      reference: supplementary ? '123456789' : id, amountCents: primaryQuote.amountCents, currency: 'EUR' }, documentCount: supplementary ? 1 : 0,
     ...(supplementary ? { openSupplementaryOrderId: id } : {}) };
   const quote = supplementary ? quoteSupplementary({ morningCourse: true, afternoonCourse: false, dinnerQuantity: 1 }, context,
     { ...registration, id: 'circ-2027-person' }, new Date('2026-11-01T12:00:00Z')) : primaryQuote;
@@ -109,6 +109,22 @@ test('primary tariff is calculated by credited date and insufficient amount cann
   assert.equal(state.payment.amountCents, 15000); assert.equal(state.payment.quote.amountCents, 9500);
   assert.equal(state.payment.fiscalQuote.amountCents, 15000); assert.equal(state.registration.payment.amountCents, 15000);
   assert.equal(state.audits[0].details.originalAmountCents, 9500);
+});
+
+test('bank credit approval uses the persisted organisation discount with the tariff at the date of credit', async () => {
+  const f = fixture({ currentTime: '2027-02-02T12:00:00Z', discount: { type: 'percentage', value: 2000 } });
+  const wrong = await f.api(request('review', approve({ bookingDate: '2027-02-01', amountCents: 7600 })), env);
+  assert.equal(wrong.status, 409);
+  assert.equal((await wrong.json()).expectedAmountCents, 12000);
+  assert.equal(f.state().commits, 0);
+  const correct = await f.api(request('review', approve({ bookingDate: '2027-02-01', amountCents: 12000 })), env);
+  assert.equal(correct.status, 200);
+  const { payment, job, registration, issues } = f.state();
+  assert.equal(payment.quote.discount.amountCents, 1900);
+  assert.equal(payment.fiscalQuote.discount.amountCents, 3000);
+  assert.equal(registration.payment.amountCents, 12000);
+  assert.equal(job.salesDocument.lines[0].unit_price, 120);
+  assert.equal(issues, 1);
 });
 
 test('supplement approval adds only the purchased entitlements and preserves the primary payment', async () => {
