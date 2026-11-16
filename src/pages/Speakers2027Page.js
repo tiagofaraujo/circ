@@ -23,6 +23,7 @@ export default function Speakers2027Page() {
   const { speakerId } = useParams();
   const { state } = useLocation();
   if (speakerId === 'diana-carvalho') return <Navigate to="/oradores/diana-santos" replace />;
+  if (speakerId === 'rita-batista') return <Navigate to="/oradores/rita-baptista" replace />;
   const invited = speakers2027.find(item => item.id === speakerId && item[language]?.bio?.length);
   const moderator = moderatorProfiles.find(item => item.id === speakerId && item[language]?.bio?.length);
   const speaker = invited || moderator;

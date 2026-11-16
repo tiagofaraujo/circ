@@ -72,7 +72,7 @@ const days = [
       ['16:25–16:45', 'Estereotaxia Mamária — Da Técnica Convencional à Biópsia Guiada por Tomossíntese', 'Breast stereotaxis — From conventional technique to tomosynthesis-guided biopsy', { speakers: [
         { id: 'sandra-rodrigues', showInstitution: true }, { name: 'Francisca Rodrigues', affiliation: { pt: 'ULS Coimbra', en: 'ULS Coimbra' } }, { id: 'filipa-oliveira', showInstitution: true },
       ] }],
-      ['16:45–16:55', 'Mamografia com Contraste — Novas Perspetivas no Diagnóstico Mamário', 'Contrast-enhanced mammography — New perspectives in breast diagnosis', { speakers: [{ id: 'rita-batista', showInstitution: true }] }],
+      ['16:45–16:55', 'Mamografia com Contraste — Novas Perspetivas no Diagnóstico Mamário', 'Contrast-enhanced mammography — New perspectives in breast diagnosis', { speakers: [{ id: 'rita-baptista', showInstitution: true }] }],
     ] }],
     ['17:00–17:45', 'Coffee break', 'Coffee break'],
     ['17:45–18:30', 'Comunicações', 'Presentations'],

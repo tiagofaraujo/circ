@@ -292,8 +292,20 @@ export const speakers2027 = [
     institution: 'ULS Coimbra',
   },
   {
-    id: 'rita-batista', name: 'Rita Batista', initials: 'RB',
+    id: 'rita-baptista', name: 'Rita Baptista', initials: 'RB', image: 'rita-baptista.jpg',
     institution: 'ULS da Lezíria',
+    pt: { field: 'Imagiologia mamária', role: 'Técnica de Radiologia', bio: [
+      'Rita Isabel Guerreiro Baptista é licenciada em Radiologia pela Escola Superior de Tecnologia da Saúde de Lisboa (ESTSL), em 2002, e em Ciências Religiosas pela Universidad Pontificia Comillas, em Madrid, em 2012. É mestre em Cuidados Paliativos pela Faculdade de Medicina da Universidade de Lisboa, em 2023.',
+      'Ao longo do seu percurso profissional, desenvolveu atividade no Hospital Egas Moniz e na Sub-Região de Saúde de Santarém. Desde 2004, exerce funções no Hospital de Santarém, atualmente integrado na ULS da Lezíria.',
+      'Tem larga experiência em imagiologia mamária, ao nível da intervenção e da mamografia de contraste. É membro do Grupo de Trabalho da Imagiologia e Terapêutica Mamária da ATARP.',
+      'Exerce ainda funções como assistente espiritual do Serviço Integrado de Cuidados Paliativos da ULS da Lezíria e é membro da Comissão de Humanização da mesma instituição.'
+    ] },
+    en: { field: 'Breast imaging', role: 'Radiographer', bio: [
+      'Rita Isabel Guerreiro Baptista graduated in Radiography from the Lisbon School of Health Technology (ESTSL) in 2002 and in Religious Studies from Universidad Pontificia Comillas in Madrid in 2012. She completed a master’s degree in Palliative Care at the Faculty of Medicine of the University of Lisbon in 2023.',
+      'During her career, she has worked at Hospital Egas Moniz and the Santarém Health Sub-Region. Since 2004, she has worked at Hospital de Santarém, now part of ULS da Lezíria.',
+      'She has extensive experience in breast imaging, including interventional procedures and contrast-enhanced mammography. She is a member of ATARP’s Breast Imaging and Therapy Working Group.',
+      'She also provides spiritual care within the Integrated Palliative Care Service at ULS da Lezíria and is a member of the institution’s Humanisation Committee.'
+    ] },
   },
   {
     id: 'rita-santiago', name: 'Rita Santiago', initials: 'RS',
