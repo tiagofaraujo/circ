@@ -86,8 +86,10 @@ test.each([
   const filipa = within(stereotaxis).getByRole('link', { name: `Filipa Oliveira — ${biographyLabel}` });
   expect(filipa).toHaveAttribute('href', '/oradores/filipa-oliveira');
   expect(filipa.querySelector('img')).toHaveAttribute('src', '/speakers/filipa-oliveira.jpg');
-  expect(speakerNames(contrast)).toEqual(['Rita Batista']);
-  const rita = expectSpeakerWithoutBiography(contrast, 'Rita Batista', 'RB');
+  expect(speakerNames(contrast)).toEqual(['Rita Baptista']);
+  const rita = within(contrast).getByRole('link', { name: `Rita Baptista — ${biographyLabel}` });
+  expect(rita).toHaveAttribute('href', '/oradores/rita-baptista');
+  expect(rita.querySelector('img')).toHaveAttribute('src', '/speakers/rita-baptista.jpg');
   expect(rita).toHaveTextContent('ULS da Lezíria');
 });
 

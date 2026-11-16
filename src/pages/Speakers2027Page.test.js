@@ -9,7 +9,6 @@ jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language:
 const speakersWithoutBiography = [
   ['Rui Pedro Faria Pais', 'ULS Coimbra', 'rui-pedro-faria-pais'],
   ['Célia Antunes', 'ULS Coimbra', 'celia-antunes'],
-  ['Rita Batista', 'ULS da Lezíria', 'rita-batista'],
   ['Ricardo Veiga', 'ULS Coimbra', 'ricardo-veiga'],
   ['Daniel Leitão', 'Siemens Healthineers', 'daniel-leitao'],
   ['Rita Santiago', 'Fundação Champalimaud', 'rita-santiago'],
@@ -58,6 +57,14 @@ test.each(['diana-santos', 'diana-carvalho'])('opens Diana Santos’s preserved 
   expect(screen.getByRole('img', { name: 'Diana Santos' })).toHaveAttribute('src', '/speakers/diana-carvalho.jpg');
   expect(screen.getByText(/^Diana Santos é técnica de radiologia\./)).toBeVisible();
   expect(screen.queryByText(/Diana Carvalho/)).not.toBeInTheDocument();
+});
+
+test.each(['rita-baptista', 'rita-batista'])('opens Rita Baptista’s supplied portrait and biography from %s', slug => {
+  renderDirectory(`/oradores/${slug}`);
+  expect(screen.getByRole('heading', { name: 'Rita Baptista', level: 1 })).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Rita Baptista' })).toHaveAttribute('src', '/speakers/rita-baptista.jpg');
+  expect(screen.getByText(/^Rita Isabel Guerreiro Baptista é licenciada/)).toBeVisible();
+  expect(screen.getByText(/Grupo de Trabalho da Imagiologia e Terapêutica Mamária da ATARP/)).toBeVisible();
 });
 
 test('only links homepage speaker names when the biography exists', () => {
