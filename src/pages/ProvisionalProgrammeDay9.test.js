@@ -70,17 +70,18 @@ test('includes the same afternoon schedule in the English programme', () => {
 });
 
 test.each([
-  ['pt', 'Fundação Champalimaud (a confirmar)', 'ver biografia'],
-  ['en', 'Champalimaud Foundation (to be confirmed)', 'view biography'],
-])('includes the three documented mammography presentations in %s', (language, pending, biographyLabel) => {
+  ['pt', 'Fundação Champalimaud', 'ver biografia'],
+  ['en', 'Champalimaud Foundation', 'view biography'],
+])('includes the three documented mammography presentations in %s', (language, institution, biographyLabel) => {
   mockLanguage = language;
   const { container } = mount();
   const panel = rows(container, '09').at(-5);
-  const [pendingTalk, stereotaxis, contrast] = panel.querySelector('.schedule-sublist').children;
+  const [aiTalk, stereotaxis, contrast] = panel.querySelector('.schedule-sublist').children;
   expect(Array.from(panel.querySelectorAll('.schedule-sublist .schedule-time'), time => time.textContent))
     .toEqual(['16:15–16:25', '16:25–16:45', '16:45–16:55']);
-  expect(within(pendingTalk).getByText(pending)).toBeVisible();
-  expect(within(pendingTalk).queryByRole('link')).not.toBeInTheDocument();
+  const ritaSantiago = expectSpeakerWithoutBiography(aiTalk, 'Rita Santiago', 'RS');
+  expect(ritaSantiago).toHaveTextContent(institution);
+  expect(aiTalk).not.toHaveTextContent(/a confirmar|to be confirmed/);
   expect(speakerNames(stereotaxis)).toEqual(['Sandra Rodrigues', 'Francisca Rodrigues', 'Filipa Oliveira']);
   const filipa = within(stereotaxis).getByRole('link', { name: `Filipa Oliveira — ${biographyLabel}` });
   expect(filipa).toHaveAttribute('href', '/oradores/filipa-oliveira');
@@ -106,10 +107,9 @@ test.each([
   expect(ana.querySelector('img')).toBeNull();
   expect(ana).toHaveTextContent('ULS Coimbra');
   expect(speakerNames(trauma)).toEqual(['Filipa Martins', 'Diana Santos', 'Adriana Marques', 'Márcia Amaral']);
-  const diana = within(trauma).getByText('Diana Santos').closest('.schedule-speaker');
-  expect(diana.querySelector('.schedule-speaker__initials')).toHaveTextContent('DS');
-  expect(diana.closest('a')).toBeNull();
-  expect(diana.querySelector('img')).toBeNull();
+  const diana = within(trauma).getByRole('link', { name: `Diana Santos — ${biographyLabel}` });
+  expect(diana).toHaveAttribute('href', '/oradores/diana-santos');
+  expect(diana.querySelector('img')).toHaveAttribute('src', '/speakers/diana-carvalho.jpg');
   expect(speakerNames(spine)).toEqual(['Michael Fuller']);
   const mriTalks = Array.from(mriPanel.querySelector('.schedule-sublist').children);
   expect(mriTalks.map(speakerNames)).toEqual([
@@ -118,6 +118,8 @@ test.each([
     ['Célia Antunes', 'Bruno Esteves'],
   ]);
   expectSpeakerWithoutBiography(mriTalks[0], 'Rui Pedro Faria Pais', 'RP');
+  const dianaCarvalho = expectSpeakerWithoutBiography(mriTalks[1], 'Diana Carvalho', 'DC');
+  expect(dianaCarvalho.querySelector('img')).toBeNull();
   expectSpeakerWithoutBiography(mriTalks[2], 'Célia Antunes', 'CA');
   const ctPanel = rows(container, '09')[9];
   const kirsten = within(ctPanel).getByText('Kirsten Burke').closest('.schedule-speaker');
@@ -139,7 +141,14 @@ test.each([
   const [, , , , safety, digitalTwinning, , quoVadis] = rows(container, '10');
   expect(speakerNames(safety)).toEqual(['Toby Gilk', 'Bill Faulkner', 'Kris Seitz']);
   expect(speakerNames(digitalTwinning)).toEqual(['Julien Greggio']);
-  expect(speakerNames(quoVadis)).toEqual(['Joana Madureira']);
+  expect(speakerNames(quoVadis)).toEqual(['Joana Madureira', 'Graciano Paulo']);
+  const ethicsTalk = quoVadis.querySelector('.schedule-sublist').children[1];
+  const graciano = expectSpeakerWithoutBiography(ethicsTalk, 'Graciano Paulo', 'GP');
+  expect(graciano).toHaveTextContent(language === 'en' ? 'President of ESTeSC' : 'Presidente da ESTeSC');
+  expect(day10).not.toHaveTextContent('Vitor Silva');
+  for (const row of [safety, digitalTwinning]) {
+    expect(row.querySelector('.schedule-moderators')).toHaveTextContent('Samuel Oliveira (Everything MRI)');
+  }
   const joana = within(quoVadis).getByRole('link', { name: `Joana Madureira — ${biographyLabel}` });
   expect(joana).toHaveAttribute('href', '/oradores/joana-madureira');
   expect(joana.querySelector('img')).toHaveAttribute('src', '/speakers/joana-madureira.jpg');

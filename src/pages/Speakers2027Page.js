@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import { moderators2027 } from '../data/moderators2027';
@@ -22,6 +22,7 @@ export default function Speakers2027Page() {
   const en = language === 'en';
   const { speakerId } = useParams();
   const { state } = useLocation();
+  if (speakerId === 'diana-carvalho') return <Navigate to="/oradores/diana-santos" replace />;
   const invited = speakers2027.find(item => item.id === speakerId && item[language]?.bio?.length);
   const moderator = moderatorProfiles.find(item => item.id === speakerId && item[language]?.bio?.length);
   const speaker = invited || moderator;
