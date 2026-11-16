@@ -12,10 +12,8 @@ const speakersWithoutBiography = [
   ['Rita Batista', 'ULS da Lezíria', 'rita-batista'],
   ['Ricardo Veiga', 'ULS Coimbra', 'ricardo-veiga'],
   ['Daniel Leitão', 'Siemens Healthineers', 'daniel-leitao'],
-];
-
-const moderatorsWithoutBiography = [
-  ['Vitor Silva', 'ULS São João', 'vitor-silva'],
+  ['Rita Santiago', 'Fundação Champalimaud', 'rita-santiago'],
+  ['Graciano Paulo', 'ESTeSC', 'graciano-paulo'],
 ];
 
 function renderDirectory(path = '/oradores') {
@@ -33,14 +31,10 @@ test('shows moderators after the invited speakers in the same card grid', () => 
   const cards = within(moderators).getAllByRole('article');
   const speaker = screen.getByRole('heading', { name: 'Fides Schwartz' }).closest('article');
   expect(speaker.compareDocumentPosition(moderators) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(cards).toHaveLength(9);
+  expect(cards).toHaveLength(8);
   expect(cards.every(card => card.classList.contains('guest-card'))).toBe(true);
   expect(within(moderators).getByRole('img', { name: 'Samuel Oliveira' })).toBeInTheDocument();
-  for (const [name, institution] of moderatorsWithoutBiography) {
-    const card = within(moderators).getByRole('heading', { name }).closest('article');
-    expect(within(card).getByText(institution)).toBeVisible();
-    expect(within(card).queryByRole('link')).not.toBeInTheDocument();
-  }
+  expect(within(moderators).queryByText('Vitor Silva')).not.toBeInTheDocument();
 });
 
 test('keeps speaker directory cards without linking to unavailable biographies', () => {
@@ -52,10 +46,18 @@ test('keeps speaker directory cards without linking to unavailable biographies',
   }
 });
 
-test.each([...speakersWithoutBiography, ...moderatorsWithoutBiography])('handles a direct biography URL for %s', (name, institution, slug) => {
+test.each(speakersWithoutBiography)('handles a direct biography URL for %s', (name, institution, slug) => {
   renderDirectory(`/oradores/${slug}`);
   expect(screen.getByRole('heading', { name: 'Página não encontrada' })).toBeVisible();
   expect(screen.queryByRole('heading', { name })).not.toBeInTheDocument();
+});
+
+test.each(['diana-santos', 'diana-carvalho'])('opens Diana Santos’s preserved portrait and biography from %s', slug => {
+  renderDirectory(`/oradores/${slug}`);
+  expect(screen.getByRole('heading', { name: 'Diana Santos', level: 1 })).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Diana Santos' })).toHaveAttribute('src', '/speakers/diana-carvalho.jpg');
+  expect(screen.getByText(/^Diana Santos é técnica de radiologia\./)).toBeVisible();
+  expect(screen.queryByText(/Diana Carvalho/)).not.toBeInTheDocument();
 });
 
 test('only links homepage speaker names when the biography exists', () => {

@@ -50,7 +50,7 @@ const days = [
     ['10:00', 'Painel de Radiologia', 'Radiography panel', { moderators: ['joana-santos', 'raquel-reis'], children: [
       ['10:00', 'Loop-X®: Imagem Intraoperatória 2D e 3D — Contributo no Bloco Operatório', 'Loop-X®: Intraoperative 2D and 3D Imaging — Contribution to the Operating Theatre', { speakers: [{ id: 'ana-rita-vaz', showInstitution: true }] }],
       ['10:20', 'Imagem 3D em trauma ortopédico: o papel do técnico de radiologia', '3D imaging in orthopaedic trauma: the role of the radiographer', { speakers: [
-        { id: 'filipa-martins' }, { name: 'Diana Santos' }, { id: 'adriana-marques' }, { id: 'marcia-amaral' },
+        { id: 'filipa-martins' }, { id: 'diana-santos' }, { id: 'adriana-marques' }, { id: 'marcia-amaral' },
       ] }],
       ['10:40', 'The Art of Spine Radiography: Novel and Creative Techniques', 'The Art of Spine Radiography: Novel and Creative Techniques', { speakers: [{ id: 'michael-fuller', showInstitution: true }] }],
     ] }],
@@ -59,7 +59,7 @@ const days = [
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', { moderators: ['sofia-brandao'], children: [
       ['14:00', 'RM Fetal', 'Fetal MRI', { speakers: [{ id: 'rui-pedro-faria-pais' }, { id: 'paula-marques' }] }],
-      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', { speakers: [{ id: 'amelia-estevao' }, { id: 'diana-carvalho' }] }],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', { speakers: [{ id: 'amelia-estevao' }, { name: 'Diana Carvalho' }] }],
       ['14:40', 'RM Pélvica', 'Pelvic MRI', { speakers: [{ id: 'celia-antunes' }, { id: 'bruno-esteves' }] }],
     ] }],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', { moderators: ['mario-monteiro', 'ana-isabel-machado'], children: [
@@ -68,7 +68,7 @@ const days = [
       ['', null, null, { speakers: [{ name: 'Kirsten Burke' }], detail: { pt: 'Biografia pendente', en: 'Biography pending' } }],
     ] }],
     ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado', 'Mammography panel — Artificial intelligence, intervention and advanced diagnosis', { children: [
-      ['16:15–16:25', 'IA na Mamografia — Da Investigação à Prática Clínica', 'AI in mammography — From research to clinical practice', { detail: { pt: 'Fundação Champalimaud (a confirmar)', en: 'Champalimaud Foundation (to be confirmed)' } }],
+      ['16:15–16:25', 'IA na Mamografia — Da Investigação à Prática Clínica', 'AI in mammography — From research to clinical practice', { speakers: [{ id: 'rita-santiago', affiliation: { pt: 'Fundação Champalimaud', en: 'Champalimaud Foundation' } }] }],
       ['16:25–16:45', 'Estereotaxia Mamária — Da Técnica Convencional à Biópsia Guiada por Tomossíntese', 'Breast stereotaxis — From conventional technique to tomosynthesis-guided biopsy', { speakers: [
         { id: 'sandra-rodrigues', showInstitution: true }, { name: 'Francisca Rodrigues', affiliation: { pt: 'ULS Coimbra', en: 'ULS Coimbra' } }, { id: 'filipa-oliveira', showInstitution: true },
       ] }],
@@ -84,16 +84,16 @@ const days = [
     ['10:00–12:00', 'Comunicações Livres', 'Oral communications'],
     ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
     ['13:05–14:00', 'Almoço', 'Lunch'],
-    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira', 'vitor-silva'], children: [
+    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira'], children: [
       ['15:10–15:30', null, null, { speakers: [{ id: 'tobias-gilk' }] }],
       ['15:30–15:50', null, null, { speakers: [{ id: 'bill-faulkner' }] }],
       ['15:50–16:10', null, null, { speakers: [{ id: 'kris-seitz' }] }],
     ] }],
-    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['samuel-oliveira', 'vitor-silva'] }],
+    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['samuel-oliveira'] }],
     ['17:00', 'Coffee break', 'Coffee break'],
     ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', { children: [
       ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', { speakers: [{ id: 'joana-madureira', name: 'Joana Madureira', showInstitution: true }] }],
-      ['17:50–18:10', 'Comunicação e Ética na Radiologia', 'Communication and Ethics in Radiology'],
+      ['17:50–18:10', 'Comunicação e Ética na Radiologia', 'Communication and Ethics in Radiology', { speakers: [{ id: 'graciano-paulo', affiliation: { pt: 'Presidente da ESTeSC', en: 'President of ESTeSC' } }] }],
     ] }],
   ] },
 ];

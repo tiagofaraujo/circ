@@ -194,14 +194,14 @@ export const speakers2027 = [
     ] }
   },
   {
-    id: 'diana-carvalho', name: 'Diana Carvalho', initials: 'DC', image: 'diana-carvalho.jpg',
+    id: 'diana-santos', name: 'Diana Santos', initials: 'DS', image: 'diana-carvalho.jpg',
     institution: 'ULS Coimbra',
     pt: { field: 'Radiologia de urgência e proteção radiológica', role: 'Técnica de Radiologia', bio: [
-      'Diana Carvalho é técnica de radiologia. Trabalhou vários anos no setor privado e integra atualmente a equipa de radiologia convencional de urgência da ULS Coimbra. É mestre em Imagem Médica e Radioterapia e tem uma pós-graduação em Proteção e Segurança Radiológica de nível 2.',
+      'Diana Santos é técnica de radiologia. Trabalhou vários anos no setor privado e integra atualmente a equipa de radiologia convencional de urgência da ULS Coimbra. É mestre em Imagem Médica e Radioterapia e tem uma pós-graduação em Proteção e Segurança Radiológica de nível 2.',
       'Tem experiência na realização e otimização de exames em vários contextos radiológicos, com especial atenção à qualidade e às auditorias clínicas de proteção radiológica. Participa no licenciamento de unidades de saúde, apoiando a implementação e o acompanhamento dos requisitos técnicos e regulamentares de proteção radiológica.'
     ] },
     en: { field: 'Emergency radiography and radiation protection', role: 'Radiographer', bio: [
-      'Diana Carvalho is a radiographer. She worked in the private sector for several years and now works in the emergency general radiography team at ULS Coimbra. She holds a master’s degree in Medical Imaging and Radiotherapy and a Level 2 postgraduate qualification in Radiation Protection and Safety.',
+      'Diana Santos is a radiographer. She worked in the private sector for several years and now works in the emergency general radiography team at ULS Coimbra. She holds a master’s degree in Medical Imaging and Radiotherapy and a Level 2 postgraduate qualification in Radiation Protection and Safety.',
       'Her experience spans several radiography settings, with a focus on performing and optimising examinations, quality and clinical audits in radiation protection. She also contributes to healthcare facility licensing by helping implement and monitor technical and regulatory requirements for radiation protection.'
     ] }
   },
@@ -294,6 +294,16 @@ export const speakers2027 = [
   {
     id: 'rita-batista', name: 'Rita Batista', initials: 'RB',
     institution: 'ULS da Lezíria',
+  },
+  {
+    id: 'rita-santiago', name: 'Rita Santiago', initials: 'RS',
+    institution: 'Fundação Champalimaud',
+  },
+  {
+    id: 'graciano-paulo', name: 'Graciano Paulo', initials: 'GP',
+    institution: 'ESTeSC',
+    pt: { field: 'Presidente da ESTeSC' },
+    en: { field: 'President of ESTeSC' },
   },
   {
     id: 'daniel-leitao', name: 'Daniel Leitão', initials: 'DL',

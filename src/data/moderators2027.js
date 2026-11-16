@@ -53,7 +53,6 @@ export const moderators2027 = {
     ] },
   },
   'samuel-oliveira': { name: 'Samuel Oliveira', institution: 'Everything MRI', speakerId: 'samuel-oliveira' },
-  'vitor-silva': { name: 'Vitor Silva', institution: 'ULS São João' },
   'joana-madureira': { name: 'Joana Madureira', institution: 'ATARP', speakerId: 'joana-madureira' },
   'paula-marques': { name: 'Paula Marques', institution: 'ULS Coimbra', speakerId: 'paula-marques' },
 };
