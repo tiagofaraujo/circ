@@ -70,7 +70,7 @@ const days = [
     ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado', 'Mammography panel — Artificial intelligence, intervention and advanced diagnosis', { children: [
       ['16:15–16:25', 'IA na Mamografia — Da Investigação à Prática Clínica', 'AI in mammography — From research to clinical practice', { speakers: [{ id: 'rita-santiago', affiliation: { pt: 'Fundação Champalimaud', en: 'Champalimaud Foundation' } }] }],
       ['16:25–16:45', 'Estereotaxia Mamária — Da Técnica Convencional à Biópsia Guiada por Tomossíntese', 'Breast stereotaxis — From conventional technique to tomosynthesis-guided biopsy', { speakers: [
-        { id: 'sandra-rodrigues', showInstitution: true }, { name: 'Francisca Rodrigues', affiliation: { pt: 'ULS Coimbra', en: 'ULS Coimbra' } }, { id: 'filipa-oliveira', showInstitution: true },
+        { id: 'sandra-rodrigues', showInstitution: true }, { id: 'francisca-rodrigues', showInstitution: true }, { id: 'filipa-oliveira', showInstitution: true },
       ] }],
       ['16:45–16:55', 'Mamografia com Contraste — Novas Perspetivas no Diagnóstico Mamário', 'Contrast-enhanced mammography — New perspectives in breast diagnosis', { speakers: [{ id: 'rita-baptista', showInstitution: true }] }],
     ] }],

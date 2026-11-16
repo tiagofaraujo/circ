@@ -282,6 +282,20 @@ export const speakers2027 = [
     ] }
   },
   {
+    id: 'francisca-rodrigues', name: 'Francisca Rodrigues', initials: 'FR', image: 'francisca-rodrigues.jpg',
+    institution: 'ULS Coimbra',
+    pt: { field: 'Radiologia e radioterapia', role: 'Técnica de Radiologia', bio: [
+      'Francisca Rodrigues licenciou-se em Imagem Médica e Radioterapia pela Escola Superior de Saúde Dr. Lopes Dias, em Castelo Branco, em 2022.',
+      'Entre 2022 e 2023, trabalhou em radioterapia no Hospital CUF Descobertas, em Lisboa. Iniciou depois o seu percurso em radiologia no grupo Sanfil Medicina, exercendo também funções na Climag — Clínica de Diagnóstico e Imagem, em Coimbra. Desde 2024, exerce funções como técnica de radiologia na ULS Coimbra.',
+      'Frequenta o Curso de Especialização em Gestão e Economia da Saúde (CEGES) na Faculdade de Economia da Universidade de Coimbra.'
+    ] },
+    en: { field: 'Radiography and radiotherapy', role: 'Radiographer', bio: [
+      'Francisca Rodrigues graduated in Medical Imaging and Radiotherapy from the Dr. Lopes Dias School of Health, in Castelo Branco, in 2022.',
+      'From 2022 to 2023, she worked in radiotherapy at Hospital CUF Descobertas in Lisbon. She then began her career in radiography at the Sanfil Medicina group and also worked at Climag — Clínica de Diagnóstico e Imagem in Coimbra. Since 2024, she has worked as a radiographer at ULS Coimbra.',
+      'She is currently attending the Specialisation Course in Health Management and Economics (CEGES) at the Faculty of Economics of the University of Coimbra.'
+    ] }
+  },
+  {
     id: 'filipa-oliveira', name: 'Filipa Oliveira', initials: 'FO', image: 'filipa-oliveira.jpg',
     institution: 'ULS Coimbra',
     pt: { field: 'Radiologia convencional, TC e RM', role: 'Técnica de Radiologia · Monitora de estágio', bio: [
