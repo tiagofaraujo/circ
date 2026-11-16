@@ -365,3 +365,15 @@ test('failed persistence after rotation prevents commercial reads and keeps priv
   assert.equal(response.headers.get('set-cookie'), null);
   assert.doesNotMatch(JSON.stringify(await response.json()), /private-storage-detail|access-two|refresh-two/);
 });
+
+test('delegated manager can renew the billing connection and read fiscal resources', async () => {
+  const f = fixture();
+  try {
+    f.setIdentity({ sub: 'paulo', email: 'paulojaneiro77@gmail.com', email_verified: true });
+    assert.equal((await f.call('config')).status, 200);
+    const token = await authorizeAndCallback(f);
+    assert.equal((await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` })).status, 200);
+    f.setIdentity({ sub: 'paulo', email: 'paulojaneiro77@gmail.com', email_verified: false });
+    assert.equal((await f.call('config')).status, 403);
+  } finally { f.restore(); }
+});

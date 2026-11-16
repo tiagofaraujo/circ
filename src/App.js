@@ -191,16 +191,16 @@ function App() {
               }
             />
 
-            <Route path="/admin/faturacao" element={<AdminRoute permission="registrations"><AdminBillingPage /></AdminRoute>} />
-            <Route path="/admin/transferencias" element={<AdminRoute permission="registrations"><AdminTransfersPage /></AdminRoute>} />
+            <Route path="/admin/faturacao" element={<AdminRoute permission="billing"><AdminBillingPage /></AdminRoute>} />
+            <Route path="/admin/transferencias" element={<AdminRoute permission="owner"><AdminTransfersPage /></AdminRoute>} />
             <Route path="/admin/transferencias-teste" element={<Navigate to="/admin/transferencias" replace />} />
             <Route path="/admin/recibos-teste" element={<LegacyBillingRedirect />} />
             <Route path="/conta/inscricoes-teste" element={<Navigate to="/conta/inscricoes" replace />} />
             <Route path="/admin/inscricoes-teste" element={<Navigate to="/conta/inscricoes" replace />} />
             <Route path="/admin/pagamentos-teste" element={<Navigate to="/admin" replace />} />
 
-            <Route path="/admin/preparacao" element={<AdminRoute permission="registrations"><AdminProductionCleanupPage /></AdminRoute>} />
-            <Route path="/admin/empresas" element={<AdminRoute permission="registrations"><AdminCompaniesPage /></AdminRoute>} />
+            <Route path="/admin/preparacao" element={<AdminRoute permission="owner"><AdminProductionCleanupPage /></AdminRoute>} />
+            <Route path="/admin/empresas" element={<AdminRoute permission="owner"><AdminCompaniesPage /></AdminRoute>} />
             <Route path="/admin/estudantes" element={<AdminRoute permission="secretariat"><AdminStudentsPage /></AdminRoute>} />
 
             <Route path="/schedule" element={<Navigate to="/programa" replace />} />

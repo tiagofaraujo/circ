@@ -1,3 +1,4 @@
+import { hasRegistrationManagementAccess } from '../../src/auth/registrationPermissions.js';
 import { createHash } from 'node:crypto';
 import { canResumeLiveFiscalJob,isUnstartedStripeInstrumentJob } from './live-fiscal-issue.mjs';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
@@ -112,9 +113,10 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
     if(claims.email_verified!==true)return reply({error:'verified-email-required'},403);
     if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return reply({error:'invalid-origin'},403);
     const isAdmin=String(claims.email||'').toLowerCase()===ADMIN, privatePilot=isPrivatePilotWindow(env);
+    const canManageRegistrations=hasRegistrationManagementAccess(claims.email,claims.email_verified);
     const creationEnabled=()=>isRegistrationOpen(now())&&isLiveCheckoutEnabled(env,Date.parse(now()));
     if(url.pathname===`${PREFIX}/diagnostics`&&request.method==='GET'){
-      if(!isAdmin)return reply({error:'admin-required'},403);
+      if(!canManageRegistrations)return reply({error:'admin-required'},403);
       const required=['FIREBASE_PROJECT_ID','FIREBASE_PAYMENTS_SERVICE_ACCOUNT','EUPAGO_LIVE_API_KEY','EUPAGO_LIVE_WEBHOOK_KEY','EUPAGO_LIVE_CHANNEL','TOCONLINE_OAUTH_CLIENT_ID','TOCONLINE_OAUTH_CLIENT_SECRET','TOCONLINE_OAUTH_URL','TOCONLINE_API_URL','TOCONLINE_SESSION_KEY'];
       const stripe=stripeLiveConfiguration(env);
       return reply({environment:'production',liveCheckoutEnabled:creationEnabled(),privatePilot,pilotUntil:livePilotDeadline(env),checks:Object.fromEntries([...required,'STRIPE_LIVE_SECRET_KEY','STRIPE_LIVE_WEBHOOK_SECRET'].map(name=>[name,typeof env[name]==='string'&&env[name].trim().length>0])),channelMatchesExpected:env.EUPAGO_LIVE_CHANNEL==='CIRC 2027',externalValidationPerformed:false,
@@ -153,7 +155,7 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const id=stripeReconcile[1];if(!LIVE_ORDER_UUID.test(id))fail('invalid-request');
         const input=await body(request);exact(input,[]);
         const saved=await store.payment(id),p=saved?.data;
-        if(!p||(!isAdmin&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
+        if(!p||(!canManageRegistrations&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
         if(historical(p)||['paid','refunded'].includes(p.status))return reply({order:publicLiveOrder(id,p)});
         if(p.method!=='stripe_card'||p.provider!=='stripe'||p.id!==id||p.eventId!==EVENT||p.registrationId!==`${EVENT}-${p.userId}`||p.paidAt||p.transactionId)fail('stripe-order-not-reconcilable',409);
         if(!STRIPE_LIVE_SESSION_ID.test(p.reference||''))fail('stripe-session-unconfirmed',409);
@@ -167,9 +169,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         const id=reconcileMatch[1];if(!LIVE_ORDER_UUID.test(id))fail('invalid-request');
         const input=await body(request);exact(input,[]);
         const saved=await store.payment(id),p=saved?.data;
-        if(!p||(!isAdmin&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
+        if(!p||(!canManageRegistrations&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
         if(historical(p))return reply({order:publicLiveOrder(id,p)});
-        if(isAdmin&&p.userId!==claims.sub)store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:p.userId,token:storeToken});
+        if(canManageRegistrations&&p.userId!==claims.sub)store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:p.userId,token:storeToken});
         const registration=await store.registration(),r=registration?.data;
         if(p.method!=='mbway'||p.provider!=='eupago'||p.id!==id||p.eventId!==EVENT||p.registrationId!==store.registrationId
           ||p.identifier!==`circ_live_${id.replaceAll('-','')}`||!realRegistration(r,p.userId))fail('mbway-order-not-retryable',409);
@@ -229,9 +231,9 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
       }
       if(readingOrder){
         const p=(await store.payment(orderMatch[1]))?.data;
-        if(!p||(!isAdmin&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
+        if(!p||(!canManageRegistrations&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
         let eligibility={};
-        if(isAdmin&&!historical(p)&&p.status==='paid'&&['pending','pending_authorization','review_required'].includes(p.fiscalStatus)){
+        if(canManageRegistrations&&!historical(p)&&p.status==='paid'&&['pending','pending_authorization','review_required'].includes(p.fiscalStatus)){
           const j=(await store.document(orderMatch[1]))?.data;
           eligibility={canResumeFiscal:Boolean(canResumeLiveFiscalJob(p,j)&&j.userId===p.userId&&j.registrationId===p.registrationId&&j.environment==='production'),
             ...(isUnstartedStripeInstrumentJob(p,j)?{fiscalResumeReason:'stripe-instrument'}:{})};

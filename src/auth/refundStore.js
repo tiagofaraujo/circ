@@ -1,4 +1,5 @@
-import { getFirebaseFirestore, isAdminUser } from './firebaseClient';
+import { getFirebaseFirestore } from './firebaseClient';
+import { hasRegistrationManagementAccess } from './registrationPermissions';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const fail = code => { throw new Error(`refund/${code}`); };
@@ -25,7 +26,7 @@ export function lisbonToday() {
 // Records an already completed full refund. Never calls a bank, payment provider
 // or fiscal API. Both statuses and the audit entry change in one transaction.
 export async function recordRegistrationRefund(user, registration, input) {
-  if (!isAdminUser(user)) fail('admin-required');
+  if (!hasRegistrationManagementAccess(user?.email, user?.emailVerified)) fail('admin-required');
   if (!canRecordRegistrationRefund(registration)) fail('registration-not-eligible');
   const reason = typeof input?.reason === 'string' ? input.reason.trim() : '';
   const reference = typeof input?.reference === 'string' ? input.reference.trim() : '';
@@ -58,11 +59,11 @@ export async function recordRegistrationRefund(user, registration, input) {
       || payment.reference !== current.payment.reference || payment.method !== current.payment.method
       || payment.amountCents !== registration.payment.amountCents || payment.reference !== registration.payment.reference) fail('state-changed');
     if (date < String(payment.paidAt).slice(0, 10)) fail('details-required');
-    const refund = { kind: 'full_refund_record', completedExternally: true, amountCents: payment.amountCents,
+    const refund = { paymentId: paymentDoc.id, auditId: auditRef.id, kind: 'full_refund_record', completedExternally: true, amountCents: payment.amountCents,
       currency: 'EUR', reason, reference, date, recordedAt: timestamp, recordedBy: actor,
       fiscalReviewRequired: true };
     transaction.update(paymentRef, { status: 'refunded', refund, updatedAt: timestamp });
-    transaction.update(registrationRef, { status: 'cancelled', 'payment.status': 'refunded',
+    transaction.update(registrationRef, { refund, status: 'cancelled', 'payment.status': 'refunded',
       'payment.updatedAt': timestamp, 'payment.updatedBy': actor, updatedAt: timestamp, updatedBy: actor });
     transaction.set(auditRef, { action: 'payment.refund.recorded', eventId: 'circ-2027', registrationId: current.id,
       paymentId: paymentDoc.id, userId: current.userId, before: { registration: 'confirmed', payment: 'paid' },

@@ -7,10 +7,10 @@ const labels = { issued: 'Fatura-recibo emitida', pending: 'Faturação pendente
   issuing: 'Emissão em processamento — não repetir', outcome_unknown: 'Resultado fiscal por confirmar — não repetir', review_required: 'Faturação requer conferência' };
 
 export default function RegistrationFiscalStatus({ registration }) {
-  const { user, isAdmin } = useAuth();
+  const { user, access, isAdmin } = useAuth();
   const pendingId = registration.fiscalPendingOrderId;
   const id = pendingId || registration.payment?.orderId;
-  if (!isAdmin || registration.isTest === true || registration.testMode === true
+  if (!(access?.canManageBilling || isAdmin) || registration.isTest === true || registration.testMode === true
     || (!pendingId && !['multibanco', 'mbway', 'bank_transfer', 'stripe_card'].includes(registration.payment?.method))) return null;
   if (!UUID.test(id || '')) return pendingId ? <small>Referência do pedido fiscal por conferir</small>
     : registration.documentCount > 0 ? <small>Documento fiscal emitido</small> : null;

@@ -1,3 +1,5 @@
+import { getUserAccess } from '../auth/firebaseClient';
+import AdminModuleNav from './AdminModuleNav';
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -27,4 +29,14 @@ test.each([
   const button = screen.getByRole('button', { name: label });
   fireEvent.click(button);
   expect(toggleLanguage).toHaveBeenCalledTimes(1);
+});
+
+test('the delegated manager sees only the two authorised management modules in both navigations', () => {
+  const user = { uid: 'paulo', email: 'paulojaneiro77@gmail.com', emailVerified: true };
+  useAuth.mockReturnValue({ user, access: getUserAccess(user), isAdmin: false, signOut: jest.fn() });
+  useLanguage.mockReturnValue({ language: 'pt', toggleLanguage: jest.fn() });
+  render(<MemoryRouter><MyCircShell><AdminModuleNav /></MyCircShell></MemoryRouter>);
+  expect(screen.getByRole('link', { name: 'Gestão de inscrições' })).toBeInTheDocument();
+  expect(screen.getAllByRole('link', { name: /Faturação/ })).toHaveLength(2);
+  expect(screen.queryByRole('link', { name: /Empresas e vouchers|Transferências|Gestão de submissões|Secretariado|Estudantes/ })).not.toBeInTheDocument();
 });

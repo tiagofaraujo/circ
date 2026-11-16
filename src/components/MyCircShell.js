@@ -63,11 +63,11 @@ export default function MyCircShell({ children }) {
   const managementLinks = [
     (access?.canViewRegistrations || access?.canManageRegistrations) && ['/admin', 'users', 'Gestão de inscrições', 'Registration management', true],
     isAdmin && access?.canManageRegistrations && ['/admin/transferencias', 'money-bill-transfer', 'Transferências', 'Bank transfers', false],
-    access?.canManageRegistrations && ['/admin/faturacao', 'file-invoice-dollar', 'Faturação', 'Invoicing', false],
+    access?.canManageBilling && ['/admin/faturacao', 'file-invoice-dollar', 'Faturação', 'Invoicing', false],
     access?.canManageSubmissions && ['/admin/submissoes', 'clipboard-check', 'Gestão de submissões', 'Submission management', false],
     access?.canManageSubmissions && ['/admin/avaliacoes', 'list-check', 'Superavaliador', 'Review supervisor', false],
     access?.canReviewSubmissions && ['/conta/revisoes', 'pen-to-square', 'As minhas avaliações', 'My evaluations', false],
-    access?.canManageRegistrations && ['/admin/empresas', 'users', 'Empresas e vouchers', 'Companies and vouchers', false],
+    isAdmin && ['/admin/empresas', 'users', 'Empresas e vouchers', 'Companies and vouchers', false],
     access?.canUseSecretariat && ['/admin/estudantes', 'graduation-cap', 'Validar estudantes', 'Student verification', false],
     access?.canUseSecretariat && ['/admin/secretariado', 'id-card', 'Secretariado', 'Event desk', false],
   ].filter(Boolean).map(([to, icon, pt, english, end]) => (

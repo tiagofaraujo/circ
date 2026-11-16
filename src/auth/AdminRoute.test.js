@@ -7,7 +7,7 @@ import { getUserAccess } from './firebaseClient';
 
 jest.mock('./AuthContext', () => ({ useAuth: jest.fn() }));
 
-function show(path, user, permission = 'registrations') {
+function show(path, user, permission = 'billing') {
   useAuth.mockReturnValue({ user, access: getUserAccess(user), loading: false });
   return render(<MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <Routes>
@@ -25,8 +25,13 @@ test('a consultation account can open the registration reports route directly', 
   expect(screen.getByRole('heading', { name: 'Consulta de inscrições' })).toBeInTheDocument();
 });
 
-test('consultation does not grant access to financial routes and redirects safely to its own report', () => {
+test('scoped management grants billing access', () => {
   show('/admin/faturacao', viewer);
+  expect(screen.getByRole('heading', { name: 'Área financeira' })).toBeInTheDocument();
+});
+
+test('scoped management cannot enter owner-only modules', () => {
+  show('/admin/faturacao', viewer, 'owner');
   expect(screen.queryByRole('heading', { name: 'Área financeira' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Consulta de inscrições' })).toBeInTheDocument();
 });

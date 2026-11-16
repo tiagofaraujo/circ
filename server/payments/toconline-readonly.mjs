@@ -1,10 +1,10 @@
+import { hasRegistrationManagementAccess } from '../../src/auth/registrationPermissions.js';
 import { Buffer } from 'node:buffer';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readBillingBankAccount } from './toconline-billing-bank-readonly.mjs';
 import { createToconlineServerSessionStore } from './toconline-server-session-store.mjs';
 
 const PREFIX = '/api/fiscal/toconline';
-const ADMIN = 'circ.chuc@gmail.com';
 const STATE_COOKIE = '__Host-circ_toc_state';
 const TOKEN_COOKIE = '__Host-circ_toc_session';
 const SCOPE = 'commercial';
@@ -153,7 +153,7 @@ async function verifyAdmin(request, env, verify) {
   if (!env.FIREBASE_PROJECT_ID) fail('service-unavailable');
   let claims;
   try { claims = await verify(token, env.FIREBASE_PROJECT_ID); } catch { fail('invalid-session', 401); }
-  if (claims.email_verified !== true || claims.email !== ADMIN) fail('admin-required', 403);
+  if (!hasRegistrationManagementAccess(claims.email, claims.email_verified)) fail('admin-required', 403);
   return claims;
 }
 
