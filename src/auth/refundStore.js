@@ -59,11 +59,11 @@ export async function recordRegistrationRefund(user, registration, input) {
       || payment.reference !== current.payment.reference || payment.method !== current.payment.method
       || payment.amountCents !== registration.payment.amountCents || payment.reference !== registration.payment.reference) fail('state-changed');
     if (date < String(payment.paidAt).slice(0, 10)) fail('details-required');
-    const refund = { kind: 'full_refund_record', completedExternally: true, amountCents: payment.amountCents,
+    const refund = { paymentId: paymentDoc.id, auditId: auditRef.id, kind: 'full_refund_record', completedExternally: true, amountCents: payment.amountCents,
       currency: 'EUR', reason, reference, date, recordedAt: timestamp, recordedBy: actor,
       fiscalReviewRequired: true };
     transaction.update(paymentRef, { status: 'refunded', refund, updatedAt: timestamp });
-    transaction.update(registrationRef, { status: 'cancelled', 'payment.status': 'refunded',
+    transaction.update(registrationRef, { refund, status: 'cancelled', 'payment.status': 'refunded',
       'payment.updatedAt': timestamp, 'payment.updatedBy': actor, updatedAt: timestamp, updatedBy: actor });
     transaction.set(auditRef, { action: 'payment.refund.recorded', eventId: 'circ-2027', registrationId: current.id,
       paymentId: paymentDoc.id, userId: current.userId, before: { registration: 'confirmed', payment: 'paid' },

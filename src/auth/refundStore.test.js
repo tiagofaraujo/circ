@@ -13,7 +13,7 @@ const input={completed:true,reason:'Desistência comunicada pelo participante',r
 function setup() {
   const reg=JSON.parse(JSON.stringify(registration)), pay=JSON.parse(JSON.stringify(payment));
   const changes=[];
-  const refs={registration:{path:'registrations/'+registration.id},payment:{path:'payments/'+ID},audit:{path:'auditLogs/a1'}};
+  const refs={registration:{path:'registrations/'+registration.id},payment:{path:'payments/'+ID},audit:{path:'auditLogs/a1',id:'a1'}};
   const query={where:jest.fn(()=>query),limit:jest.fn(()=>query),get:jest.fn(async()=>({docs:[{id:ID,ref:refs.payment}]}))};
   const transaction={get:jest.fn(async ref=>ref===refs.registration?{id:registration.id,exists:true,data:()=>reg}:{id:ID,exists:true,data:()=>pay}),
     update:jest.fn((ref,values)=>changes.push({ref,values})),set:jest.fn((ref,values)=>changes.push({ref,values}))};
@@ -61,6 +61,9 @@ test('the delegated manager records a completed refund under their own audit ide
   const manager = { uid: 'paulo', email: 'paulojaneiro77@gmail.com', emailVerified: true };
   await recordRegistrationRefund(manager, registration, input);
   expect(f.changes).toHaveLength(3);
+  expect(f.changes[0].values.refund).toEqual(f.changes[1].values.refund);
+  expect(f.changes[0].values.refund).toEqual(f.changes[2].values.refund);
+  expect(f.changes[0].values.refund).toMatchObject({ paymentId: ID, auditId: 'a1' });
   expect(f.changes[2].values.actor).toEqual({ uid: 'paulo', email: manager.email });
   await expect(recordRegistrationRefund({ ...manager, emailVerified: false }, registration, input)).rejects.toThrow('admin-required');
 });

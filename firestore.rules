@@ -701,33 +701,68 @@ service cloud.firestore {
     function ownManagementActor(actor) {
       return actor.uid == request.auth.uid && actor.email == request.auth.token.email;
     }
-    function validManagedRefundRegistration() {
-      let before = resource.data;
-      let after = request.resource.data;
-      return before.eventId == 'circ-2027' && before.status == 'confirmed'
-        && before.payment.status == 'paid' && after.status == 'cancelled' && after.payment.status == 'refunded'
-        && after.diff(before).affectedKeys().hasOnly(['status', 'payment', 'updatedAt', 'updatedBy'])
+    function validManagedRefundRegistrationFields(before, after) {
+      return before.eventId == 'circ-2027' && before.primaryRegistration == true
+        && before.isTest == false && before.testMode == false
+        && before.status == 'confirmed' && before.payment.status == 'paid'
+        && before.get('addOnOrderCount', 0) == 0
+        && before.get('entitlements', {}).get('morningCourse', false) == false
+        && before.get('entitlements', {}).get('afternoonCourse', false) == false
+        && before.get('entitlements', {}).get('dinnerQuantity', 0) == 0
+        && after.status == 'cancelled' && after.payment.status == 'refunded'
+        && after.diff(before).affectedKeys().hasOnly(['status', 'payment', 'refund', 'updatedAt', 'updatedBy'])
         && after.payment.diff(before.payment).affectedKeys().hasOnly(['status', 'updatedAt', 'updatedBy'])
         && after.updatedAt == request.time && after.payment.updatedAt == request.time
         && ownManagementActor(after.updatedBy) && ownManagementActor(after.payment.updatedBy);
     }
-    function validManagedRefundPayment() {
-      let before = resource.data;
-      let after = request.resource.data;
+    function validManagedRefundPaymentFields(before, after) {
       let refund = after.refund;
       return before.eventId == 'circ-2027' && before.environment == 'production'
         && before.status == 'paid' && after.status == 'refunded'
         && before.method == 'multibanco' && before.provider == 'eupago'
+        && before.get('paidAt', null) != null && before.get('transactionId', null) != null
         && !(before.get('fiscalStatus', '') in ['pending', 'issuing'])
         && after.diff(before).affectedKeys().hasOnly(['status', 'refund', 'updatedAt'])
         && after.updatedAt == request.time && refund.recordedAt == request.time
         && ownManagementActor(refund.recordedBy)
         && refund.kind == 'full_refund_record' && refund.completedExternally == true
-        && refund.amountCents == before.amountCents && refund.amountCents > 0
+        && refund.amountCents == before.amountCents && refund.amountCents is int && refund.amountCents > 0
         && refund.currency == 'EUR' && before.currency == 'EUR' && refund.fiscalReviewRequired == true
         && refund.reason is string && refund.reason.size() >= 5 && refund.reason.size() <= 500
         && refund.reference is string && refund.reference.size() >= 3 && refund.reference.size() <= 100
         && refund.date is string && refund.date.matches('^20[0-9]{2}-[0-9]{2}-[0-9]{2}$');
+    }
+    function validManagedRefundPair(registrationId, registrationBefore, registrationAfter, paymentId, paymentBefore, paymentAfter) {
+      let refund = paymentAfter.refund;
+      let audit = getAfter(/databases/$(database)/documents/auditLogs/$(refund.auditId)).data;
+      return paymentId.matches('^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+        && registrationId == 'circ-2027-' + registrationBefore.userId
+        && paymentBefore.id == paymentId && paymentBefore.registrationId == registrationId
+        && paymentBefore.userId == registrationBefore.userId
+        && registrationBefore.payment.get('orderId', '') in ['', paymentId]
+        && paymentBefore.amountCents == registrationBefore.payment.amountCents
+        && paymentBefore.currency == registrationBefore.payment.currency
+        && paymentBefore.reference == registrationBefore.payment.reference
+        && paymentBefore.method == registrationBefore.payment.method
+        && validManagedRefundRegistrationFields(registrationBefore, registrationAfter)
+        && validManagedRefundPaymentFields(paymentBefore, paymentAfter)
+        && registrationAfter.refund == refund && refund.paymentId == paymentId
+        && audit.action == 'payment.refund.recorded' && audit.eventId == 'circ-2027'
+        && audit.registrationId == registrationId && audit.paymentId == paymentId
+        && audit.userId == registrationBefore.userId && audit.refund == refund
+        && ownManagementActor(audit.actor) && audit.createdAt == request.time;
+    }
+    function validManagedRefundRegistration(registrationId) {
+      let paymentId = request.resource.data.refund.paymentId;
+      let paymentBefore = get(/databases/$(database)/documents/payments/$(paymentId)).data;
+      let paymentAfter = getAfter(/databases/$(database)/documents/payments/$(paymentId)).data;
+      return validManagedRefundPair(registrationId, resource.data, request.resource.data, paymentId, paymentBefore, paymentAfter);
+    }
+    function validManagedRefundPayment(paymentId) {
+      let registrationId = resource.data.registrationId;
+      let registrationBefore = get(/databases/$(database)/documents/registrations/$(registrationId)).data;
+      let registrationAfter = getAfter(/databases/$(database)/documents/registrations/$(registrationId)).data;
+      return validManagedRefundPair(registrationId, registrationBefore, registrationAfter, paymentId, resource.data, request.resource.data);
     }
 
     match /registrations/{registrationId} {
@@ -739,14 +774,14 @@ service cloud.firestore {
         && hasValidStudentRegistration(request.resource.data) && noClientAdmissionCreate(request.resource.data);
       allow delete: if isAdmin();
       allow update: if (
-        (isAdmin() || (canManageRegistrations() && validManagedRefundRegistration()))
+        isAdmin()
         && noClientAdmissionIncrease(request.resource.data)
         && canUpdateStudentRegistration(request.resource.data)
         && (
           hasValidUlsRegistration(request.resource.data)
           || validAdminHistoricalRegistrationUpdate()
         )
-      ) || (
+      ) || (canManageRegistrations() && validManagedRefundRegistration(registrationId)) || (
         canUseSecretariat()
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['attendance', 'credential', 'updatedAt'])
@@ -765,7 +800,7 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if canManageRegistrations() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if officialOpeningReached() && isAdmin();
-      allow update: if isAdmin() || (canManageRegistrations() && validManagedRefundPayment());
+      allow update: if isAdmin() || (canManageRegistrations() && validManagedRefundPayment(paymentId));
       allow delete: if isAdmin();
     }
 
