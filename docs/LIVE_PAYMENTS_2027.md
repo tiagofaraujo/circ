@@ -104,6 +104,18 @@ e as regras Firestore existentes, que já permitem esta leitura. Não requer
 
 A ativação temporária deste ensaio e a geração de uma referência de 95 € foram autorizadas pelo administrador. A geração continua a exigir a ação explícita na conta autenticada. O pagamento é realizado pelo próprio utilizador.
 
+### Resumo financeiro administrativo
+
+`GET /api/admin/billing/summary` também utiliza a sessão Firebase verificada da
+conta administrativa para consultar `payments` e `companyPurchases`, com as regras
+existentes. A conta de serviço não enumera coleções: lê apenas os documentos
+`paymentFees/{orderId}` associados aos recebimentos EuPago encontrados, em lotes
+de até 100 identificadores e com máscara de campos. A sua autorização só é pedida
+quando existem comissões a consultar. Ausência explícita de um documento mantém
+a comissão por apurar; uma consulta falhada ou incompleta não produz totais parciais.
+
+A consulta não altera pagamentos, faturas, inscrições, regras Firestore ou IAM.
+
 ## Sequência de ativação
 
 1. Criar a identidade Firebase dedicada e atribuir apenas as permissões Firestore necessárias ao backend de pagamentos.

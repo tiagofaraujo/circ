@@ -25,7 +25,11 @@ test('only the exact verified organiser may read the aggregated report', async (
       return claims;
     },
     tokenProvider: async () => { serviceReads++; return 'mock-service-token'; },
-    storeFactory: () => ({ summary: async () => ({ totals: { receivedCents: 5500 }, methods: [] }) }),
+    storeFactory: ({ token, feeTokenProvider }) => {
+      assert.equal(token, 'test-session');
+      assert.equal(typeof feeTokenProvider, 'function');
+      return { summary: async () => ({ totals: { receivedCents: 5500 }, methods: [] }) };
+    },
     now: () => DATE,
   });
   for (const disallowed of [
@@ -48,13 +52,14 @@ test('only the exact verified organiser may read the aggregated report', async (
   assert.match(response.headers.get('Cache-Control'), /private, no-store/);
   assert.equal(response.headers.get('Vary'), 'Authorization');
   assert.deepEqual(await response.json(), { currency: 'EUR', generatedAt: DATE, totals: { receivedCents: 5500 }, methods: [] });
-  assert.equal(serviceReads, 1);
+  assert.equal(serviceReads, 0);
 });
 
 test('the Worker serves the private billing route and withholds internal storage errors', async () => {
   const worker = createWorker(async () => ADMIN);
   assert.equal((await worker.fetch(request({ headers: { Authorization: '' } }), ENV)).status, 401);
-  const api = createBillingSummaryApi({ verify: async () => ADMIN, tokenProvider: async () => { throw new Error('private detail'); } });
+  const api = createBillingSummaryApi({ verify: async () => ADMIN,
+    storeFactory: () => ({ summary: async () => { throw new Error('private detail'); } }) });
   const response = await api(request(), ENV);
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: 'billing-summary-unavailable' });
@@ -90,14 +95,33 @@ function fee(id, data = {}) {
   });
 }
 
-function fixture(payments, companies = [], fees = []) {
+function fixture(payments, companies = [], fees = [], feeResponse = value => value) {
   const queries = [];
-  const datasets = { payments, companyPurchases: companies, paymentFees: fees };
-  const store = createBillingSummaryStore({ projectId: 'circ-test', token: 'mock-service-token', fetchImpl: async (url, options) => {
-    assert.equal(url, `https://firestore.googleapis.com/v1/${ROOT}:runQuery`);
+  const feeBatches = [];
+  const datasets = { payments, companyPurchases: companies };
+  let serviceReads = 0;
+  const store = createBillingSummaryStore({ projectId: 'circ-test', token: 'mock-admin-token',
+    feeTokenProvider: async () => { serviceReads++; return 'mock-service-token'; }, fetchImpl: async (url, options) => {
     assert.equal(options.method, 'POST');
     assert.equal(options.redirect, 'manual');
-    assert.equal(options.headers.Authorization, 'Bearer mock-service-token');
+    if (url.endsWith(':batchGet')) {
+      assert.equal(url, `https://firestore.googleapis.com/v1/${ROOT}:batchGet`);
+      assert.equal(options.headers.Authorization, 'Bearer mock-service-token');
+      const body = JSON.parse(options.body);
+      assert.deepEqual(body.mask.fieldPaths, ['eventId', 'environment', 'currency', 'provider', 'method',
+        'transactionId', 'providerFeeMicros', 'providerFeeSource']);
+      assert.ok(body.documents.length > 0 && body.documents.length <= 100);
+      feeBatches.push(body.documents);
+      const response = body.documents.map(name => {
+        assert.ok(name.startsWith(`${ROOT}/paymentFees/`));
+        const found = fees.find(row => row.document.name === name)?.document;
+        return found ? { found } : { missing: name };
+      });
+      // Firestore batchGet does not guarantee the requested document order.
+      return Response.json(feeResponse(response.reverse()));
+    }
+    assert.equal(url, `https://firestore.googleapis.com/v1/${ROOT}:runQuery`);
+    assert.equal(options.headers.Authorization, 'Bearer mock-admin-token');
     const { structuredQuery: query } = JSON.parse(options.body);
     assert.deepEqual(query.where.fieldFilter, { field: { fieldPath: 'eventId' }, op: 'EQUAL', value: { stringValue: 'circ-2027' } });
     const fields = query.select.fields.map(field => field.fieldPath);
@@ -105,13 +129,13 @@ function fixture(payments, companies = [], fees = []) {
     const collection = query.from[0].collectionId;
     queries.push(query);
     assert.ok(Object.hasOwn(datasets, collection));
-    if (collection !== 'paymentFees') assert.ok(fields.every(field => !field.startsWith('providerFee')));
+    assert.ok(fields.every(field => !field.startsWith('providerFee')));
     const dataset = datasets[collection];
     const after = query.startAt?.values[0].referenceValue;
     const start = after ? dataset.findIndex(item => item.document.name === after) + 1 : 0;
     return Response.json(dataset.slice(start, start + query.limit));
   } });
-  return { store, queries };
+  return { store, queries, feeBatches, serviceReads: () => serviceReads };
 }
 
 test('receipts include archived payments and add-ons, with confirmed refunds, fee coverage and review counted separately', async () => {
@@ -187,4 +211,73 @@ test('the ledger fails closed for repeated rows instead of returning inflated to
   const first = payment(1);
   const { store } = fixture([first, first]);
   await assert.rejects(store.summary(), /billing-summary-unavailable/);
+});
+
+test('fee reads stay bounded and skip unrelated, test, pending and non-EuPago payments', async () => {
+  const eligible = Array.from({ length: 205 }, (_, index) => payment(index + 1));
+  const f = fixture([...eligible, payment(300, { status: 'pending' }), payment(301, { isTest: true }),
+    payment(302, { status: 'review_required' }), payment(303, { environment: 'sandbox' }),
+    payment(304, { provider: 'internal_bank_transfer', method: 'bank_transfer' }),
+    payment(305, { provider: 'stripe', method: 'stripe_card' })], [], [fee(1)]);
+  const summary = await f.store.summary();
+  assert.equal(summary.totals.receivedCount, 207);
+  assert.equal(summary.totals.feeKnownCount, 1);
+  assert.deepEqual(f.feeBatches.map(batch => batch.length), [100, 100, 5]);
+  assert.deepEqual(f.feeBatches.flat(), eligible.map(row => row.document.name.replace('/payments/', '/paymentFees/')));
+  assert.equal(f.serviceReads(), 1);
+});
+
+test('bank-only and empty summaries do not depend on a service-account token', async () => {
+  for (const payments of [[], [payment(1, { provider: 'internal_bank_transfer', method: 'bank_transfer' })]]) {
+    const f = fixture(payments);
+    const summary = await f.store.summary();
+    assert.equal(summary.totals.receivedCount, payments.length);
+    assert.equal(summary.totals.feeKnownCount, 0);
+    assert.equal(f.serviceReads(), 0);
+  }
+});
+
+test('incomplete, duplicate, foreign and ambiguous fee responses cannot produce misleading totals', async () => {
+  const mutations = [
+    () => [],
+    rows => [...rows, rows[0]],
+    rows => [{ ...rows[0], missing: `${ROOT}/paymentFees/${orderId(900)}` }],
+    rows => [{ ...rows[0], found: fee(1).document }],
+    () => [{ found: fee(1, { eventId: 'another-event' }).document }],
+    () => [{ error: { message: 'private-error' } }],
+  ];
+  for (const mutate of mutations) {
+    const f = fixture([payment(1)], [], [], mutate);
+    await assert.rejects(f.store.summary(), /billing-summary-unavailable/);
+  }
+});
+
+test('the administrative summary works without collection-list permission on the payments service account', async () => {
+  const calls = [];
+  const api = createBillingSummaryApi({
+    verify: async () => ADMIN,
+    tokenProvider: async () => 'mock-service-token',
+    storeFactory: options => createBillingSummaryStore({ ...options, fetchImpl: async (url, init) => {
+      const body = JSON.parse(init.body);
+      calls.push({ url, authorization: init.headers.Authorization, body });
+      if (url.endsWith(':runQuery')) {
+        if (init.headers.Authorization !== 'Bearer test-session') return Response.json({ error: 'PERMISSION_DENIED' }, { status: 403 });
+        const collection = body.structuredQuery.from[0].collectionId;
+        assert.ok(['payments', 'companyPurchases'].includes(collection));
+        return Response.json(collection === 'payments' ? [payment(1)] : []);
+      }
+      assert.equal(url, `https://firestore.googleapis.com/v1/${ROOT}:batchGet`);
+      assert.equal(init.headers.Authorization, 'Bearer mock-service-token');
+      assert.deepEqual(body.documents, [`${ROOT}/paymentFees/${orderId(1)}`]);
+      return Response.json([{ found: fee(1).document }]);
+    } }),
+    now: () => DATE,
+  });
+  const response = await api(request(), ENV);
+  assert.equal(response.status, 200);
+  const summary = await response.json();
+  assert.equal(summary.totals.receivedCents, 5500);
+  assert.equal(summary.totals.reportedFeeMicros, 430000);
+  assert.equal(calls.length, 3);
+  assert.doesNotMatch(JSON.stringify(summary), /private-|test-session|mock-service-token/);
 });
