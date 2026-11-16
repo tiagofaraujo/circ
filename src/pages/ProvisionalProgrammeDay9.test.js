@@ -120,8 +120,9 @@ test.each([
     ['Célia Antunes', 'Bruno Esteves'],
   ]);
   expectSpeakerWithoutBiography(mriTalks[0], 'Rui Pedro Faria Pais', 'RP');
-  const dianaCarvalho = expectSpeakerWithoutBiography(mriTalks[1], 'Diana Carvalho', 'DC');
-  expect(dianaCarvalho.querySelector('img')).toBeNull();
+  const dianaCarvalho = within(mriTalks[1]).getByRole('link', { name: `Diana Carvalho — ${biographyLabel}` });
+  expect(dianaCarvalho).toHaveAttribute('href', '/oradores/diana-carvalho');
+  expect(dianaCarvalho.querySelector('img')).toHaveAttribute('src', '/speakers/diana-carvalho-2027.jpg');
   expectSpeakerWithoutBiography(mriTalks[2], 'Célia Antunes', 'CA');
   const ctPanel = rows(container, '09')[9];
   const kirsten = within(ctPanel).getByText('Kirsten Burke').closest('.schedule-speaker');

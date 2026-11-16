@@ -51,12 +51,21 @@ test.each(speakersWithoutBiography)('handles a direct biography URL for %s', (na
   expect(screen.queryByRole('heading', { name })).not.toBeInTheDocument();
 });
 
-test.each(['diana-santos', 'diana-carvalho'])('opens Diana Santos’s preserved portrait and biography from %s', slug => {
-  renderDirectory(`/oradores/${slug}`);
+test('opens Diana Santos’s preserved portrait and biography', () => {
+  renderDirectory('/oradores/diana-santos');
   expect(screen.getByRole('heading', { name: 'Diana Santos', level: 1 })).toBeVisible();
   expect(screen.getByRole('img', { name: 'Diana Santos' })).toHaveAttribute('src', '/speakers/diana-carvalho.jpg');
   expect(screen.getByText(/^Diana Santos é técnica de radiologia\./)).toBeVisible();
   expect(screen.queryByText(/Diana Carvalho/)).not.toBeInTheDocument();
+});
+
+test('opens Diana Carvalho’s own portrait and MRI biography without redirecting to Diana Santos', () => {
+  renderDirectory('/oradores/diana-carvalho');
+  expect(screen.getByRole('heading', { name: 'Diana Carvalho', level: 1 })).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Diana Carvalho' })).toHaveAttribute('src', '/speakers/diana-carvalho-2027.jpg');
+  expect(screen.getByText(/professora adjunta convidada na Escola Superior de Tecnologia da Saúde/)).toBeVisible();
+  expect(screen.getByText(/ressonância magnética de adultos e pediátrica\.$/)).toBeVisible();
+  expect(screen.queryByText(/Diana Santos/)).not.toBeInTheDocument();
 });
 
 test.each(['rita-baptista', 'rita-batista'])('opens Rita Baptista’s supplied portrait and biography from %s', slug => {

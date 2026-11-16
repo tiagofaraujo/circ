@@ -59,7 +59,7 @@ const days = [
     ['12:15–14:00', 'Brunch', 'Brunch'],
     ['14:00–15:00', 'Painel de RM da ULS Coimbra', 'ULS Coimbra MRI panel', { moderators: ['sofia-brandao'], children: [
       ['14:00', 'RM Fetal', 'Fetal MRI', { speakers: [{ id: 'rui-pedro-faria-pais' }, { id: 'paula-marques' }] }],
-      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', { speakers: [{ id: 'amelia-estevao' }, { name: 'Diana Carvalho' }] }],
+      ['14:20', 'Biópsia mamária guiada por RM', 'MRI-guided breast biopsy', { speakers: [{ id: 'amelia-estevao' }, { id: 'diana-carvalho' }] }],
       ['14:40', 'RM Pélvica', 'Pelvic MRI', { speakers: [{ id: 'celia-antunes' }, { id: 'bruno-esteves' }] }],
     ] }],
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', { moderators: ['mario-monteiro', 'ana-isabel-machado'], children: [
