@@ -8,6 +8,7 @@ const ADMIN = 'circ.chuc@gmail.com';
 const PAGE_SIZE = 500;
 const MAX_PAGES = 40;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+const FEE_BATCH_SIZE = 100;
 const METHODS = ['multibanco', 'mbway', 'stripe_card', 'bank_transfer', 'company_voucher_purchase', 'other'];
 const PAYMENT_FIELDS = [
   'eventId', 'environment', 'isTest', 'testMode', 'currency', 'provider', 'method', 'status',
@@ -111,24 +112,18 @@ function decodeFields(fields) {
   }));
 }
 
-/** Read-only event ledger using field masks. The response contains only aggregate figures. */
-export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch } = {}) {
+/** Administrative queries use the verified Firebase session and existing rules.
+ * The service identity only gets specific private fee documents; it never lists collections. */
+export function createBillingSummaryStore({ projectId, token, feeTokenProvider, fetchImpl = fetch } = {}) {
   if (!/^[a-z0-9-]+$/.test(projectId || '') || typeof token !== 'string' || !token) unavailable();
   const root = `projects/${projectId}/databases/(default)/documents`;
-  const endpoint = `https://firestore.googleapis.com/v1/${root}:runQuery`;
+  const endpoint = `https://firestore.googleapis.com/v1/${root}`;
 
-  async function readPage(collection, fields, after) {
-    const response = await fetchImpl(endpoint, {
+  async function read(operation, body, bearer = token) {
+    const response = await fetchImpl(`${endpoint}:${operation}`, {
       method: 'POST', redirect: 'manual', cache: 'no-store',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ structuredQuery: {
-        from: [{ collectionId: collection }],
-        where: { fieldFilter: { field: { fieldPath: 'eventId' }, op: 'EQUAL', value: { stringValue: EVENT } } },
-        select: { fields: fields.map(fieldPath => ({ fieldPath })) },
-        orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
-        ...(after ? { startAt: { values: [{ referenceValue: after }], before: false } } : {}),
-        limit: PAGE_SIZE,
-      } }),
+      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok || !response.body) {
@@ -150,17 +145,30 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
     }
     const rows = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     if (!Array.isArray(rows) || rows.some(row => !row || row.error)) unavailable();
+    return rows;
+  }
+
+  async function readPage(collection, fields, after) {
+    const rows = await read('runQuery', { structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: { fieldFilter: { field: { fieldPath: 'eventId' }, op: 'EQUAL', value: { stringValue: EVENT } } },
+      select: { fields: fields.map(fieldPath => ({ fieldPath })) },
+      orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
+      ...(after ? { startAt: { values: [{ referenceValue: after }], before: false } } : {}),
+      limit: PAGE_SIZE,
+    } });
     const documents = rows.filter(row => row.document).map(row => row.document);
     if (documents.length > PAGE_SIZE) unavailable();
     return documents;
   }
 
-  async function forEachEntry(collection, fields, consume) {
+  async function forEachPage(collection, fields, consume) {
     const prefix = `${root}/${collection}/`;
     const seen = new Set();
     let after = null;
     for (let page = 0; page < MAX_PAGES; page++) {
       const documents = await readPage(collection, fields, after);
+      const entries = [];
       for (const { name, fields: encoded } of documents) {
         if (typeof name !== 'string' || !name.startsWith(prefix) || seen.has(name)) unavailable();
         const id = name.slice(prefix.length);
@@ -168,8 +176,9 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
         seen.add(name);
         const entry = decodeFields(encoded);
         if (entry.eventId !== EVENT) unavailable();
-        if (entry.isTest !== true && entry.testMode !== true) consume(entry, id);
+        if (entry.isTest !== true && entry.testMode !== true) entries.push({ entry, id });
       }
+      await consume(entries);
       if (documents.length < PAGE_SIZE) return;
       after = documents.at(-1).name;
     }
@@ -177,11 +186,37 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
     unavailable();
   }
 
+  let feeToken;
+  async function readFees(entries) {
+    const ids = entries.filter(({ entry, id }) => LIVE_ORDER_UUID.test(id)
+      && ['mbway', 'multibanco'].includes(methodOf(entry)) && paymentMetrics(entry)?.receivedCount === 1).map(({ id }) => id);
+    const fees = new Map();
+    if (!ids.length) return fees;
+    feeToken ||= typeof feeTokenProvider === 'function' ? await feeTokenProvider() : null;
+    if (typeof feeToken !== 'string' || !feeToken) unavailable();
+    for (let offset = 0; offset < ids.length; offset += FEE_BATCH_SIZE) {
+      const names = ids.slice(offset, offset + FEE_BATCH_SIZE).map(id => `${root}/paymentFees/${id}`);
+      const rows = await read('batchGet', { documents: names, mask: { fieldPaths: FEE_FIELDS } }, feeToken);
+      const accounted = new Set();
+      for (const row of rows) {
+        const name = row.found?.name || row.missing;
+        if (!names.includes(name) || accounted.has(name) || Boolean(row.found) === Boolean(row.missing)) unavailable();
+        accounted.add(name);
+        if (!row.found) continue;
+        const fee = decodeFields(row.found.fields);
+        if (fee.eventId !== EVENT) unavailable();
+        if (validFee(fee)) fees.set(name.slice(`${root}/paymentFees/`.length), fee);
+      }
+      // Explicitly absent evidence is unknown commission, not a zero fee.
+      if (accounted.size !== names.length) unavailable();
+    }
+    return fees;
+  }
+
   return {
     async summary() {
       const totals = emptyMetrics();
       const grouped = new Map();
-      const fees = new Map();
       function record(method, values) {
         if (!values) return;
         const methodMetrics = grouped.get(method) || emptyMetrics();
@@ -189,11 +224,13 @@ export function createBillingSummaryStore({ projectId, token, fetchImpl = fetch 
         addMetrics(totals, values);
         grouped.set(method, methodMetrics);
       }
-      await forEachEntry('paymentFees', FEE_FIELDS, (fee, id) => {
-        if (LIVE_ORDER_UUID.test(id) && validFee(fee)) fees.set(id, fee);
+      await forEachPage('payments', PAYMENT_FIELDS, async entries => {
+        const fees = await readFees(entries);
+        for (const { entry, id } of entries) record(methodOf(entry), paymentMetrics(entry, fees.get(id)));
       });
-      await forEachEntry('payments', PAYMENT_FIELDS, (payment, id) => record(methodOf(payment), paymentMetrics(payment, fees.get(id))));
-      await forEachEntry('companyPurchases', COMPANY_FIELDS, purchase => record('company_voucher_purchase', companyMetrics(purchase)));
+      await forEachPage('companyPurchases', COMPANY_FIELDS, entries => {
+        for (const { entry } of entries) record('company_voucher_purchase', companyMetrics(entry));
+      });
       return { totals, methods: METHODS.filter(method => grouped.has(method)).map(method => ({ method, ...grouped.get(method) })) };
     },
   };
@@ -215,8 +252,7 @@ export function createBillingSummaryApi({ verify, tokenProvider = createPayments
     catch { return reply({ error: 'invalid-session' }, 401); }
     if (claims?.email_verified !== true || claims.email !== ADMIN) return reply({ error: 'admin-required' }, 403);
     try {
-      const serviceToken = await tokenProvider(env);
-      const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token: serviceToken });
+      const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token, feeTokenProvider: () => tokenProvider(env) });
       const { totals, methods } = await store.summary();
       return reply({ currency: 'EUR', generatedAt: now(), totals, methods });
     } catch { return reply({ error: 'billing-summary-unavailable' }, 503); }
