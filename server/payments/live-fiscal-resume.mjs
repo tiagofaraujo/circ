@@ -1,3 +1,4 @@
+import { hasRegistrationManagementAccess } from '../../src/auth/registrationPermissions.js';
 import { randomUUID } from 'node:crypto';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { createCheckoutLiveStore, readLivePaymentById, LIVE_ORDER_UUID } from './checkout-live-store.mjs';
@@ -49,7 +50,7 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
     if (!token) return reply({ error: 'sign-in-required' }, 401);
     let claims;
     try { claims = await verify(token, env.FIREBASE_PROJECT_ID); } catch { return reply({ error: 'invalid-session' }, 401); }
-    if (claims?.email_verified !== true || claims?.email !== 'circ.chuc@gmail.com') return reply({ error: 'admin-required' }, 403);
+    if (!hasRegistrationManagementAccess(claims?.email, claims?.email_verified)) return reply({ error: 'admin-required' }, 403);
     const id = match[1];
     if (!LIVE_ORDER_UUID.test(id)) return reply({ error: 'invalid-request' }, 400);
     let data;

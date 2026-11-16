@@ -3,6 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const permissionFields = {
+  owner: 'isAdmin',
+  billing: 'canManageBilling',
   registrations: 'canManageRegistrations',
   registrationReports: 'canViewRegistrations',
   submissions: 'canManageSubmissions',
@@ -35,7 +37,7 @@ function AdminRoute({ children, permission = 'registrations' }) {
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search + location.hash }} />;
   }
 
-  const permissionField = permissionFields[permission] || permissionFields.registrations;
+  const permissionField = permissionFields[permission] || permissionFields.owner;
   if (!access?.[permissionField]) {
     return <Navigate to={firstAllowedPath(access)} replace state={{ adminDenied: true }} />;
   }

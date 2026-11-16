@@ -167,3 +167,16 @@ test('a new MB WAY job without any started claim is recoverable, while an orphan
   orphan.state().job.issuanceAttemptId=ID;orphan.state().payment.issuanceAttemptId=ID;
   assert.equal((await orphan.call()).status,409);assert.equal(orphan.state().issueCalls,0);
 });
+
+test('delegated registration manager can resume an eligible participant invoice with the same duplicate guard', async () => {
+  const f = fixture({ ownerId: 'participant' });
+  f.setClaims({ sub: 'paulo', email: 'paulojaneiro77@gmail.com', email_verified: true });
+  assert.equal((await f.call()).status, 200);
+  assert.equal(f.state().issueCalls, 1);
+  assert.equal((await f.call()).status, 409);
+  assert.equal(f.state().issueCalls, 1);
+  const denied = fixture();
+  denied.setClaims({ sub: 'paulo', email: 'paulojaneiro77@gmail.com', email_verified: false });
+  assert.equal((await denied.call()).status, 403);
+  assert.equal(denied.state().issueCalls, 0);
+});

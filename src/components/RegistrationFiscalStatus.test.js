@@ -162,3 +162,11 @@ test('a Stripe instrument that remains unresolved never claims a receipt was iss
  expect(screen.queryByText('Fatura-recibo emitida')).not.toBeInTheDocument();
  expect(fetch.mock.calls.filter(([,options])=>options.method==='POST')).toHaveLength(1);
 });
+
+test('scoped billing management exposes the participant fiscal actions without global admin', async () => {
+  useAuth.mockReturnValue({ isAdmin: false, access: { canManageBilling: true }, user: { uid: 'paulo', getIdToken: async () => 'manager-token' } });
+  fetch.mockResolvedValueOnce(response(pending));
+  show();
+  fireEvent.click(screen.getByRole('button', { name: 'Consultar faturação' }));
+  expect(await screen.findByRole('button', { name: 'Retomar faturação autorizada' })).toBeInTheDocument();
+});

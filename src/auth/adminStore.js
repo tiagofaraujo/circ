@@ -40,7 +40,7 @@ function registrationTimestamp(value) {
   return Number.isFinite(result) ? result : 0;
 }
 
-/** Owner-admin only, matching the existing registrations management permission. */
+/** Available to verified registration managers, enforced by Firestore rules. */
 export function subscribeToRegistrationPayments(onData, onError) {
   let db;
   try {

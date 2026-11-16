@@ -83,15 +83,15 @@ test('missing configuration or upstream failures produce only a generic unavaila
   assert.deepEqual(await response.json(), { error: 'registration-report-unavailable' });
 });
 
-test('Worker routes expose only the read endpoint and preserve denial of administrative payment operations', async () => {
+test('Worker report stays read-only while the delegated manager can read billing diagnostics', async () => {
   const claims = { sub: 'paulo', email: 'paulojaneiro77@gmail.com', email_verified: true };
   const worker = createWorker(async () => claims);
   assert.equal((await worker.fetch(request({ method: 'POST' }), env)).status, 405);
   const diagnostics = await worker.fetch(new Request('https://circ.test/api/checkout/live/diagnostics', {
     headers: { Authorization: 'Bearer verified-session' },
   }), env);
-  assert.equal(diagnostics.status, 403);
-  assert.deepEqual(await diagnostics.json(), { error: 'admin-required' });
+  assert.equal(diagnostics.status, 200);
+  assert.equal((await diagnostics.json()).environment, 'production');
 });
 
 function encode(value) {

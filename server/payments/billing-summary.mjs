@@ -1,10 +1,10 @@
+import { hasRegistrationManagementAccess } from '../../src/auth/registrationPermissions.js';
 import { Buffer } from 'node:buffer';
 import { createPaymentsServiceTokenProvider } from './payments-service-token.mjs';
 import { LIVE_ORDER_UUID } from './checkout-live-store.mjs';
 
 const PATH = '/api/admin/billing/summary';
 const EVENT = 'circ-2027';
-const ADMIN = 'circ.chuc@gmail.com';
 const PAGE_SIZE = 500;
 const MAX_PAGES = 40;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -250,7 +250,7 @@ export function createBillingSummaryApi({ verify, tokenProvider = createPayments
     let claims;
     try { claims = await verify(token, env.FIREBASE_PROJECT_ID); }
     catch { return reply({ error: 'invalid-session' }, 401); }
-    if (claims?.email_verified !== true || claims.email !== ADMIN) return reply({ error: 'admin-required' }, 403);
+    if (!hasRegistrationManagementAccess(claims?.email, claims?.email_verified)) return reply({ error: 'admin-required' }, 403);
     try {
       const store = storeFactory({ projectId: env.FIREBASE_PROJECT_ID, token, feeTokenProvider: () => tokenProvider(env) });
       const { totals, methods } = await store.summary();

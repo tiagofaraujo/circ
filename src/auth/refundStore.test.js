@@ -55,3 +55,12 @@ test('source must be one production order and fresh reads must still agree befor
   await expect(recordRegistrationRefund(user,registration,input)).rejects.toThrow('state-changed');
   expect(f.changes).toEqual([]);
 });
+
+test('the delegated manager records a completed refund under their own audit identity', async () => {
+  const f = setup();
+  const manager = { uid: 'paulo', email: 'paulojaneiro77@gmail.com', emailVerified: true };
+  await recordRegistrationRefund(manager, registration, input);
+  expect(f.changes).toHaveLength(3);
+  expect(f.changes[2].values.actor).toEqual({ uid: 'paulo', email: manager.email });
+  await expect(recordRegistrationRefund({ ...manager, emailVerified: false }, registration, input)).rejects.toThrow('admin-required');
+});

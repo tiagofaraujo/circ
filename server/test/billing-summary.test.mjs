@@ -15,7 +15,7 @@ const request = (options = {}) => new Request(URL, {
   headers: { Authorization: 'Bearer test-session', ...options.headers },
 });
 
-test('only the exact verified organiser may read the aggregated report', async () => {
+test('only exact verified registration managers may read the aggregated report', async () => {
   let claims = ADMIN;
   let serviceReads = 0;
   const api = createBillingSummaryApi({
@@ -34,14 +34,16 @@ test('only the exact verified organiser may read the aggregated report', async (
   });
   for (const disallowed of [
     { ...ADMIN, email_verified: false },
-    { ...ADMIN, email: 'paulojaneiro77@gmail.com', roles: { registrations: true } },
+    { ...ADMIN, email: 'other@example.test', roles: { registrations: true } },
+    { ...ADMIN, email: 'paulojaneiro77@gmail.com', email_verified: false },
+    { ...ADMIN, email: 'paulojaneiro77+other@gmail.com' },
     { ...ADMIN, email: 'circ.chuc+alias@gmail.com' },
-    { ...ADMIN, email: 'CIRC.CHUC@GMAIL.COM' },
+    { ...ADMIN, email: 'paulojaneiro77@gmail.com.attacker.test' },
   ]) {
     claims = disallowed;
     assert.equal((await api(request(), ENV)).status, 403);
   }
-  claims = ADMIN;
+  claims = { sub: 'paulo', email: 'paulojaneiro77@gmail.com', email_verified: true };
   assert.equal((await api(request({ headers: { Authorization: '' } }), ENV)).status, 401);
   assert.equal((await api(request({ headers: { Origin: 'https://elsewhere.test' } }), ENV)).status, 403);
   assert.equal((await api(request({ method: 'POST' }), ENV)).status, 405);

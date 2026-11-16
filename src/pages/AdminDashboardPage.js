@@ -216,7 +216,7 @@ export default function AdminDashboardPage() {
           <p>Participação, vagas e perfis dos congressistas num só lugar.</p>
         </div>
         <div className="admin-session">
-          <span>{canManage ? 'Administrador verificado' : 'Consulta autorizada'}</span>
+          <span>{canManage ? 'Gestão autorizada' : 'Consulta autorizada'}</span>
           <strong>{user?.email}</strong>
           <Link className="admin-test-link" to="/conta/inscricoes">Consultar inscrições →</Link>
           <button type="button" onClick={handleSignOut}>Terminar sessão</button>

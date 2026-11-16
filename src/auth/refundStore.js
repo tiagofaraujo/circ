@@ -1,4 +1,5 @@
-import { getFirebaseFirestore, isAdminUser } from './firebaseClient';
+import { getFirebaseFirestore } from './firebaseClient';
+import { hasRegistrationManagementAccess } from './registrationPermissions';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const fail = code => { throw new Error(`refund/${code}`); };
@@ -25,7 +26,7 @@ export function lisbonToday() {
 // Records an already completed full refund. Never calls a bank, payment provider
 // or fiscal API. Both statuses and the audit entry change in one transaction.
 export async function recordRegistrationRefund(user, registration, input) {
-  if (!isAdminUser(user)) fail('admin-required');
+  if (!hasRegistrationManagementAccess(user?.email, user?.emailVerified)) fail('admin-required');
   if (!canRecordRegistrationRefund(registration)) fail('registration-not-eligible');
   const reason = typeof input?.reason === 'string' ? input.reason.trim() : '';
   const reference = typeof input?.reference === 'string' ? input.reference.trim() : '';

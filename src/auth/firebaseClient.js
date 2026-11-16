@@ -1,3 +1,5 @@
+import { hasRegistrationManagementAccess } from './registrationPermissions';
+
 const fallbackFirebaseConfig = {
   apiKey: 'AIzaSyB_SQRRtWdODHk0Zll_EmK5NiWmOwUrHd8',
   authDomain: 'circ-coimbra.firebaseapp.com',
@@ -36,7 +38,6 @@ export const submissionTesterEmails = [
   'afsilvacarvalho@gmail.com',
 ];
 export const secretariatEmails = ['tiago_araujo@hotmail.com'];
-export const registrationViewerEmails = ['paulojaneiro77@gmail.com'];
 
 export function isAdminUser(user) {
   return Boolean(
@@ -68,13 +69,15 @@ export function getUserAccess(user, storedRoles = {}, scientificReviewer = false
       || (verified && submissionTesterEmails.includes(email))
     )
   );
-  const canManageRegistrations = isAdmin;
-  const canViewRegistrations = isAdmin || (verified && registrationViewerEmails.includes(email));
+  const canManageRegistrations = isAdmin || hasRegistrationManagementAccess(email, user?.emailVerified);
+  const canManageBilling = canManageRegistrations;
+  const canViewRegistrations = canManageRegistrations;
   const canReviewSubmissions = verified && scientificReviewer === true;
 
   return {
     isAdmin,
     canManageRegistrations,
+    canManageBilling,
     canViewRegistrations,
     canManageSubmissions,
     canReviewSubmissions,

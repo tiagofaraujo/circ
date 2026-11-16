@@ -32,7 +32,7 @@ async function show({ home = false, path = '/conta', shell = true } = {}) {
   return result;
 }
 beforeEach(() => {
-  jest.clearAllMocks(); mockLanguage = 'pt'; setAccess({ canManageRegistrations: true });
+  jest.clearAllMocks(); mockLanguage = 'pt'; setAccess({ canManageRegistrations: true, canManageBilling: true });
   loadParticipantProfileResult.mockResolvedValue({ source: 'firestore', profile: { name: 'Organização' }, completion: { percentage: 100 } });
   subscribeToUserSubmissions.mockImplementation((_uid, next) => { next([]); return jest.fn(); });
 });
@@ -83,20 +83,20 @@ for (const [role, access] of [
 });
 
 test('signed-out navigation does not expose management links even with stale access data', async () => {
-  useAuth.mockReturnValue({ user: null, access: { canManageRegistrations: true }, signOut: jest.fn() });
+  useAuth.mockReturnValue({ user: null, access: { canManageRegistrations: true, canManageBilling: true }, signOut: jest.fn() });
   await show({ path: '/login' });
   expect(screen.queryByRole('navigation', { name: 'Módulos de gestão' })).not.toBeInTheDocument();
   expect(document.querySelector(`a[href="${target}"]`)).toBeNull();
 });
 
 test('the administrator has a direct production transfer link', async () => {
-  useAuth.mockReturnValue({ user, isAdmin: true, access: { canManageRegistrations: true }, signOut: jest.fn() });
+  useAuth.mockReturnValue({ user, isAdmin: true, access: { canManageRegistrations: true, canManageBilling: true }, signOut: jest.fn() });
   await show();
   expect(screen.getByRole('link', { name: 'Transferências' })).toHaveAttribute('href', '/admin/transferencias');
 });
 
 test('financial access alone does not expose the administrator transfer action', async () => {
-  useAuth.mockReturnValue({ user: { ...user, email: 'staff@example.org' }, isAdmin: false, access: { canManageRegistrations: true }, signOut: jest.fn() });
+  useAuth.mockReturnValue({ user: { ...user, email: 'staff@example.org' }, isAdmin: false, access: { canManageRegistrations: true, canManageBilling: true }, signOut: jest.fn() });
   await show();
   expect(screen.queryByRole('link', { name: 'Transferências' })).not.toBeInTheDocument();
 });

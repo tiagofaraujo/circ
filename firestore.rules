@@ -20,6 +20,12 @@ service cloud.firestore {
         && request.auth.token.email == 'circ.chuc@gmail.com';
     }
 
+    // Scoped management of registrations and billing; never a global admin role.
+    function canManageRegistrations() {
+      return hasVerifiedEmail()
+        && request.auth.token.email.lower() in ['circ.chuc@gmail.com', 'paulojaneiro77@gmail.com'];
+    }
+
     function hasStoredRole(role) {
       return hasVerifiedEmail()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -575,7 +581,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || canManageRegistrations();
       allow create: if isAdmin() || (
         isOwner(userId)
         && !request.resource.data.keys().hasAny(['roles', 'ulsNameKey'])
@@ -611,7 +617,7 @@ service cloud.firestore {
         && d.amountCents == d.quantity * d.unitAmountCents;
     }
     match /companyPurchases/{purchaseId} {
-      allow read: if isAdmin();
+      allow read: if canManageRegistrations();
       allow create: if isAdmin() && validCompanyPurchase(request.resource.data)
         && request.resource.data.status == 'pending' && request.resource.data.codes == []
         && request.resource.data.createdBy == request.auth.uid
@@ -690,16 +696,50 @@ service cloud.firestore {
       );
     }
 
+    // Delegated managers can record the refund exposed by the UI. Admission,
+    // payment confirmation and fiscal document writes remain server-controlled.
+    function ownManagementActor(actor) {
+      return actor.uid == request.auth.uid && actor.email == request.auth.token.email;
+    }
+    function validManagedRefundRegistration() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return before.eventId == 'circ-2027' && before.status == 'confirmed'
+        && before.payment.status == 'paid' && after.status == 'cancelled' && after.payment.status == 'refunded'
+        && after.diff(before).affectedKeys().hasOnly(['status', 'payment', 'updatedAt', 'updatedBy'])
+        && after.payment.diff(before.payment).affectedKeys().hasOnly(['status', 'updatedAt', 'updatedBy'])
+        && after.updatedAt == request.time && after.payment.updatedAt == request.time
+        && ownManagementActor(after.updatedBy) && ownManagementActor(after.payment.updatedBy);
+    }
+    function validManagedRefundPayment() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let refund = after.refund;
+      return before.eventId == 'circ-2027' && before.environment == 'production'
+        && before.status == 'paid' && after.status == 'refunded'
+        && before.method == 'multibanco' && before.provider == 'eupago'
+        && !(before.get('fiscalStatus', '') in ['pending', 'issuing'])
+        && after.diff(before).affectedKeys().hasOnly(['status', 'refund', 'updatedAt'])
+        && after.updatedAt == request.time && refund.recordedAt == request.time
+        && ownManagementActor(refund.recordedBy)
+        && refund.kind == 'full_refund_record' && refund.completedExternally == true
+        && refund.amountCents == before.amountCents && refund.amountCents > 0
+        && refund.currency == 'EUR' && before.currency == 'EUR' && refund.fiscalReviewRequired == true
+        && refund.reason is string && refund.reason.size() >= 5 && refund.reason.size() <= 500
+        && refund.reference is string && refund.reference.size() >= 3 && refund.reference.size() <= 100
+        && refund.date is string && refund.date.matches('^20[0-9]{2}-[0-9]{2}-[0-9]{2}$');
+    }
+
     match /registrations/{registrationId} {
       allow get: if hasVerifiedEmail() && registrationId == "circ-2027-" + request.auth.uid;
-      allow read: if isAdmin()
+      allow read: if canManageRegistrations()
         || canUseSecretariat()
         || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if officialOpeningReached() && isAdmin() && hasValidUlsRegistration(request.resource.data)
         && hasValidStudentRegistration(request.resource.data) && noClientAdmissionCreate(request.resource.data);
       allow delete: if isAdmin();
       allow update: if (
-        isAdmin()
+        (isAdmin() || (canManageRegistrations() && validManagedRefundRegistration()))
         && noClientAdmissionIncrease(request.resource.data)
         && canUpdateStudentRegistration(request.resource.data)
         && (
@@ -714,7 +754,7 @@ service cloud.firestore {
     }
 
     match /registrationOrders/{orderId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if canManageRegistrations() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if officialOpeningReached() && isAdmin() && hasValidUlsOrder(request.resource.data)
         && hasValidStudentOrder(request.resource.data);
       allow update: if isAdmin() && hasValidUlsOrder(request.resource.data)
@@ -723,13 +763,14 @@ service cloud.firestore {
     }
 
     match /payments/{paymentId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if canManageRegistrations() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if officialOpeningReached() && isAdmin();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || (canManageRegistrations() && validManagedRefundPayment());
+      allow delete: if isAdmin();
     }
 
     match /documents/{documentId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if canManageRegistrations() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create, update, delete: if isAdmin();
     }
 
@@ -967,6 +1008,10 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAdmin()
+        || (canManageRegistrations() && hasOwnAuditActor()
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.registrationId is string
+          && request.resource.data.action in ['registration.note.updated', 'payment.refund.recorded'])
         || (canManageSubmissions() && hasOwnAuditActor()
           && request.resource.data.createdAt == request.time
           && request.resource.data.action in ['scientific.reviewer.updated', 'scientific.assignment.updated', 'scientific.decision.updated'])
@@ -997,6 +1042,17 @@ service cloud.firestore {
           ]
         );
       allow update, delete: if false;
+    }
+
+    match /settings/circ-2027-registration-notes {
+      allow read: if canManageRegistrations();
+      allow create, update: if canManageRegistrations()
+        && request.resource.data.keys().hasOnly(['eventId', 'notes', 'updatedAt', 'updatedBy'])
+        && request.resource.data.eventId == 'circ-2027'
+        && request.resource.data.notes is map
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy.uid == request.auth.uid
+        && request.resource.data.updatedBy.email == request.auth.token.email;
     }
 
     match /settings/{settingId} {

@@ -30,11 +30,11 @@ function readStripe(value) {
 // An explicit diagnostics prop shares the billing page's authenticated read.
 // Without it, this component performs its own read when mounted.
 export default function StripeProductionSetup({ diagnostics }) {
-  const { user, isAdmin } = useAuth();
+  const { user, access, isAdmin } = useAuth();
   const { language } = useLanguage();
   const en = language === 'en';
   const t = (pt, english) => en ? english : pt;
-  const allowed = isAdmin === true && Boolean(user?.uid) && typeof user?.getIdToken === 'function';
+  const allowed = (access?.canManageBilling === true || isAdmin === true) && Boolean(user?.uid) && typeof user?.getIdToken === 'function';
   const session = useRef(null);
   const [stripe, setStripe] = useState(null);
   const [busy, setBusy] = useState(false);
