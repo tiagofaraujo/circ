@@ -83,6 +83,10 @@ test.each([
   expect(ritaSantiago).toHaveTextContent(institution);
   expect(aiTalk).not.toHaveTextContent(/a confirmar|to be confirmed/);
   expect(speakerNames(stereotaxis)).toEqual(['Sandra Rodrigues', 'Francisca Rodrigues', 'Filipa Oliveira']);
+  const francisca = within(stereotaxis).getByRole('link', { name: `Francisca Rodrigues — ${biographyLabel}` });
+  expect(francisca).toHaveAttribute('href', '/oradores/francisca-rodrigues');
+  expect(francisca.querySelector('img')).toHaveAttribute('src', '/speakers/francisca-rodrigues.jpg');
+  expect(francisca).toHaveTextContent('ULS Coimbra');
   const filipa = within(stereotaxis).getByRole('link', { name: `Filipa Oliveira — ${biographyLabel}` });
   expect(filipa).toHaveAttribute('href', '/oradores/filipa-oliveira');
   expect(filipa.querySelector('img')).toHaveAttribute('src', '/speakers/filipa-oliveira.jpg');

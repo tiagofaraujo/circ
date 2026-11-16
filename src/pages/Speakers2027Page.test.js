@@ -85,6 +85,15 @@ test('only links homepage speaker names when the biography exists', () => {
   expect(screen.getByRole('link', { name: 'Filipa Oliveira' })).toHaveAttribute('href', '/oradores/filipa-oliveira');
 });
 
+test('opens Francisca Rodrigues’s supplied portrait and biography from the directory', () => {
+  renderDirectory();
+  fireEvent.click(screen.getByRole('link', { name: 'Francisca Rodrigues — biografia' }));
+  expect(screen.getByRole('heading', { name: 'Francisca Rodrigues', level: 1 })).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Francisca Rodrigues' })).toHaveAttribute('src', '/speakers/francisca-rodrigues.jpg');
+  expect(screen.getByText(/Escola Superior de Saúde Dr\. Lopes Dias/)).toBeVisible();
+  expect(screen.getByText(/Curso de Especialização em Gestão e Economia da Saúde/)).toBeVisible();
+});
+
 test.each(['Joana Santos', 'Samuel Oliveira'])('opens the biography of %s and links back to the moderators', name => {
   renderDirectory('/oradores#moderadores');
   const moderators = within(screen.getByRole('region', { name: 'Moderadores' }));
