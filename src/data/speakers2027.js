@@ -206,6 +206,18 @@ export const speakers2027 = [
     ] }
   },
   {
+    id: 'diana-carvalho', name: 'Diana Carvalho', initials: 'DC', image: 'diana-carvalho-2027.jpg',
+    institution: 'ULS Coimbra · ESTeSC',
+    pt: { field: 'Ressonância magnética de adultos e pediátrica', role: 'Técnica de Radiologia · Professora Adjunta Convidada', bio: [
+      'Diana Carvalho é técnica de radiologia na ULS Coimbra e professora adjunta convidada na Escola Superior de Tecnologia da Saúde da Universidade Politécnica de Coimbra.',
+      'É mestre em Radiologia, na especialidade osteoarticular, e tem uma pós-graduação em Ressonância Magnética. Desenvolve a sua atividade clínica e docente com foco na ressonância magnética de adultos e pediátrica.'
+    ] },
+    en: { field: 'Adult and paediatric MRI', role: 'Radiographer · Invited Adjunct Professor', bio: [
+      'Diana Carvalho is a radiographer at ULS Coimbra and an Invited Adjunct Professor at the School of Health Technology of the Polytechnic University of Coimbra.',
+      'She holds a master’s degree in Radiology, specialising in musculoskeletal radiology, and a postgraduate qualification in Magnetic Resonance Imaging. Her clinical practice and teaching focus on adult and paediatric MRI.'
+    ] }
+  },
+  {
     id: 'paula-marques', name: 'Paula Marques', initials: 'PM', image: 'paula-marques.jpg',
     institution: 'ULS Coimbra',
     pt: { field: 'Ressonância magnética', role: 'Técnica de Radiologia · Supervisora de estágio clínico', bio: [
