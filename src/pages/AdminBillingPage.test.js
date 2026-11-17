@@ -5,7 +5,7 @@ import AdminBillingPage from './AdminBillingPage';
 jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ isAdmin: true, user: { uid: 'admin', getIdToken: async () => 'firebase-session' }, access: { canManageRegistrations: true } }) }));
 jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
 const response = (data, ok = true) => ({ ok, json: async () => data });
-const config = { configured: true, connected: true, backgroundAutomation: { sessionStored: true } };
+const config = { configured: true, connected: true, backgroundAutomation: { sessionStored: true, serviceIdentityConfigured: true } };
 const stripe = { ready: true, apiKeyPresent: true, liveKeyValid: true, webhookKeyPresent: true, serviceAccountPresent: true,
   webhookPath: '/api/payments/stripe/live/notifications', apiVersion: '2026-09-30.endive', liveEnabled: true, validationOnly: true };
 const totals = {
@@ -22,7 +22,6 @@ beforeEach(() => {
     if (url.endsWith('/config')) return response(config);
     if (url.endsWith('/diagnostics')) return response({ liveCheckoutEnabled: true, privatePilot: false, channelMatchesExpected: true, checks: { FIREBASE_PROJECT_ID: true }, stripe });
     if (url.endsWith('/resources')) return response({ fetchedAt: '2026-11-01T10:00:00Z', resources: { series: { ok: true, count: 7 } } });
-    if (url.endsWith('/disconnect')) return response({ disconnected: true });
     throw new Error('unexpected route');
   });
 });
@@ -63,12 +62,33 @@ test('the summary shows missing commissions honestly and refreshes independently
     method: 'GET', cache: 'no-store', headers: { Authorization: 'Bearer firebase-session' },
   }));
 });
-test('disconnect ends only the browser connection and leaves the backend status visible', async () => {
+test.each([true, false])('server resources load without browser authorization, stored session: %s', async sessionStored => {
+  const read = fetch.getMockImplementation();
+  fetch.mockImplementation((url, options) => url.endsWith('/config')
+    ? Promise.resolve(response({ ...config, connected: false, backgroundAutomation: { serviceIdentityConfigured: true, sessionStored } }))
+    : read(url, options));
   show(); await screen.findByText('7 registos');
-  fireEvent.click(screen.getByRole('button', { name: 'Terminar ligação neste navegador' }));
-  expect(await screen.findByRole('status')).toHaveTextContent('A sessão de faturação do servidor mantém-se ativa');
-  expect(screen.getByText('sessão segura disponível')).toBeInTheDocument();
-  expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST').map(([url]) => url)).toEqual(['/api/fiscal/toconline/disconnect']);
+  expect(screen.getByText('Ligação automática ativa no servidor')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Ligar TOConline|Renovar autorização|Terminar ligação/ })).not.toBeInTheDocument();
+  expect(fetch.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+});
+test('a stored session is not reported active when the provider read fails', async () => {
+  const read = fetch.getMockImplementation();
+  fetch.mockImplementation((url, options) => url.endsWith('/resources')
+    ? Promise.resolve(response({ error: 'toconline-reauthorize-required' }, false)) : read(url, options));
+  show(); await screen.findByText(/O servidor não conseguiu restabelecer/);
+  expect(screen.queryByText('Ligação automática ativa no servidor')).not.toBeInTheDocument();
+  expect(screen.getByText('Ligação do servidor por confirmar')).toBeInTheDocument();
+});
+test('failed resource refresh removes a previous successful connection status', async () => {
+  show(); await screen.findByText('7 registos');
+  const read = fetch.getMockImplementation();
+  fetch.mockImplementation((url, options) => url.endsWith('/resources')
+    ? Promise.resolve(response({ resources: { series: { ok: false } } })) : read(url, options));
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar configuração' }));
+  await screen.findByText('Ligação do servidor por confirmar');
+  expect(screen.queryByText('7 registos')).not.toBeInTheDocument();
+  expect(screen.queryByText('Ligação automática ativa no servidor')).not.toBeInTheDocument();
 });
 test('a failed query clears its stale status and allows another read', async () => {
   show(); await screen.findByText('7 registos');
@@ -97,7 +117,7 @@ test('Stripe refresh reuses administrator authentication without touching TOConl
   expect(fetch).toHaveBeenCalledWith('/api/checkout/live/diagnostics', expect.objectContaining({
     method: 'GET', headers: { Authorization: 'Bearer firebase-session' },
   }));
-  expect(screen.getByText('Ligação ativa neste navegador')).toBeInTheDocument();
+  expect(screen.getByText('Ligação automática ativa no servidor')).toBeInTheDocument();
 });
 test.each([
   ['STRIPE_LIVE_SECRET_KEY', 'apiKeyPresent'],

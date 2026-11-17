@@ -43,11 +43,11 @@ export function createToconlineServerSessionStore({
       url: `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/settings/${DOC_ID}`,
     };
   }
-  async function call(env, method = 'GET', body) {
+  async function call(env, method = 'GET', body, query = '') {
     const target = await resource(env);
     let response;
     try {
-      response = await fetchImpl(target.url, {
+      response = await fetchImpl(`${target.url}${query}`, {
         method, redirect: 'manual', cache: 'no-store',
         headers: { Authorization: `Bearer ${target.token}`, 'Content-Type': 'application/json' },
         ...(body ? { body: JSON.stringify(body) } : {}),
@@ -55,12 +55,21 @@ export function createToconlineServerSessionStore({
       });
     } catch { throw new Error('payments_storage_unavailable'); }
     if (method === 'GET' && response.status === 404) return null;
+    if ([409, 412].includes(response.status)) throw new Error('toconline_session_conflict');
     if (!response.ok) throw new Error(response.status === 403 ? 'payments_storage_forbidden' : 'payments_storage_unavailable');
     return response.json();
   }
   return {
-    async save(env, session) {
+    async save(env, session, lockId) {
       validate(session);
+      let query = '';
+      if (lockId) {
+        const current = await call(env);
+        if (current?.fields?.refreshLockId?.stringValue !== lockId
+          || !(Number(current.fields.refreshLockUntil?.integerValue) > Date.parse(now()))
+          || !current.updateTime) throw new Error('toconline_session_conflict');
+        query = `?currentDocument.updateTime=${encodeURIComponent(current.updateTime)}`;
+      }
       const payload = encrypt(session, env.TOCONLINE_SESSION_KEY);
       const document = await call(env, 'PATCH', { fields: {
         kind: { stringValue: 'toconline-server-session' },
@@ -68,7 +77,7 @@ export function createToconlineServerSessionStore({
         payload: { stringValue: payload },
         refreshExpiresAt: { integerValue: String(Math.trunc(session.refreshExpiresAt)) },
         updatedAt: { timestampValue: now() },
-      } });
+      } }, query);
       if (!document?.updateTime) throw new Error('payments_storage_unavailable');
       return { updateTime: document.updateTime };
     },
@@ -77,9 +86,38 @@ export function createToconlineServerSessionStore({
       if (!document) return null;
       const fields = document.fields || {};
       if (fields.kind?.stringValue !== 'toconline-server-session'
-        || fields.environment?.stringValue !== 'production'
-        || typeof fields.payload?.stringValue !== 'string') throw new Error('payments_storage_unavailable');
+        || fields.environment?.stringValue !== 'production') throw new Error('payments_storage_unavailable');
+      if (!fields.payload) return null; // A first authorization may currently hold the refresh lock.
+      if (typeof fields.payload.stringValue !== 'string') throw new Error('payments_storage_unavailable');
       return { session: validate(decrypt(fields.payload.stringValue, env.TOCONLINE_SESSION_KEY)), updateTime: document.updateTime || null };
+    },
+    // Firestore compare-and-set coordinates OAuth rotation across Worker instances.
+    async acquireRefreshLock(env) {
+      const current = await call(env);
+      const clock = Date.parse(now());
+      if (Number(current?.fields?.refreshLockUntil?.integerValue) > clock) return null;
+      if (current && (!current.updateTime || current.fields?.kind?.stringValue !== 'toconline-server-session')) {
+        throw new Error('payments_storage_unavailable');
+      }
+      const lockId = randomBytes(24).toString('hex');
+      const fields = {
+        refreshLockId: { stringValue: lockId },
+        refreshLockUntil: { integerValue: String(clock + 60_000) },
+      };
+      const query = current
+        ? `?updateMask.fieldPaths=refreshLockId&updateMask.fieldPaths=refreshLockUntil&currentDocument.updateTime=${encodeURIComponent(current.updateTime)}`
+        : '?currentDocument.exists=false';
+      if (!current) Object.assign(fields, { kind: { stringValue: 'toconline-server-session' }, environment: { stringValue: 'production' } });
+      try { await call(env, 'PATCH', { fields }, query); }
+      catch (error) { if (error.message === 'toconline_session_conflict') return null; throw error; }
+      return lockId;
+    },
+    async releaseRefreshLock(env, lockId) {
+      const current = await call(env);
+      if (current?.fields?.refreshLockId?.stringValue !== lockId) return;
+      const query = `?updateMask.fieldPaths=refreshLockId&updateMask.fieldPaths=refreshLockUntil&currentDocument.updateTime=${encodeURIComponent(current.updateTime)}`;
+      try { await call(env, 'PATCH', { fields: {} }, query); }
+      catch (error) { if (error.message !== 'toconline_session_conflict') throw error; }
     },
     async clear(env) {
       const target = await resource(env);

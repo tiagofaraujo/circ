@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readBillingBankAccount } from './toconline-billing-bank-readonly.mjs';
 import { createToconlineServerSessionStore } from './toconline-server-session-store.mjs';
+import { createToconlineLiveClient } from './toconline-live-client.mjs';
 
 const PREFIX = '/api/fiscal/toconline';
 const STATE_COOKIE = '__Host-circ_toc_state';
@@ -440,6 +441,7 @@ function callbackFailureReason(error, stage) {
 }
 
 export function createToconlineReadonlyApi({ verify, now = () => Date.now(), serverSessionStore = createToconlineServerSessionStore() }) {
+  const serverClient = createToconlineLiveClient({ sessionStore: serverSessionStore, now });
   return async function handle(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith(PREFIX)) return null;
@@ -542,8 +544,11 @@ export function createToconlineReadonlyApi({ verify, now = () => Date.now(), ser
 
       if (url.pathname === `${PREFIX}/resources`) {
         if (request.method !== 'GET') return json({ error: 'method-not-allowed' }, 405);
-        const result = await withToconlineSession(request, env, now(),
-          (apiUrl, accessToken) => readResources({ accessToken }, { apiUrl }), { serverSessionStore });
+        if (!cfg.configured) fail('toconline-not-configured');
+        const result = env.FIREBASE_PAYMENTS_SERVICE_ACCOUNT
+          ? { value: await serverClient.withSession(env, accessToken => readResources({ accessToken }, cfg)) }
+          : await withToconlineSession(request, env, now(),
+            (apiUrl, accessToken) => readResources({ accessToken }, { apiUrl }), { serverSessionStore });
         const headers = result.setCookie ? { 'Set-Cookie': result.setCookie } : {};
         return json({
           provider: 'toconline',

@@ -134,3 +134,33 @@ com um código fixo e não tenta usar o cookie antigo como alternativa. Sem a
 configuração de faturação automática, conserva-se o modo de leitura baseado no
 cookie. As consultas continuam limitadas aos recursos GET existentes; esta
 correção não retoma trabalhos fiscais pendentes nem emite documentos.
+
+## Ligação automática no servidor (17/11/2026)
+
+Esta atualização substitui a dependência do cookie descrita na secção anterior
+para o painel de produção `/admin/faturacao`. A autorização Firebase do gestor
+continua obrigatória; as consultas GET usam agora a sessão cifrada do servidor,
+mesmo sem cookie TOConline ou após as oito horas de uma sessão do navegador.
+O painel consulta a ligação automaticamente e remove os botões de autorização
+e desconexão do navegador. Só apresenta ligação ativa após uma consulta bem-sucedida.
+
+O cliente partilhado pela faturação, consulta bancária e obtenção de PDFs renova
+o access token quando necessário. Se o refresh token expirar ou for recusado,
+repete no servidor o fluxo documentado de autorização (`GET /auth`, seguido de
+`POST /token`). Valida o destino do callback e o state sem seguir o redirect;
+códigos, tokens e segredos nunca chegam ao navegador. A sessão é guardada antes
+de qualquer operação comercial. Um bloqueio temporário com precondições
+Firestore coordena a renovação entre Workers e recupera após interrupções.
+
+Não é necessário cron nem manter um navegador aberto: a próxima operação
+restabelece a sessão, incluindo após uma noite sem atividade. Credenciais
+revogadas, indisponibilidade do fornecedor ou falhas de armazenamento originam
+um erro controlado; não provocam emissão duplicada nem repetição automática de
+um POST fiscal de resultado incerto. Esta alteração não reprocessa faturas
+pendentes e mantém os controlos existentes de emissão. O helper legado de
+ensaios continua a exigir o cookie; os endpoints de ensaio estão retirados em produção.
+
+Validação: testes de renovação, expiração, recuperação sem cookie, redirects
+inválidos, isolamento de segredos, concorrência, persistência e estado do painel.
+A verificação em produção usa apenas consultas de configuração, sem emitir
+pagamentos ou documentos fiscais.
