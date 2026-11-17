@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { randomBytes } from 'node:crypto';
 import { createToconlineServerSessionStore } from './toconline-server-session-store.mjs';
 import { readBillingBankAccount } from './toconline-billing-bank-readonly.mjs';
 
@@ -35,17 +36,62 @@ async function refresh(session, env, fetchImpl, nowMs) {
       signal: AbortSignal.timeout(10000),
     });
   } catch { fail('toconline-oauth-unavailable', 502); }
-  if (!response.ok) fail(response.status === 401 ? 'toconline-reauthorize-required' : 'toconline-oauth-rejected', response.status === 401 ? 401 : 502);
+  if (!response.ok) {
+    let invalidGrant = response.status === 401;
+    if (response.status === 400) {
+      try { invalidGrant = ['invalid_grant', 'invalid_token'].includes((await response.json()).error); } catch { /* No provider details leave the server. */ }
+    }
+    fail(invalidGrant ? 'toconline-reauthorize-required' : 'toconline-oauth-rejected', invalidGrant ? 401 : 502);
+  }
   let data;
   try { data = await response.json(); } catch { fail('toconline-oauth-invalid-response', 502); }
-  if (typeof data.access_token !== 'string' || !data.access_token || !Number.isFinite(Number(data.expires_in))) fail('toconline-oauth-invalid-response', 502);
+  if (typeof data?.access_token !== 'string' || !data.access_token || !Number.isFinite(Number(data.expires_in)) || Number(data.expires_in) <= 0) fail('toconline-oauth-invalid-response', 502);
   return {
     accessToken: data.access_token,
     refreshToken: typeof data.refresh_token === 'string' && data.refresh_token ? data.refresh_token : session.refreshToken,
     expiresAt: nowMs + Number(data.expires_in) * 1000,
-    refreshExpiresAt: session.refreshExpiresAt,
+    refreshExpiresAt: typeof data.refresh_token === 'string' && data.refresh_token && data.refresh_token !== session.refreshToken
+      ? nowMs + 8 * 60 * 60 * 1000 : session.refreshExpiresAt,
     tokenType: data.token_type || 'Bearer',
   };
+}
+
+// TOConline documents an unattended authorization-code exchange. Never follow
+// the callback redirect or forward its code/tokens to a browser or another host.
+async function authorizeServer(env, fetchImpl, nowMs) {
+  const oauth = baseUrl(env.TOCONLINE_OAUTH_URL, 'toconline-oauth-url-invalid');
+  const callback = new URL(baseUrl(env.TOCONLINE_REDIRECT_URL, 'toconline-redirect-url-invalid'));
+  if (callback.pathname !== '/api/fiscal/toconline/callback') fail('toconline-redirect-url-invalid');
+  if (!env.TOCONLINE_OAUTH_CLIENT_ID || !env.TOCONLINE_OAUTH_CLIENT_SECRET) fail('toconline-not-configured');
+  const state = randomBytes(24).toString('base64url');
+  const authUrl = new URL(`${oauth}/auth`);
+  authUrl.search = new URLSearchParams({ client_id: env.TOCONLINE_OAUTH_CLIENT_ID,
+    redirect_uri: callback.toString(), response_type: 'code', scope: 'commercial', state }).toString();
+  let response;
+  try { response = await fetchImpl(authUrl.toString(), { method: 'GET', redirect: 'manual', cache: 'no-store',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000) }); }
+  catch { fail('toconline-oauth-unavailable', 502); }
+  if (response.status !== 302) fail('toconline-reauthorize-required', 401);
+  let location;
+  try { location = new URL(response.headers.get('Location')); } catch { fail('toconline-oauth-invalid-response', 502); }
+  const code = location.searchParams.get('code');
+  if (location.origin !== callback.origin || location.pathname !== callback.pathname || location.hash
+    || location.username || location.password || location.searchParams.get('state') !== state
+    || location.searchParams.getAll('state').length !== 1 || location.searchParams.getAll('code').length !== 1
+    || location.searchParams.has('error') || !code || code.length > 2048) fail('toconline-oauth-invalid-response', 502);
+  try { response = await fetchImpl(`${oauth}/token`, { method: 'POST', redirect: 'manual',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json',
+      Authorization: `Basic ${Buffer.from(`${env.TOCONLINE_OAUTH_CLIENT_ID}:${env.TOCONLINE_OAUTH_CLIENT_SECRET}`, 'utf8').toString('base64')}` },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, scope: 'commercial' }).toString(),
+    signal: AbortSignal.timeout(10000) }); }
+  catch { fail('toconline-oauth-unavailable', 502); }
+  if (!response.ok) fail(response.status === 401 ? 'toconline-reauthorize-required' : 'toconline-oauth-rejected', response.status === 401 ? 401 : 502);
+  let data;
+  try { data = await response.json(); } catch { fail('toconline-oauth-invalid-response', 502); }
+  if (typeof data?.access_token !== 'string' || !data.access_token || typeof data.refresh_token !== 'string' || !data.refresh_token
+    || !Number.isFinite(Number(data.expires_in)) || Number(data.expires_in) <= 0) fail('toconline-oauth-invalid-response', 502);
+  return { accessToken: data.access_token, refreshToken: data.refresh_token, expiresAt: nowMs + Number(data.expires_in) * 1000,
+    refreshExpiresAt: nowMs + 8 * 60 * 60 * 1000, tokenType: data.token_type || 'Bearer' };
 }
 
 export function createToconlineLiveClient({
@@ -53,17 +99,67 @@ export function createToconlineLiveClient({
   fetchImpl = fetch,
   now = () => Date.now(),
 } = {}) {
-  async function activeSession(env) {
-    const saved = await sessionStore.load(env);
-    if (!saved?.session) fail('toconline-background-session-missing', 503);
-    let session = saved.session;
-    if (session.expiresAt <= now() + 90_000) {
-      session = await refresh(session, env, fetchImpl, now());
-      await sessionStore.save(env, session);
+  const usable = (session, rejected) => session?.accessToken && session.expiresAt > now() + 90_000
+    && session.accessToken !== rejected;
+  async function load(env) {
+    try { return (await sessionStore.load(env))?.session || null; }
+    catch { fail('toconline-background-session-unavailable', 503); }
+  }
+  async function activeSession(env, rejectedAccessToken) {
+    let session = await load(env);
+    if (usable(session, rejectedAccessToken)) return session;
+    let lockId;
+    // The production store always provides a distributed lock. Simple injected
+    // stores remain usable by isolated tests and offline adapters.
+    if (sessionStore.acquireRefreshLock) {
+      for (let attempt = 0; attempt < 40; attempt++) {
+        try { lockId = await sessionStore.acquireRefreshLock(env); }
+        catch { fail('toconline-background-session-unavailable', 503); }
+        if (lockId) break;
+        await new Promise(resolve => setTimeout(resolve, 200));
+        session = await load(env);
+        if (usable(session, rejectedAccessToken)) return session;
+      }
+      if (!lockId) fail('toconline-background-session-busy', 503);
     }
-    return session;
+    try {
+      session = await load(env);
+      if (usable(session, rejectedAccessToken)) return session;
+      let renewed;
+      if (session) {
+        try { renewed = await refresh(session, env, fetchImpl, now()); }
+        catch (error) {
+          if (error.code !== 'toconline-reauthorize-required' || !env.TOCONLINE_REDIRECT_URL) throw error;
+          renewed = await authorizeServer(env, fetchImpl, now());
+        }
+      } else {
+        if (!env.TOCONLINE_REDIRECT_URL) fail('toconline-background-session-missing', 503);
+        renewed = await authorizeServer(env, fetchImpl, now());
+      }
+      try { await sessionStore.save(env, renewed, lockId); }
+      catch { fail('toconline-background-session-unavailable', 503); }
+      return renewed;
+    } finally {
+      if (lockId) {
+        try { await sessionStore.releaseRefreshLock(env, lockId); } catch { /* Lock expiry permits recovery without exposing storage details. */ }
+      }
+    }
   }
   return {
+    // The caller owns Firebase authorization and the fixed read-only operation.
+    async withSession(env, operation) {
+      let session = await activeSession(env);
+      try { return await operation(session.accessToken); }
+      catch (error) {
+        if (error?.code !== 'toconline-api-unauthorized') throw error;
+        session = await activeSession(env, session.accessToken);
+        try { return await operation(session.accessToken); }
+        catch (retryError) {
+          if (retryError?.code === 'toconline-api-unauthorized') fail('toconline-reauthorize-required', 401);
+          throw retryError;
+        }
+      }
+    },
     // Resolve the company's billing account through the documented filtered
     // resource. OAuth renewal is the only POST this read-only path can make.
     async resolveBillingBankAccount(env, iban) {
@@ -98,8 +194,7 @@ export function createToconlineLiveClient({
         try { result = await readBillingBankAccount(providerGet, expected); }
         catch (error) {
           if (error?.code !== 'toconline-api-unauthorized') throw error;
-          session = await refresh(session, env, fetchImpl, now());
-          await sessionStore.save(env, session);
+          session = await activeSession(env, session.accessToken);
           try { result = await readBillingBankAccount(providerGet, expected); }
           catch (retryError) {
             if (retryError?.code === 'toconline-api-unauthorized') fail('toconline-reauthorize-required', 401);
@@ -129,8 +224,7 @@ export function createToconlineLiveClient({
       let response;
       try { response = await read(); } catch { fail('toconline-pdf-unavailable', 502); }
       if (response.status === 401) {
-        session = await refresh(session, env, fetchImpl, now());
-        await sessionStore.save(env, session);
+        session = await activeSession(env, session.accessToken);
         try { response = await read(); } catch { fail('toconline-pdf-unavailable', 502); }
       }
       if (!response.ok) fail(`toconline-print-http-${response.status}`, 502);
@@ -216,8 +310,7 @@ export function createToconlineLiveClient({
       }
       if (response.status === 401) {
         // 401 is safe to recover because the provider rejected authorization.
-        const renewed = await refresh(session, env, fetchImpl, now());
-        await sessionStore.save(env, renewed);
+        const renewed = await activeSession(env, session.accessToken);
         try {
           response = await fetchImpl(`${api}/v1/commercial_sales_documents`, {
             method: 'POST', redirect: 'manual',

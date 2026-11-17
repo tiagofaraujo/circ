@@ -28,6 +28,13 @@ function fixture({ serverSessionStore, envOverrides = {} } = {}) {
   globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
     calls.push({ href, method: options.method || 'GET', headers: options.headers, body: options.body || '' });
+    if (href.startsWith('https://oauth.example.test/oauth/auth?')) {
+      assert.equal(options.redirect, 'manual');
+      const auth = new URL(href);
+      const callback = new URL(auth.searchParams.get('redirect_uri'));
+      callback.search = new URLSearchParams({ code: 'auth-code', state: auth.searchParams.get('state') });
+      return new Response(null, { status: 302, headers: { Location: callback.toString() } });
+    }
     if (href === 'https://oauth.example.test/oauth/token') {
       const body = new URLSearchParams(options.body);
       assert.equal(options.method, 'POST');
@@ -293,7 +300,7 @@ test('panel refresh persists rotated credentials for background billing and an o
   assert.equal(first.status, 200);
   assert.equal(shared.getStored().refreshToken, 'refresh-two');
   assert.equal(shared.getStored().accessToken, 'access-two');
-  assert.equal(shared.getStored().refreshExpiresAt, Number.MAX_SAFE_INTEGER);
+  assert.equal(shared.getStored().refreshExpiresAt, f.time() + 8 * 60 * 60 * 1000);
   const oldTab = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
   assert.equal(oldTab.status, 200);
   const calls = f.calls.slice(before);
@@ -310,7 +317,7 @@ test('an unexpired browser adopts credentials refreshed by background billing wi
   const response = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
   assert.equal(response.status, 200);
   assert.ok(f.calls.slice(before).every(call => call.method === 'GET' && call.headers.Authorization === 'Bearer access-two'));
-  assert.ok(response.headers.get('set-cookie'));
+  assert.equal(response.headers.get('set-cookie'), null);
 });
 
 test('shared operation runner also persists a refresh after a rejected access token', async t => {
@@ -327,30 +334,42 @@ test('shared operation runner also persists a refresh after a rejected access to
   assert.equal(shared.getStored().refreshToken, 'refresh-two');
 });
 
-test('background credentials cannot extend an expired browser session or bypass a missing cookie', async t => {
-  const shared = sharedSessionFixture(); const { f } = shared; t.after(f.restore);
+test('production reads survive expired and missing browser cookies while the legacy operation guard remains', async t => {
+  const shared = sharedSessionFixture(); const { f, store, runtimeEnv } = shared; t.after(f.restore);
   const token = await authorizeAndCallback(f);
   shared.setStored({ ...shared.getStored(), expiresAt: f.time() + 86_400_000 });
   f.advance(9 * 60 * 60 * 1000);
+  assert.equal((await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` })).status, 200);
+  assert.equal((await f.call('resources')).status, 200);
+  for (const cookie of ['', `__Host-circ_toc_session=${token}`]) {
+    await assert.rejects(withToconlineSession(new Request('https://circ.local', { headers: { Cookie: cookie } }),
+      runtimeEnv, f.time(), () => assert.fail('legacy operation must remain gated'), { serverSessionStore: store }),
+    error => ['toconline-not-connected', 'toconline-reauthorize-required'].includes(error.code));
+  }
+});
+
+test('production bootstraps the server session without any browser OAuth cookie', async t => {
+  const shared = sharedSessionFixture(); const { f } = shared; t.after(f.restore);
+  const response = await f.call('resources');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.equal(shared.getStored().accessToken, 'access-one');
+  assert.ok(f.calls.filter(call => call.method === 'POST').every(call => call.href.endsWith('/oauth/token')));
+  assert.doesNotMatch(JSON.stringify(await response.json()), /access-one|refresh-one|auth-code|secret-test/);
   const before = f.calls.length;
-  assert.equal((await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` })).status, 401);
-  assert.equal((await f.call('resources')).status, 401);
+  f.setIdentity({ ...claims, email: 'participant@example.test' });
+  assert.equal((await f.call('resources')).status, 403);
   assert.equal(f.calls.length, before);
 });
 
-test('a missing or inaccessible backend session never falls back to refreshing the old browser cookie', async t => {
-  for (const unavailable of [false, true]) {
-    const shared = sharedSessionFixture(); const { f, store } = shared;
-    try {
-      const token = await authorizeAndCallback(f);
-      f.advance(3_700_000);
-      store.load = async () => { if (unavailable) throw new Error('private-storage-detail'); return null; };
-      const before = f.calls.length;
-      const response = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
-      assert.equal(response.status, 503); assert.equal(f.calls.length, before);
-      assert.doesNotMatch(JSON.stringify(await response.json()), /private-storage-detail|access-one|refresh-one/);
-    } finally { f.restore(); }
-  }
+test('inaccessible server storage does not fall back to a browser cookie or new OAuth', async t => {
+  const shared = sharedSessionFixture(); const { f, store } = shared; t.after(f.restore);
+  const token = await authorizeAndCallback(f);
+  store.load = async () => { throw new Error('private-storage-detail'); };
+  const before = f.calls.length;
+  const response = await f.call('resources', { cookie: `__Host-circ_toc_session=${token}` });
+  assert.equal(response.status, 503); assert.equal(f.calls.length, before);
+  assert.doesNotMatch(JSON.stringify(await response.json()), /private-storage-detail|access-one|refresh-one/);
 });
 
 test('failed persistence after rotation prevents commercial reads and keeps private storage errors out of the response', async t => {
