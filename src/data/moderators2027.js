@@ -52,7 +52,28 @@ export const moderators2027 = {
       'At the European Congress of Radiology, she gave an oral presentation of the poster “Quality Criteria in Orthopantomography” in The Voice of EPOS in March 2017. In March 2018, she co-authored the poster “Quality Assessment in Orthopantomography Before and After a Training Programme in a Radiology Department”, presented in the same programme.',
     ] },
   },
-  'samuel-oliveira': { name: 'Samuel Oliveira', institution: 'Everything MRI', speakerId: 'samuel-oliveira' },
+  'samuel-oliveira': {
+    id: 'samuel-oliveira', linkedin: 'https://uk.linkedin.com/in/samueloliveiramri', name: 'Samuel Oliveira', initials: 'SO', image: 'samuel-oliveira.jpg',
+    institution: 'Everything MRI · OMRIA',
+    pt: { field: 'Operações remotas e inovação em RM', role: 'Fundador e CEO da Everything MRI', bio: [
+      'Samuel Oliveira é técnico de radiologia, líder de opinião na área das operações remotas e formador internacional em segurança em RM. Como fundador e CEO da Everything MRI, promove recursos educativos gratuitos, podcasts com especialistas e eventos virtuais gratuitos, reunindo uma comunidade global de profissionais de RM.',
+      'É também Chief Innovation Officer da OMRIA, empresa alemã que disponibiliza operações remotas de RM a hospitais e clínicas em todo o mundo.',
+      'Anteriormente, foi Head of Global Remote Operations Training & Development na Ionic Health, onde liderou iniciativas de teleoperação, incluindo uma parceria exclusiva com a GE Healthcare. Na HCA International UK, exerceu funções de Lead MRI Superintendent e MRSO, desenvolveu um módulo de formação online em segurança em RM reconhecido pela Society of Radiographers e elaborou o quadro de políticas de RM da HCA Healthcare UK.',
+      'É fundador e presidente permanente do London MRI Leads Group, que reúne responsáveis de instituições públicas e privadas para promover a qualidade das práticas de RM em Londres.',
+      'É coautor do artigo “Remote MR Scanning – A Solution for Shortages of Skilled Radiographers”, distinguido com o JMIRS Editor’s Choice Award 2023 e citado no ACR Manual on MR Safety de 2024.',
+      'Com uma pós-graduação em Radiologia Forense, estende a sua atividade à gestão de catástrofes e à imagiologia forense. Antigo jogador semiprofissional de basquetebol, autor publicado e interessado em filosofia e literatura, alia diferentes experiências à sua perspetiva sobre a inovação.'
+    ] },
+    en: { field: 'Remote operations and MRI innovation', role: 'Founder and CEO of Everything MRI', bio: [
+      'Samuel Oliveira is a radiographer, a Key Opinion Leader in remote operations and an international MRI safety educator. As Founder and CEO of Everything MRI, he promotes free educational resources, expert-led podcasts and free virtual events, bringing together a global community of MRI professionals.',
+      'Samuel also serves as Chief Innovation Officer at OMRIA, a German company providing remote MRI operations to hospitals and clinics worldwide.',
+      'Previously, he was Head of Global Remote Operations Training & Development at Ionic Health, leading teleoperation initiatives including an exclusive partnership with GE Healthcare. As Lead MRI Superintendent and MRSO at HCA International UK, he developed an MRI safety e-learning module endorsed by the Society of Radiographers and authored HCA Healthcare UK’s MRI policy framework.',
+      'He is founder and permanent chair of the London MRI Leads Group, bringing together leaders from public and private institutions to advance MRI practice across London.',
+      'He co-authored “Remote MR Scanning – A Solution for Shortages of Skilled Radiographers”, which received the JMIRS Editor’s Choice Award 2023 and was cited in the 2024 ACR Manual on MR Safety.',
+      'With a PgD in Forensic Radiography, his expertise extends to disaster management and forensic imaging. A former semi-professional basketball player, published author and keen student of philosophy and literature, he brings a broad perspective to innovation.'
+    ] }
+  },
+  'julien-greggio': { name: 'Julien Greggio', institution: 'Everything MRI', speakerId: 'julien-greggio' },
+  'ricardo-grunho': { name: 'Ricardo Grunho' },
   'joana-madureira': { name: 'Joana Madureira', institution: 'ATARP', speakerId: 'joana-madureira' },
   'paula-marques': { name: 'Paula Marques', institution: 'ULS Coimbra', speakerId: 'paula-marques' },
 };

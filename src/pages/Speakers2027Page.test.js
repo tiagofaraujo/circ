@@ -30,9 +30,16 @@ test('shows moderators after the invited speakers in the same card grid', () => 
   const cards = within(moderators).getAllByRole('article');
   const speaker = screen.getByRole('heading', { name: 'Fides Schwartz' }).closest('article');
   expect(speaker.compareDocumentPosition(moderators) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(cards).toHaveLength(8);
+  expect(cards).toHaveLength(10);
   expect(cards.every(card => card.classList.contains('guest-card'))).toBe(true);
   expect(within(moderators).getByRole('img', { name: 'Samuel Oliveira' })).toBeInTheDocument();
+  expect(screen.getAllByRole('heading', { name: 'Samuel Oliveira' })).toHaveLength(1);
+  expect(within(moderators).getByRole('img', { name: 'Julien Greggio' })).toBeInTheDocument();
+  expect(screen.getAllByRole('heading', { name: 'Julien Greggio' })).toHaveLength(2);
+  const ricardo = within(moderators).getByRole('heading', { name: 'Ricardo Grunho' }).closest('article');
+  expect(ricardo.querySelector('.guest-initials')).toHaveTextContent('RG');
+  expect(within(ricardo).queryByRole('img')).not.toBeInTheDocument();
+  expect(within(ricardo).queryByRole('link')).not.toBeInTheDocument();
   expect(within(moderators).queryByText('Vitor Silva')).not.toBeInTheDocument();
 });
 
@@ -83,6 +90,7 @@ test('only links homepage speaker names when the biography exists', () => {
     expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
   }
   expect(screen.getByRole('link', { name: 'Filipa Oliveira' })).toHaveAttribute('href', '/oradores/filipa-oliveira');
+  expect(screen.queryByText('Samuel Oliveira', { exact: true })).not.toBeInTheDocument();
 });
 
 test('opens Francisca Rodrigues’s supplied portrait and biography from the directory', () => {
