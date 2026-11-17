@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { completeLiveFiscalJob } from '../payments/live-fiscal-issue.mjs';
+import { completeLiveFiscalJob, canResumeLiveFiscalJob } from '../payments/live-fiscal-issue.mjs';
 
 const ID='11111111-1111-4111-8111-111111111111';
 const externalReference=`CIRC27-${ID.toUpperCase()}`;
@@ -129,3 +129,26 @@ test('an orphan issuing bank claim and an uncertain bank result never receive an
     assert.equal(await f.run(),status);assert.equal(f.state().posts,0);assert.equal(f.state().commits,0);
   }
 });
+
+for (const code of ['toconline-background-session-busy', 'toconline-background-session-unavailable']) {
+  test(`${code} preserves paid orders as recoverable authorization jobs`, async () => {
+    const f = fixture({ claimedProtocol: true, providerError: Object.assign(new Error(code), { code }) });
+    assert.equal(await f.run(), 'pending_authorization');
+    const { payment, job, registration, posts } = f.state();
+    assert.equal(job.errorCode, code);
+    assert.equal(payment.status, 'paid');
+    assert.equal(registration.documentCount, 2);
+    assert.equal(canResumeLiveFiscalJob(payment, job), true);
+    assert.equal(posts, 1);
+    assert.equal(await f.run(), 'review_required'); // No automatic second invocation without a recovery claim.
+    assert.equal(f.state().posts, 1);
+    assert.equal(canResumeLiveFiscalJob({ ...payment, fiscalDocumentId: '900' }, job), false);
+  });
+  test(`uncertain fiscal outcome takes precedence over ${code} and stays non-resumable`, async () => {
+    const f = fixture({ providerError: Object.assign(new Error(code), { code, uncertain: true }) });
+    assert.equal(await f.run(), 'outcome_unknown');
+    const { payment, job } = f.state();
+    assert.equal(canResumeLiveFiscalJob(payment, job), false);
+    assert.equal(job.errorCode, 'toconline-live-outcome-unknown');
+  });
+}

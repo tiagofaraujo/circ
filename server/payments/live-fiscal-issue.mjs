@@ -1,7 +1,10 @@
 import { liveDataStamp } from './live-pilot-contract.mjs';
 import { randomUUID } from 'node:crypto';
 
-export const RESUMABLE_AUTH_ERRORS = new Set(['toconline-background-session-missing', 'toconline-reauthorize-required']);
+// These session failures occur before an accepted fiscal POST (or after an explicit 401).
+// Lease contention and storage outages must remain recoverable after authorization recovers.
+export const RESUMABLE_AUTH_ERRORS = new Set(['toconline-background-session-missing', 'toconline-reauthorize-required',
+  'toconline-background-session-busy', 'toconline-background-session-unavailable']);
 const paymentIdentity = ['id', 'userId', 'eventId', 'registrationId', 'environment', 'provider', 'method', 'amountCents', 'currency',
   'identifier', 'reference', 'entity', 'transactionId', 'paidAt', 'paymentDate', 'quote', 'fiscalQuote', 'billingSnapshot', 'bankTransfer', 'methodFingerprint', 'issuanceAttemptId','stripeInstrument'];
 const registrationIdentity = ['userId', 'eventId', 'primaryRegistration', 'isTest', 'testMode'];
