@@ -8,6 +8,7 @@ import { liveDataStamp } from './live-pilot-contract.mjs';
 import { getRegistrationPeriod } from '../../src/data/registration2027.js';
 import { completeLiveFiscalJob, canResumeLiveFiscalJob, claimLiveFiscalJob,isUnstartedStripeInstrumentJob } from './live-fiscal-issue.mjs';
 import { createStripeLive,STRIPE_LIVE_SESSION_ID } from './stripe-live.mjs';
+import { stripeFiscalPaymentMechanism } from './live-payment-methods.mjs';
 import { minimalStripeInstrument } from './stripe-live-webhook.mjs';
 
 const CONFIRMATION = 'RETOMAR FATURACAO AUTORIZADA';
@@ -106,10 +107,10 @@ export function createLiveFiscalResumeApi({ verify, tokenProvider = createPaymen
           if(session.id!==p.reference||session.status!=='complete'||session.paymentStatus!=='paid'||session.paymentIntentId!==p.transactionId)return reply({error:'fiscal-job-mismatch'},409);
           instrument=minimalStripeInstrument(await provider.inspectInstrument(p,session));
         }catch{return reply({error:'stripe-instrument-unconfirmed'},409);}
-        if(!['credit','debit'].includes(instrument.funding))return reply({error:'stripe-instrument-unconfirmed'},409);
+        if(!stripeFiscalPaymentMechanism(instrument))return reply({error:'stripe-instrument-unconfirmed'},409);
       }
       try { expected = buildLivePaymentFR({ orderId: id, quote: fiscalQuote, billing: { customer: p.billingSnapshot }, paymentDate: p.paymentDate,method:p.method,
-        ...(isTransfer?{bankAccountId:account.id}:{}),...(isStripe?{cardFunding:instrument?.funding}:{}) }); }
+        ...(isTransfer?{bankAccountId:account.id}:{}),...(isStripe?{cardFunding:instrument?.funding,stripePaymentType:instrument?.type}:{}) }); }
       catch { return reply({ error: 'fiscal-job-mismatch' }, 409); }
       if (j.externalReference !== expected.external_reference || !instrumentRecovery&&liveDataStamp(j.salesDocument) !== liveDataStamp(expected)) return reply({ error: 'fiscal-job-mismatch' }, 409);
       const attemptId = randomUUID();

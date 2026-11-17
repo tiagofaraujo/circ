@@ -9,7 +9,7 @@ jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language:
 const stripe = {
   ready: true, apiKeyPresent: true, liveKeyValid: true,
   webhookKeyPresent: true, serviceAccountPresent: true,
-  webhookPath: '/api/payments/stripe/live/notifications', apiVersion: '2026-09-30.endive',
+  webhookPath: '/api/payments/stripe/live/notifications', apiVersion: '2026-10-28.endive',
   liveEnabled: true, validationOnly: true,
 };
 const response = (data, ok = true) => ({ ok, json: async () => data });

@@ -3,10 +3,11 @@
 import { createHash } from 'node:crypto';
 import { CONGRESS_RATES } from '../../src/data/registration2027.js';
 import { allowsFullCongressDiscount, fixedRegistrationDiscountLines, hasOrganizerBenefit } from './quote.mjs';
-export const STRIPE_LIVE_API_VERSION = '2026-09-30.endive';
+export const STRIPE_LIVE_API_VERSION = '2026-10-28.endive';
 export const STRIPE_LIVE_WEBHOOK_PATH = '/api/payments/stripe/live/notifications';
 export const STRIPE_LIVE_FLOW = 'circ-checkout-live';
 export const STRIPE_LIVE_SESSION_ID = /^cs_live_[A-Za-z0-9]{8,240}$/;
+export const STRIPE_LIVE_METHODS = Object.freeze(['card','link','paypal']);
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const UID=/^[A-Za-z0-9_-]{1,128}$/;
 const INTENT=/^pi_[A-Za-z0-9]{8,240}$/;
@@ -64,7 +65,7 @@ function validatePaymentLines(quote) {
 export function safeLiveCheckoutUrl(value,sessionId){
   if(typeof value!=='string'||value.length>4096||!STRIPE_LIVE_SESSION_ID.test(sessionId||''))return null;
   try{const u=new URL(value);return u.origin==='https://checkout.stripe.com'&&!u.username&&!u.password
-    &&[`/c/pay/${sessionId}`,`/pay/${sessionId}`].includes(u.pathname)?value:null;}catch{return null;}
+    &&!u.search&&[`/c/pay/${sessionId}`,`/g/pay/${sessionId}`,`/pay/${sessionId}`].includes(u.pathname)?value:null;}catch{return null;}
 }
 export const safeCheckoutUrl=safeLiveCheckoutUrl;
 export function matchStripeLiveSession(session,order){
@@ -73,7 +74,9 @@ export function matchStripeLiveSession(session,order){
     ||(order.reference&&order.reference!==session.id)||(order.stripe?.id&&order.stripe.id!==session.id)
     ||session.mode!=='payment'||session.currency!=='eur'||session.client_reference_id!==order.identifier||session.amount_total!==order.amountCents
     ||!['open','complete','expired'].includes(session.status)||!['paid','unpaid','no_payment_required'].includes(session.payment_status)
-    ||!Array.isArray(session.payment_method_types)||session.payment_method_types.length!==1||session.payment_method_types[0]!=='card'
+    ||!Array.isArray(session.payment_method_types)||!session.payment_method_types.length
+    ||new Set(session.payment_method_types).size!==session.payment_method_types.length
+    ||session.payment_method_types.some(method=>!STRIPE_LIVE_METHODS.includes(method))
     ||Object.entries(metadata).some(([key,value])=>session.metadata?.[key]!==value)||!Number.isSafeInteger(session.expires_at)||session.expires_at<=0)fail('stripe/mismatch');
   const intent=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id||null;
   if((intent!==null&&!INTENT.test(intent))||(session.payment_status==='paid'&&(session.status!=='complete'||!INTENT.test(intent||'')))
@@ -113,8 +116,9 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
       const landing='https://circ-coimbra.org/conta/inscricoes';
       const body=new URLSearchParams({mode:'payment',client_reference_id:order.identifier,
         success_url:`${landing}?stripe=return&order=${order.id}`,cancel_url:`${landing}?stripe=cancel&order=${order.id}`,locale:'auto',
-        'allowed_payment_method_types[0]':'card','automatic_tax[enabled]':'false','adaptive_pricing[enabled]':'false',
+        integration_identifier:'circ_checkout_live_qmdrxvka','automatic_tax[enabled]':'false','adaptive_pricing[enabled]':'false',
         'invoice_creation[enabled]':'false',customer_creation:'if_required'});
+      STRIPE_LIVE_METHODS.forEach((method,index)=>body.set(`allowed_payment_method_types[${index}]`,method));
       Object.entries(metadata).forEach(([k,v])=>{body.set(`metadata[${k}]`,v);body.set(`payment_intent_data[metadata][${k}]`,v);});
       order.quote.lines.filter(line => line.amountCents > 0).forEach((line,index)=>{
         body.set(`line_items[${index}][quantity]`,String(line.quantity));body.set(`line_items[${index}][price_data][currency]`,'eur');
@@ -132,6 +136,34 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
       if(!STRIPE_LIVE_SESSION_ID.test(order.reference||''))fail('stripe/mismatch');
       return matchStripeLiveSession(await call(`checkout/sessions/${order.reference}`),order);
     },
+    async recoverReference(order){
+      metadataFor(order);
+      const created=Math.floor(Date.parse(order.createdAt)/1000);
+      if(order.reference||!['creating','creation_unknown'].includes(order.status)||!Number.isSafeInteger(created)||created<=0)fail('stripe/recovery-unavailable');
+      const matches=[];let cursor;
+      // Read only, tightly bounded by the reserved order's creation time. Never
+      // replay a POST after Stripe's idempotency retention may have elapsed.
+      for(let page=0;page<2;page++){
+        const query=new URLSearchParams({'created[gte]':String(created-300),'created[lte]':String(created+300),limit:'100',...(cursor?{starting_after:cursor}:{})});
+        const list=await call(`checkout/sessions?${query}`);
+        if(list?.object!=='list'||!Array.isArray(list.data)||list.data.length>100||typeof list.has_more!=='boolean')fail('stripe/recovery-unavailable');
+        for(const session of list.data){
+          if(session?.client_reference_id===order.identifier||session?.metadata?.order_id===order.id){
+            if(!Number.isSafeInteger(session.created)||Math.abs(session.created-created)>300)fail('stripe/mismatch');
+            matches.push(matchStripeLiveSession(session,order));
+          }
+        }
+        if(matches.length>1)fail('stripe/recovery-ambiguous');
+        if(!list.has_more){
+          if(matches.length!==1)fail('stripe/recovery-unavailable');
+          const reference=matches[0].id;
+          return matchStripeLiveSession(await call(`checkout/sessions/${reference}`),{...order,reference});
+        }
+        cursor=list.data.at(-1)?.id;
+        if(!STRIPE_LIVE_SESSION_ID.test(cursor||''))fail('stripe/recovery-unavailable');
+      }
+      fail('stripe/recovery-ambiguous');
+    },
     async inspectInstrument(order,currentSession){
       const metadata=metadataFor(order);
       if(!STRIPE_LIVE_SESSION_ID.test(order.reference||'')||currentSession?.id!==order.reference||currentSession.status!=='complete'
@@ -142,7 +174,13 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
         ||intent.currency!=='eur'||intent.amount!==order.amountCents||intent.amount_received!==order.amountCents
         ||Object.entries(metadata).some(([key,value])=>intent.metadata?.[key]!==value))fail('stripe/instrument-mismatch');
       const pm=intent.payment_method;
-      if(!pm||typeof pm!=='object'||pm.object!=='payment_method'||pm.livemode!==true||pm.type!=='card'||!pm.card||typeof pm.card!=='object')fail('stripe/instrument-mismatch');
+      if(!pm||typeof pm!=='object'||pm.object!=='payment_method'||pm.livemode!==true||!STRIPE_LIVE_METHODS.includes(pm.type))fail('stripe/instrument-mismatch');
+      if(pm.type==='link'||pm.type==='paypal'){
+        if(!pm[pm.type]||typeof pm[pm.type]!=='object')fail('stripe/instrument-mismatch');
+        // A wallet can be funded from a balance or bank account. Never infer CC/DC.
+        return{type:pm.type,funding:'unknown',wallet:pm.type};
+      }
+      if(!pm.card||typeof pm.card!=='object')fail('stripe/instrument-mismatch');
       return{funding:['credit','debit','prepaid','unknown'].includes(pm.card.funding)?pm.card.funding:'unknown',
         wallet:WALLETS.has(pm.card.wallet?.type)?pm.card.wallet.type:null};
     },

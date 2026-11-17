@@ -7,11 +7,13 @@ import { stripeLiveConfiguration } from './stripe-live.mjs';
 // code or a claim that the sales API has accepted this integration's payload.
 const TOCONLINE_PAYMENT_SOURCE = 'https://api-docs.toconline.pt/apis/vendas/recibos-de-venda';
 export const LIVE_PAYMENT_MAPPING_REGISTRY = Object.freeze({
-  version: 'circ2027-payment-mappings-20261101-stripe-card',
+  version: 'circ2027-payment-mappings-20261117-stripe-wallets',
   mappings: Object.freeze({
     multibanco: Object.freeze({ status: 'confirmed', code: 'MB', source: TOCONLINE_PAYMENT_SOURCE }),
     bank_transfer: Object.freeze({ status: 'confirmed', code: 'TR', source: TOCONLINE_PAYMENT_SOURCE }),
-    stripe_card:Object.freeze({status:'by-instrument',codes:Object.freeze({credit:'CC',debit:'DC'}),source:TOCONLINE_PAYMENT_SOURCE}),
+    stripe_card:Object.freeze({status:'by-instrument',codes:Object.freeze({credit:'CC',debit:'DC'}),source:TOCONLINE_PAYMENT_SOURCE,
+      wallets:Object.freeze({status:'documented-generic',code:'OU',types:Object.freeze(['link','paypal']),salesApiValidated:false,
+        source:'https://api-docs.toconline.pt/apis/versoes-anteriores/compras/pagamentos'})}),
     // A later reviewed registry version can confirm MB WAY with its official
     // code and source. An activation flag alone cannot supply fiscal evidence.
     mbway: Object.freeze({ status: 'documented-generic', code: 'OU', salesApiValidated:false,
@@ -19,6 +21,13 @@ export const LIVE_PAYMENT_MAPPING_REGISTRY = Object.freeze({
         'https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_302_2016.pdf']) }),
   }),
 });
+// Link/PayPal do not expose a reliable credit/debit classification. OU is the
+// documented generic category, also used for MB WAY, pending live acceptance.
+export function stripeFiscalPaymentMechanism({funding,type}={}){
+  if(type==='link'||type==='paypal')return funding==='unknown'?'OU':null;
+  if(type!==undefined&&type!=='card')return null;
+  return funding==='credit'?'CC':funding==='debit'?'DC':null;
+}
 export const LIVE_FISCAL_PAYMENT_MECHANISMS = Object.freeze(Object.fromEntries(
   Object.entries(LIVE_PAYMENT_MAPPING_REGISTRY.mappings).map(([method,record]) => [method,record.status === 'confirmed'
     || method==='mbway'&&record.status==='documented-generic'&&record.code==='OU' ? record.code : null]),

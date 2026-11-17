@@ -3,7 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const webhookPath = '/api/payments/stripe/live/notifications';
-const apiVersion = '2026-09-30.endive';
+const apiVersion = '2026-10-28.endive';
 const events = [
   'checkout.session.completed',
   'checkout.session.async_payment_succeeded',
