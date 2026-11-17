@@ -7,7 +7,7 @@ jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language:
 const response = (data, ok = true) => ({ ok, json: async () => data });
 const config = { configured: true, connected: true, backgroundAutomation: { sessionStored: true, serviceIdentityConfigured: true } };
 const stripe = { ready: true, apiKeyPresent: true, liveKeyValid: true, webhookKeyPresent: true, serviceAccountPresent: true,
-  webhookPath: '/api/payments/stripe/live/notifications', apiVersion: '2026-09-30.endive', liveEnabled: true, validationOnly: true };
+  webhookPath: '/api/payments/stripe/live/notifications', apiVersion: '2026-10-28.endive', liveEnabled: true, validationOnly: true };
 const totals = {
   receivedCents: 9500, receivedCount: 1, refundedCents: 0, unresolvedRefundCount: 0, reportedFeeMicros: 350000,
   feeKnownCount: 1, reviewCents: 0, reviewCount: 0, issuedCount: 1, fiscalPendingCount: 0,

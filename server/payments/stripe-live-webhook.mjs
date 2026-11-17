@@ -6,10 +6,13 @@ import { organizerVoucherOnOrder,quotePrimary,quoteSupplementary } from './quote
 import { buildLivePaymentFR } from './toconline-live-payload.mjs';
 import { completeLiveFiscalJob } from './live-fiscal-issue.mjs';
 import { createToconlineLiveClient } from './toconline-live-client.mjs';
+import { stripeFiscalPaymentMechanism } from './live-payment-methods.mjs';
 
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','CDN-Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const WALLETS=new Set(['apple_pay','google_pay','link','amex_express_checkout','masterpass','samsung_pay','visa_checkout']);
-export const minimalStripeInstrument=value=>({funding:['credit','debit','prepaid','unknown'].includes(value?.funding)?value.funding:'unknown',wallet:WALLETS.has(value?.wallet)?value.wallet:null});
+export const minimalStripeInstrument=value=>value?.type==='link'||value?.type==='paypal'
+  ?{type:value.type,funding:'unknown',wallet:value.type}
+  :({funding:['credit','debit','prepaid','unknown'].includes(value?.funding)?value.funding:'unknown',wallet:WALLETS.has(value?.wallet)?value.wallet:null});
 async function bytes(request){
   const reader=request.body?.getReader();if(!reader)throw new Error('invalid');
   const chunks=[];let length=0;
@@ -96,8 +99,8 @@ export function createStripeLiveWebhook({tokenProvider=createPaymentsServiceToke
       const linked={...p,reference:current.id,stripe:current};
       let instrument=null;try{instrument=minimalStripeInstrument(await provider.inspectInstrument(linked,current));}catch{/* Financial proof is already complete; classify fiscal readiness separately. */}
       let salesDocument=null,errorCode='stripe-instrument-unconfirmed';
-      if(['credit','debit'].includes(instrument?.funding)){
-        try{salesDocument=buildLivePaymentFR({orderId:id,quote:expected,billing:{customer:p.billingSnapshot},paymentDate,method:'stripe_card',cardFunding:instrument.funding});}
+      if(stripeFiscalPaymentMechanism(instrument||{})){
+        try{salesDocument=buildLivePaymentFR({orderId:id,quote:expected,billing:{customer:p.billingSnapshot},paymentDate,method:'stripe_card',cardFunding:instrument.funding,stripePaymentType:instrument.type});}
         catch{errorCode='live-fiscal-payload-blocked';}
       }
       const fiscalStatus=salesDocument?'pending':'review_required',updatedAt=now(),ent=expected.selection,owned=r.entitlements||r.selection;

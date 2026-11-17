@@ -37,7 +37,7 @@ function fixture(order=makeOrder()){
   const requests=[];
   const provider=createStripeLive({apiKey:API_KEY,fetchImpl:async(url,options)=>{
     requests.push({url,options});assert.equal(new URL(url).origin,'https://api.stripe.com');
-    assert.equal(options.headers.Authorization,`Bearer ${API_KEY}`);assert.equal(options.headers['Stripe-Version'],'2026-09-30.endive');
+    assert.equal(options.headers.Authorization,`Bearer ${API_KEY}`);assert.equal(options.headers['Stripe-Version'],'2026-10-28.endive');
     assert.equal(options.redirect,'manual');assert.equal(options.cache,'no-store');
     if(transport)throw transport;
     if(status!==200)return new Response('private-error-key-or-billing-data-must-not-escape',{status});
@@ -51,7 +51,7 @@ test('live configuration reports format/readiness without exposing secrets or as
   const config=stripeLiveConfiguration(env);
   assert.equal(config.ready,true);assert.equal(config.liveKeyValid,true);assert.equal(config.apiKeyPresent,true);
   assert.equal(config.webhookKeyPresent,true);assert.equal(config.serviceAccountPresent,true);
-  assert.equal(config.apiVersion,'2026-09-30.endive');assert.equal(config.webhookPath,'/api/payments/stripe/live/notifications');
+  assert.equal(config.apiVersion,'2026-10-28.endive');assert.equal(config.webhookPath,'/api/payments/stripe/live/notifications');
   assert.equal(STRIPE_LIVE_API_VERSION,config.apiVersion);assert.equal(STRIPE_LIVE_WEBHOOK_PATH,config.webhookPath);
   assert.ok(!JSON.stringify(config).includes(API_KEY));assert.ok(!JSON.stringify(config).includes(env.STRIPE_LIVE_WEBHOOK_SECRET));
   assert.ok(!Object.keys(config).some(key=>/validated|approved|accountVerified/i.test(key)));
@@ -64,11 +64,11 @@ test('only secret or restricted production keys are accepted',()=>{
     assert.throws(()=>createStripeLive({apiKey:key}),StripeLiveError);assert.equal(stripeLiveConfiguration({...env,STRIPE_LIVE_SECRET_KEY:key}).ready,false);
   }
 });
-test('hosted creation uses fixed EUR item sums, card-only allowlist, replicated metadata and no fiscal side effects',async()=>{
+test('hosted creation uses fixed EUR item sums, card and wallet allowlist, replicated metadata and no fiscal side effects',async()=>{
   const f=fixture(),created=await f.provider.createPayment(f.order),request=f.requests[0],b=new URLSearchParams(request.options.body);
   assert.equal(request.url,'https://api.stripe.com/v1/checkout/sessions');assert.equal(request.options.method,'POST');
   assert.equal(b.get('mode'),'payment');assert.equal(b.get('allowed_payment_method_types[0]'),'card');assert.equal(b.get('payment_method_types[0]'),null);
-  assert.equal(b.get('allowed_payment_method_types[1]'),null);assert.equal(b.get('automatic_tax[enabled]'),'false');
+  assert.equal(b.get('allowed_payment_method_types[1]'),'link');assert.equal(b.get('allowed_payment_method_types[2]'),'paypal');assert.equal(b.get('allowed_payment_method_types[3]'),null);assert.equal(b.get('automatic_tax[enabled]'),'false');
   assert.equal(b.get('adaptive_pricing[enabled]'),'false');assert.equal(b.get('invoice_creation[enabled]'),'false');
   assert.equal(b.get('client_reference_id'),f.order.identifier);assert.equal(b.get('line_items[2][quantity]'),'2');
   assert.equal(b.get('line_items[2][price_data][unit_amount]'),'3000');assert.equal(b.get('line_items[0][price_data][currency]'),'eur');
@@ -159,10 +159,12 @@ test('session cannot silently replace an already persisted reference',()=>{
   const order=makeOrder();order.reference='cs_live_otherSyntheticSession12345';assert.throws(()=>matchStripeLiveSession(makeSession(),order),StripeLiveError);
 });
 test('hosted URLs allow only the exact Stripe Checkout session path and HTTPS origin',()=>{
+  assert.equal(safeLiveCheckoutUrl(`https://checkout.stripe.com/g/pay/${SID}#fragment`,SID),`https://checkout.stripe.com/g/pay/${SID}#fragment`);
   assert.equal(safeLiveCheckoutUrl(`https://checkout.stripe.com/c/pay/${SID}#fragment`,SID),`https://checkout.stripe.com/c/pay/${SID}#fragment`);
   for(const url of ['javascript:alert(1)',`http://checkout.stripe.com/c/pay/${SID}`,`https://checkout.stripe.com.evil.invalid/c/pay/${SID}`,
     `https://user@checkout.stripe.com/c/pay/${SID}`,`https://checkout.stripe.com:444/c/pay/${SID}`,`https://evil.invalid/c/pay/${SID}`,
-    'https://checkout.stripe.com/c/pay/cs_test_syntheticSession12345',`https://checkout.stripe.com/c/pay/${SID}/extra`])assert.equal(safeLiveCheckoutUrl(url,SID),null);
+    'https://checkout.stripe.com/c/pay/cs_test_syntheticSession12345',`https://checkout.stripe.com/c/pay/${SID}/extra`,
+    `https://checkout.stripe.com/g/pay/${SID}?redirect=https://evil.invalid`,`https://checkout.stripe.com.evil.invalid/g/pay/${SID}`])assert.equal(safeLiveCheckoutUrl(url,SID),null);
 });
 for(const [status,definite] of [[302,false],[400,true],[401,true],[403,true],[404,false],[409,false],[429,false],[500,false],[503,false]])
   test(`creation HTTP ${status} is ${definite?'definite':'uncertain'} without leaking provider text or retrying`,async()=>{
@@ -222,4 +224,36 @@ test('instrument cannot be requested for an unpaid or different normalized sessi
     {...current,status:'complete',paymentStatus:'paid',paymentIntentId:'pi_invalid/URL'}])
     await assert.rejects(()=>f.provider.inspectInstrument(f.order,value),StripeLiveError);
   assert.equal(f.requests.length,before);
+});
+
+for(const type of ['link','paypal'])test(`verified ${type} retains only its wallet classification`,async()=>{
+  const f=fixture();f.paid();f.session.payment_method_types=['card','link','paypal'];
+  f.intent.payment_method={object:'payment_method',livemode:true,type,[type]:{payer_email:'private@example.invalid',payer_id:'private'}};
+  const current=await f.provider.inspectReference(f.order);
+  assert.deepEqual(await f.provider.inspectInstrument(f.order,current),{type,funding:'unknown',wallet:type});
+});
+
+test('read-only recovery requires a unique exact match and a complete bounded search before re-fetching',async()=>{
+  const order={...makeOrder(),createdAt:'2026-11-17T14:54:40Z',status:'creation_unknown'};
+  const matching={...makeSession(order),created:Math.floor(Date.parse(order.createdAt)/1000)};
+  matching.url=`https://checkout.stripe.com/g/pay/${SID}#synthetic`;
+  for(const scenario of ['unique','none','duplicate','wrong-owner','wrong-amount','test-mode','bad-url','incomplete','stale-read']){
+    const calls=[];
+    const provider=createStripeLive({apiKey:API_KEY,fetchImpl:async(raw,options)=>{
+      calls.push(raw);assert.equal(options.method,'GET');const url=new URL(raw);
+      if(url.pathname===`/v1/checkout/sessions/${SID}`)return Response.json(scenario==='stale-read'?{...matching,amount_total:1}:matching);
+      assert.equal(url.searchParams.get('created[gte]'),String(matching.created-300));
+      assert.equal(url.searchParams.get('created[lte]'),String(matching.created+300));
+      let row=structuredClone(matching);
+      if(scenario==='wrong-owner')row.metadata.owner='another-owner';
+      if(scenario==='wrong-amount')row.amount_total=1;
+      if(scenario==='test-mode')row.livemode=false;
+      if(scenario==='bad-url')row.url=`https://evil.invalid/g/pay/${SID}`;
+      const data=scenario==='none'?[]:scenario==='duplicate'?[row,{...row,id:`${SID}2`,url:`https://checkout.stripe.com/g/pay/${SID}2`}]:[row];
+      return Response.json({object:'list',data,has_more:scenario==='incomplete'});
+    }});
+    if(scenario==='unique'){assert.equal((await provider.recoverReference(order)).id,SID);assert.equal(calls.length,2);}
+    else await assert.rejects(()=>provider.recoverReference(order),StripeLiveError);
+    assert.ok(calls.length<=2);assert.equal(order.reference,undefined);
+  }
 });

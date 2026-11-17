@@ -158,11 +158,17 @@ export function createCheckoutLiveApi({verify,tokenProvider=createPaymentsServic
         if(!p||(!canManageRegistrations&&p.userId!==claims.sub)||p.environment!=='production')return reply({error:'not-found'},404);
         if(historical(p)||['paid','refunded'].includes(p.status))return reply({order:publicLiveOrder(id,p)});
         if(p.method!=='stripe_card'||p.provider!=='stripe'||p.id!==id||p.eventId!==EVENT||p.registrationId!==`${EVENT}-${p.userId}`||p.paidAt||p.transactionId)fail('stripe-order-not-reconcilable',409);
-        if(!STRIPE_LIVE_SESSION_ID.test(p.reference||''))fail('stripe-session-unconfirmed',409);
-        const hint=await stripeFactory({apiKey:env.STRIPE_LIVE_SECRET_KEY}).inspectReference(p);
-        const next={...p,stripe:hint,status:hint.status==='expired'&&hint.paymentStatus==='unpaid'?'expired':p.status,
+        if(!['pending','creating','creation_unknown'].includes(p.status)||p.fiscalStatus||p.fiscalDocumentId)fail('stripe-order-not-reconcilable',409);
+        if(canManageRegistrations&&p.userId!==claims.sub)store=storeFactory({projectId:env.FIREBASE_PROJECT_ID,uid:p.userId,token:storeToken});
+        const registration=await store.registration(),r=registration?.data;
+        if(!realRegistration(r,p.userId)||(p.kind==='primary'?(r.payment?.orderId!==id||r.payment.status!=='pending'||r.status==='confirmed')
+          :(r.openSupplementaryOrderId!==id||r.status!=='confirmed'||r.payment?.status!=='paid')))fail('stripe-order-not-reconcilable',409);
+        const provider=stripeFactory({apiKey:env.STRIPE_LIVE_SECRET_KEY});
+        const hint=STRIPE_LIVE_SESSION_ID.test(p.reference||'')?await provider.inspectReference(p):await provider.recoverReference(p);
+        const next={...p,reference:hint.id,stripe:hint,status:hint.status==='expired'&&hint.paymentStatus==='unpaid'?'expired':'pending',
           providerState:hint.paymentStatus==='paid'?'awaiting_signed_confirmation':hint.status,retryAllowed:false,updatedAt:now()};
-        await store.updatePayment(id,next,saved.version);
+        const nextRegistration={...r,...(p.kind==='primary'?{payment:{...r.payment,reference:hint.id}}:{}),updatedAt:now()};
+        await store.updatePendingProvider({orderId:id,payment:next,paymentVersion:saved.version,registration:nextRegistration,registrationVersion:registration.version});
         return reply({order:publicLiveOrder(id,next)});
       }
       if(reconcileMatch){

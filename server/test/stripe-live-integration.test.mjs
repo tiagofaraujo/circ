@@ -26,7 +26,7 @@ const voucherValue = '123456789abcdeffedcba9876543210a';
 const voucherCode = `CIRC27-D-${voucherValue.match(/.{4}/g).join('-')}`;
 const voucherHash = createHash('sha256').update(voucherValue).digest('hex');
 const clone = value => structuredClone(value);
-function fixture({ identity = owner, funding = 'credit', wallet = null, clock = '2026-11-15T12:00:00Z', configuration = env, discount,
+function fixture({ identity = owner, funding = 'credit', wallet = null, instrumentType = 'card', clock = '2026-11-15T12:00:00Z', configuration = env, discount,
   organizerVoucher = false, ulsEligible = organizerVoucher } = {}) {
   const payments = new Map(), jobs = new Map(), sessions = new Map();
   let registration = null, registrationVersion = 0, currentTime = clock, instrumentStatus = 200, creationFailure = false;
@@ -108,12 +108,13 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
       const id = `cs_live_${metadata.order_id.replaceAll('-', '')}`;
       const session = { id, object: 'checkout.session', livemode: true, mode: 'payment', currency: 'eur',
         client_reference_id: body.get('client_reference_id'), amount_total: amount, status: 'open', payment_status: 'unpaid',
-        payment_intent: null, payment_method_types: ['card'], metadata, created: Math.floor(Date.parse(currentTime) / 1000),
+        payment_intent: null, payment_method_types: ['card', 'link', 'paypal'], metadata, created: Math.floor(Date.parse(currentTime) / 1000),
         expires_at: Math.floor(Date.parse(currentTime) / 1000) + 1800, url: `https://checkout.stripe.com/c/pay/${id}` };
       sessions.set(id, session);
       if (creationFailure) throw new Error('synthetic lost creation response');
       return Response.json(session);
     }
+    if (options.method === 'GET' && url.pathname === '/v1/checkout/sessions') return Response.json({ object: 'list', has_more: false, data: [...sessions.values()] });
     if (options.method === 'GET' && url.pathname.startsWith('/v1/checkout/sessions/')) {
       const session = sessions.get(url.pathname.split('/').at(-1)); assert.ok(session);
       return Response.json(session);
@@ -124,7 +125,7 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, clock = 
       assert.ok(session); assert.equal(url.searchParams.get('expand[]'), 'payment_method');
       return Response.json({ id: intentId, object: 'payment_intent', livemode: true, status: 'succeeded', currency: 'eur',
         amount: session.amount_total, amount_received: session.amount_total, metadata: session.metadata, created: session.created,
-        payment_method: { id: 'pm_synthetic12345678', object: 'payment_method', livemode: true, type: 'card',
+        payment_method: { id: 'pm_synthetic12345678', object: 'payment_method', livemode: true, type: instrumentType, ...(instrumentType !== 'card' ? { [instrumentType]: { payer_email: 'private@example.invalid' } } : {}),
           card: { funding, wallet: wallet ? { type: wallet } : null, brand: 'visa', last4: '4242', exp_month: 12, exp_year: 2030 } } });
     }
     assert.fail(`unexpected Stripe request: ${options.method} ${url.pathname}`);
@@ -506,4 +507,33 @@ test('instrument-review resume rejects prior attempts, malformed provider eviden
     assert.deepEqual(f.payment(ids[0]), before.payment, name); assert.deepEqual(f.job(ids[0]), before.job, name);
     assert.deepEqual(f.registration(), before.registration, name);
   }
+});
+
+for(const instrumentType of ['link','paypal'])test(`${instrumentType} confirms once and uses generic OU without inventing card funding`,async()=>{
+  const f=fixture({instrumentType});await f.create();f.markPaid();
+  assert.equal((await f.notify()).status,200);assert.equal((await f.notify()).status,200);
+  assert.equal(f.registration().status,'confirmed');assert.equal(f.fiscalCalls.length,1);
+  assert.equal(f.fiscalCalls[0].payment_mechanism,'OU');
+  assert.deepEqual(f.payment(ids[0]).stripeInstrument,{type:instrumentType,funding:'unknown',wallet:instrumentType});
+  assert.ok(!JSON.stringify(f.payment(ids[0])).includes('private@example.invalid'));
+});
+
+test('orphaned session recovery attaches the original session atomically without a second POST or fiscal effect',async()=>{
+  const f=fixture(),body=await f.orderBody(ids[0]);f.failCreation();
+  assert.equal((await f.call('/orders',body)).status,502);
+  const response=await f.call(`/orders/${ids[0]}/stripe-reconcile`,{});
+  assert.equal(response.status,200,await response.clone().text());const order=(await response.json()).order;
+  assert.equal(order.status,'pending');assert.equal(order.stripe.status,'open');assert.equal(order.stripe.paymentStatus,'unpaid');
+  assert.equal(f.registration().payment.reference,order.reference);assert.equal(f.registration().status,'submitted');
+  assert.equal(f.httpCalls.filter(call=>call.method==='POST').length,1);assert.equal(f.fiscalCalls.length,0);
+  f.markPaid();assert.equal((await f.call(`/orders/${ids[0]}/stripe-reconcile`,{})).status,200);
+  assert.equal(f.payment(ids[0]).status,'pending');assert.equal(f.registration().status,'submitted');assert.equal(f.fiscalCalls.length,0);
+  assert.equal((await f.notify()).status,200);assert.equal(f.registration().status,'confirmed');assert.equal(f.fiscalCalls.length,1);
+});
+
+test('recovery rejects a replaced registration before contacting Stripe',async()=>{
+  const f=fixture(),body=await f.orderBody(ids[0]);f.failCreation();await f.call('/orders',body);
+  f.patchRegistration({payment:{orderId:ids[1],status:'pending'}});const calls=f.httpCalls.length;
+  assert.equal((await f.call(`/orders/${ids[0]}/stripe-reconcile`,{})).status,409);
+  assert.equal(f.httpCalls.length,calls);assert.equal(f.payment(ids[0]).reference,null);
 });

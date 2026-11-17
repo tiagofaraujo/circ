@@ -7,14 +7,14 @@ const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{1
 const stamp = value => /^[a-f0-9]{64}$/.test(value || '');
 const knownMethods = ['multibanco', 'mbway', 'bank_transfer', 'stripe_card'];
 const VOUCHER_METHOD = 'organization_voucher';
-const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'], stripe_card:['Cartão (Stripe)', 'Card (Stripe)'] };
+const methodNames = { multibanco: ['Multibanco', 'Multibanco'], mbway: ['MB WAY', 'MB WAY'], bank_transfer: ['Transferência bancária', 'Bank transfer'], stripe_card:['Cartões e carteiras digitais (Stripe)', 'Cards and digital wallets (Stripe)'] };
 const stripeSession = value => /^cs_live_[A-Za-z0-9]{8,240}$/.test(value || '');
 function stripeCheckoutUrl(order) {
   if (!stripeSession(order.stripe?.id) || order.stripe.id !== order.reference) return null;
   try {
     const url = new URL(order.stripe.url);
     return url.origin === 'https://checkout.stripe.com' && !url.username && !url.password && !url.search
-      && [`/c/pay/${order.stripe.id}`, `/pay/${order.stripe.id}`].includes(url.pathname) ? url.href : null;
+      && [`/c/pay/${order.stripe.id}`, `/g/pay/${order.stripe.id}`, `/pay/${order.stripe.id}`].includes(url.pathname) ? url.href : null;
   } catch { return null; }
 }
 const normalizedPhone = value => String(value || '').replace(/[\s().-]/g, '').match(/^(?:(?:\+|00)?351)?(9\d{8})$/)?.[1] || '';
@@ -500,7 +500,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     finally { working.current = false; if (active.current) setBusy(false); }
   }
   async function reconcileStripe() {
-    if (working.current || busy || order?.method !== 'stripe_card' || !['pending', 'creation_unknown'].includes(order.status) || !stripeSession(order.reference)) return;
+    if (working.current || busy || order?.method !== 'stripe_card' || !['pending', 'creating', 'creation_unknown'].includes(order.status)) return;
     working.current = true; setBusy(true); setError('');
     try {
       const result = await request(`/orders/${order.id}/stripe-reconcile`, {});
@@ -615,7 +615,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <input type="tel" inputMode="tel" autoComplete="tel-national" value={phone} maxLength="20" placeholder="+351 9XXXXXXXX" disabled={busy} onChange={event => setPhone(event.target.value)} />
         <small>{t('Número português com 9 algarismos. Pode incluir +351. Receberá o pedido na aplicação MB WAY.', 'A nine-digit Portuguese number, optionally with +351. The request will arrive in the MB WAY app.')}</small>
       </label>}
-      {!voucherOnly && method === 'stripe_card' && methods.includes('stripe_card') && <p>{t('O pagamento é concluído no checkout seguro da Stripe. Os cartões e as carteiras digitais disponíveis são apresentados aí, de acordo com a conta e o dispositivo.', 'Payment is completed in secure Stripe Checkout. Available cards and digital wallets are shown there according to the account and device.')}</p>}
+      {!voucherOnly && method === 'stripe_card' && methods.includes('stripe_card') && <p>{t('Pague no checkout seguro da Stripe com Visa, Mastercard, American Express ou Discover. Apple Pay, Google Pay, Link e PayPal são apresentados quando disponíveis para a conta e o dispositivo. Para MB WAY, escolha a opção própria.', 'Pay in secure Stripe Checkout with Visa, Mastercard, American Express or Discover. Apple Pay, Google Pay, Link and PayPal appear when available for the account and device. For MB WAY, choose its separate option.')}</p>}
       {!companyQuote && !configBusy && methods.length === 0 && <p role={scheduledOpening && !configFailed ? 'status' : 'alert'}>{configFailed ? t('Não foi possível consultar os meios de pagamento. Atualize a página antes de criar um pedido.', 'Payment methods could not be loaded. Refresh this page before creating an order.') : scheduledOpening ? messages['registration-not-open'][en ? 1 : 0] : t('Os pagamentos estão temporariamente indisponíveis.', 'Payments are temporarily unavailable.')}</p>}
       {!voucherOnly && <p>{supplementary ? t('Este complemento tem um pagamento e uma fatura-recibo próprios. A inscrição original mantém-se paga.', 'This supplement has its own payment and invoice-receipt. The original registration stays paid.')
         : method === 'bank_transfer'
@@ -666,12 +666,12 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       {order.method === 'mbway' && ['pending', 'creation_unknown'].includes(order.status) && Boolean(order.reference) && <button type="button" disabled={busy} onClick={reconcileMbway}>{t('Consultar pedido na MB WAY', 'Check request with MB WAY')}</button>}
       {order.method === 'stripe_card' && <section aria-label={t('Pagamento na Stripe', 'Stripe payment')}>
         {order.status === 'pending' && <p>{t('Use o mesmo pedido para concluir o pagamento. Voltar ao My CIRC ou fechar o checkout não confirma nem cancela o pagamento.', 'Use the same order to complete payment. Returning to My CIRC or closing Checkout does not confirm or cancel payment.')}</p>}
-        {checkoutUrl && <p><a className="button button--dark" href={checkoutUrl} rel="noopener noreferrer" referrerPolicy="no-referrer">{t('Pagar na Stripe', 'Pay with Stripe')}</a></p>}
+        {checkoutUrl && <p><a className="button button--dark" href={checkoutUrl} rel="noopener noreferrer" referrerPolicy="no-referrer">{t('Continuar para pagamento', 'Continue to payment')}</a></p>}
         {stripeOpen && !checkoutUrl && <p role="alert">{t('Não foi possível disponibilizar um endereço seguro para este pedido. Consulte o estado ou contacte a organização; não crie outro pagamento.', 'A safe payment link could not be provided for this order. Check its status or contact the organisers; do not create another payment.')}</p>}
         {order.status === 'pending' && stripeDeadline && Number.isFinite(stripeDeadline.getTime()) && <p>{t('Prazo indicado pela Stripe', 'Stripe expiry time')}: {stripeDeadline.toLocaleString(en ? 'en-GB' : 'pt-PT', { timeZone:'Europe/Lisbon' })} ({t('hora de Lisboa', 'Lisbon time')})</p>}
         {order.status === 'pending' && stripe?.status === 'complete' && <p>{t('A conclusão deste pagamento está a ser confirmada. Aguarde a atualização e não efetue outro pagamento.', 'Completion of this payment is being confirmed. Wait for the update and do not make another payment.')}</p>}
         {['expired', 'cancelled'].includes(order.status) && <p>{t('Este pedido foi encerrado. Contacte a organização antes de preparar outro pagamento.', 'This request is closed. Contact the organisers before preparing another payment.')}</p>}
-        {['pending', 'creation_unknown'].includes(order.status) && stripeSession(order.reference) && <button type="button" disabled={busy} onClick={reconcileStripe}>{t('Consultar pedido na Stripe', 'Check request with Stripe')}</button>}
+        {['pending', 'creating', 'creation_unknown'].includes(order.status) && <button type="button" disabled={busy} onClick={reconcileStripe}>{stripeSession(order.reference) ? t('Consultar pedido na Stripe', 'Check request with Stripe') : t('Recuperar ligação de pagamento', 'Recover payment link')}</button>}
       </section>}
       {canRetryOrder(order) && <div><p>{t('O encerramento sem pagamento foi confirmado. Pode preparar outra tentativa e voltar a conferir os dados antes de enviar um novo pedido.', 'Closure without payment was confirmed. You can prepare another attempt and review the details before sending a new request.')}</p><button type="button" disabled={busy} onClick={prepareRetry}>{t('Preparar nova tentativa de pagamento', 'Prepare another payment attempt')}</button></div>}
       {bankPending && <section className="registration-bank-transfer" aria-label={t('Instruções de transferência bancária', 'Bank transfer instructions')}>

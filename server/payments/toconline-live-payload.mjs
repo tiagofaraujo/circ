@@ -1,6 +1,6 @@
 import policy from '../../src/data/circ2027FiscalPolicy.json' with { type: 'json' };
 import { CONGRESS_RATES, COURSE_RATES, DINNER_RATE, VIRTUAL_CONGRESS_RATE } from '../../src/data/registration2027.js';
-import { LIVE_FISCAL_PAYMENT_MECHANISMS } from './live-payment-methods.mjs';
+import { LIVE_FISCAL_PAYMENT_MECHANISMS, stripeFiscalPaymentMechanism } from './live-payment-methods.mjs';
 import { congressDiscountCents, fixedRegistrationDiscountLines, hasOrganizerBenefit, MIN_DISCOUNTED_PAYMENT_CENTS } from './quote.mjs';
 import { validateBillingCustomerSnapshot } from './toconline-billing-customer.mjs';
 
@@ -66,9 +66,9 @@ function validateSource(quote) {
 // Uses the existing catalogue and fiscal policy. Prices are gross values; the
 // TOConline API applies each line's explicit ISE/NOR framing. The API documents
 // the exemption reason on the header, required when any line is exempt.
-export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, method, bankAccountId, cardFunding }) {
+export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, method, bankAccountId, cardFunding, stripePaymentType }) {
   validateSource(quote);
-  const mechanism = method==='stripe_card'?(cardFunding==='credit'?'CC':cardFunding==='debit'?'DC':null)
+  const mechanism = method==='stripe_card'?stripeFiscalPaymentMechanism({funding:cardFunding,type:stripePaymentType})
     :Object.hasOwn(LIVE_FISCAL_PAYMENT_MECHANISMS,method) ? LIVE_FISCAL_PAYMENT_MECHANISMS[method] : null;
   if (!mechanism) fail('payment-mechanism-unconfirmed');
   if (method === 'bank_transfer' ? !Number.isSafeInteger(bankAccountId) || bankAccountId <= 0 : bankAccountId !== undefined) fail('bank-account-unconfirmed');
@@ -94,7 +94,7 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
   const notes=quote.discount ? `${baseNotes} · Desconto na inscrição ${(quote.discount.amountCents / 100).toFixed(2).replace('.', ',')} €` : baseNotes;
   return { document_type: 'FR', document_series_id: policy.series.id, date: paymentDate, due_date: paymentDate,
     currency_iso_code: 'EUR', ...billing.customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
-    notes: method==='mbway'?`${notes} · MB WAY via EuPago`:method==='stripe_card'?`${notes} · Cartão via Stripe`:notes,
+    notes: method==='mbway'?`${notes} · MB WAY via EuPago`:method==='stripe_card'?`${notes} · ${stripePaymentType==='paypal'?'PayPal':stripePaymentType==='link'?'Link':'Cartão'} via Stripe`:notes,
     vat_included_prices: true, payment_mechanism: mechanism,
     ...(method === 'bank_transfer' ? { bank_account_id: bankAccountId } : {}),
     ...(lines.some(line => line.tax_code === 'ISE') ? { tax_exemption_reason_id: policy.exemption.id } : {}), lines };

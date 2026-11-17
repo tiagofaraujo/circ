@@ -239,3 +239,12 @@ test('Stripe fiscal payload distinguishes verified credit and debit and rejects 
   }
   for(const cardFunding of [undefined,'unknown','prepaid','CC','__proto__'])assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',method:'stripe_card',cardFunding}),/payment-mechanism-unconfirmed/);
 });
+
+test('Stripe wallet fiscal mapping preserves taxes and uses generic OU only for verified wallet types',()=>{
+  for(const stripePaymentType of ['link','paypal']){
+    const payload=buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-17',method:'stripe_card',cardFunding:'unknown',stripePaymentType});
+    assert.equal(payload.payment_mechanism,'OU');assert.deepEqual(payload.lines,build(quote).lines);
+    assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-17',method:'stripe_card',cardFunding:'credit',stripePaymentType}),/payment-mechanism-unconfirmed/);
+  }
+  for(const stripePaymentType of ['mb_way','klarna','__proto__'])assert.throws(()=>buildLivePaymentFR({orderId:ID,quote,billing,paymentDate:'2026-11-17',method:'stripe_card',cardFunding:'credit',stripePaymentType}),/payment-mechanism-unconfirmed/);
+});
