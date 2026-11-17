@@ -68,7 +68,7 @@ test('hosted creation uses fixed EUR item sums, card and wallet allowlist, repli
   const f=fixture(),created=await f.provider.createPayment(f.order),request=f.requests[0],b=new URLSearchParams(request.options.body);
   assert.equal(request.url,'https://api.stripe.com/v1/checkout/sessions');assert.equal(request.options.method,'POST');
   assert.equal(b.get('mode'),'payment');assert.equal(b.get('allowed_payment_method_types[0]'),'card');assert.equal(b.get('payment_method_types[0]'),null);
-  assert.equal(b.get('allowed_payment_method_types[1]'),'link');assert.equal(b.get('allowed_payment_method_types[2]'),'paypal');assert.equal(b.get('allowed_payment_method_types[3]'),null);assert.equal(b.get('automatic_tax[enabled]'),'false');
+  assert.equal(b.get('allowed_payment_method_types[1]'),'link');assert.equal(b.get('allowed_payment_method_types[2]'),null);assert.equal(b.get('allowed_payment_method_types[3]'),null);assert.equal(b.get('automatic_tax[enabled]'),'false');
   assert.equal(b.get('adaptive_pricing[enabled]'),'false');assert.equal(b.get('invoice_creation[enabled]'),'false');
   assert.equal(b.get('client_reference_id'),f.order.identifier);assert.equal(b.get('line_items[2][quantity]'),'2');
   assert.equal(b.get('line_items[2][price_data][unit_amount]'),'3000');assert.equal(b.get('line_items[0][price_data][currency]'),'eur');

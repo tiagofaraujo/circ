@@ -8,6 +8,8 @@ export const STRIPE_LIVE_WEBHOOK_PATH = '/api/payments/stripe/live/notifications
 export const STRIPE_LIVE_FLOW = 'circ-checkout-live';
 export const STRIPE_LIVE_SESSION_ID = /^cs_live_[A-Za-z0-9]{8,240}$/;
 export const STRIPE_LIVE_METHODS = Object.freeze(['card','link','paypal']);
+// PayPal is deferred for new checkouts; keep recognizing existing signed records.
+const CHECKOUT_METHODS = Object.freeze(['card','link']);
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const UID=/^[A-Za-z0-9_-]{1,128}$/;
 const INTENT=/^pi_[A-Za-z0-9]{8,240}$/;
@@ -118,7 +120,7 @@ export function createStripeLive({apiKey,fetchImpl=fetch}={}){
         success_url:`${landing}?stripe=return&order=${order.id}`,cancel_url:`${landing}?stripe=cancel&order=${order.id}`,locale:'auto',
         integration_identifier:'circ_checkout_live_qmdrxvka','automatic_tax[enabled]':'false','adaptive_pricing[enabled]':'false',
         'invoice_creation[enabled]':'false',customer_creation:'if_required'});
-      STRIPE_LIVE_METHODS.forEach((method,index)=>body.set(`allowed_payment_method_types[${index}]`,method));
+      CHECKOUT_METHODS.forEach((method,index)=>body.set(`allowed_payment_method_types[${index}]`,method));
       Object.entries(metadata).forEach(([k,v])=>{body.set(`metadata[${k}]`,v);body.set(`payment_intent_data[metadata][${k}]`,v);});
       order.quote.lines.filter(line => line.amountCents > 0).forEach((line,index)=>{
         body.set(`line_items[${index}][quantity]`,String(line.quantity));body.set(`line_items[${index}][price_data][currency]`,'eur');

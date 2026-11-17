@@ -26,10 +26,13 @@ validar pagamentos. Esta autorização não concede permissões administrativas.
 O método só aparece quando há configurações live com formato válido.
 
 A API fica fixada em `2026-10-28.endive`. A criação limita os métodos dinâmicos com
-`allowed_payment_method_types[]=card,link,paypal`; não envia `payment_method_types`.
+`allowed_payment_method_types[]=card,link`; não envia `payment_method_types`.
 MB WAY mantém o percurso EuPago. A configuração da conta decide a disponibilidade
-final: em 17/11, cartões, Apple Pay, Google Pay e Link estavam disponíveis; PayPal
-ainda não estava ativado. Os restantes métodos da conta não entram neste checkout.
+final: em 17/11, cartões, Apple Pay, Google Pay e Link estavam disponíveis.
+Por decisão da organização, o PayPal fica adiado: não é anunciado na interface nem
+incluído em novos checkouts, mesmo que seja ativado na conta Stripe. A leitura de
+registos anteriores continua compatível. Os restantes métodos da conta não entram
+neste checkout.
 O regresso/cancelamento no navegador não confirma pagamentos nem cria sessões.
 
 ## Configuração da organização
