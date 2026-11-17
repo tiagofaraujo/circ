@@ -84,12 +84,12 @@ const days = [
     ['10:00–12:00', 'Comunicações Livres', 'Oral communications'],
     ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
     ['13:05–14:00', 'Almoço', 'Lunch'],
-    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira'], children: [
+    ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira', 'julien-greggio'], children: [
       ['15:10–15:30', null, null, { speakers: [{ id: 'tobias-gilk' }] }],
       ['15:30–15:50', null, null, { speakers: [{ id: 'bill-faulkner' }] }],
       ['15:50–16:10', null, null, { speakers: [{ id: 'kris-seitz' }] }],
     ] }],
-    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['samuel-oliveira'] }],
+    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['ricardo-grunho'] }],
     ['17:00', 'Coffee break', 'Coffee break'],
     ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', { children: [
       ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', { speakers: [{ id: 'joana-madureira', name: 'Joana Madureira', showInstitution: true }] }],
@@ -120,7 +120,7 @@ function ProgrammeRow({ row, en, nested = false }) {
       {moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>
         {moderators.map(id => {
           const { name, institution } = moderators2027[id];
-          return `${name} (${institution})`;
+          return institution ? `${name} (${institution})` : name;
         }).join(en ? ' and ' : ' e ')}
       </p>}
       {children && <details className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol></details>}

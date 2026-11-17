@@ -153,9 +153,11 @@ test.each([
   const graciano = expectSpeakerWithoutBiography(ethicsTalk, 'Graciano Paulo', 'GP');
   expect(graciano).toHaveTextContent(language === 'en' ? 'President of ESTeSC' : 'Presidente da ESTeSC');
   expect(day10).not.toHaveTextContent('Vitor Silva');
-  for (const row of [safety, digitalTwinning]) {
-    expect(row.querySelector('.schedule-moderators')).toHaveTextContent('Samuel Oliveira (Everything MRI)');
-  }
+  expect(safety.querySelector('.schedule-moderators')).toHaveTextContent(
+    `Samuel Oliveira (Everything MRI · OMRIA) ${language === 'en' ? 'and' : 'e'} Julien Greggio (Everything MRI)`);
+  expect(digitalTwinning.querySelector('.schedule-moderators')).toHaveTextContent(
+    language === 'en' ? 'Moderation: Ricardo Grunho' : 'Moderação: Ricardo Grunho');
+  expect(digitalTwinning.querySelector('.schedule-moderators')).not.toHaveTextContent(/Samuel|undefined/);
   const joana = within(quoVadis).getByRole('link', { name: `Joana Madureira — ${biographyLabel}` });
   expect(joana).toHaveAttribute('href', '/oradores/joana-madureira');
   expect(joana.querySelector('img')).toHaveAttribute('src', '/speakers/joana-madureira.jpg');
