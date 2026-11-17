@@ -162,6 +162,9 @@ test('receipts include archived payments and add-ons, with confirmed refunds, fe
   const { store } = fixture(payments, [row('companyPurchases', 'paid', purchase),
     row('companyPurchases', 'unmatched', { ...purchase, amountCents: 20000 }),
     row('companyPurchases', 'pending', { ...purchase, status: 'pending' }),
+    row('companyPurchases', 'test', { ...purchase, isTest: true }),
+    row('companyPurchases', 'test-mode', { ...purchase, testMode: true }),
+    row('companyPurchases', 'sandbox', { ...purchase, environment: 'sandbox' }),
   ], [fee(1), fee(2, { method: 'multibanco', providerFeeMicros: 836400 }),
     fee(3, { method: 'multibanco', providerFeeMicros: 150000001 }), fee(6),
   ]);

@@ -45,3 +45,11 @@ Usar uma compra genuína cuja transferência esteja confirmada; não inventar um
 - Confirmar que cursos/jantar/virtual não podem ser cobertos por este fluxo.
 
 A verificação com contas reais e uma transferência confirmada continua necessária após ativação.
+
+## Retirar packs identificados como testes
+
+Uma compra explicitamente confirmada como teste pela organização pode ser marcada com `isTest: true` no documento `companyPurchases/{id}`, através da conta autorizada no Firebase Console. Antes da alteração, conferir nome, quantidade, montante, referências e códigos utilizados. Não inferir que uma compra é teste apenas pelo nome ou pela ausência de pagamento.
+
+A marca retira a compra da lista ativa e do resumo financeiro. O servidor rejeita a consulta de desconto e o resgate de todos os seus códigos; a confirmação de transferência no cliente também é recusada. A paginação conserva o cursor mesmo quando uma página só contém testes.
+
+Os dados originais, códigos e ligações históricas permanecem guardados. Não se alteram inscrições, pagamentos nem documentos fiscais associados: uma inscrição antiga pode já ter sido substituída por uma inscrição real. Esta operação não anula documentos fiscais nem processa reembolsos. A classificação é reversível no mesmo documento pelo Firebase Console (`isTest: false`), após conferir a elegibilidade dos dados; outros marcadores de teste continuam a ser respeitados.

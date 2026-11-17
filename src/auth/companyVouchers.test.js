@@ -1,5 +1,5 @@
 import { getFirebaseAuth, getFirebaseFirestore, isAdminUser } from './firebaseClient';
-import { companyError, confirmCompanyTransfer, createCompanyPurchase, formatVoucher, normalizeVoucher, redeemCompanyVoucher } from './companyVouchers';
+import { companyError, confirmCompanyTransfer, createCompanyPurchase, formatVoucher, loadCompanyPurchases, normalizeVoucher, redeemCompanyVoucher } from './companyVouchers';
 jest.mock('./firebaseClient', () => ({ getFirebaseAuth: jest.fn(), getFirebaseFirestore: jest.fn(), isAdminUser: jest.fn() }));
 const user = { uid: 'alice', email: 'alice@example.test', emailVerified: true, getIdToken: jest.fn(async () => 'verified-token') };
 const code = 'a'.repeat(32);
@@ -61,4 +61,26 @@ test('confirmed purchases cannot issue a second set of codes', async () => {
   isAdminUser.mockReturnValue(true); records['companyPurchases/id'] = { status: 'paid' };
   await expect(confirmCompanyTransfer('id', 'bank-ref')).rejects.toThrow('company/conflict');
   expect(tx.update).not.toHaveBeenCalled();
+});
+
+test.each([{ isTest: true }, { testMode: true }, { environment: 'sandbox' }])('test purchases cannot generate live codes: %j', async (marker) => {
+  isAdminUser.mockReturnValue(true);
+  records['companyPurchases/id'] = { status: 'pending', ...marker };
+  await expect(confirmCompanyTransfer('id', 'bank-ref')).rejects.toThrow('company/conflict');
+  expect(tx.update).not.toHaveBeenCalled(); expect(tx.set).not.toHaveBeenCalled();
+});
+test('test-only pages retain their cursor so later genuine purchases remain reachable', async () => {
+  isAdminUser.mockReturnValue(true);
+  const markers = [{ isTest: true }, { testMode: true }, { environment: 'sandbox' }];
+  const docs = Array.from({ length: 25 }, (_, i) => ({ id: `test-${i}`, data: () => ({ status: 'paid', ...markers[i % 3] }) }));
+  const genuine = { id: 'real-purchase', data: () => ({ status: 'paid', isTest: false }) };
+  const q = { orderBy: jest.fn(), limit: jest.fn(), startAfter: jest.fn(), get: jest.fn() };
+  q.orderBy.mockReturnValue(q); q.limit.mockReturnValue(q); q.startAfter.mockReturnValue(q);
+  q.get.mockResolvedValueOnce({ docs }).mockResolvedValueOnce({ docs: [genuine] });
+  getFirebaseFirestore.mockReturnValue({ collection: () => q });
+  const first = await loadCompanyPurchases();
+  expect(first.items).toEqual([]); expect(first.cursor).toBe(docs[24]);
+  const next = await loadCompanyPurchases(first.cursor);
+  expect(q.startAfter).toHaveBeenCalledWith(docs[24]);
+  expect(next).toEqual({ items: [{ id: 'real-purchase', status: 'paid', isTest: false }], cursor: null });
 });
