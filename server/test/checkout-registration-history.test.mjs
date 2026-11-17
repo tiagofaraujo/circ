@@ -178,7 +178,7 @@ test('the MB WAY validation allowlist requires a verified exact email and never 
   assert.ok(!livePaymentMethods(env, { isAdmin: false, emailVerified: true, email: `other+${identity.email}` }).includes('mbway'));
 });
 
-test('the published launch configuration allows a verified ordinary participant to use MB WAY while Stripe remains restricted', async () => {
+test('the published launch configuration offers MB WAY and Stripe to verified participants and preserves validation rollback', async () => {
   // Exercise the deployed flags through the real checkout API, with synthetic
   // credentials and providers only. Configuration reads never create payments.
   const published = JSON.parse(readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8')).vars;
@@ -190,7 +190,7 @@ test('the published launch configuration allows a verified ordinary participant 
   const result = await config.json();
   assert.equal(result.enabled, true);
   assert.equal(result.publicOpen, true);
-  assert.deepEqual(result.methods, ['multibanco', 'mbway', 'bank_transfer']);
+  assert.deepEqual(result.methods, ['multibanco', 'mbway', 'bank_transfer', 'stripe_card']);
   assert.equal(participant.state().creates, 0);
 
   const created = await participant.call('/orders', await participant.newRequest(), production);
@@ -199,12 +199,10 @@ test('the published launch configuration allows a verified ordinary participant 
   assert.equal(participant.state().creates, 1);
   assert.equal(participant.state().registration.payment.status, 'pending');
 
-  const stripe = fixture({ claims: { ...identity, email: 'ordinary@example.test' } });
-  const request = { ...await stripe.newRequest(), method: 'stripe_card' }; delete request.phone;
-  const refused = await stripe.call('/orders', request, production);
-  assert.equal(refused.status, 409);
-  assert.equal((await refused.json()).error, 'payment-method-unavailable');
-  assert.equal(stripe.state().creates, 0);
+  const restricted = fixture({ claims: { ...identity, email: 'ordinary@example.test' } });
+  const rollback = await restricted.call('/config', undefined, { ...production, LIVE_STRIPE_VALIDATION_ONLY: 'true' });
+  assert.ok(!(await rollback.json()).methods.includes('stripe_card'));
+  assert.equal(restricted.state().creates, 0);
 
   const unverified = fixture({ claims: { ...identity, email_verified: false } });
   assert.equal((await unverified.call('/config', undefined, production)).status, 403);
