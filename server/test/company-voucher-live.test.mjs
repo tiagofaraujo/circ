@@ -192,3 +192,21 @@ test('configuration, profile or purchase races fail closed and storage messages 
     assert.equal(response.status, status); assert.deepEqual(await response.json(), { error }); assert.equal(f.commits(), 0);
   }
 });
+
+test('test purchases cannot quote or redeem codes and preserve existing registrations', async () => {
+  for (const marker of [{ isTest: true }, { testMode: true }, { environment: 'sandbox' }]) {
+    for (const alreadyRedeemed of [false, true]) {
+      const f = fixture();
+      if (alreadyRedeemed) assert.equal((await f.api(request(), env)).status, 200);
+      Object.assign(f.data.purchase, marker);
+      const before = copy(f.data), commits = f.commits();
+      for (const preview of [true, false]) {
+        const response = await f.api(request({ code }, { preview }), env);
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), { error: 'company/invalid-code' });
+      }
+      assert.deepEqual(f.data, before);
+      assert.equal(f.commits(), commits);
+    }
+  }
+});

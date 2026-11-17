@@ -1,5 +1,6 @@
 import { getFirebaseAuth, getFirebaseFirestore, isAdminUser } from './firebaseClient';
 export const COMPANY_CONFIG = 'circ-2027-company-vouchers';
+const isTestPurchase = (purchase) => purchase.isTest === true || purchase.testMode === true || purchase.environment === 'sandbox';
 export const companyRegistrationId = (uid) => `circ-2027-${uid}`;
 export const formatVoucher = (code) => code.match(/.{1,4}/g)?.join('-') || code;
 export function normalizeVoucher(value) {
@@ -72,7 +73,7 @@ export async function confirmCompanyTransfer(id, transferReference, fiscalRefere
   await db.runTransaction(async (tx) => {
     const snapshot = await tx.get(ref);
     const p = snapshot.data();
-    if (!p || p.status !== 'pending') throw new Error('company/conflict');
+    if (!p || isTestPurchase(p) || p.status !== 'pending') throw new Error('company/conflict');
     const codes = Array.from({ length: p.quantity }, newVoucherCode);
     tx.update(ref, { status: 'paid', codes, transferReference: reference, fiscalReference: fiscalReference.trim(),
       confirmedBy: user.uid, confirmedAt: stamp(), updatedAt: stamp() });
@@ -108,7 +109,7 @@ export async function loadCompanyPurchases(after = null) {
   let q = db.collection('companyPurchases').orderBy('createdAt', 'desc').limit(25);
   if (after) q = q.startAfter(after);
   const s = await q.get({ source: 'server' });
-  return { items: s.docs.map((d) => ({ id: d.id, ...d.data() })), cursor: s.docs.length === 25 ? s.docs[24] : null };
+  return { items: s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => !isTestPurchase(p)), cursor: s.docs.length === 25 ? s.docs[24] : null };
 }
 export async function loadCompanyVouchers(purchase) {
   const { db } = context(true);

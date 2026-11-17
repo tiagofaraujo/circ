@@ -40,6 +40,7 @@ function validAllocation(voucher, purchase, code) {
     && Number.isSafeInteger(voucher.index) && voucher.index >= 0
     && Number.isSafeInteger(voucher.unitAmountCents) && voucher.unitAmountCents > 0 && voucher.unitAmountCents <= 100000
     && purchase?.eventId === EVENT && purchase.status === 'paid'
+    && purchase.isTest !== true && purchase.testMode !== true && purchase.environment !== 'sandbox'
     && Number.isSafeInteger(purchase.quantity) && purchase.quantity >= 1 && purchase.quantity <= 50
     && purchase.unitAmountCents === voucher.unitAmountCents
     && purchase.amountCents === purchase.quantity * purchase.unitAmountCents
