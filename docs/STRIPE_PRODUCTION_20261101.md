@@ -1,4 +1,4 @@
-# CIRC 2027 — preparação Stripe em produção
+# CIRC 2027 — Stripe em produção
 
 ## Estado atualizado em 17 de novembro de 2026
 
@@ -6,8 +6,10 @@ O organizador confirmou que o pagamento real MB WAY funciona corretamente.
 Esta confirmação refere-se ao pagamento; não inclui o identificador da respetiva FR.
 Multibanco, transferência bancária e respetivos recibos já tinham sido confirmados.
 
-O Stripe anterior era exclusivamente sandbox. O novo percurso usa o ledger real,
-e mantém a abertura restrita a validação. A conta live e uma sessão real de 95 €
+O Stripe anterior era exclusivamente sandbox. O novo percurso usa o ledger real.
+Em 17/11/2026, a organização autorizou a abertura aos congressistas, com cartões,
+Apple Pay, Google Pay e Link; o PayPal permanece adiado.
+A conta live e uma sessão real de 95 €
 criada pelo participante foram consultadas: a sessão estava aberta e não paga.
 A ligação `/g/pay/` era rejeitada pelo validador anterior. Esta alteração corrige
 o formato e recupera a sessão existente sem criar outra cobrança. A confirmação
@@ -20,10 +22,11 @@ Visa, Mastercard, American Express, Discover e as carteiras Apple Pay/Google Pay
 cartões. A apresentação de cada carteira depende da conta, navegador, dispositivo
 e cartão configurado pelo participante. Não existem campos de cartão no CIRC.
 
-`LIVE_STRIPE_ENABLED=true`, `LIVE_STRIPE_VALIDATION_ONLY=true` e a allowlist de
-validação limitam o método à administração verificada e à conta designada para
-validar pagamentos. Esta autorização não concede permissões administrativas.
-O método só aparece quando há configurações live com formato válido.
+`LIVE_STRIPE_ENABLED=true` e `LIVE_STRIPE_VALIDATION_ONLY=false` disponibilizam
+o método aos participantes autenticados com email verificado. Mantêm-se as
+validações de inscrição, faturação, elegibilidade e configuração live.
+A abertura não concede permissões administrativas. A allowlist fica conservada
+para uma eventual reposição do modo de validação (`LIVE_STRIPE_VALIDATION_ONLY=true`).
 
 A API fica fixada em `2026-10-28.endive`. A criação limita os métodos dinâmicos com
 `allowed_payment_method_types[]=card,link`; não envia `payment_method_types`.
@@ -104,8 +107,9 @@ esta etapa não disponibiliza repetição autónoma dessas tentativas.
 
 ## Validação real pendente
 
-Depois de configurar a conta e as credenciais, usar o checkout habitual de uma
-conta autorizada e uma compra efetivamente pretendida. Confirmar o pagamento,
+A abertura foi autorizada pela organização; os testes automáticos passaram, mas
+a confirmação de um pagamento real e da respetiva FR continua pendente.
+Usar o checkout habitual de um participante numa compra efetivamente pretendida. Confirmar o pagamento,
 a atualização automática da inscrição e a FR/PDF; verificar Apple Pay e Google
 Pay em dispositivos elegíveis. Uma inscrição paga admite compras adicionais,
 sem duplicar a inscrição principal. Testes automáticos não comprovam estas etapas.

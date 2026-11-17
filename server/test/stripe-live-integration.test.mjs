@@ -459,6 +459,24 @@ test('Stripe validation is scoped to verified allowlisted users and works indepe
   assert.equal((await unverified.call('/config')).status, 403); assert.equal(unverified.httpCalls.length, 0);
 });
 
+test('public Stripe accepts a verified participant outside the validation list and retains readiness and identity checks', async () => {
+  const configuration={...env,LIVE_STRIPE_VALIDATION_ONLY:'false'};
+  const identity={...owner,email:'participant@example.test'};
+  const f=fixture({configuration,identity});
+  assert.ok((await (await f.call('/config')).json()).methods.includes('stripe_card'));
+  const {order}=await f.create();assert.equal(order.status,'pending');
+  assert.equal(f.payment(ids[0]).userId,identity.sub);assert.equal(f.registration().status,'submitted');
+  assert.equal(f.fiscalCalls.length,0);
+  const unverified=fixture({configuration,identity:{...identity,email_verified:false}});
+  assert.equal((await unverified.call('/config')).status,403);
+  for(const key of ['STRIPE_LIVE_SECRET_KEY','STRIPE_LIVE_WEBHOOK_SECRET']){
+    const missing=fixture({configuration:{...configuration,[key]:''},identity});
+    assert.ok(!(await (await missing.call('/config')).json()).methods.includes('stripe_card'));
+    assert.equal((await missing.call('/orders',await missing.orderBody(ids[0]))).status,409);
+    assert.equal(missing.httpCalls.length,0);
+  }
+});
+
 test('expiry and asynchronous failure cannot erase paid evidence previously retained for eligibility review', async () => {
   for (const [type, status] of [['checkout.session.expired', 'expired'], ['checkout.session.async_payment_failed', 'complete']]) {
     const f = fixture(); await f.create();
