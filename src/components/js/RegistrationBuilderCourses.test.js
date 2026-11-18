@@ -51,13 +51,13 @@ test('a paid registration offers supplements with no capacity read during the su
  expect(checkout().kind).toBe('supplementary');
 });
 test('students can buy one or both courses and courses-only requires at least one selection', () => {
- show(); fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ })); fireEvent.click(screen.getByRole('radio', { name: /Cursos pré-congresso/ }));
+ show(); fireEvent.click(screen.getByRole('radio', { name: /Estudante de IMR/ })); fireEvent.click(screen.getByRole('radio', { name: /Não participar no congresso/ }));
  expect(checkout().eligible).toBe(false);
  fireEvent.click(screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ }));
  expect(checkout().eligible).toBe(true);
  fireEvent.click(screen.getByRole('checkbox', { name: /Via Verde AVC/ }));
  expect(checkout().selection).toEqual({ profile:'student', congressMode:'courses-only', morningCourse:true, afternoonCourse:true, dinnerQuantity:0 });
- expect(screen.getByText(/70\s*€/)).toBeInTheDocument();
+ expect(screen.getByText('Valor estimado').parentElement).toHaveTextContent(/70\s*€/);
 });
 test('course prices retain the external affiliation for students and the ULS rate for ULS staff', () => {
  show(); const morning = () => screen.getByRole('checkbox', { name: /Pós-processamento em ressonância magnética/ });
@@ -93,12 +93,12 @@ test('dinner controls normalize leading zeroes and update the virtual registrati
  expect(quantity.value).toBe('');
  expect(remove).toBeDisabled();
  expect(checkout().selection.dinnerQuantity).toBe(0);
- expect(summary.getByText(/^60\s*€$/)).toBeInTheDocument();
+ expect(summary.getByText('Valor estimado').parentElement).toHaveTextContent(/60\s*€/);
 });
 test('a pending primary order freezes the existing selection and an admin has no test bypass', () => {
  mockRegistration = { id:'circ-2027-participant', isTest:false, status:'submitted', selection:{ profile:'student', congressMode:'courses-only', morningCourse:true, afternoonCourse:false, dinnerQuantity:1 }, payment:{status:'pending'} };
  useAuth.mockReturnValue({ user:{uid:'participant', emailVerified:true},isAdmin:true }); show();
- expect(screen.getByRole('radio', { name:/Cursos pré-congresso/ })).toBeChecked();
+ expect(screen.getByRole('radio', { name:/Não participar no congresso/ })).toBeChecked();
  expect(screen.getByRole('radio', { name:/Congresso virtual/ })).toBeDisabled();
  expect(screen.getByRole('checkbox', { name:/Pós-processamento em ressonância magnética/ })).toBeChecked();
  expect(screen.getByRole('checkbox', { name:/Via Verde AVC/ })).toBeDisabled();
