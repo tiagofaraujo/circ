@@ -208,6 +208,32 @@
   line-height: 1.15;
 }
 
+.registration-step--profile .registration-choice {
+  min-height: 100px;
+  justify-content: center;
+}
+
+.registration-step--profile .registration-choice strong {
+  margin-top: 0;
+  padding-right: 18px;
+}
+
+.registration-summary__items {
+  margin: 1.25rem 0;
+  display: grid;
+  gap: .65rem;
+}
+
+.registration-summary__items > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.registration-summary__items dt { font-weight: 500; }
+.registration-summary__items dd { margin: 0; text-align: right; }
+
 .registration-choice p {
   margin: 8px 0 0;
   color: var(--ink-soft);
