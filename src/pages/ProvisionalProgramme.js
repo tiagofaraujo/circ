@@ -65,7 +65,7 @@ const days = [
     ['15:05–16:05', 'Painel Internacional de TC por Contagem de Fotões', 'International Photon-Counting CT panel', { moderators: ['mario-monteiro', 'ana-isabel-machado'], children: [
       ['', null, null, { speakers: [{ id: 'fides-schwartz', name: 'Fides R. Schwartz' }] }],
       ['', null, null, { speakers: [{ id: 'giuseppe-toia' }] }],
-      ['', null, null, { speakers: [{ name: 'Kirsten Burke' }], detail: { pt: 'Biografia pendente', en: 'Biography pending' } }],
+      ['', null, null, { speakers: [{ id: 'kristen-burke', showInstitution: true }] }],
     ] }],
     ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado', 'Mammography panel — Artificial intelligence, intervention and advanced diagnosis', { children: [
       ['16:15–16:25', 'IA na Mamografia — Da Investigação à Prática Clínica', 'AI in mammography — From research to clinical practice', { speakers: [{ id: 'rita-santiago', affiliation: { pt: 'Fundação Champalimaud', en: 'Champalimaud Foundation' } }] }],

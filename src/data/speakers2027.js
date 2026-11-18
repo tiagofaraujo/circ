@@ -114,6 +114,20 @@ export const speakers2027 = [
     }
   },
   {
+    id: 'kristen-burke', name: 'Kristen Burke', initials: 'KB', image: 'kristen-burke.jpg',
+    institution: 'Brigham and Women’s Hospital · Mass General Brigham',
+    pt: { field: 'TC por contagem de fotões e garantia da qualidade', role: 'Técnica de Radiologia · Garantia da Qualidade em TC', bio: [
+      'Kristen Burke trabalha em radiologia desde 2012. Iniciou o seu percurso na radiologia convencional e passou a dedicar-se à tomografia computorizada (TC) em 2013. Em 2015, concluiu um Bachelor of Science com especialização em Imagem Médica.',
+      'Após trabalhar em vários hospitais, integrou o Brigham and Women’s Hospital, do Mass General Brigham. Ao longo de 12 anos nesta instituição, passou de técnica de radiologia a funções de liderança técnica e, posteriormente, de garantia da qualidade. Dedica-se à investigação clínica e colabora com várias equipas na melhoria dos cuidados prestados aos doentes.',
+      'Tem experiência com a tecnologia de TC por contagem de fotões (Photon-Counting CT — PCCT), num contexto em que o hospital dispõe de dois equipamentos e a sua utilização está a expandir-se na rede Mass General Brigham. Partilha esta experiência na formação de profissionais sobre a tecnologia e os seus benefícios para os doentes.'
+    ] },
+    en: { field: 'Photon-counting CT and quality assurance', role: 'Radiologic Technologist · CT Quality Assurance', bio: [
+      'Kristen Burke has worked in radiology since 2012. She began as a radiologic technologist specialising in diagnostic X-ray before moving into computed tomography (CT) in 2013. She completed a Bachelor of Science with a concentration in Medical Imaging in 2015.',
+      'After working in several hospitals, she joined Brigham and Women’s Hospital, part of Mass General Brigham. Over 12 years at the hospital, she progressed from staff technologist to lead technologist and then to quality assurance. Her work focuses on clinical research and collaboration with multiple teams to improve patient care.',
+      'Her experience includes photon-counting CT (PCCT), with two scanners at the main hospital and expanding use across Mass General Brigham. She shares this experience through education about the technology and its benefits for patients.'
+    ] }
+  },
+  {
     id: 'filipa-martins', name: 'Filipa Martins', initials: 'FM', image: 'filipa-martins.jpg',
     institution: 'ULS Coimbra',
     pt: { field: 'Imagem médica e radioterapia', role: 'Técnica de Radiologia', bio: [
