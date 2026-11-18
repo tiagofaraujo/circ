@@ -129,11 +129,11 @@ test.each([
   expect(dianaCarvalho.querySelector('img')).toHaveAttribute('src', '/speakers/diana-carvalho-2027.jpg');
   expectSpeakerWithoutBiography(mriTalks[2], 'Célia Antunes', 'CA');
   const ctPanel = rows(container, '09')[9];
-  const kirsten = within(ctPanel).getByText('Kirsten Burke').closest('.schedule-speaker');
-  expect(kirsten.querySelector('.schedule-speaker__initials')).toHaveTextContent('KB');
-  expect(kirsten.closest('a')).toBeNull();
-  expect(kirsten.querySelector('img')).toBeNull();
-  expect(within(ctPanel).getByText(language === 'en' ? 'Biography pending' : 'Biografia pendente')).toBeVisible();
+  const kristen = within(ctPanel).getByRole('link', { name: `Kristen Burke — ${biographyLabel}` });
+  expect(kristen).toHaveAttribute('href', '/oradores/kristen-burke');
+  expect(kristen.querySelector('img')).toHaveAttribute('src', '/speakers/kristen-burke.jpg');
+  expect(kristen).toHaveTextContent('Brigham and Women’s Hospital · Mass General Brigham');
+  expect(within(ctPanel).queryByText(language === 'en' ? 'Biography pending' : 'Biografia pendente')).not.toBeInTheDocument();
   fireEvent.click(container.querySelector('button[aria-controls="dia-08"]'));
   const [morning, afternoon] = rows(container, '08');
   expect(speakerNames(morning)).toEqual(['Daniel Leitão']);
