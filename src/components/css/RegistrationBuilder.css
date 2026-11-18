@@ -1210,6 +1210,9 @@
 .registration-checkout { margin-top: 1.5rem; }
 .registration-checkout label { display: block; margin: 1rem 0; font-size: 0.9rem; }
 .registration-checkout button { margin: 0.5rem 0; }
+.registration-checkout .registration-checkout__finalize { box-sizing: border-box; display: flex; width: 100%; min-height: 48px; text-align: center; white-space: normal; }
+.registration-checkout__billing-link { display: flex; align-items: center; width: fit-content; max-width: 100%; min-height: 44px; margin-top: .75rem; padding: .5rem 0; text-decoration: underline; text-underline-offset: .2em; }
+.registration-checkout__billing-link:focus-visible { outline: 3px solid var(--coral, #e55041); outline-offset: 3px; }
 .registration-discount { margin: 1rem 0; padding: .75rem 1rem; border: 1px solid var(--line, #d9dbe4); border-radius: .4rem; }
 .registration-discount summary { min-height: 2.75rem; align-content: center; cursor: pointer; font-weight: 650; }
 .registration-discount .registration-discount__code { display: grid; gap: .5rem; margin: .5rem 0; }

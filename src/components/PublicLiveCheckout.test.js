@@ -30,19 +30,19 @@ test('scheduled opening shows the date, blocks new payment and refreshes configu
  const view=show();
  try {
   expect(await screen.findByText('Os pagamentos abrem a 15 de novembro de 2026, às 00h00 de Lisboa.')).toHaveAttribute('role','status');
-  expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+  expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
   expect(transport).not.toHaveBeenCalled();
   configuration={...configuration,enabled:true,publicOpen:true,methods:['multibanco']};
   await act(async()=>{jest.advanceTimersByTime(2025);});
-  await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled());
   expect(screen.queryByText('Os pagamentos abrem a 15 de novembro de 2026, às 00h00 de Lisboa.')).not.toBeInTheDocument();
   expect(transport).not.toHaveBeenCalled();
  } finally { view.unmount();jest.useRealTimers(); }
 });
 test('reviews server billing and requires acknowledgement before exactly one real-order request', async () => {
  transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({ order }));
- show(); await waitFor(() => expect(screen.getByRole('button', { name: 'Rever valor e faturação' })).toBeEnabled());
- fireEvent.click(screen.getByRole('button', { name: 'Rever valor e faturação' }));
+ show(); await waitFor(() => expect(screen.getByRole('button', { name: 'Finalizar compra' })).toBeEnabled());
+ fireEvent.click(screen.getByRole('button', { name: 'Finalizar compra' }));
  const create = await screen.findByRole('button', { name: 'Gerar referência Multibanco' });
  expect(create).toBeDisabled(); expect(screen.getByText('Pessoa')).toBeInTheDocument();
  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(create);
@@ -124,7 +124,7 @@ test('removing a voucher invalidates the reviewed discount and requires a new ac
  fireEvent.click(screen.getByRole('button',{name:'Remover código'}));
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
  expect(transport).toHaveBeenCalledTimes(1);
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  expect(await screen.findByRole('button',{name:'Gerar referência Multibanco'})).toBeDisabled();
  expect(screen.getByText(/Valor a pagar:/)).toHaveTextContent(/95,00\s?€/);
  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection});
@@ -257,7 +257,7 @@ test('a discounted quote arriving after a change of registration selection canno
  rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={updated} eligible /></MemoryRouter>);
  await act(async () => resolveQuote(response(discountPreview(fixedDiscount,8000))));
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
- await ready(); fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ await ready(); fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  expect(await screen.findByRole('button',{name:'Gerar referência Multibanco'})).toBeDisabled();
  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({selection:updated});
 });
@@ -276,8 +276,8 @@ test('no congress discount field is available for a courses-only purchase', asyn
 });
 test('a lost creation response retains its UUID and prevents another creation', async () => {
  transport.mockResolvedValueOnce(response(preview)).mockRejectedValueOnce(new Error('network'));
- show(); await waitFor(() => expect(screen.getByRole('button', { name: 'Rever valor e faturação' })).toBeEnabled());
- fireEvent.click(screen.getByRole('button', { name: 'Rever valor e faturação' }));
+ show(); await waitFor(() => expect(screen.getByRole('button', { name: 'Finalizar compra' })).toBeEnabled());
+ fireEvent.click(screen.getByRole('button', { name: 'Finalizar compra' }));
  fireEvent.click(await screen.findByRole('checkbox')); fireEvent.click(screen.getByRole('button', { name: 'Gerar referência Multibanco' }));
  expect(await screen.findByRole('alert')).toHaveTextContent('O pedido pode já existir');
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
@@ -294,7 +294,7 @@ test('an existing pending registration is read without creating another quote or
 test('an invalid saved ID fails closed instead of permitting a new reference', async () => {
  localStorage.setItem('circ-production-order:user', 'invalid'); show();
  expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
- expect(await screen.findByRole('button', { name: 'Rever valor e faturação' })).toBeDisabled(); expect(transport).not.toHaveBeenCalled();
+ expect(await screen.findByRole('button', { name: 'Finalizar compra' })).toBeDisabled(); expect(transport).not.toHaveBeenCalled();
 });
 
 const PRIMARY_ID = '22222222-2222-4222-8222-222222222222';
@@ -307,9 +307,9 @@ function showSupplement(props={}) { return show({kind:'supplementary',registrati
 test('a supplement recovers its own server slot and uses a separate preview, UUID and payment request', async()=>{
  localStorage.setItem('circ-production-order:user',PRIMARY_ID);
  transport.mockResolvedValueOnce(response({error:'not-found'},false,404)).mockResolvedValueOnce(response(secondaryPreview)).mockResolvedValueOnce(response({order:secondaryOrder}));
- showSupplement(); await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
+ showSupplement(); await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled());
  expect(transport.mock.calls[0][0]).toBe('/api/checkout/live/supplementary-order');
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  fireEvent.click(await screen.findByRole('checkbox'));
  fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
  await screen.findByText('A aguardar pagamento');
@@ -331,14 +331,14 @@ test('a primary order cannot be adopted as a supplement from a stale browser UUI
  localStorage.setItem('circ-production-supplementary-order:user',ID);
  transport.mockResolvedValueOnce(response({order:{...order,kind:'primary'}})); showSupplement();
  expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
 });
 
 test('an atomic slot collision recovers the preexisting supplement without another provider request',async()=>{
  transport.mockResolvedValueOnce(response({error:'not-found'},false,404)).mockResolvedValueOnce(response(secondaryPreview))
   .mockResolvedValueOnce(response({error:'supplementary-order-exists',order:{...secondaryOrder,id:PRIMARY_ID}},false,409));
- showSupplement(); await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'})); fireEvent.click(await screen.findByRole('checkbox'));
+ showSupplement(); await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'})); fireEvent.click(await screen.findByRole('checkbox'));
  fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
  await screen.findByText('A aguardar pagamento');
  expect(localStorage.getItem('circ-production-supplementary-order:user')).toBe(PRIMARY_ID);
@@ -365,8 +365,8 @@ test('only a fully invoiced supplement can start an explicitly separate new purc
 
 test('a different catalogue selection invalidates the frozen preview and acknowledgement',async()=>{
  transport.mockResolvedValueOnce(response(preview)); const view=show();
- await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  fireEvent.click(await screen.findByRole('checkbox')); expect(screen.getByRole('button',{name:'Gerar referência Multibanco'})).toBeEnabled();
  view.rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={{...selection,congressMode:'virtual'}} eligible /></MemoryRouter>);
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
@@ -379,8 +379,8 @@ test('creation locks the catalogue before waiting for an authentication token',a
  const account={uid:user.uid,getIdToken:jest.fn().mockResolvedValueOnce('session').mockResolvedValueOnce('session').mockResolvedValueOnce('session').mockImplementationOnce(()=>token)};
  transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({order}));
  const onLock=jest.fn(); show({user:account,onLock});
- await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'})); fireEvent.click(await screen.findByRole('checkbox'));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'})); fireEvent.click(await screen.findByRole('checkbox'));
  fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
  expect(onLock).toHaveBeenCalledWith(true);
  expect(transport).toHaveBeenCalledTimes(1);
@@ -390,8 +390,8 @@ test('creation locks the catalogue before waiting for an authentication token',a
 test('a quote collision also recovers the outstanding supplement without creating a payment',async()=>{
  transport.mockResolvedValueOnce(response({error:'not-found'},false,404))
   .mockResolvedValueOnce(response({error:'supplementary-order-exists',order:secondaryOrder},false,409));
- showSupplement(); await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled());
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ showSupplement(); await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  await screen.findByText('A aguardar pagamento');
  expect(localStorage.getItem('circ-production-supplementary-order:user')).toBe(ID);
  expect(transport.mock.calls.filter(([url])=>url.endsWith('/orders'))).toHaveLength(0);
@@ -400,9 +400,9 @@ test('a quote collision also recovers the outstanding supplement without creatin
 const mbwayOrder = { ...order, method:'mbway', entity:undefined, reference:undefined, expiresAt:'2026-11-01T12:04:00.000Z' };
 const bankOrder = { ...order, method:'bank_transfer', entity:undefined, reference:undefined,
  bankTransfer:{ status:'awaiting_transfer', revision:0, payee:'Associação', iban:'PT50 0000 0000 0000 0000 0000 0', paymentReference:ID } };
-async function ready() { await waitFor(()=>expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeEnabled()); }
+async function ready() { await waitFor(()=>expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeEnabled()); }
 async function reviewAndAcknowledge() {
- fireEvent.click(screen.getByRole('button',{name:/Rever (valor e faturação|desconto e total)/}));
+ fireEvent.click(screen.getByRole('button',{name:/Finalizar compra|Rever desconto e total/}));
  fireEvent.click(await screen.findByRole('checkbox'));
 }
 test('only server-advertised known methods are offered, without a live card option',async()=>{
@@ -417,19 +417,19 @@ test('unavailable or invalid configuration blocks creation while an existing ord
  configuration=null; transport.mockResolvedValueOnce(response({order:mbwayOrder}));
  show({registration:{id:'registration',payment:{orderId:ID}}});
  await screen.findByText(/Confirme este pedido na aplicação MB WAY/);
- expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Finalizar compra'})).not.toBeInTheDocument();
  expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
 });
 test('a disabled checkout has no enabled review action',async()=>{
  configuration.enabled=false; show();
  expect(await screen.findByRole('alert')).toHaveTextContent('temporariamente indisponíveis');
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(transport).not.toHaveBeenCalled();
 });
 test.each(['91234','+44 912345678','123456789'])('MB WAY rejects the invalid Portuguese phone %s before a quote',async phone=>{
  configuration.methods=['mbway']; show();
  fireEvent.change(await screen.findByRole('textbox',{name:/Número MB WAY/}),{target:{value:phone}});
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(transport).not.toHaveBeenCalled();
 });
 test('MB WAY normalises the Portuguese prefix and creates one acknowledged order without persisting the phone',async()=>{
@@ -437,7 +437,7 @@ test('MB WAY normalises the Portuguese prefix and creates one acknowledged order
  transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({order:mbwayOrder}));
  show(); await ready(); fireEvent.click(screen.getByRole('radio',{name:'MB WAY'}));
  fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'+351 912 345 678'}});
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  const create=await screen.findByRole('button',{name:'Enviar pedido MB WAY'}); expect(create).toBeDisabled();
  expect(screen.getByText(/\+351 912345678/)).toBeInTheDocument();
  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(create); fireEvent.click(create);
@@ -557,10 +557,10 @@ test('only explicit MB WAY reconciliation and a fresh billing, phone and consent
  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({});
  expect(uuid).not.toHaveBeenCalled(); expect(localStorage.getItem('circ-production-order:user')).toBeNull();
  expect(screen.getByRole('textbox',{name:/Número MB WAY/})).toHaveValue('');
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(screen.queryByRole('button',{name:'Enviar pedido MB WAY'})).not.toBeInTheDocument();
  fireEvent.change(screen.getByRole('textbox',{name:/Número MB WAY/}),{target:{value:'+351 923456789'}});
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  const create=await screen.findByRole('button',{name:'Enviar pedido MB WAY'}); expect(create).toBeDisabled();
  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(create);
  await screen.findByText(/Confirme este pedido na aplicação MB WAY/);
@@ -793,7 +793,7 @@ test('a canonical active order replaces an archived browser UUID without exposin
  transport.mockResolvedValueOnce(response({order:historicalOrder})).mockResolvedValueOnce(response({order:{...order,id:PRIMARY_ID,kind:'primary'}}));
  show(); await screen.findByText('A aguardar pagamento');
  expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
- expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Finalizar compra'})).not.toBeInTheDocument();
  expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
 });
 test('a canonical lookup failure preserves the historical recovery handle and blocks a new payment',async()=>{
@@ -801,7 +801,7 @@ test('a canonical lookup failure preserves the historical recovery handle and bl
  transport.mockResolvedValueOnce(response({order:historicalOrder})).mockRejectedValueOnce(new Error('offline'));
  show();expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(transport).toHaveBeenCalledTimes(2);
 });
 test('an ordinary missing saved order is never treated as permission to abandon its UUID',async()=>{
@@ -809,7 +809,7 @@ test('an ordinary missing saved order is never treated as permission to abandon 
  show();expect(await screen.findByRole('alert')).toHaveTextContent('Não gere outro pagamento');
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
  expect(transport).toHaveBeenCalledTimes(1);
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
 });
 test('a historical marker must be the explicit boolean and belong to the requested order',async()=>{
  localStorage.setItem('circ-production-order:user',ID);
@@ -817,7 +817,7 @@ test('a historical marker must be the explicit boolean and belong to the request
  show();await screen.findByText('Pagamento confirmado');
  expect(localStorage.getItem('circ-production-order:user')).toBe(ID);
  expect(transport).toHaveBeenCalledTimes(1);
- expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Finalizar compra'})).not.toBeInTheDocument();
 });
 test('a historical response with a different identifier cannot clear the saved order',async()=>{
  localStorage.setItem('circ-production-order:user',ID);
@@ -832,7 +832,7 @@ test('a stale registration snapshot stays blocked after archival until the subsc
  const onLock=jest.fn(), registration={id:'circ-2027-user',payment:{orderId:ID,status:'pending',method:'multibanco'}};
  const view=show({registration,onLock});await screen.findByText(/A inscrição anterior foi arquivada/);
  expect(localStorage.getItem('circ-production-order:user')).toBeNull();
- expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Finalizar compra'})).not.toBeInTheDocument();
  view.rerender(<MemoryRouter><PublicLiveCheckout user={user} selection={selection} eligible registration={null} onLock={onLock}/></MemoryRouter>);
  await ready();expect(onLock).toHaveBeenLastCalledWith(false);
  expect(transport.mock.calls.every(([,options])=>options.method==='GET')).toBe(true);
@@ -847,7 +847,7 @@ test('a new payment snapshot for the same registration identifier recovers its a
  await screen.findByText('A aguardar pagamento');
  expect(transport.mock.calls[2][0]).toBe(`/api/checkout/live/orders/${PRIMARY_ID}`);
  expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
- expect(screen.queryByRole('button',{name:'Rever valor e faturação'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Finalizar compra'})).not.toBeInTheDocument();
 });
 test('an archived supplementary UUID is resolved separately and never clears the primary payment handle',async()=>{
  localStorage.setItem('circ-production-order:user',PRIMARY_ID);localStorage.setItem('circ-production-supplementary-order:user',ID);
@@ -856,7 +856,7 @@ test('an archived supplementary UUID is resolved separately and never clears the
  expect(transport.mock.calls[1][0]).toBe('/api/checkout/live/supplementary-order');
  expect(localStorage.getItem('circ-production-supplementary-order:user')).toBeNull();
  expect(localStorage.getItem('circ-production-order:user')).toBe(PRIMARY_ID);
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
 });
 test('a historical-order creation refusal also requires the explicit marker and a canonical lookup',async()=>{
  transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({error:'historical-order',order:historicalOrder},false,409))
@@ -880,7 +880,7 @@ test('Stripe is one server-enabled method and creates only an acknowledged hoste
  show();await ready();expect(screen.getAllByRole('radio')).toHaveLength(1);
  expect(screen.getByRole('radio',{name:'Cartões e carteiras digitais (Stripe)'})).toBeChecked();
  expect(screen.queryByRole('button',{name:/Apple Pay|Google Pay|PayPal|Klarna|Revolut/i})).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  const create=await screen.findByRole('button',{name:'Preparar pagamento na Stripe'});expect(create).toBeDisabled();
  fireEvent.click(screen.getByRole('checkbox'));fireEvent.click(create);fireEvent.click(create);
  const link=await screen.findByRole('link',{name:'Continuar para pagamento'});
@@ -1025,7 +1025,7 @@ test('missing fiscal minima block review with field-specific guidance before any
  expect(within(notice).getByText(/Localidade de faturação: preencha/)).toBeInTheDocument();
  expect(within(notice).getByText(/País de faturação: nesta fase é aceite Portugal/)).toBeInTheDocument();
  expect(within(notice).getByRole('link',{name:'Completar dados obrigatórios no Perfil'})).toHaveAttribute('href','/conta/perfil#faturacao');
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(transport).not.toHaveBeenCalled();
  expect(fetch).toHaveBeenCalledWith('/api/checkout/live/billing-readiness',expect.objectContaining({method:'GET',headers:{Authorization:'Bearer session'}}));
 });
@@ -1033,12 +1033,12 @@ test('a complete optional profile score cannot override invalid required billing
  localStorage.setItem('circ_demo_account',JSON.stringify({profileCompletionPercentage:100}));
  billingReadiness={ready:false,issues:['billing-tax-number-is-seller']};show();
  await screen.findByText(/NIF: use o número do adquirente/);
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
 });
 test.each([{ready:'true',issues:[]},{ready:true,issues:['billing-address-required']}])('an invalid or inconsistent billing readiness response fails closed (%j)',async readiness=>{
  billingReadiness=readiness;show();
  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível confirmar os dados de faturação');
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
 });
 test('a failed billing check permits a read-only refresh without automatically preparing payment',async()=>{
  const original=fetch.getMockImplementation();let unavailable=true;
@@ -1054,7 +1054,7 @@ test('returning from Profile invalidates the previous preview and consent before
  billingReadiness={ready:false,issues:['billing-tax-number-invalid']};fireEvent(window,new Event('focus'));
  await screen.findByText(/NIF: indique um número/);
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  billingReadiness={ready:true,issues:[]};fireEvent(window,new Event('focus'));await ready();
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
  expect(transport.mock.calls.filter(([url])=>url.endsWith('/orders'))).toHaveLength(0);
@@ -1067,7 +1067,7 @@ test('an old account billing response cannot unlock the new account checkout',as
  const view=show();await waitFor(()=>expect(reads).toBe(1));
  view.rerender(<MemoryRouter><PublicLiveCheckout user={{...user,uid:'another-account'}} selection={selection} eligible/></MemoryRouter>);
  await screen.findByText(/Localidade de faturação: preencha/);await act(async()=>release());
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();expect(transport).not.toHaveBeenCalled();
 });
 test('missing current profile details never hide an existing payment with its frozen billing snapshot',async()=>{
  billingReadiness={ready:false,issues:['billing-address-required']};transport.mockResolvedValueOnce(response({order}));
@@ -1081,14 +1081,14 @@ test('a billing rejection before order creation clears only that candidate and r
  show();await ready();await reviewAndAcknowledge();fireEvent.click(screen.getByRole('button',{name:'Gerar referência Multibanco'}));
  await screen.findByText(/Código postal: utilize o formato 0000-000/);
  expect(localStorage.getItem('circ-production-order:user')).toBeNull();
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(screen.queryByRole('button',{name:'Gerar referência Multibanco'})).not.toBeInTheDocument();
 });
 test('unknown readiness codes produce safe guidance instead of exposing raw server values',async()=>{
  billingReadiness={ready:false,issues:['untrusted-private-server-detail']};show();
  await screen.findByText('Reveja e guarde os dados de faturação no Perfil.');
  expect(screen.queryByText('untrusted-private-server-detail')).not.toBeInTheDocument();
- expect(screen.getByRole('button',{name:'Rever valor e faturação'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
 });
 test.each([['capacity-full',409],['capacity-unavailable',503],['capacity-review-required',409]])('a precreation %s never strands the new UUID or creates another payment',async(error,status)=>{
  const onCapacityRefresh=jest.fn();transport.mockResolvedValueOnce(response(preview)).mockResolvedValueOnce(response({error,unavailable:['onsite']},false,status));
@@ -1100,7 +1100,7 @@ test.each([['capacity-full',409],['capacity-unavailable',503],['capacity-review-
 });
 test('a capacity refusal identifies the finite choices and refreshes availability without creating an order',async()=>{
  const onCapacityRefresh=jest.fn();transport.mockResolvedValueOnce(response({error:'capacity-full',unavailable:['morningCourse','afternoonCourse']},false,409));
- show({onCapacityRefresh});await ready();fireEvent.click(screen.getByRole('button',{name:'Rever valor e faturação'}));
+ show({onCapacityRefresh});await ready();fireEvent.click(screen.getByRole('button',{name:'Finalizar compra'}));
  expect(await screen.findByRole('alert')).toHaveTextContent('Curso da manhã · Curso da tarde');
  expect(onCapacityRefresh).toHaveBeenCalledTimes(1);expect(localStorage.getItem('circ-production-order:user')).toBeNull();
 });

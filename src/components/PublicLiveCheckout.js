@@ -623,7 +623,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
           : `${REGISTRATION_CAPACITY_ENABLED
             ? t('A inscrição é confirmada após o pagamento e a verificação da lotação aplicável.', 'Registration is confirmed after payment and the applicable capacity check.')
             : t('A inscrição é confirmada após o pagamento.', 'Registration is confirmed after payment.')} ${t('A fatura-recibo ficará disponível no My CIRC após a emissão.', 'The invoice-receipt will be available in My CIRC once issued.')}`}</p>}
-      {!companyQuote && <button type="button" className="button button--dark" disabled={busy || configBusy || recoveryBlocked || !eligible || !canReview || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : enteredCode ? t('Rever desconto e total', 'Review discount and total') : t('Rever valor e faturação', 'Review amount and billing')}</button>}
+      {!companyQuote && <button type="button" className="button button--dark registration-checkout__finalize" disabled={busy || configBusy || recoveryBlocked || !eligible || !canReview || !billingReady} onClick={review}>{busy || configBusy || billing.status === 'loading' ? t('A consultar…', 'Loading…') : enteredCode ? t('Rever desconto e total', 'Review discount and total') : t('Finalizar compra', 'Proceed to checkout')}</button>}
       {customer && <div className="registration-invoice">
         {reviewedQuote.quote.discount && <p>{discountLabel(reviewedQuote.quote.discount)} <strong>−{money(reviewedQuote.quote.discount.amountCents)}</strong></p>}
         {reviewedQuote.quote.organizerBenefit && <p>{t('Voucher de organizador', 'Organiser voucher')} <strong>−{money(reviewedQuote.quote.organizerBenefit.amountCents)}</strong></p>}
@@ -695,6 +695,6 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       {supplementary && order.status === 'paid' && order.fiscalStatus === 'issued' && order.capacityStatus !== 'review_required' && <button type="button" onClick={newPurchase} disabled={busy}>{t('Preparar nova compra', 'Prepare another purchase')}</button>}
     </div>}
     {error && <p role="alert">{error}</p>}
-    <Link to="/conta/perfil">{t('Rever dados de faturação no perfil', 'Review billing profile')}</Link>
+    <Link className="registration-checkout__billing-link" to="/conta/perfil#faturacao">{t('Editar dados de faturação', 'Edit billing details')}</Link>
   </section>;
 }
