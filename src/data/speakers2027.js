@@ -332,10 +332,37 @@ export const speakers2027 = [
     institution: 'Fundação Champalimaud',
   },
   {
-    id: 'graciano-paulo', name: 'Graciano Paulo', initials: 'GP',
-    institution: 'ESTeSC',
-    pt: { field: 'Presidente da ESTeSC' },
-    en: { field: 'President of ESTeSC' },
+    "id": "graciano-paulo",
+    "name": "Graciano Paulo",
+    "initials": "GP",
+    "image": "graciano-paulo.jpg",
+    "institution": "ESTeSC",
+    "pt": {
+      "field": "Proteção radiológica e imagem médica",
+      "role": "Professor Coordenador Principal · Presidente da ESTeSC",
+      "bio": [
+        "Graciano Paulo é Professor Coordenador Principal e Presidente da Escola Superior de Tecnologia da Saúde da Universidade Politécnica de Coimbra (ESTeSC).",
+        "Doutorado e Agregado em Ciências da Saúde pela Faculdade de Medicina da Universidade de Coimbra, desenvolve atividade académica e de investigação na área científica de Imagem Médica e Radioterapia.",
+        "Dirige o Centro Colaborador da Organização Mundial da Saúde para a Proteção Radiológica e Saúde da ESTeSC e preside à European Alliance for Medical Radiation Protection Research (EURAMED).",
+        "Coordena o Educational Activities Working Group da iniciativa EuroSafe Imaging, da European Society of Radiology (ESR), integrando as comissões de proteção radiológica desta sociedade e da Cardiovascular and Interventional Radiological Society of Europe (CIRSE). É perito da International Atomic Energy Agency (IAEA). No projeto europeu RHYTHM, lidera as atividades de educação e formação.",
+        "Presidiu à Associação Portuguesa dos Técnicos de Radiologia, Radioterapia e Medicina Nuclear (ATARP) e à European Federation of Radiographer Societies (EFRS), contribuindo para a afirmação da profissão em Portugal e no Mundo.",
+        "É autor de mais de 50 artigos em revistas científicas internacionais e orador convidado em mais de 300 congressos nacionais e internacionais, sobretudo nas áreas da proteção radiológica, da otimização da imagem médica e da formação dos profissionais de saúde.",
+        "Intervém regularmente no debate público sobre políticas de saúde, defendendo sistemas de saúde orientados pela qualidade e pela segurança e a valorização dos profissionais da designada área das Tecnologias da Saúde."
+      ]
+    },
+    "en": {
+      "field": "Radiation protection and medical imaging",
+      "role": "Full Professor · President of ESTeSC",
+      "bio": [
+        "Graciano Paulo is a Full Professor and President of the Coimbra Health School (ESTeSC) at the Polytechnic University of Coimbra.",
+        "He holds a PhD and Habilitation Title in Health Sciences from the Faculty of Medicine of the University of Coimbra and is actively engaged in teaching and research in the scientific field of Medical Imaging and Radiotherapy.",
+        "He is Director of the World Health Organization (WHO) Collaborating Centre for Radiation Protection and Health at ESTeSC and President of the European Alliance for Medical Radiation Protection Research (EURAMED).",
+        "He chairs the Educational Activities Working Group of EuroSafe Imaging, an initiative of the European Society of Radiology (ESR), and serves on the Radiation Protection Committees of both the ESR and the Cardiovascular and Interventional Radiological Society of Europe (CIRSE). He is also an expert for the International Atomic Energy Agency (IAEA). Within the European funded RHYTHM project, he leads the education and training activities.",
+        "He previously served as President of the Portuguese Association of Radiographers, Radiation Therapists and Nuclear Medicine Technologists (ATARP) and the European Federation of Radiographer Societies (EFRS), contributing to the recognition and advancement of the profession in Portugal and internationally.",
+        "He has authored more than 50 articles published in international scientific journals and has been an invited speaker at over 300 national and international conferences, primarily in the fields of radiation protection, medical imaging optimisation, and healthcare professional education.",
+        "He regularly contributes to public debate on health policy, advocating for healthcare systems centred on quality and safety, as well as the recognition and professional development of allied health professionals, particularly those working in Health Technologies."
+      ]
+    }
   },
   {
     id: 'daniel-leitao', name: 'Daniel Leitão', initials: 'DL',

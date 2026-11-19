@@ -150,7 +150,9 @@ test.each([
   expect(speakerNames(digitalTwinning)).toEqual(['Julien Greggio']);
   expect(speakerNames(quoVadis)).toEqual(['Joana Madureira', 'Graciano Paulo']);
   const ethicsTalk = quoVadis.querySelector('.schedule-sublist').children[1];
-  const graciano = expectSpeakerWithoutBiography(ethicsTalk, 'Graciano Paulo', 'GP');
+  const graciano = within(ethicsTalk).getByRole('link', { name: `Graciano Paulo — ${biographyLabel}` });
+  expect(graciano).toHaveAttribute('href', '/oradores/graciano-paulo');
+  expect(graciano.querySelector('img')).toHaveAttribute('src', '/speakers/graciano-paulo.jpg');
   expect(graciano).toHaveTextContent(language === 'en' ? 'President of ESTeSC' : 'Presidente da ESTeSC');
   expect(day10).not.toHaveTextContent('Vitor Silva');
   expect(safety.querySelector('.schedule-moderators')).toHaveTextContent(
