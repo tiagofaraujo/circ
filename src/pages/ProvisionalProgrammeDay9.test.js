@@ -164,7 +164,7 @@ test.each([
   expect(safety.querySelector('.schedule-moderators')).toHaveTextContent(
     `Samuel Oliveira (Everything MRI · OMRIA) ${language === 'en' ? 'and' : 'e'} Julien Greggio (Everything MRI)`);
   expect(digitalTwinning.querySelector('.schedule-moderators')).toHaveTextContent(
-    language === 'en' ? 'Moderation: Ricardo Grunho' : 'Moderação: Ricardo Grunho');
+    `${language === 'en' ? 'Moderation: Ricardo Grunho and' : 'Moderação: Ricardo Grunho e'} Paula Marques (ULS Coimbra)`);
   expect(digitalTwinning.querySelector('.schedule-moderators')).not.toHaveTextContent(/Samuel|undefined/);
   const joana = within(quoVadis).getByRole('link', { name: `Joana Madureira — ${biographyLabel}` });
   expect(joana).toHaveAttribute('href', '/oradores/joana-madureira');
