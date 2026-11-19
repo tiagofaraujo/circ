@@ -140,7 +140,11 @@ test.each([
   const daniel = expectSpeakerWithoutBiography(morning, 'Daniel Leitão', 'DL');
   expect(daniel).toHaveTextContent('Siemens Healthineers');
   expect(speakerNames(afternoon)).toEqual(['Ricardo Veiga']);
-  const ricardo = expectSpeakerWithoutBiography(afternoon, 'Ricardo Veiga', 'RV');
+  const ricardo = within(afternoon).getByText('Ricardo Veiga', { exact: true }).closest('.schedule-speaker');
+  expect(ricardo).toBeVisible();
+  expect(ricardo.closest('a')).toBeNull();
+  expect(within(ricardo).queryByRole('link')).not.toBeInTheDocument();
+  expect(ricardo.querySelector('img')).toHaveAttribute('src', '/speakers/ricardo-veiga.png');
   expect(ricardo).toHaveTextContent(neuroradiology);
   fireEvent.click(container.querySelector('button[aria-controls="dia-10"]'));
   const day10 = container.querySelector('#dia-10');

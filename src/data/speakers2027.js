@@ -369,7 +369,7 @@ export const speakers2027 = [
     institution: 'Siemens Healthineers',
   },
   {
-    id: 'ricardo-veiga', name: 'Ricardo Veiga', initials: 'RV',
+    id: 'ricardo-veiga', name: 'Ricardo Veiga', initials: 'RV', image: 'ricardo-veiga.png',
     institution: 'ULS Coimbra',
   }
 ];
