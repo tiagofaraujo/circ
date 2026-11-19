@@ -144,11 +144,11 @@ export const speakers2027 = [
     institution: 'ULS Coimbra',
     pt: { field: 'Radiologia', role: 'Técnica de Radiologia', bio: [
       'Ana Rita Vaz é Técnica Superior de Diagnóstico e Terapêutica na área de Radiologia desde 2013. Exerce funções na ULS Coimbra desde 2020.',
-      'É pós-graduada em Ressonância Magnética pela ESTeSC e frequenta o mestrado em Técnicas Avançadas de Imagem em Radiologia na Escola Superior de Saúde do Politécnico do Porto.'
+      'É pós-graduada em Ressonância Magnética pela ESTeSC e frequenta o mestrado em Técnicas Avançadas de Imagem em Radiologia na Escola Superior de Saúde da Universidade Técnica do Porto.'
     ] },
     en: { field: 'Radiography', role: 'Radiographer', bio: [
       'Ana Rita Vaz has worked as a radiographer since 2013 and joined ULS Coimbra in 2020.',
-      'She holds a postgraduate qualification in Magnetic Resonance Imaging from ESTeSC and is pursuing a master’s degree in Advanced Imaging Techniques in Radiology at the School of Health of the Polytechnic of Porto.'
+      'She holds a postgraduate qualification in Magnetic Resonance Imaging from ESTeSC and is pursuing a master’s degree in Advanced Imaging Techniques in Radiology at the School of Health of the Technical University of Porto.'
     ] }
   },
   {
