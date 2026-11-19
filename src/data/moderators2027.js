@@ -27,6 +27,7 @@ export const moderators2027 = {
   'sofia-brandao': { name: 'Sofia Brandão', institution: 'CESPU' },
   'mario-monteiro': {
     name: 'Mário Monteiro',
+    image: 'mario-monteiro.jpg',
     institution: 'ESTeSC · Universidade Politécnica de Coimbra',
     pt: { bio: [
       'Mário João Gonçalves Monteiro é professor adjunto no Departamento de Fisiologia Clínica e Imagem Médica e Radioterapia da ESTeSC. Foi coordenador da Unidade Científico-Pedagógica de Imagem Médica e Radioterapia e presidente do Conselho Pedagógico, e integrou o Conselho Técnico-Científico.',
