@@ -89,7 +89,7 @@ const days = [
       ['15:30–15:50', null, null, { speakers: [{ id: 'bill-faulkner' }] }],
       ['15:50–16:10', null, null, { speakers: [{ id: 'kris-seitz' }] }],
     ] }],
-    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['ricardo-grunho'] }],
+    ['16:20–16:50', 'Digital twinning in MRI', 'Digital twinning in MRI', { speakers: [{ id: 'julien-greggio' }], moderators: ['ricardo-grunho', 'paula-marques'] }],
     ['17:00', 'Coffee break', 'Coffee break'],
     ['17:30–18:10', 'Quo Vadis Radiologia', 'Quo Vadis Radiologia', { children: [
       ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', { speakers: [{ id: 'joana-madureira', name: 'Joana Madureira', showInstitution: true }] }],
