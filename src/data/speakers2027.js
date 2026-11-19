@@ -328,8 +328,16 @@ export const speakers2027 = [
     ] },
   },
   {
-    id: 'rita-santiago', name: 'Rita Santiago', initials: 'RS',
+    id: 'rita-santiago', name: 'Rita Santiago', initials: 'RS', image: 'rita-santiago.png',
     institution: 'Fundação Champalimaud',
+    pt: { field: 'Radiologia e proteção radiológica', role: 'Técnica de Radiologia', bio: [
+      'Rita Santiago é licenciada em Radiologia e pós-graduada em Proteção contra as Radiações.',
+      'Atualmente, desempenha funções na Fundação Champalimaud, onde desenvolve a sua atividade nas diferentes áreas da Radiologia.'
+    ] },
+    en: { field: 'Radiography and radiation protection', role: 'Radiographer', bio: [
+      'Rita Santiago holds a degree in Radiography and a postgraduate qualification in Radiation Protection.',
+      'She currently works at the Champalimaud Foundation, where her practice spans different areas of radiography.'
+    ] },
   },
   {
     "id": "graciano-paulo",
