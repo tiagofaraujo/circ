@@ -70,7 +70,7 @@ test('the same voucher field shows company coverage and waits for confirmation b
  const confirm=await screen.findByRole('button',{name:'Confirmar inscrição',exact:true});
  expect(transport).toHaveBeenCalledTimes(1);
  expect(transport.mock.calls[0][0]).toBe('/api/checkout/live/company-voucher/quote');
- expect(onVoucherQuote).toHaveBeenLastCalledWith({kind:'company-voucher',currency:'EUR',amountCents:0,companyVoucher});
+ await waitFor(()=>expect(onVoucherQuote).toHaveBeenLastCalledWith({kind:'company-voucher',currency:'EUR',amountCents:0,companyVoucher}));
  expect(screen.queryByRole('link',{name:'Completar dados obrigatórios no Perfil'})).not.toBeInTheDocument();
  fireEvent.click(confirm);
  await screen.findByText('Inscrição confirmada com voucher.');
