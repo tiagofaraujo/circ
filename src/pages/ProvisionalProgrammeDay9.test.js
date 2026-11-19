@@ -79,7 +79,9 @@ test.each([
   const [aiTalk, stereotaxis, contrast] = panel.querySelector('.schedule-sublist').children;
   expect(Array.from(panel.querySelectorAll('.schedule-sublist .schedule-time'), time => time.textContent))
     .toEqual(['16:15–16:25', '16:25–16:45', '16:45–16:55']);
-  const ritaSantiago = expectSpeakerWithoutBiography(aiTalk, 'Rita Santiago', 'RS');
+  const ritaSantiago = within(aiTalk).getByRole('link', { name: `Rita Santiago — ${biographyLabel}` });
+  expect(ritaSantiago).toHaveAttribute('href', '/oradores/rita-santiago');
+  expect(ritaSantiago.querySelector('img')).toHaveAttribute('src', '/speakers/rita-santiago.png');
   expect(ritaSantiago).toHaveTextContent(institution);
   expect(aiTalk).not.toHaveTextContent(/a confirmar|to be confirmed/);
   expect(speakerNames(stereotaxis)).toEqual(['Sandra Rodrigues', 'Francisca Rodrigues', 'Filipa Oliveira']);

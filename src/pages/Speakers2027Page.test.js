@@ -11,7 +11,6 @@ const speakersWithoutBiography = [
   ['Célia Antunes', 'ULS Coimbra', 'celia-antunes'],
   ['Ricardo Veiga', 'ULS Coimbra', 'ricardo-veiga'],
   ['Daniel Leitão', 'Siemens Healthineers', 'daniel-leitao'],
-  ['Rita Santiago', 'Fundação Champalimaud', 'rita-santiago'],
 ];
 
 function renderDirectory(path = '/oradores') {
