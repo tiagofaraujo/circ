@@ -241,6 +241,9 @@
   .my-circ-mobile-menu nav a[aria-current] { background: #eeecff; color: #232eb7; font-weight: 650; }
 }
 .circ-notifications .account-card { margin-block: 1.25rem; padding: clamp(1.25rem, 3vw, 2rem); }
+.circ-birthday-preference { margin-block: 1.5rem; padding: 1rem; border: 1px solid #dcd9eb; border-radius: 1rem; min-width: 0; }
+.circ-birthday-preference legend { font-size: 1.2rem; font-weight: 600; padding-inline: .4rem; }
+.circ-birthday-preference input[type="checkbox"] { width: auto; margin-right: .4rem; accent-color: #2927b9; }
 .circ-notification-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-block: 1rem; }
 .circ-notification-actions .button { white-space: normal; }
 .circ-notification-note { margin-top: 1rem; font-size: 0.9rem; }

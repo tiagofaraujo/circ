@@ -26,6 +26,7 @@ function setup(claims = admin, settings = env) {
       record = { ...next, revision: String(Number(record?.revision || 0) + 1) };
     },
     async remove() { record = null; },
+    async birthdayProfile() { return { name: 'Tiago Araújo', dateOfBirth: '1980-11-21' }; },
   };
   const api = createPushApi({ verify: async () => claims, tokenProvider: async () => 'server-token', storeFactory: () => store,
     now: () => time, send: async () => { deliveries++; return { accepted: true }; } });
@@ -33,6 +34,42 @@ function setup(claims = admin, settings = env) {
     advance: ms => { time += ms; }, store };
 }
 const enrollment = () => request('subscriptions', { subscription, locale: 'pt', consent: true });
+
+test('birthday consent is separate, defaults off and uses only the authenticated profile', async () => {
+  const state = setup(); await state.api(enrollment());
+  assert.equal(state.read().birthdayEnabled, false);
+  let lookedUp;
+  state.store.birthdayProfile = async uid => { lookedUp = uid; return { dateOfBirth: '1980-11-21' }; };
+  assert.equal((await state.api(request('birthday', { endpoint: subscription.endpoint, enabled: true,
+    uid: 'someone-else', dateOfBirth: '1999-01-01' }))).status, 200);
+  assert.equal(lookedUp, admin.sub);
+  assert.equal(state.read().birthdayEnabled, true);
+  assert.equal(state.read().birthdayConsentedAt, new Date(clock).toISOString());
+  assert.equal(state.read().dateOfBirth, undefined);
+  assert.equal(state.deliveries(), 0);
+  assert.equal((await (await state.api(request('status', { endpoint: subscription.endpoint }))).json()).birthdayEnabled, true);
+});
+
+test('birthday opt-in requires a valid stored birth date and never trusts a client supplied date', async () => {
+  const state = setup(); state.store.birthdayProfile = async () => null;
+  const result = await state.api(request('subscriptions', { subscription, locale: 'pt', consent: true,
+    birthdayConsent: true, dateOfBirth: '1980-11-21' }));
+  assert.equal(result.status, 400);
+  assert.equal((await result.json()).error, 'birthday-profile-required');
+  assert.equal(state.read(), null);
+});
+
+test('only the owner can change birthday consent; withdrawal remains available when paused', async () => {
+  const settings = { ...env }; const state = setup(admin, settings);
+  await state.api(request('subscriptions', { subscription, locale: 'pt', consent: true, birthdayConsent: true }));
+  const foreign = createPushApi({ verify: async () => participant, tokenProvider: async () => 'token', storeFactory: () => state.store, now: () => clock });
+  assert.equal((await foreign(request('birthday', { endpoint: subscription.endpoint, enabled: false }), settings)).status, 409);
+  settings.PUSH_ENABLED = 'false';
+  assert.equal((await state.api(request('birthday', { endpoint: subscription.endpoint, enabled: false }))).status, 200);
+  assert.equal(state.read().birthdayEnabled, false);
+  assert.equal(state.read().birthdayConsentedAt, null);
+  assert.equal((await state.api(request('birthday', { endpoint: subscription.endpoint, enabled: true }))).status, 503);
+});
 
 test('production stays disabled by default; config never exposes the private key', async () => {
   assert.equal(pushConfiguration({}).enabled, false);
@@ -89,9 +126,9 @@ test('successful enrollment stores only the necessary device data and never send
   assert.equal(state.read().consentedAt, new Date(clock).toISOString());
   assert.equal(state.read().email, undefined);
   assert.equal(state.deliveries(), 0);
-  assert.deepEqual(await (await state.api(request('status', { endpoint: subscription.endpoint }))).json(), { subscribed: true });
+  assert.deepEqual(await (await state.api(request('status', { endpoint: subscription.endpoint }))).json(), { subscribed: true, birthdayEnabled: false });
   state.advance(91 * 86400000);
-  assert.deepEqual(await (await state.api(request('status', { endpoint: subscription.endpoint }))).json(), { subscribed: false });
+  assert.deepEqual(await (await state.api(request('status', { endpoint: subscription.endpoint }))).json(), { subscribed: false, birthdayEnabled: false });
 });
 
 test('one device test per minute, only after a saved subscription', async () => {
@@ -117,7 +154,7 @@ test('a different account cannot read, replace or delete another device registra
   const state = setup(); await state.api(enrollment());
   const other = createPushApi({ verify: async () => participant, tokenProvider: async () => 'token', storeFactory: () => state.store, now: () => clock });
   const publicEnv = { ...env, PUSH_TEST_ONLY: 'false' };
-  assert.deepEqual(await (await other(request('status', { endpoint: subscription.endpoint }), publicEnv)).json(), { subscribed: false });
+  assert.deepEqual(await (await other(request('status', { endpoint: subscription.endpoint }), publicEnv)).json(), { subscribed: false, birthdayEnabled: false });
   assert.equal((await other(enrollment(), publicEnv)).status, 409);
   assert.equal((await other(request('subscriptions', { endpoint: subscription.endpoint }, 'DELETE'), publicEnv)).status, 409);
   assert.equal(state.read().uid, admin.sub);
