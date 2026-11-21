@@ -26,6 +26,14 @@ test('private birthday greetings use a separate annual tag and keep the personal
   assert.equal(w.displayed[0][1].body, 'Parabéns, Tiago!');
   assert.equal(w.displayed[0][1].tag, 'circ-birthday-2026');
 });
+test('different announcements have distinct tags and refresh open account windows', async () => {
+  const w = worker(); let done; const messages = [];
+  w.context.self.clients.matchAll = async () => [{ postMessage: message => messages.push(message) }];
+  const tag = 'circ-announcement-7e4121c9-a990-44c8-9751-a438e77fd910';
+  w.events.push({ data: { json: () => ({ body: 'Programa atualizado', tag }) }, waitUntil(p) { done = p; } }); await done;
+  assert.equal(w.displayed[0][1].tag, tag);
+  assert.equal(messages[0].type, 'CIRC_NOTIFICATION');
+});
 test('notification click cannot open an external, javascript or payment URL', async () => {
   for (const value of ['https://evil.example', '//evil.example', 'javascript:alert(1)', '/conta/inscricoes?pay=1']) {
     const w = worker(); let done;

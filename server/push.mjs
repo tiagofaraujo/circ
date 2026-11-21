@@ -186,7 +186,7 @@ export function createPushStore({ projectId, token, fetchImpl = fetch }) {
       if (!Number.isFinite(time)) throw new Error('invalid-time');
       const stats = { removed: 0, changed: 0, failed: 0, fullBatches: 0 };
       // Fixed collections only. Projected reads never retrieve profile or payment data.
-      for (const collection of ['pushSubscriptions', 'pushBirthdayDeliveries']) {
+      for (const collection of ['pushSubscriptions', 'pushBirthdayDeliveries', 'pushAnnouncementDeliveries']) {
         const response = await fetchImpl(`${origin}${documents}:runQuery`, { ...init(), method: 'POST', body: JSON.stringify({ structuredQuery: {
           from: [{ collectionId: collection }], select: { fields: [{ fieldPath: 'expiresAt' }] },
           where: { fieldFilter: { field: { fieldPath: 'expiresAt' }, op: 'LESS_THAN_OR_EQUAL',

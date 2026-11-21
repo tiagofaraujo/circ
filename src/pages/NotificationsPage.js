@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { currentPushSubscription, disablePush, enablePush, loadPushConfig, needsHomeScreen, pushRequest, pushSupported } from '../pwa/pushNotifications';
 import '../account.css';
+import AnnouncementFeed from '../components/AnnouncementFeed';
 
 export default function NotificationsPage() {
   const { user, isAdmin } = useAuth();
@@ -55,10 +56,12 @@ export default function NotificationsPage() {
 
   return <main className="account-page circ-notifications">
     <p className="account-eyebrow">My CIRC</p>
-    <h1>{t('Notificações no telemóvel', 'Phone notifications')}</h1>
+    <h1>{t('Notificações', 'Notifications')}</h1>
+    <AnnouncementFeed />
+    {isAdmin && <p><Link to="/admin/notificacoes">{t('Criar e gerir avisos da organização', 'Create and manage announcements')}</Link></p>}
     <section className="account-card" aria-labelledby="push-device-title">
       <h2 id="push-device-title">{t('Este dispositivo', 'This device')}</h2>
-      <p>{t('A receção de notificações é opcional e depende da sua autorização. Pode desativá-las aqui ou nas definições do navegador.', 'Notifications are optional and require your permission. Turn them off here or in your browser settings.')}</p>
+      <p>{t('Ative para receber automaticamente os novos avisos publicados pela organização. A receção é opcional e depende da sua autorização neste dispositivo. Pode desativá-la aqui ou nas definições do navegador.', 'Enable notifications to receive new organiser announcements automatically. Delivery is optional and requires permission on this device. Turn it off here or in your browser settings.')}</p>
       {busy && <p role="status">{t('A verificar…', 'Checking…')}</p>}
       {config && !allowed && <p role="status">{t('As notificações ainda não estão disponíveis para os participantes. A organização está a preparar a ativação.', 'Notifications are not yet available to participants. The organisers are preparing activation.')}</p>}
       {config && allowed && <p>{active ? t('Notificações ativadas neste dispositivo.', 'Notifications enabled on this device.') : t('Notificações desativadas neste dispositivo.', 'Notifications disabled on this device.')}</p>}

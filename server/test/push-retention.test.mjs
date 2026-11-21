@@ -31,7 +31,9 @@ test('cleanup projects expiry only, guards each deletion revision and preserves 
     return Response.json({ status: [{}, { code: 9, message: 'renewed' }] });
   } });
   assert.deepEqual(await store.removeExpired(time), { removed: 1, changed: 1, failed: 0, fullBatches: 0 });
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
+  assert.deepEqual(calls.filter(c => c.url.endsWith(':runQuery')).map(c => c.body.structuredQuery.from[0].collectionId),
+    ['pushSubscriptions', 'pushBirthdayDeliveries', 'pushAnnouncementDeliveries']);
   for (const call of calls.filter(c => c.url.endsWith(':runQuery'))) {
     const q = call.body.structuredQuery;
     assert.deepEqual(q.select, { fields: [{ fieldPath: 'expiresAt' }] });
