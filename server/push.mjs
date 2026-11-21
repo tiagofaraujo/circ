@@ -232,7 +232,7 @@ export function createPushApi({ verify, tokenProvider = createPaymentsServiceTok
           testAccount: admin, birthdayEnabled: birthdayOptIn,
           birthdayConsentedAt: birthdayOptIn ? (previous?.birthdayConsentedAt || new Date(now()).toISOString()) : null,
           consentedAt: previous?.consentedAt || new Date(now()).toISOString(),
-          updatedAt: new Date(now()).toISOString(), expiresAt: new Date(now() + 90 * 86400000).toISOString(),
+          updatedAt: new Date(now()).toISOString(), expiresAt: new Date(now() + (birthdayOptIn ? 400 : 90) * 86400000).toISOString(),
           lastTestAt: previous?.lastTestAt || null }, previous);
         return reply({ subscribed: true });
       }
@@ -240,6 +240,8 @@ export function createPushApi({ verify, tokenProvider = createPaymentsServiceTok
       if (action === 'birthday') {
         await store.save({ ...previous, birthdayEnabled: data.enabled,
           birthdayConsentedAt: data.enabled ? (previous.birthdayConsentedAt || new Date(now()).toISOString()) : null,
+          expiresAt: new Date(data.enabled ? now() + 400 * 86400000
+            : Math.min(Date.parse(previous.expiresAt), now() + 90 * 86400000)).toISOString(),
           updatedAt: new Date(now()).toISOString() }, previous);
         return reply({ birthdayEnabled: data.enabled });
       }

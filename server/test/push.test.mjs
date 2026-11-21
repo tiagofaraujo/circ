@@ -71,6 +71,18 @@ test('only the owner can change birthday consent; withdrawal remains available w
   assert.equal((await state.api(request('birthday', { endpoint: subscription.endpoint, enabled: true }))).status, 503);
 });
 
+test('birthday opt-in lasts through the next anniversary, while withdrawal restores the ordinary retention limit', async () => {
+  const state = setup();
+  await state.api(request('subscriptions', { subscription, locale: 'pt', consent: true, birthdayConsent: true }));
+  assert.equal(Date.parse(state.read().expiresAt), clock + 400 * 86400000);
+  state.advance(366 * 86400000);
+  assert.equal((await (await state.api(request('status', { endpoint: subscription.endpoint }))).json()).birthdayEnabled, true);
+  await state.api(request('birthday', { endpoint: subscription.endpoint, enabled: true }));
+  assert.equal(Date.parse(state.read().expiresAt), clock + (366 + 400) * 86400000);
+  await state.api(request('birthday', { endpoint: subscription.endpoint, enabled: false }));
+  assert.equal(Date.parse(state.read().expiresAt), clock + (366 + 90) * 86400000);
+});
+
 test('production stays disabled by default; config never exposes the private key', async () => {
   assert.equal(pushConfiguration({}).enabled, false);
   assert.equal(pushConfiguration({ ...env, PUSH_ENABLED: 'false' }).enabled, false);
