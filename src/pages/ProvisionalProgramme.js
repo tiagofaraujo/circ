@@ -75,15 +75,18 @@ const days = [
       ['16:45–16:55', 'Mamografia com Contraste — Novas Perspetivas no Diagnóstico Mamário', 'Contrast-enhanced mammography — New perspectives in breast diagnosis', { speakers: [{ id: 'rita-baptista', showInstitution: true }] }],
     ] }],
     ['17:00–17:45', 'Coffee break', 'Coffee break'],
-    ['17:45–18:30', 'Comunicações', 'Presentations'],
+    ['17:45–18:30', 'Radiologia de Intervenção', 'Interventional Radiology'],
     ['18:30–19:00', 'Momento cultural e de animação', 'Cultural programme and entertainment'],
     ['20:00', 'Jantar de convívio', 'Congress dinner'],
   ] },
   { day: '10', pt: 'Congresso · Dia 2', en: 'Congress · Day 2', rows: [
     ['09:15–10:00', 'Brunch', 'Brunch'],
     ['10:00–12:00', 'Comunicações Livres', 'Oral communications'],
-    ['12:00–13:00', 'Painel ainda a designar', 'Panel to be announced'],
+    ['12:00–13:00', 'Moldando um futuro sustentável para a Radiologia', 'Shaping a sustainable future for Radiology', { moderators: ['luis-semedo'], speakers: [
+      { id: 'andrea-rockall' }, { id: 'rui-lopes', showInstitution: true },
+    ] }],
     ['13:05–14:00', 'Almoço', 'Lunch'],
+    ['14:15–15:00', 'Inteligência Artificial em Radiologia', 'Artificial Intelligence in Radiology', { moderators: ['nuno-pereira-da-silva'] }],
     ['15:05–16:10', 'Atualização em Proteção e Segurança em RM', 'Update on MRI Protection and Safety', { moderators: ['samuel-oliveira', 'julien-greggio'], children: [
       ['15:10–15:30', null, null, { speakers: [{ id: 'tobias-gilk' }] }],
       ['15:30–15:50', null, null, { speakers: [{ id: 'bill-faulkner' }] }],
@@ -95,6 +98,8 @@ const days = [
       ['17:30–17:50', 'Identidade e Futuro da Profissão: O Que Falta Construir', 'Identity and the Future of the Profession: What Still Needs to Be Built', { speakers: [{ id: 'joana-madureira', name: 'Joana Madureira', showInstitution: true }] }],
       ['17:50–18:10', 'Comunicação e Ética na Radiologia', 'Communication and Ethics in Radiology', { speakers: [{ id: 'graciano-paulo', affiliation: { pt: 'Presidente da ESTeSC', en: 'President of ESTeSC' } }] }],
     ] }],
+    ['18:20', 'Entrega de Prémios', 'Awards Ceremony'],
+    ['18:30', 'Sessão de Encerramento', 'Closing Ceremony'],
   ] },
 ];
 

@@ -77,4 +77,6 @@ export const moderators2027 = {
   'ricardo-grunho': { name: 'Ricardo Grunho' },
   'joana-madureira': { name: 'Joana Madureira', institution: 'ATARP', speakerId: 'joana-madureira' },
   'paula-marques': { name: 'Paula Marques', institution: 'ULS Coimbra', speakerId: 'paula-marques' },
+  'luis-semedo': { name: 'Luís Semedo' },
+  'nuno-pereira-da-silva': { name: 'Nuno Pereira da Silva' },
 };
