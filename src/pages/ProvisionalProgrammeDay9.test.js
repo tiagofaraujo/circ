@@ -22,7 +22,7 @@ function expectSpeakerWithoutBiography(row, name, initials) {
 const additionsPT = [
   ['16:15–17:00', 'Painel de Mamografia — Inteligência Artificial, Intervenção e Diagnóstico Avançado'],
   ['17:00–17:45', 'Coffee break'],
-  ['17:45–18:30', 'Comunicações'],
+  ['17:45–18:30', 'Radiologia de Intervenção'],
   ['18:30–19:00', 'Momento cultural e de animação'],
   ['20:00', 'Jantar de convívio'],
 ];
@@ -63,7 +63,7 @@ test('includes the same afternoon schedule in the English programme', () => {
   expect(rows(container, '09').slice(-5).map(summary)).toEqual([
     ['16:15–17:00', 'Mammography panel — Artificial intelligence, intervention and advanced diagnosis'],
     ['17:00–17:45', 'Coffee break'],
-    ['17:45–18:30', 'Presentations'],
+    ['17:45–18:30', 'Interventional Radiology'],
     ['18:30–19:00', 'Cultural programme and entertainment'],
     ['20:00', 'Congress dinner'],
   ]);
@@ -151,7 +151,13 @@ test.each([
   fireEvent.click(container.querySelector('button[aria-controls="dia-10"]'));
   const day10 = container.querySelector('#dia-10');
   expect(within(day10).queryByRole('heading', { name: /mamografia|mammography/i })).not.toBeInTheDocument();
-  const [, , , , safety, digitalTwinning, , quoVadis] = rows(container, '10');
+  const [, , sustainability, , ai, safety, digitalTwinning, , quoVadis] = rows(container, '10');
+  expect(speakerNames(sustainability)).toEqual(['Andrea Rockall', 'Rui Lopes']);
+  expectSpeakerWithoutBiography(sustainability, 'Andrea Rockall', 'AR');
+  expect(within(sustainability).getByRole('link', { name: `Rui Lopes — ${biographyLabel}` }))
+    .toHaveTextContent('ULS Médio Tejo');
+  expect(sustainability.querySelector('.schedule-moderators')).toHaveTextContent('Luís Semedo');
+  expect(ai.querySelector('.schedule-moderators')).toHaveTextContent('Nuno Pereira da Silva');
   expect(speakerNames(safety)).toEqual(['Toby Gilk', 'Bill Faulkner', 'Kris Seitz']);
   expect(speakerNames(digitalTwinning)).toEqual(['Julien Greggio']);
   expect(speakerNames(quoVadis)).toEqual(['Joana Madureira', 'Graciano Paulo']);
@@ -179,10 +185,16 @@ test('preserves day navigation, the provisional notice and the remaining schedul
   expect(rows(container, '08').map(row => row.querySelector('.schedule-time').textContent)).toEqual(['09:00–13:00', '14:00–18:00']);
   fireEvent.click(container.querySelector('button[aria-controls="dia-10"]'));
   expect(container.querySelector('#dia-10')).toBeVisible();
-  expect(rows(container, '10')).toHaveLength(8);
+  expect(rows(container, '10')).toHaveLength(11);
   expect(summary(rows(container, '10')[1])).toEqual(['10:00–12:00', 'Comunicações Livres']);
-  expect(summary(rows(container, '10')[6])).toEqual(['17:00', 'Coffee break']);
-  expect(summary(rows(container, '10')[7])).toEqual(['17:30–18:10', 'Quo Vadis Radiologia']);
+  expect(summary(rows(container, '10')[2])).toEqual(['12:00–13:00', 'Moldando um futuro sustentável para a Radiologia']);
+  expect(summary(rows(container, '10')[4])).toEqual(['14:15–15:00', 'Inteligência Artificial em Radiologia']);
+  expect(summary(rows(container, '10')[7])).toEqual(['17:00', 'Coffee break']);
+  expect(summary(rows(container, '10')[8])).toEqual(['17:30–18:10', 'Quo Vadis Radiologia']);
+  expect(rows(container, '10').slice(-2).map(summary)).toEqual([
+    ['18:20', 'Entrega de Prémios'],
+    ['18:30', 'Sessão de Encerramento'],
+  ]);
   fireEvent.click(container.querySelector('button[aria-controls="dia-09"]'));
   expect(window.location.hash).toBe('#dia-09');
   expect(rows(container, '09').slice(-5).map(summary)).toEqual(additionsPT);

@@ -379,5 +379,8 @@ export const speakers2027 = [
   {
     id: 'ricardo-veiga', name: 'Ricardo Veiga', initials: 'RV', image: 'ricardo-veiga.png',
     institution: 'ULS Coimbra',
-  }
+  },
+  {
+    id: 'andrea-rockall', name: 'Andrea Rockall', initials: 'AR',
+  },
 ];
