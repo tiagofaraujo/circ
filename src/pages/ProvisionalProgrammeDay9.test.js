@@ -153,7 +153,9 @@ test.each([
   expect(within(day10).queryByRole('heading', { name: /mamografia|mammography/i })).not.toBeInTheDocument();
   const [, , sustainability, , ai, safety, digitalTwinning, , quoVadis] = rows(container, '10');
   expect(speakerNames(sustainability)).toEqual(['Andrea Rockall', 'Rui Lopes']);
-  expectSpeakerWithoutBiography(sustainability, 'Andrea Rockall', 'AR');
+  const andrea = within(sustainability).getByRole('link', { name: `Andrea Rockall — ${biographyLabel}` });
+  expect(andrea).toHaveAttribute('href', '/oradores/andrea-rockall');
+  expect(andrea.querySelector('img')).toHaveAttribute('src', '/speakers/andrea-rockall.jpg');
   expect(within(sustainability).getByRole('link', { name: `Rui Lopes — ${biographyLabel}` }))
     .toHaveTextContent('ULS Médio Tejo');
   expect(sustainability.querySelector('.schedule-moderators')).toHaveTextContent('Luís Semedo');
