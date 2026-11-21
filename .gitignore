@@ -35,3 +35,4 @@ yarn-error.log*
 # Media editorial preview and generated public copies
 /.media-preview/
 /public/media-files/
+.push-secrets*

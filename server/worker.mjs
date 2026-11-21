@@ -23,6 +23,7 @@ import { createOrganizationDiscountVoucherAdminApi } from './payments/organizati
 import { createRegistrationReportsApi } from './payments/registration-reports.mjs';
 import { createBillingSummaryApi } from './payments/billing-summary.mjs';
 import { hotels2027 } from './hotels2027.mjs';
+import { createPushApi } from './push.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'),
@@ -57,6 +58,7 @@ function json(body, status = 200, headers = {}) {
 
 // The injected verifier is only used by local tests. Production always uses Google's keys.
 export function createWorker(verify = verifyFirebaseToken) {
+  const push = createPushApi({ verify });
   const stripeWebhook = createStripeSandboxWebhook();
   const stripeLiveWebhook = createStripeLiveWebhook();
   const sandbox = createSandboxApi({ verify });
@@ -80,6 +82,8 @@ export function createWorker(verify = verifyFirebaseToken) {
   const billingSummary = createBillingSummaryApi({ verify });
   return {
     async fetch(request, env) {
+      const pushResponse = await push(request, env);
+      if (pushResponse) return pushResponse;
       const { pathname } = new URL(request.url);
       if (env.CIRC_OPERATION_MODE === 'production' && (
         /^\/api\/(?:payments\/sandbox|checkout\/sandbox|fiscal\/sandbox|payments\/stripe\/sandbox)(?:\/|$)/.test(pathname)

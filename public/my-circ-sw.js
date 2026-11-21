@@ -5,6 +5,39 @@
 const OFFLINE_CACHE = 'my-circ-offline-v1';
 const OFFLINE_PAGE = '/my-circ-offline.html';
 
+// Updated only after an explicit opt-in click, never while a form is being edited.
+self.addEventListener('message', event => {
+  if (event.data === 'ACTIVATE_PUSH_WORKER') event.waitUntil(self.skipWaiting());
+});
+
+function notificationUrl(value) {
+  // Notifications may only open known account views, never arbitrary URLs.
+  return ['/conta', '/conta/notificacoes', '/conta/programa'].includes(value) ? value : '/conta/notificacoes';
+}
+
+self.addEventListener('push', event => {
+  let payload = {};
+  try { payload = event.data?.json() || {}; } catch { /* Always display a visible, generic notification. */ }
+  const body = typeof payload.body === 'string' ? payload.body.slice(0, 240) : 'Tem uma nova notificação no My CIRC.';
+  event.waitUntil(self.registration.showNotification('My CIRC', {
+    body, icon: '/circ-icon-20261105-hd-192.png', badge: '/circ-icon-20261105-hd-192.png',
+    tag: payload.tag === 'circ-push-test' ? 'circ-push-test' : 'circ-notification',
+    data: { url: notificationUrl(payload.url) },
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = new URL(notificationUrl(event.notification.data?.url), self.location.origin).href;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Reuse only the target page. Do not navigate away from an unsaved registration form.
+    const existing = windows.find(client => client.url === target);
+    if (existing) return existing.focus();
+    return self.clients.openWindow(target);
+  })());
+});
+
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(OFFLINE_CACHE).then((cache) => cache.add(OFFLINE_PAGE)));
 });

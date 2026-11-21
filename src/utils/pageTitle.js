@@ -2,6 +2,7 @@ import { speakers2027 } from '../data/speakers2027';
 import { moderators2027 } from '../data/moderators2027';
 
 const titles = {
+  '/conta/notificacoes': ['Notificações', 'Notifications'],
   '/programa': ['Programa científico', 'Scientific programme'], '/conta/programa': ['Programa científico', 'Scientific programme'],
   '/oradores': ['Oradores e moderadores', 'Speakers and moderators'], '/participar': ['Inscrições e cursos', 'Registration and courses'],
   '/conta': ['My CIRC', 'My CIRC'], '/conta/perfil': ['O meu perfil', 'My profile'],

@@ -27,6 +27,8 @@
   ],
   "main": "server/worker.mjs",
   "vars": {
+    "PUSH_ENABLED": "false",
+    "PUSH_TEST_ONLY": "true",
     "FIREBASE_PROJECT_ID": "circ-coimbra",
     "EUPAGO_LIVE_CHANNEL": "CIRC 2027",
     "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda",

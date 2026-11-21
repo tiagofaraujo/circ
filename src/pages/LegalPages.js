@@ -89,6 +89,7 @@ export function PrivacyPolicyPage() {
       </LegalSection>
 
       <LegalSection title={en ? '4. Technology and service providers' : '4. Tecnologia e prestadores de serviços'}>
+        <p>{en ? 'Optional device notifications: when available and expressly enabled, My CIRC stores the device push subscription, account identifier, language and consent dates. Delivery uses your browser provider (Google, Apple or Mozilla). You can disable this device in My CIRC → Notifications or in your browser settings. The technical preparation currently allows only organiser device tests.' : 'Notificações opcionais no dispositivo: quando disponíveis e expressamente ativadas, o My CIRC guarda a subscrição de notificações do dispositivo, identificador da conta, idioma e datas do consentimento. O envio utiliza o prestador do navegador (Google, Apple ou Mozilla). Pode desativar este dispositivo em My CIRC → Notificações ou nas definições do navegador. A preparação técnica atual permite apenas testes nos dispositivos da organização.'}</p>
         <p>
           {en
             ? 'The website is delivered through Cloudflare infrastructure. My CIRC uses Google Firebase Authentication and, when registrations are active, Cloud Firestore and private Cloud Storage for registration records and related documents. The contact form is transmitted through EmailJS to the organisation email account. These providers process data only to the extent required to provide their respective technical services and according to their own contractual and privacy frameworks.'
