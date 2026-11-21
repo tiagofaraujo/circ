@@ -130,3 +130,9 @@
     flex-direction: column;
   }
 }
+
+.contact-form__fallback { display: inline-flex; align-items: center; min-height: 44px; margin: 8px 0; padding: 8px 14px; border: 1px solid currentColor; border-radius: 8px; text-underline-offset: 3px; }
+.contact-form__feedback details { margin-top: 12px; }
+.contact-form__feedback summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.contact-form__technical-error { overflow-wrap: anywhere; }
+.contact-form__feedback:focus { outline: 2px solid #232eb7; outline-offset: 4px; }

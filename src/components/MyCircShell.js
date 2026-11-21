@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useMyCircInstall } from '../pwa/MyCircInstall';
@@ -21,6 +21,10 @@ export default function MyCircShell({ children }) {
   const { language, toggleLanguage } = useLanguage();
   const en = language === 'en';
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuButton = useRef(null);
+  useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -127,6 +131,19 @@ export default function MyCircShell({ children }) {
       <div key={user?.uid || 'guest'} className="my-circ-content" id="my-circ-content" tabIndex="-1">
         {!online && <div className="my-circ-notice" role="status"><AppIcon name="wifi" /><span>{en ? 'You are offline. Keep this page open and reconnect before saving or submitting.' : 'Está sem ligação. Mantenha esta página aberta e volte a ligar-se antes de guardar ou submeter.'}</span></div>}
         {error && <div className="my-circ-notice" role="alert">{error}</div>}
+        {user && <div className="my-circ-mobile-menu" onKeyDown={event => {
+          if (event.key === 'Escape') { setMobileMenuOpen(false); mobileMenuButton.current?.focus(); }
+        }}>
+          <button ref={mobileMenuButton} type="button" aria-expanded={mobileMenuOpen} aria-controls="my-circ-mobile-options" onClick={() => setMobileMenuOpen(open => !open)}>
+            <AppIcon name="bars" /> {en ? 'More options' : 'Mais opções'}
+          </button>
+          {mobileMenuOpen && <nav id="my-circ-mobile-options" aria-label={en ? 'Additional account options' : 'Mais opções da conta'} onClick={event => { if (event.target.closest('a')) setMobileMenuOpen(false); }}>
+            {managementLinks}
+            <Link to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Security' : 'Segurança'}</Link>
+            <Link to="/contactos"><AppIcon name="circle-question" />{en ? 'Help & contacts' : 'Ajuda e contactos'}</Link>
+            <Link to="/"><AppIcon name="arrow-up-right-from-square" />{en ? 'CIRC website' : 'Site CIRC'}</Link>
+          </nav>}
+        </div>}
         {children}
         <footer className="my-circ-footer"><span>My CIRC {installed ? '· App' : ''}</span><Link to="/privacidade">{en ? 'Privacy' : 'Privacidade'}</Link><Link to="/contactos">{en ? 'Need help?' : 'Precisa de ajuda?'}</Link></footer>
       </div>

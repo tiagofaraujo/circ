@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import Navbar from './components/js/Navbar';
 import Footer from './components/js/Footer';
 import CookiesConsent from './components/js/CookiesConsent';
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoute';
 import AdminRoute from './auth/AdminRoute';
@@ -61,6 +61,7 @@ import './hero2027.css';
 import './photo2025.css';
 import './myCircApp.css';
 import './identity2027.css';
+import './discovery.css';
 
 function LegacyBillingRedirect() {
   const { search } = useLocation();
@@ -69,12 +70,18 @@ function LegacyBillingRedirect() {
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
+  const previousPath = useRef(pathname);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const target = hash ? document.getElementById(hash.slice(1)) : null;
       if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
       else window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      if (previousPath.current !== pathname) {
+        const heading = document.querySelector('main h1') || document.querySelector('main') || document.getElementById('my-circ-content');
+        if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
+        previousPath.current = pathname;
+      }
     });
     return () => window.cancelAnimationFrame(frame);
   }, [pathname, hash]);
@@ -82,12 +89,26 @@ function ScrollToTop() {
   return null;
 }
 
+function PublicContent({ children }) {
+  return <div id="main-content" className="route-content" tabIndex="-1">{children}</div>;
+}
+
+function PublicSkipLink() {
+  const { language } = useLanguage();
+  return <a className="public-skip" href="#main-content" onClick={event => {
+    const main = document.querySelector('main');
+    if (!main) return;
+    event.preventDefault(); main.setAttribute('tabindex', '-1'); main.focus({ preventScroll: true });
+    main.scrollIntoView({ block: 'start' });
+  }}>{language === 'en' ? 'Skip to content' : 'Saltar para o conteúdo'}</a>;
+}
+
 function App() {
   const { pathname } = useLocation();
   const isPersonalArea = pathname === '/conta' || pathname.startsWith('/conta/')
     || pathname === '/admin' || pathname.startsWith('/admin/')
     || ['/login', '/registar', '/recuperar-password'].includes(pathname);
-  const Frame = isPersonalArea ? MyCircShell : React.Fragment;
+  const Frame = isPersonalArea ? MyCircShell : PublicContent;
 
   return (
     <LanguageProvider>
@@ -95,7 +116,7 @@ function App() {
         <MyCircInstallProvider>
         <div className={`App${isPersonalArea ? ' App--personal' : ''}`}>
           <ScrollToTop />
-          {!isPersonalArea && <Navbar />}
+          {!isPersonalArea && <><PublicSkipLink /><Navbar /></>}
 
           <Frame>
           <Routes>
