@@ -212,7 +212,9 @@ test.each([
   mount();
   expect(screen.getByRole('link', { name: linkName })).toHaveAttribute('href', '/oradores#moderadores');
   expect(screen.queryByRole('region', { name: title })).not.toBeInTheDocument();
-  expect(screen.getByText(/Joana Santos.*Raquel Reis/)).toBeVisible();
+  const joana = screen.getByRole('link', { name: /Joana Santos/ });
+  expect(joana).toHaveAttribute('href', '/oradores/joana-santos');
+  expect(joana.closest('.schedule-moderators')).toHaveTextContent(/Joana Santos.*Raquel Reis/);
 });
 
 test('redirects the previous moderators bookmark to the directory', () => {

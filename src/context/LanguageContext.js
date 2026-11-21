@@ -1,3 +1,5 @@
+import { readPreference, savePreference } from '../utils/discovery';
+import { pageTitle } from '../utils/pageTitle';
 import { useLocation } from 'react-router-dom';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -10,7 +12,7 @@ const LanguageContext = createContext({
 function getInitialLanguage() {
   if (typeof window === 'undefined') return 'pt';
 
-  const savedLanguage = window.localStorage.getItem('circ-language');
+  const savedLanguage = readPreference('circ-language');
   return savedLanguage === 'en' ? 'en' : 'pt';
 }
 
@@ -19,12 +21,9 @@ export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(getInitialLanguage);
 
   useEffect(() => {
-    window.localStorage.setItem('circ-language', language);
+    savePreference('circ-language', language);
     document.documentElement.lang = language === 'en' ? 'en' : 'pt-PT';
-    document.title = pathname === '/media' ? 'Media Center | CIRC 2027' :
-      language === 'en'
-        ? 'CIRC 2027 · 8–10 April · Coimbra'
-        : 'CIRC 2027 · 8–10 de abril · Coimbra';
+    document.title = pageTitle(pathname, language);
   }, [language, pathname]);
 
   const value = useMemo(

@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import { moderators2027 } from '../data/moderators2027';
 import './ProvisionalProgramme.css';
+import { flushSync } from 'react-dom';
+import PortraitImage from '../components/PortraitImage';
+import { matchesSearch, programmeSearchText, readPreference, savePreference, sessionId } from '../utils/discovery';
+import { downloadCalendar } from '../utils/programmeCalendar';
+import '../discovery.css';
 import MriCourseDescription, { mriCourseInstructor, mriCourseTitle } from '../components/MriCourseDescription';
 import StrokeCourseDescription, { strokeCourseInstructor, strokeCourseTitle } from '../components/StrokeCourseDescription';
 
 const profiles = new Map(speakers2027.map(speaker => [speaker.id, speaker]));
 
-function ProgrammeSpeaker({ speaker, en }) {
+function ProgrammeSpeaker({ speaker, en, day }) {
+  const { pathname } = useLocation();
   const profile = profiles.get(speaker.id);
   const name = speaker.name || profile?.name;
   if (!name) return null;
@@ -21,13 +27,12 @@ function ProgrammeSpeaker({ speaker, en }) {
   const Card = hasBiography ? Link : 'div';
   const linkProps = hasBiography ? {
     to: `/oradores/${profile.id}`,
+    state: { programmeReturn: `${pathname === '/conta/programa' ? pathname : '/programa'}#dia-${day}` },
     'aria-label': `${name} — ${en ? 'view biography' : 'ver biografia'}`,
   } : {};
 
   return <li><Card className="schedule-speaker" {...linkProps}>
-    {profile?.image
-      ? <img src={`/speakers/${profile.image}`} alt="" width="52" height="52" loading="lazy" />
-      : <span className="schedule-speaker__initials" aria-hidden="true">{initials}</span>}
+    <PortraitImage image={profile?.image} name={name} initials={initials} compact />
     <span>
       <strong>{name}</strong>
       {affiliation && <small className="schedule-speaker__affiliation">{affiliation}</small>}
@@ -103,7 +108,10 @@ const days = [
   ] },
 ];
 
-function ProgrammeRow({ row, en, nested = false }) {
+function ProgrammeRow({ row, en, day, nested = false, favourite = false, onFavourite, panelCommand, printing }) {
+  const { pathname } = useLocation();
+  const panel = useRef(null);
+  useEffect(() => { if (panel.current) panel.current.open = printing || panelCommand.open; }, [panelCommand, printing]);
   const [time, pt, english, { speakers, detail, children, moderators } = {}] = row;
   const practical = /^(Check-in|Abertura da sala|Boas-vindas|Brunch|Almoço|Coffee break|Visita guiada|Momento cultural|Jantar de convívio)/.test(pt);
   const title = en ? english : pt;
@@ -117,19 +125,28 @@ function ProgrammeRow({ row, en, nested = false }) {
     <div className="schedule-content">
       {title && heading}
       {speakers && <ul className="schedule-speakers" aria-label={en ? 'Speakers' : 'Oradores'}>
-        {speakers.map(speaker => <ProgrammeSpeaker key={speaker.id || speaker.name} speaker={speaker} en={en} />)}
+        {speakers.map(speaker => <ProgrammeSpeaker key={speaker.id || speaker.name} speaker={speaker} en={en} day={day} />)}
       </ul>}
       {pt === mriCourseTitle.pt && <MriCourseDescription en={en} showInstructor={false} />}
       {pt === strokeCourseTitle.pt && <StrokeCourseDescription en={en} showInstructor={false} />}
       {detail && <p>{detail[en ? 'en' : 'pt']}</p>}
       {moderators && <p className="schedule-moderators"><strong>{en ? 'Moderation: ' : 'Moderação: '}</strong>
-        {moderators.map(id => {
-          const { name, institution } = moderators2027[id];
-          return institution ? `${name} (${institution})` : name;
-        }).join(en ? ' and ' : ' e ')}
+        {moderators.map((id, index) => {
+          const item = moderators2027[id];
+          const profile = profiles.get(item.speakerId) || item;
+          const label = item.institution ? `${item.name} (${item.institution})` : item.name;
+          return <React.Fragment key={id}>{index > 0 && (en ? ' and ' : ' e ')}
+            {profile[en ? 'en' : 'pt']?.bio?.length
+              ? <Link to={`/oradores/${profile.id || id}`} state={{ fromModerators: true, programmeReturn: `${pathname === '/conta/programa' ? pathname : '/programa'}#dia-${day}` }}>{label}</Link>
+              : label}
+          </React.Fragment>;
+        })}
       </p>}
-      {children && <details className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} nested />)}</ol></details>}
+      {children && <details ref={panel} className="schedule-panel" open><summary>{en ? 'Panel presentations' : 'Intervenções do painel'} <span>{children.length}</span></summary><ol className="schedule-sublist">{children.map((child, i) => <ProgrammeRow key={i} row={child} en={en} day={day} nested panelCommand={panelCommand} printing={printing} />)}</ol></details>}
     </div>
+    {!nested && <button type="button" className="schedule-favourite" aria-pressed={favourite}
+      aria-label={`${favourite ? (en ? 'Remove from favourites' : 'Remover dos favoritos') : (en ? 'Add to favourites' : 'Adicionar aos favoritos')}: ${en ? english : pt}`}
+      onClick={onFavourite}><span aria-hidden="true">{favourite ? '★' : '☆'}</span></button>}
   </li>;
 }
 
@@ -141,8 +158,50 @@ function dayFromHash() {
 export default function ProvisionalProgramme() {
   const { language } = useLanguage();
   const en = language === 'en';
-  const { hash } = useLocation();
-  const [selectedDay, setSelectedDay] = useState(dayFromHash);
+  const { hash, pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [onlyFavourites, setOnlyFavourites] = useState(false);
+  const [favourites, setFavourites] = useState(() => {
+    try {
+      const value = JSON.parse(readPreference('circ-programme-favourites-2027', '[]'));
+      return Array.isArray(value) ? value.filter(id => typeof id === 'string') : [];
+    } catch { return []; }
+  });
+  const [storageAvailable, setStorageAvailable] = useState(true);
+  const [panelCommand, setPanelCommand] = useState({ open: true });
+  const [printing, setPrinting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const toggleFavourite = id => {
+    const next = favourites.includes(id) ? favourites.filter(value => value !== id) : [...favourites, id];
+    setFavourites(next);
+    setStorageAvailable(savePreference('circ-programme-favourites-2027', JSON.stringify(next)));
+  };
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    window.addEventListener('beforeprint', before); window.addEventListener('afterprint', after);
+    return () => { window.removeEventListener('beforeprint', before); window.removeEventListener('afterprint', after); };
+  }, []);
+  const [selectedDay, setSelectedDay] = useState(() => /^#dia-(08|09|10)$/.test(hash) ? hash.slice(-2) : dayFromHash());
+  useEffect(() => { if (/^#dia-(08|09|10)$/.test(hash)) setSelectedDay(hash.slice(-2)); }, [hash]);
+  const visibleRows = day => printing ? day.rows : day.rows.filter(row => matchesSearch(programmeSearchText(row, profiles, moderators2027), query)
+    && (!onlyFavourites || favourites.includes(sessionId(day.day, row))));
+  const activeDay = days.find(day => day.day === selectedDay);
+  const selectedRows = visibleRows(activeDay);
+  const resetFilters = () => { setQuery(''); setOnlyFavourites(false); };
+  const exportDay = () => {
+    try { downloadCalendar(selectedDay, selectedRows, en); setExportError(''); }
+    catch { setExportError(en ? 'Could not download the calendar. Please try again.' : 'Não foi possível descarregar o calendário. Tente novamente.'); }
+  };
+  const changeDayWithKeyboard = event => {
+    const buttons = [...event.currentTarget.parentElement.querySelectorAll('button')];
+    const index = buttons.indexOf(event.currentTarget);
+    const target = { ArrowRight: (index + 1) % 3, ArrowLeft: (index + 2) % 3, Home: 0, End: 2 }[event.key];
+    if (target === undefined) return;
+    event.preventDefault(); chooseDay(days[target].day);
+    buttons[target]?.focus();
+  };
   useEffect(() => {
     const sync = () => setSelectedDay(dayFromHash());
     window.addEventListener('hashchange', sync);
@@ -151,7 +210,7 @@ export default function ProvisionalProgramme() {
   }, []);
   const chooseDay = (day) => {
     setSelectedDay(day);
-    window.history.replaceState(window.history.state, '', `#dia-${day}`);
+    navigate({ pathname, search, hash: `#dia-${day}` }, { replace: true });
   };
   if (hash === '#moderadores') return <Navigate to="/oradores#moderadores" replace />;
   return <main className="page provisional-programme">
@@ -163,11 +222,29 @@ export default function ProvisionalProgramme() {
       <p className="schedule-notice">{en ? 'Programme subject to change. Sessions marked “to be confirmed” are pending confirmation.' : 'Programa sujeito a alterações. As sessões assinaladas «a confirmar» aguardam confirmação.'}</p>
       <Link className="text-link schedule-moderators-link" to="/oradores#moderadores">{en ? 'Meet the moderators' : 'Conhecer os moderadores'} <span aria-hidden="true">→</span></Link>
     </header>
-    <nav className="schedule-nav" aria-label={en ? 'Choose programme day' : 'Escolher dia do programa'}>{days.map(day => <button type="button" key={day.day} aria-pressed={selectedDay === day.day} aria-controls={`dia-${day.day}`} onClick={() => chooseDay(day.day)}><strong>{day.day} <small>{en ? 'APR' : 'ABR'}</small></strong><span>{day.day === '08' ? (en ? 'Pre-Congress' : 'Pré-Congresso') : (en ? `Day ${day.day === '09' ? '1' : '2'}` : `Dia ${day.day === '09' ? '1' : '2'}`)}</span></button>)}</nav>
-    {days.map(day => <section hidden={selectedDay !== day.day} className="schedule-day" id={`dia-${day.day}`} key={day.day} aria-labelledby={`title-${day.day}`}>
+    <nav className="schedule-nav" aria-label={en ? 'Choose programme day' : 'Escolher dia do programa'}>{days.map(day => <button type="button" key={day.day} aria-pressed={selectedDay === day.day} aria-controls={`dia-${day.day}`} onClick={() => chooseDay(day.day)} onKeyDown={changeDayWithKeyboard}><strong>{day.day} <small>{en ? 'APR' : 'ABR'}</small></strong><span>{day.day === '08' ? (en ? 'Pre-Congress' : 'Pré-Congresso') : (en ? `Day ${day.day === '09' ? '1' : '2'}` : `Dia ${day.day === '09' ? '1' : '2'}`)}</span></button>)}</nav>
+    <div className="discovery-controls schedule-tools">
+      <label htmlFor="programme-search">{en ? 'Search this day' : 'Pesquisar neste dia'}
+        <input id="programme-search" type="search" value={query} onChange={event => { setQuery(event.target.value); setPanelCommand({ open: true }); }} placeholder={en ? 'Topic, speaker or institution' : 'Tema, orador ou instituição'} />
+      </label>
+      <label className="discovery-check"><input type="checkbox" checked={onlyFavourites} onChange={event => setOnlyFavourites(event.target.checked)} />{en ? 'My favourites' : 'Os meus favoritos'}</label>
+      <div className="discovery-actions">
+        {(query || onlyFavourites) && <button type="button" onClick={resetFilters}>{en ? 'Clear filters' : 'Limpar filtros'}</button>}
+        <button type="button" onClick={() => setPanelCommand({ open: true })}>{en ? 'Expand panels' : 'Expandir painéis'}</button>
+        <button type="button" onClick={() => setPanelCommand({ open: false })}>{en ? 'Collapse panels' : 'Recolher painéis'}</button>
+        <button type="button" onClick={exportDay} disabled={!selectedRows.length}>{en ? 'Export visible sessions (.ics)' : 'Exportar sessões visíveis (.ics)'}</button>
+        <button type="button" onClick={() => window.print()}>{en ? 'Print full programme' : 'Imprimir programa completo'}</button>
+      </div>
+      <p className="discovery-hint">{en ? 'Times are local to Coimbra (Europe/Lisbon). Favourites are saved in this browser; they do not reserve places or register you for courses.' : 'Horários locais de Coimbra (Europe/Lisbon). Os favoritos ficam neste navegador; não reservam vagas nem inscrevem em cursos.'}</p>
+      {!storageAvailable && <p role="status">{en ? 'Browser storage is unavailable. Favourites will last only while this page is open.' : 'O armazenamento do navegador está indisponível. Os favoritos mantêm-se apenas enquanto esta página estiver aberta.'}</p>}
+      {(query || onlyFavourites) && <p role="status">{selectedRows.length} {en ? (selectedRows.length === 1 ? 'session found in this day' : 'sessions found in this day') : (selectedRows.length === 1 ? 'sessão encontrada neste dia' : 'sessões encontradas neste dia')}</p>}
+      {selectedRows.length === 0 && <p>{en ? 'No sessions match. Clear the filters or choose another day.' : 'Nenhuma sessão corresponde à pesquisa. Limpe os filtros ou escolha outro dia.'}</p>}
+      {exportError && <p role="alert">{exportError}</p>}
+    </div>
+    {days.map(day => <section hidden={!printing && selectedDay !== day.day} className="schedule-day" id={`dia-${day.day}`} key={day.day} aria-labelledby={`title-${day.day}`}>
       <header className="schedule-day-heading"><div><p className="eyebrow">{day.day} {en ? 'April 2027' : 'de abril de 2027'}</p><h2 id={`title-${day.day}`}>{en ? day.en : day.pt}</h2></div><span>{day.rows.length} {en ? 'sessions' : 'sessões'}</span></header>
       {day.day === '08' && <p className="schedule-day-note">{en ? 'The morning and afternoon courses have separate registrations.' : 'Os cursos da manhã e da tarde têm inscrições autónomas.'}</p>}
-      <ol className="schedule-list">{day.rows.map((row, i) => <ProgrammeRow key={i} row={row} en={en} />)}</ol>
+      <ol className="schedule-list">{visibleRows(day).map(row => <ProgrammeRow key={sessionId(day.day, row)} row={row} en={en} day={day.day} panelCommand={panelCommand} printing={printing} favourite={favourites.includes(sessionId(day.day, row))} onFavourite={() => toggleFavourite(sessionId(day.day, row))} />)}</ol>
     </section>)}
     <div className="schedule-footer"><Link className="button button--outline" to="/oradores">{en ? 'Meet all speakers' : 'Conhecer todos os oradores'}</Link><Link className="button button--dark" to="/participar">{en ? 'Registration information' : 'Informações sobre inscrições'}</Link></div>
   </main>;

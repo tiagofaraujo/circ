@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import PortraitImage from './PortraitImage';
 import { useLanguage } from '../context/LanguageContext';
 import { speakers2027 } from '../data/speakers2027';
 import './css/InvitedSpeakers.css';
@@ -10,19 +11,18 @@ export function LinkedInIcon() {
 
 export function SpeakerPortrait({ speaker }) {
   return <div className={`guest-portrait guest-portrait--${speaker.id}`}>
-    {speaker.image
-      ? <img src={`/speakers/${speaker.image}`} alt={speaker.name} width="350" height="350" loading="lazy" />
-      : <span className="guest-initials" aria-label={speaker.name}>{speaker.initials}</span>}
+    <PortraitImage image={speaker.image} name={speaker.name} initials={speaker.initials} />
   </div>;
 }
 
 export function SpeakerCard({ speaker, language, fromModerators = false }) {
+  const location = useLocation();
   const text = speaker[language];
   const hasBiography = Boolean(text?.bio?.length);
   const CardContent = hasBiography ? Link : 'div';
   const linkProps = hasBiography ? {
     to: `/oradores/${speaker.id}`,
-    state: fromModerators ? { fromModerators: true } : undefined,
+    state: { fromModerators, directoryReturn: location.pathname === '/oradores' ? `${location.pathname}${location.search}${fromModerators ? '#moderadores' : ''}` : undefined },
     'aria-label': `${speaker.name} — ${language === 'en' ? 'biography' : 'biografia'}`,
   } : {};
   return <article className={`guest-card${hasBiography ? ' guest-card--linked' : ''}`}>

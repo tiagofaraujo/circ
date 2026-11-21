@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { readPreference, savePreference as storePreference } from '../../utils/discovery';
 import '../css/CookiesConsent.css';
 
 function CookiesConsent() {
@@ -9,14 +10,14 @@ function CookiesConsent() {
   const en = language === 'en';
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookies-consent');
+    const consent = readPreference('cookies-consent');
     if (!consent) {
       setIsVisible(true);
     }
   }, []);
 
   const savePreference = (value) => {
-    localStorage.setItem('cookies-consent', value);
+    storePreference('cookies-consent', value);
     setIsVisible(false);
   };
 

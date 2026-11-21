@@ -50,3 +50,34 @@ test('labelled controls preserve the existing email template field names', async
     expect.any(String)
   );
 });
+
+test('rejects whitespace-only messages without sending', () => {
+  render(<ContactForm />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: '   ' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Enviar' }).closest('form'));
+  expect(emailjs.send).not.toHaveBeenCalled();
+  expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveFocus();
+});
+
+test('failed sending preserves the text and offers an encoded manual email without duplicate requests', async () => {
+  let reject;
+  emailjs.send.mockImplementation(() => new Promise((resolve, fail) => { reject = fail; }));
+  const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+  render(<ContactForm />);
+  for (const [name, value] of [['Nome', 'Pessoa Teste'], ['Email', 'exemplo@example.org'], ['Assunto', 'Ajuda & inscrição'], ['Mensagem', 'Olá, preciso de ajuda.']]) {
+    fireEvent.change(screen.getByRole('textbox', { name }), { target: { value } });
+  }
+  const form = screen.getByRole('button', { name: 'Enviar' }).closest('form');
+  fireEvent.submit(form); fireEvent.submit(form);
+  expect(emailjs.send).toHaveBeenCalledTimes(1);
+  reject({ status: 412, text: 'Service unavailable' });
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('O texto foi mantido'));
+  expect(screen.getByRole('textbox', { name: 'Mensagem' })).toHaveValue('Olá, preciso de ajuda.');
+  const fallback = screen.getByRole('link', { name: 'Abrir na minha aplicação de email' });
+  const url = new URL(fallback.href);
+  expect(url.pathname).toBe('circ.chuc@gmail.com');
+  expect(url.searchParams.get('subject')).toBe('Ajuda & inscrição');
+  expect(url.searchParams.get('body')).toContain('Olá, preciso de ajuda.');
+  expect(screen.getByRole('status')).toHaveFocus();
+  errorLog.mockRestore();
+});
