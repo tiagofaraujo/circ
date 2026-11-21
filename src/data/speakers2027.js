@@ -381,6 +381,19 @@ export const speakers2027 = [
     institution: 'ULS Coimbra',
   },
   {
-    id: 'andrea-rockall', name: 'Andrea Rockall', initials: 'AR',
+    id: 'andrea-rockall', name: 'Andrea Rockall', initials: 'AR', image: 'andrea-rockall.jpg',
+    linkedin: 'https://www.linkedin.com/in/andrea-rockall-002207272',
+    profileUrl: 'https://profiles.imperial.ac.uk/a.rockall',
+    institution: 'Imperial College London · Reino Unido',
+    pt: { field: 'Radiologia e sustentabilidade', role: 'Clinical Chair in Radiology · Past-President da ESR', bio: [
+      'Andrea Rockall é médica radiologista e professora, ocupando o cargo de Clinical Chair in Radiology no Imperial College London. Exerce também funções como consultora honorária de Radiologia no Imperial College Healthcare NHS Trust. A sua atividade clínica e de investigação centra-se na oncologia geniturinária, nos ensaios clínicos baseados em imagem e nas aplicações de aprendizagem automática à Radiologia.',
+      'Foi presidente da European Society of Radiology (ESR) e presidiu ao seu Conselho de Administração, sendo atualmente Past-President da sociedade. Presidiu ao European Congress of Radiology de 2025, sob o tema «Planet Radiology», dedicado ao impacto ambiental da especialidade.',
+      'No âmbito da subcomissão de sustentabilidade da ESR, contribuiu para o lançamento do programa Green Imaging Department (Green ID), que promove práticas mais sustentáveis nos serviços de Imagiologia. Participa também em projetos que estudam o consumo energético e a avaliação do ciclo de vida dos exames e dos percursos de diagnóstico, procurando reduzir as emissões e o desperdício.'
+    ] },
+    en: { field: 'Radiology and sustainability', role: 'Clinical Chair in Radiology · ESR Past-President', bio: [
+      'Andrea Rockall is a radiologist and professor, serving as Clinical Chair in Radiology at Imperial College London and Honorary Consultant Radiologist at Imperial College Healthcare NHS Trust. Her clinical and research interests include genitourinary oncology, imaging-based clinical trials and machine-learning applications in radiology.',
+      'She has served as President of the European Society of Radiology (ESR) and Chair of its Board of Directors, and is currently ESR Past-President. She presided over the European Congress of Radiology in 2025 under the theme “Planet Radiology”, focusing on the environmental impact of the specialty.',
+      'Through the ESR sustainability subcommittee, she helped launch the Green Imaging Department (Green ID) scheme, which promotes more sustainable practices in imaging departments. She also contributes to projects examining energy consumption and life-cycle assessment of imaging examinations and diagnostic pathways, aiming to reduce emissions and waste.'
+    ] }
   },
 ];
