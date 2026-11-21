@@ -26,6 +26,7 @@ import { createBirthdayJob } from './birthday-push.mjs';
 import { createPushRetentionJob } from './push-retention.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 import { createPushApi } from './push.mjs';
+import { createAnnouncementsApi, createAnnouncementJob } from './announcements.mjs';
 
 const firebaseKeys = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'),
@@ -84,8 +85,16 @@ export function createWorker(verify = verifyFirebaseToken) {
   const billingSummary = createBillingSummaryApi({ verify });
   const birthdayJob = createBirthdayJob();
   const retentionJob = createPushRetentionJob();
+  const announcements = createAnnouncementsApi({ verify });
+  const announcementJob = createAnnouncementJob();
   return {
     async scheduled(controller, env) {
+      // Separate invocations keep broadcast and birthday subrequest budgets independent.
+      if (controller.cron === '* * * * *') {
+        try { console.info('announcement-push', JSON.stringify(await announcementJob(controller.scheduledTime, env))); }
+        catch { console.error('announcement-push', 'job-failed'); throw new Error('announcement-job-failed'); }
+        return;
+      }
       // Both jobs run even if the other fails. Never log document contents or credentials.
       let failed = false;
       for (const [name, job] of [['push-retention', retentionJob], ['birthday-push', birthdayJob]]) {
@@ -95,6 +104,8 @@ export function createWorker(verify = verifyFirebaseToken) {
       if (failed) throw new Error('push-scheduled-job-failed');
     },
     async fetch(request, env) {
+      const announcementResponse = await announcements(request, env);
+      if (announcementResponse) return announcementResponse;
       const pushResponse = await push(request, env);
       if (pushResponse) return pushResponse;
       const { pathname } = new URL(request.url);

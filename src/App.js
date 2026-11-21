@@ -35,6 +35,7 @@ import {
 import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
 import NotificationsPage from './pages/NotificationsPage';
+import AdminNotificationsPage from './pages/AdminNotificationsPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
@@ -224,6 +225,7 @@ function App() {
 
             <Route path="/admin/preparacao" element={<AdminRoute permission="owner"><AdminProductionCleanupPage /></AdminRoute>} />
             <Route path="/admin/empresas" element={<AdminRoute permission="owner"><AdminCompaniesPage /></AdminRoute>} />
+            <Route path="/admin/notificacoes" element={<AdminRoute permission="owner"><AdminNotificationsPage /></AdminRoute>} />
             <Route path="/admin/estudantes" element={<AdminRoute permission="secretariat"><AdminStudentsPage /></AdminRoute>} />
 
             <Route path="/schedule" element={<Navigate to="/programa" replace />} />

@@ -9,6 +9,7 @@ import * as push from '../pwa/pushNotifications';
 jest.mock('../auth/AuthContext');
 jest.mock('../context/LanguageContext');
 jest.mock('../pwa/pushNotifications');
+jest.mock('../components/AnnouncementFeed', () => () => <div />);
 const user = { uid: 'user', getIdToken: jest.fn() };
 const device = { endpoint: 'https://fcm.googleapis.com/fcm/send/test' };
 beforeEach(() => {

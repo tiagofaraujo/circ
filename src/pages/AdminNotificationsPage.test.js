@@ -1,0 +1,45 @@
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import AdminNotificationsPage from './AdminNotificationsPage';
+import { announcementsRequest } from '../pwa/announcements';
+jest.mock('../auth/AuthContext', () => ({ useAuth: () => ({ user: { uid: 'admin' } }) }));
+jest.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ language: 'pt' }) }));
+jest.mock('../components/AnnouncementFeed', () => () => <div />);
+jest.mock('../pwa/announcements');
+beforeEach(() => { jest.clearAllMocks(); sessionStorage.clear(); Object.defineProperty(window, 'crypto', { configurable: true, value: { randomUUID: jest.fn(() => '7e4121c9-a990-44c8-9751-a438e77fd910') } }); });
+const show = () => render(<MemoryRouter><AdminNotificationsPage /></MemoryRouter>);
+test('preview does not send; explicit publication shows queue confirmation', async () => {
+  announcementsRequest.mockResolvedValue({}); show();
+  fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Programa' } });
+  fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Novos horários.' } });
+  expect(screen.getByRole('region', { name: 'Pré-visualização' })).toHaveTextContent('Programa: Novos horários.');
+  expect(announcementsRequest).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Publicar e notificar todos' }));
+  expect(await screen.findByRole('status')).toHaveTextContent('envio automático foi colocado em fila');
+  expect(screen.getByLabelText('Título')).toHaveValue('');
+});
+test('uncertain response keeps the same id and payload for retry, preventing duplicate publication', async () => {
+  announcementsRequest.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({}); show();
+  fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Programa' } });
+  fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Novos horários.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Publicar e notificar todos' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('sem duplicar');
+  expect(screen.getByLabelText('Título')).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar publicação pendente' }));
+  await waitFor(() => expect(announcementsRequest).toHaveBeenCalledTimes(2));
+  expect(announcementsRequest.mock.calls[0][1]).toEqual(announcementsRequest.mock.calls[1][1]);
+  expect(window.crypto.randomUUID).toHaveBeenCalledTimes(1);
+  await screen.findByRole('status');
+});
+test('reloading an uncertain publication restores the original request without re-sending automatically', async () => {
+  const pending = { id: '7e4121c9-a990-44c8-9751-a438e77fd910', title: 'Programa', body: 'Horários' };
+  sessionStorage.setItem('circ-pending-announcement:admin', JSON.stringify(pending));
+  announcementsRequest.mockResolvedValue({}); show();
+  expect(screen.getByLabelText('Título')).toHaveValue('Programa');
+  expect(announcementsRequest).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar publicação pendente' }));
+  await screen.findByRole('status');
+  expect(announcementsRequest.mock.calls[0][1]).toEqual(pending);
+  expect(sessionStorage.getItem('circ-pending-announcement:admin')).toBeNull();
+});

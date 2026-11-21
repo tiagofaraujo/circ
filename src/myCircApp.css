@@ -247,3 +247,13 @@
 .circ-notification-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-block: 1rem; }
 .circ-notification-actions .button { white-space: normal; }
 .circ-notification-note { margin-top: 1rem; font-size: 0.9rem; }
+.circ-announcement-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.circ-announcement { padding-block: 1.25rem; border-bottom: 1px solid #dcd9eb; overflow-wrap: anywhere; }
+.circ-announcement:last-child { border-bottom: 0; padding-bottom: 0; }
+.circ-announcement time { font-size: .9rem; color: #5d5b70; }
+.circ-announcement h3 { margin-block: .5rem; font-size: 1.25rem; }
+.circ-announcement-body { white-space: pre-wrap; }
+.circ-announcement-form label { display: block; margin: 1rem 0 .4rem; font-weight: 600; }
+.circ-announcement-form input, .circ-announcement-form textarea { width: 100%; box-sizing: border-box; font: inherit; color: inherit; padding: .8rem; border: 1px solid #b7b4ce; border-radius: .5rem; }
+.circ-announcement-preview { border: 1px solid #dcd9eb; background: #f7f6ff; border-radius: .75rem; padding: 1rem; margin-block: 1.25rem; overflow-wrap: anywhere; }
+.circ-announcement-form .button { white-space: normal; }

@@ -19,11 +19,16 @@ self.addEventListener('push', event => {
   let payload = {};
   try { payload = event.data?.json() || {}; } catch { /* Always display a visible, generic notification. */ }
   const body = typeof payload.body === 'string' ? payload.body.slice(0, 240) : 'Tem uma nova notificação no My CIRC.';
-  event.waitUntil(self.registration.showNotification('My CIRC', {
+  event.waitUntil((async () => {
+    await self.registration.showNotification('My CIRC', {
     body, icon: '/circ-icon-20261105-hd-192.png', badge: '/circ-icon-20261105-hd-192.png',
-    tag: payload.tag === 'circ-push-test' || /^circ-birthday-\d{4}$/.test(payload.tag || '') ? payload.tag : 'circ-notification',
+    tag: payload.tag === 'circ-push-test' || /^circ-birthday-\d{4}$/.test(payload.tag || '')
+      || /^circ-announcement-[a-f0-9-]{36}$/.test(payload.tag || '') ? payload.tag : 'circ-notification',
     data: { url: notificationUrl(payload.url) },
-  }));
+    });
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) client.postMessage({ type: 'CIRC_NOTIFICATION' });
+  })());
 });
 
 self.addEventListener('notificationclick', event => {

@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 const modules = [
+  { to: '/admin/notificacoes', number: '09', label: 'Notificações', permission: 'isAdmin', ownerOnly: true },
   { to: '/admin/transferencias', number: '08', label: 'Transferências', permission: 'canManageRegistrations', ownerOnly: true },
   { to: '/admin/faturacao', number: '07', label: 'Faturação', permission: 'canManageBilling' },
   { to: '/admin/empresas', number: '05', label: 'Empresas e vouchers', permission: 'canManageRegistrations', ownerOnly: true },
