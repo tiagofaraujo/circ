@@ -28,7 +28,7 @@ test('shows moderators after the invited speakers in the same card grid', () => 
   const cards = within(moderators).getAllByRole('article');
   const speaker = screen.getByRole('heading', { name: 'Fides Schwartz' }).closest('article');
   expect(speaker.compareDocumentPosition(moderators) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(cards).toHaveLength(10);
+  expect(cards).toHaveLength(12);
   expect(cards.every(card => card.classList.contains('guest-card'))).toBe(true);
   expect(within(moderators).getByRole('img', { name: 'Samuel Oliveira' })).toBeInTheDocument();
   expect(screen.getAllByRole('heading', { name: 'Samuel Oliveira' })).toHaveLength(1);
