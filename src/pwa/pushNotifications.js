@@ -37,24 +37,47 @@ export async function currentPushSubscription() {
   return registration?.pushManager ? registration.pushManager.getSubscription() : null;
 }
 
+function waitForWorker(worker, states) {
+  return new Promise((resolve, reject) => {
+    const finish = error => {
+      clearTimeout(timer);
+      worker.removeEventListener('statechange', changed);
+      if (error) reject(error); else resolve();
+    };
+    const timer = setTimeout(() => finish(new Error('worker-not-ready')), 15000);
+    function changed() {
+      if (states.includes(worker.state)) finish();
+      else if (worker.state === 'redundant') finish(new Error('worker-not-ready'));
+    }
+    worker.addEventListener('statechange', changed);
+    changed();
+  });
+}
+
+export async function activatePushWorker(registration) {
+  // register()/update() resolve before the install handler (including its cache fetch).
+  // Wait for that worker, rather than accidentally using an older active worker.
+  const firstInstall = registration.installing;
+  if (firstInstall) await waitForWorker(firstInstall, ['installed', 'activated']);
+  if (registration.active) await registration.update();
+  if (registration.installing) await waitForWorker(registration.installing, ['installed', 'activated']);
+  if (registration.waiting) {
+    const waiting = registration.waiting;
+    const activated = waitForWorker(waiting, ['activated']);
+    waiting.postMessage('ACTIVATE_PUSH_WORKER');
+    await activated;
+  } else if (!registration.active && firstInstall) {
+    await waitForWorker(firstInstall, ['activated']);
+  }
+  if (!registration.active) throw new Error('worker-not-ready');
+  await waitForWorker(registration.active, ['activated']);
+}
+
 export async function enablePush(user, publicKey, locale, permission) {
   // The permission promise is created synchronously by the click handler for Safari.
   if (await permission !== 'granted') throw new Error('permission-not-granted');
   const registration = await navigator.serviceWorker.register('/my-circ-sw.js', { updateViaCache: 'none' });
-  await registration.update();
-  if (registration.waiting) {
-    const waiting = registration.waiting;
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { waiting.removeEventListener('statechange', changed); reject(new Error('worker-not-ready')); }, 10000);
-      function changed() {
-        if (waiting.state === 'activated') { clearTimeout(timer); waiting.removeEventListener('statechange', changed); resolve(); }
-      }
-      waiting.addEventListener('statechange', changed);
-      waiting.postMessage('ACTIVATE_PUSH_WORKER');
-      changed();
-    });
-  }
-  if (!registration.active) throw new Error('worker-not-ready');
+  await activatePushWorker(registration);
   let subscription = await registration.pushManager.getSubscription();
   const key = keyBytes(publicKey);
   const oldKey = subscription?.options?.applicationServerKey;
