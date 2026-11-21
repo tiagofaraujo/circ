@@ -73,7 +73,7 @@ export async function activatePushWorker(registration) {
   await waitForWorker(registration.active, ['activated']);
 }
 
-export async function enablePush(user, publicKey, locale, permission) {
+export async function enablePush(user, publicKey, locale, permission, birthdayConsent = false) {
   // The permission promise is created synchronously by the click handler for Safari.
   if (await permission !== 'granted') throw new Error('permission-not-granted');
   const registration = await navigator.serviceWorker.register('/my-circ-sw.js', { updateViaCache: 'none' });
@@ -89,7 +89,7 @@ export async function enablePush(user, publicKey, locale, permission) {
   const created = !subscription;
   if (created) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   try {
-    await pushRequest(user, 'subscriptions', { subscription: subscription.toJSON(), locale, consent: true });
+    await pushRequest(user, 'subscriptions', { subscription: subscription.toJSON(), locale, consent: true, birthdayConsent });
   } catch (error) {
     // Never leave a new browser subscription looking enabled after a failed save.
     if (created) await subscription.unsubscribe().catch(() => {});

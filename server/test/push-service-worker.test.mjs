@@ -19,6 +19,13 @@ test('every push displays a visible notification, including malformed JSON', asy
   assert.equal(w.displayed.length, 1);
   assert.equal(w.displayed[0][0], 'My CIRC');
 });
+test('private birthday greetings use a separate annual tag and keep the personalised text', async () => {
+  const w = worker(); let done;
+  w.events.push({ data: { json: () => ({ body: 'Parabéns, Tiago!', tag: 'circ-birthday-2026', url: '/conta/notificacoes' }) },
+    waitUntil(p) { done = p; } }); await done;
+  assert.equal(w.displayed[0][1].body, 'Parabéns, Tiago!');
+  assert.equal(w.displayed[0][1].tag, 'circ-birthday-2026');
+});
 test('notification click cannot open an external, javascript or payment URL', async () => {
   for (const value of ['https://evil.example', '//evil.example', 'javascript:alert(1)', '/conta/inscricoes?pay=1']) {
     const w = worker(); let done;

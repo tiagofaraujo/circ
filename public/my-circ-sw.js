@@ -21,7 +21,7 @@ self.addEventListener('push', event => {
   const body = typeof payload.body === 'string' ? payload.body.slice(0, 240) : 'Tem uma nova notificação no My CIRC.';
   event.waitUntil(self.registration.showNotification('My CIRC', {
     body, icon: '/circ-icon-20261105-hd-192.png', badge: '/circ-icon-20261105-hd-192.png',
-    tag: payload.tag === 'circ-push-test' ? 'circ-push-test' : 'circ-notification',
+    tag: payload.tag === 'circ-push-test' || /^circ-birthday-\d{4}$/.test(payload.tag || '') ? payload.tag : 'circ-notification',
     data: { url: notificationUrl(payload.url) },
   }));
 });

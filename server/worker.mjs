@@ -22,6 +22,7 @@ import { createOrganizerVoucherIssueApi } from './payments/organizer-voucher-iss
 import { createOrganizationDiscountVoucherAdminApi } from './payments/organization-discount-voucher-admin.mjs';
 import { createRegistrationReportsApi } from './payments/registration-reports.mjs';
 import { createBillingSummaryApi } from './payments/billing-summary.mjs';
+import { createBirthdayJob } from './birthday-push.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 import { createPushApi } from './push.mjs';
 
@@ -80,7 +81,12 @@ export function createWorker(verify = verifyFirebaseToken) {
   const organizationDiscountVoucherAdmin = createOrganizationDiscountVoucherAdminApi({ verify });
   const registrationReports = createRegistrationReportsApi({ verify });
   const billingSummary = createBillingSummaryApi({ verify });
+  const birthdayJob = createBirthdayJob();
   return {
+    async scheduled(controller, env) {
+      const result = await birthdayJob(controller.scheduledTime, env);
+      console.info('birthday-push', JSON.stringify(result));
+    },
     async fetch(request, env) {
       const pushResponse = await push(request, env);
       if (pushResponse) return pushResponse;

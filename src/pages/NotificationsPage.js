@@ -13,6 +13,8 @@ export default function NotificationsPage() {
   const [config, setConfig] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [active, setActive] = useState(false);
+  const [birthday, setBirthday] = useState(false);
+  const [savedBirthday, setSavedBirthday] = useState(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -23,10 +25,11 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     let current = true;
-    setBusy(true); setConfig(null); setActive(false); setSubscription(null); setError('');
+    setBusy(true); setConfig(null); setActive(false); setSubscription(null); setError(''); setBirthday(false); setSavedBirthday(false);
     Promise.all([loadPushConfig(), currentPushSubscription()]).then(async ([settings, device]) => {
       const saved = device ? await pushRequest(user, 'status', { endpoint: device.endpoint }) : { subscribed: false };
-      if (current) { setConfig(settings); setSubscription(device); setActive(saved.subscribed); }
+      if (current) { setConfig(settings); setSubscription(device); setActive(saved.subscribed);
+        setBirthday(saved.birthdayEnabled === true); setSavedBirthday(saved.birthdayEnabled === true); }
     }).catch(() => { if (current) setError('load'); }).finally(() => { if (current) setBusy(false); });
     return () => { current = false; };
   }, [user, reload]);
@@ -47,6 +50,7 @@ export default function NotificationsPage() {
     'test-rate-limited': t('Aguarde um minuto antes de repetir o teste.', 'Wait one minute before another test.'),
     'subscription-expired': t('A autorização deste dispositivo expirou. Desative e volte a ativar as notificações.', 'This device subscription expired. Turn notifications off and on again.'),
     'device-linked-to-another-account': t('Este dispositivo está associado a outra conta. Desative as notificações e volte a ativá-las nesta conta.', 'This device is linked to another account. Turn notifications off and on again for this account.'),
+    'birthday-profile-required': t('Para receber as felicitações, preencha uma data de nascimento válida no seu perfil e volte a guardar esta opção.', 'To receive birthday greetings, enter a valid date of birth in your profile and save this option again.'),
   };
 
   return <main className="account-page circ-notifications">
@@ -61,13 +65,24 @@ export default function NotificationsPage() {
       {homeScreen && <p>{t('No iPhone ou iPad (iOS 16.4 ou posterior): abra o site no Safari, escolha Partilhar → Adicionar ao ecrã principal e abra o My CIRC pelo novo ícone.', 'On iPhone or iPad (iOS 16.4 or later): open this site in Safari, choose Share → Add to Home Screen, then open My CIRC from the new icon.')}</p>}
       {!supported && !homeScreen && <p>{t('Este navegador não suporta notificações push. Use uma versão atualizada de Chrome, Firefox ou Safari num dispositivo compatível.', 'This browser does not support push notifications. Use an updated Chrome, Firefox or Safari on a compatible device.')}</p>}
       {permission === 'denied' && <p>{t('As notificações estão bloqueadas. Para permitir, altere a permissão do CIRC nas definições do navegador ou do dispositivo.', 'Notifications are blocked. Allow CIRC notifications in your browser or device settings.')}</p>}
+      <fieldset className="circ-birthday-preference">
+        <legend>{t('O seu aniversário', 'Your birthday')}</legend>
+        <label><input type="checkbox" checked={birthday} disabled={busy || (!active && !allowed)} onChange={event => setBirthday(event.target.checked)} />{' '}{t('Quero receber uma mensagem privada no meu aniversário.', 'I would like a private greeting on my birthday.')}</label>
+        <p>{t('Usamos a data de nascimento do seu perfil para lhe dar os parabéns às 09h00, hora de Lisboa. A mensagem inclui apenas o primeiro nome, sem idade nem data de nascimento, e é enviada apenas para os dispositivos que autorizar. Pode aparecer no ecrã bloqueado.', 'We use your profile date of birth to wish you a happy birthday at 09:00 Lisbon time. The greeting includes only your first name, with no age or birth date, and goes only to devices you authorise. It may appear on the lock screen.')}</p>
+        <p className="circ-notification-note">{t('No máximo uma tentativa de envio por ano e por dispositivo. Para quem nasceu a 29 de fevereiro, enviamos a 28 nos anos não bissextos. A autorização do dispositivo é válida por 90 dias; depois precisa de a renovar.', 'At most one delivery attempt per year and device. For 29 February birthdays, we use 28 February in non-leap years. Device authorisation lasts 90 days and then needs renewal.')}</p>
+        <Link to="/conta/perfil">{t('Rever a data de nascimento no perfil', 'Review your profile date of birth')}</Link>
+        {active && <div className="circ-notification-actions"><button className="button button-secondary" type="button" disabled={busy || birthday === savedBirthday || (birthday && !allowed)} onClick={() => run(async () => {
+          await pushRequest(user, 'birthday', { endpoint: subscription.endpoint, enabled: birthday });
+          setSavedBirthday(birthday); setStatus(birthday ? t('Preferência de aniversário guardada.', 'Birthday preference saved.') : t('Felicitações de aniversário desativadas neste dispositivo.', 'Birthday greetings disabled on this device.'));
+        })}>{t('Guardar preferência de aniversário', 'Save birthday preference')}</button></div>}
+      </fieldset>
       <div className="circ-notification-actions">
         {!active && allowed && supported && !homeScreen && <button className="button" type="button" disabled={busy || permission === 'denied'} onClick={() => {
           const consent = Notification.requestPermission();
-          run(async () => { const device = await enablePush(user, config.publicKey, language, consent); setSubscription(device); setActive(true); });
+          run(async () => { const device = await enablePush(user, config.publicKey, language, consent, birthday); setSubscription(device); setActive(true); setSavedBirthday(birthday); });
         }}>{t('Ativar notificações', 'Enable notifications')}</button>}
         {subscription && <button className="button" type="button" disabled={busy} onClick={() => run(async () => {
-          await disablePush(user); setSubscription(null); setActive(false); setStatus(t('Notificações desativadas.', 'Notifications disabled.'));
+          await disablePush(user); setSubscription(null); setActive(false); setBirthday(false); setSavedBirthday(false); setStatus(t('Notificações desativadas.', 'Notifications disabled.'));
         })}>{t('Desativar neste dispositivo', 'Disable on this device')}</button>}
         <button className="button button-secondary" type="button" disabled={busy} onClick={() => setReload(n => n + 1)}>{t('Verificar estado', 'Check status')}</button>
       </div>
@@ -83,7 +98,7 @@ export default function NotificationsPage() {
         await pushRequest(user, 'test', { endpoint: subscription.endpoint });
         setStatus(t('Teste aceite pelo serviço de envio. Confirme a notificação neste dispositivo.', 'Test accepted by the push service. Check this device for the notification.'));
       })}>{t('Enviar teste para este dispositivo', 'Send test to this device')}</button>
-      <p className="circ-notification-note">{t('Esta preparação não ativa envios em massa nem alertas automáticos de pagamentos ou sessões favoritas.', 'This preparation does not enable broadcasts or automatic payment or favourite session alerts.')}</p>
+      <p className="circ-notification-note">{t('Primeiro aviso preparado: felicitações privadas de aniversário, com consentimento próprio. O envio automático tem uma ativação separada no servidor.', 'First notification prepared: private birthday greetings, with separate consent. Automatic delivery requires a separate server activation.')}</p>
     </section>}
   </main>;
 }

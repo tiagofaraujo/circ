@@ -25,6 +25,40 @@ beforeEach(() => {
 });
 const show = () => render(<MemoryRouter><NotificationsPage /></MemoryRouter>);
 
+test('birthday permission is unchecked and is sent only after the user selects it', async () => {
+  push.loadPushConfig.mockResolvedValue({ enabled: true, testOnly: false, publicKey: 'key' });
+  show();
+  const activate = await screen.findByRole('button', { name: 'Ativar notificações' });
+  const birthday = screen.getByRole('checkbox', { name: /mensagem privada no meu aniversário/ });
+  expect(birthday).not.toBeChecked();
+  expect(screen.getByRole('link', { name: /Rever a data de nascimento/ })).toHaveAttribute('href', '/conta/perfil');
+  fireEvent.click(birthday);
+  fireEvent.click(activate);
+  await waitFor(() => expect(push.enablePush).toHaveBeenCalledWith(user, 'key', 'pt', Notification.requestPermission.mock.results[0].value, true));
+});
+
+test('birthday opt-out can be saved while sending is disabled, without removing other preferences', async () => {
+  push.currentPushSubscription.mockResolvedValue(device);
+  push.pushRequest.mockResolvedValue({ subscribed: true, birthdayEnabled: true });
+  show();
+  const checkbox = await screen.findByRole('checkbox');
+  await waitFor(() => expect(checkbox).toBeChecked());
+  fireEvent.click(checkbox);
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar preferência de aniversário' }));
+  expect(await screen.findByText('Felicitações de aniversário desativadas neste dispositivo.')).toBeInTheDocument();
+  expect(push.pushRequest).toHaveBeenCalledWith(user, 'birthday', { endpoint: device.endpoint, enabled: false });
+  expect(push.disablePush).not.toHaveBeenCalled();
+});
+
+test('missing date gives an actionable profile error without claiming activation', async () => {
+  push.loadPushConfig.mockResolvedValue({ enabled: true, testOnly: false, publicKey: 'key' });
+  push.enablePush.mockRejectedValue(new Error('birthday-profile-required'));
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Ativar notificações' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('preencha uma data de nascimento válida');
+  expect(screen.queryByText('Notificações ativadas neste dispositivo.')).not.toBeInTheDocument();
+});
+
 test('loading a page never asks for permission; disabled server hides opt-in', async () => {
   show();
   expect(await screen.findByText(/ainda não estão disponíveis/)).toBeInTheDocument();
