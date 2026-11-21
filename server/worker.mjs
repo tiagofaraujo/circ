@@ -23,6 +23,7 @@ import { createOrganizationDiscountVoucherAdminApi } from './payments/organizati
 import { createRegistrationReportsApi } from './payments/registration-reports.mjs';
 import { createBillingSummaryApi } from './payments/billing-summary.mjs';
 import { createBirthdayJob } from './birthday-push.mjs';
+import { createPushRetentionJob } from './push-retention.mjs';
 import { hotels2027 } from './hotels2027.mjs';
 import { createPushApi } from './push.mjs';
 
@@ -82,10 +83,16 @@ export function createWorker(verify = verifyFirebaseToken) {
   const registrationReports = createRegistrationReportsApi({ verify });
   const billingSummary = createBillingSummaryApi({ verify });
   const birthdayJob = createBirthdayJob();
+  const retentionJob = createPushRetentionJob();
   return {
     async scheduled(controller, env) {
-      const result = await birthdayJob(controller.scheduledTime, env);
-      console.info('birthday-push', JSON.stringify(result));
+      // Both jobs run even if the other fails. Never log document contents or credentials.
+      let failed = false;
+      for (const [name, job] of [['push-retention', retentionJob], ['birthday-push', birthdayJob]]) {
+        try { console.info(name, JSON.stringify(await job(controller.scheduledTime, env))); }
+        catch { console.error(name, 'job-failed'); failed = true; }
+      }
+      if (failed) throw new Error('push-scheduled-job-failed');
     },
     async fetch(request, env) {
       const pushResponse = await push(request, env);

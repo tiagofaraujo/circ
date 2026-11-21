@@ -19,10 +19,21 @@ function setup(overrides = {}) {
   const record = { uid: 'birthday-user', subscription, locale: 'pt', revision: 'revision',
     expiresAt: '2028-01-01T00:00:00Z', birthdayEnabled: true, birthdayConsentedAt: '2026-11-01', ...overrides };
   const state = { records: [record], profiles: { 'birthday-user': { name: 'Tiago Araújo', dateOfBirth: '1980-11-21' } },
-    deliveries: [], reservations: new Set(), reads: [], accepted: true, expired: false };
+    deliveries: [], reservations: new Set(), reads: [], accepted: true, expired: false, progress: null };
   const store = {
-    async birthdayCandidates() { return { records: structuredClone(state.records), cursor: null }; },
+    async birthdayProgress() { return structuredClone(state.progress); },
+    async saveBirthdayProgress(data, previous) {
+      if (previous?.revision !== state.progress?.revision) return false;
+      state.progress = { ...data, revision: (previous?.revision || 0) + 1 }; return true;
+    },
+    async birthdayCandidates(cursor) {
+      const records = structuredClone(state.records).map(r => ({ ...r, documentName: r.subscription.endpoint }));
+      const start = cursor ? records.findIndex(r => r.documentName === cursor) + 1 : 0;
+      const page = records.slice(start, start + 100);
+      return { records: page, cursor: page.length === 100 ? page.at(-1).documentName : null };
+    },
     async birthdayProfile(uid) { state.reads.push(uid); return state.profiles[uid] || null; },
+    async birthdayProfiles(uids) { return new Map(await Promise.all([...new Set(uids)].map(async uid => [uid, await store.birthdayProfile(uid)]))); },
     async read(endpoint) { return state.records.find(r => r.subscription.endpoint === endpoint) || null; },
     async reserveBirthday(r, profile, year) {
       const id = `${r.uid}/${r.subscription.endpoint}/${year}`;
@@ -95,8 +106,62 @@ test('pilot excludes everyone except server-marked organiser subscriptions', asy
   assert.equal(s.state.deliveries.length, 0);
   assert.equal(s.state.reads.length, 0);
   s.state.records[0].testAccount = true;
+  s.state.progress = null;
   await s.run({ ...env, PUSH_TEST_ONLY: 'true' });
   assert.equal(s.state.deliveries.length, 1);
+});
+
+test('a busy birthday resumes next minute without losing recipients, and resets on a new day', async () => {
+  const s = setup();
+  s.state.records = Array.from({ length: 12 }, (_, i) => ({ ...s.state.records[0], uid: `person-${i}`,
+    subscription: { ...subscription, endpoint: `${subscription.endpoint}-${i}` } }));
+  for (const r of s.state.records) s.state.profiles[r.uid] = { name: 'Ana', dateOfBirth: '1980-11-21' };
+  assert.equal((await s.run()).accepted, 5);
+  assert.equal(s.state.progress.done, false);
+  s.setTime('2026-11-21T09:01:00Z');
+  assert.equal((await s.run()).accepted, 5);
+  s.setTime('2026-11-21T09:02:00Z');
+  assert.equal((await s.run()).accepted, 2);
+  assert.equal(s.state.progress.done, true);
+  assert.equal((await s.run()).skipped, 'complete');
+  assert.equal(new Set(s.state.deliveries.map(d => d.device.endpoint)).size, 12);
+  s.setTime('2026-11-22T09:00:00Z');
+  await s.run();
+  assert.equal(s.state.progress.day, '2026-11-22');
+});
+
+test('bounded scans continue after three pages instead of dropping later participants', async () => {
+  const s = setup();
+  const first = s.state.records[0];
+  s.state.profiles['birthday-user'].dateOfBirth = '1980-11-22';
+  s.state.records = Array.from({ length: 350 }, (_, i) => ({ ...first, subscription: { ...subscription, endpoint: `${subscription.endpoint}-${i}` } }));
+  assert.equal((await s.run()).checked, 300);
+  assert.equal(s.state.progress.done, false);
+  s.setTime('2026-11-21T09:01:00Z');
+  assert.equal((await s.run()).checked, 50);
+  assert.equal(s.state.progress.done, true);
+});
+
+test('batch profile reads use minimal masks and reject unrelated or missing responses', async () => {
+  const calls = [];
+  const root = 'projects/circ-coimbra/databases/(default)/documents';
+  let rows = [{ found: { name: `${root}/users/one`, updateTime: 'revision', fields: { name: { stringValue: 'Ana' } } } },
+    { missing: `${root}/users/two` }];
+  const store = createPushStore({ projectId: 'circ-coimbra', token: 'token', fetchImpl: async (url, opts) => {
+    calls.push({ url, ...opts }); return Response.json(rows);
+  } });
+  const profiles = await store.birthdayProfiles(['one', 'two', 'one']);
+  assert.equal(profiles.get('one').name, 'Ana');
+  assert.equal(profiles.get('two'), null);
+  assert.equal(calls.length, 1);
+  const body = JSON.parse(calls[0].body);
+  assert.equal(body.documents.length, 2);
+  assert.ok(body.mask.fieldPaths.includes('dateOfBirth'));
+  assert.ok(!body.mask.fieldPaths.includes('email'));
+  rows = [];
+  await assert.rejects(store.birthdayProfiles(['one']));
+  rows = [{ missing: `${root}/users/other` }];
+  await assert.rejects(store.birthdayProfiles(['one']));
 });
 
 test('latest profile, opt-out and account ownership are checked again before reserving', async () => {

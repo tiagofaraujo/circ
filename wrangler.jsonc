@@ -26,11 +26,12 @@
     "nodejs_compat"
   ],
   "main": "server/worker.mjs",
-  "triggers": { "crons": ["0 8,9 * * *"] },
+  "triggers": { "crons": ["0-14 8,9 * * *"] },
   "vars": {
-    "PUSH_ENABLED": "false",
+    "PUSH_ENABLED": "true",
     "PUSH_TEST_ONLY": "true",
     "PUSH_BIRTHDAY_ENABLED": "false",
+    "PUSH_RETENTION_ENABLED": "true",
     "FIREBASE_PROJECT_ID": "circ-coimbra",
     "EUPAGO_LIVE_CHANNEL": "CIRC 2027",
     "EUPAGO_SANDBOX_CHANNEL": "demo-Hemisfério Disciplinado Lda",

@@ -6,6 +6,18 @@ import { validBirthday } from './birthday-message.mjs';
 const ADMIN = 'circ.chuc@gmail.com';
 const BASE = '/api/push/';
 const id = endpoint => createHash('sha256').update(endpoint).digest('hex');
+const PROFILE_FIELDS = ['name', 'fullName', 'nome', 'dateOfBirth', 'birthDate', 'dataNascimento',
+  'personalDetails.name', 'personalDetails.fullName', 'personalDetails.dateOfBirth', 'personalDetails.birthDate',
+  'personal.name', 'personal.fullName', 'personal.dateOfBirth', 'personal.birthDate'];
+function birthdayProfileData(doc, name) {
+  if (doc.name !== name || !doc.updateTime) throw new Error('storage-unavailable');
+  const f = doc.fields || {};
+  const personal = f.personalDetails?.mapValue?.fields || f.personal?.mapValue?.fields || {};
+  const first = (...values) => values.find(value => typeof value === 'string' && value.trim()) || '';
+  return { name: first(f.name?.stringValue, f.fullName?.stringValue, f.nome?.stringValue, personal.name?.stringValue, personal.fullName?.stringValue),
+    dateOfBirth: first(f.dateOfBirth?.stringValue, f.birthDate?.stringValue, f.dataNascimento?.stringValue, personal.dateOfBirth?.stringValue, personal.birthDate?.stringValue),
+    revision: doc.updateTime, documentName: name };
+}
 const reply = (body, status = 200) => Response.json(body, { status, headers: {
   'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store',
   Vary: 'Authorization', 'X-Content-Type-Options': 'nosniff',
@@ -71,6 +83,7 @@ async function readBody(request) {
 export function createPushStore({ projectId, token, fetchImpl = fetch }) {
   if (!/^[a-z0-9-]+$/.test(projectId || '') || !token) throw new Error('storage-unavailable');
   const root = `projects/${projectId}/databases/(default)/documents/pushSubscriptions`;
+  const documents = root.replace(/\/pushSubscriptions$/, '');
   const origin = 'https://firestore.googleapis.com/v1/';
   const init = () => ({ redirect: 'manual', signal: AbortSignal.timeout(10000),
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
@@ -90,7 +103,7 @@ export function createPushStore({ projectId, token, fetchImpl = fetch }) {
       const condition = previous ? `currentDocument.updateTime=${encodeURIComponent(previous.revision)}` : 'currentDocument.exists=false';
       const response = await fetchImpl(`${origin}${root}/${id(record.subscription.endpoint)}?${condition}`, {
         ...init(), method: 'PATCH', body: JSON.stringify({ fields: { record: { stringValue: JSON.stringify(data) },
-          // Configure Firestore TTL on this field before public activation.
+          // Server retention removes expired records, including on Firebase Spark.
           expiresAt: { timestampValue: data.expiresAt }, birthdayEnabled: { booleanValue: data.birthdayEnabled === true } } }),
       });
       if (!response.ok) throw new Error(response.status === 409 || response.status === 400 ? 'concurrent-update' : 'storage-unavailable');
@@ -106,21 +119,50 @@ export function createPushStore({ projectId, token, fetchImpl = fetch }) {
       if (!/^[\w-]{1,128}$/.test(uid || '')) throw new Error('invalid-profile');
       const name = `${root.replace(/\/pushSubscriptions$/, '')}/users/${uid}`;
       // Read only the fields needed for this purpose, never billing or contact data.
-      const fields = ['name', 'fullName', 'nome', 'dateOfBirth', 'birthDate', 'dataNascimento',
-        'personalDetails.name', 'personalDetails.fullName', 'personalDetails.dateOfBirth', 'personalDetails.birthDate',
-        'personal.name', 'personal.fullName', 'personal.dateOfBirth', 'personal.birthDate'];
-      const query = fields.map(field => `mask.fieldPaths=${encodeURIComponent(field)}`).join('&');
+      const query = PROFILE_FIELDS.map(field => `mask.fieldPaths=${encodeURIComponent(field)}`).join('&');
       const response = await fetchImpl(`${origin}${name}?${query}`, init());
       if (response.status === 404) return null;
       if (!response.ok) throw new Error('storage-unavailable');
       const doc = await response.json();
-      if (doc.name !== name || !doc.updateTime) throw new Error('storage-unavailable');
-      const f = doc.fields || {};
-      const personal = f.personalDetails?.mapValue?.fields || f.personal?.mapValue?.fields || {};
-      const first = (...values) => values.find(value => typeof value === 'string' && value.trim()) || '';
-      return { name: first(f.name?.stringValue, f.fullName?.stringValue, f.nome?.stringValue, personal.name?.stringValue, personal.fullName?.stringValue),
-        dateOfBirth: first(f.dateOfBirth?.stringValue, f.birthDate?.stringValue, f.dataNascimento?.stringValue, personal.dateOfBirth?.stringValue, personal.birthDate?.stringValue),
-        revision: doc.updateTime, documentName: name };
+      return birthdayProfileData(doc, name);
+    },
+    async birthdayProfiles(uids) {
+      const unique = [...new Set(uids)];
+      if (unique.length > 100 || unique.some(uid => !/^[\w-]{1,128}$/.test(uid))) throw new Error('invalid-profile');
+      const profiles = new Map();
+      if (!unique.length) return profiles;
+      const names = new Map(unique.map(uid => [`${documents}/users/${uid}`, uid]));
+      const response = await fetchImpl(`${origin}${documents}:batchGet`, { ...init(), method: 'POST',
+        body: JSON.stringify({ documents: [...names.keys()], mask: { fieldPaths: PROFILE_FIELDS } }) });
+      if (!response.ok) throw new Error('storage-unavailable');
+      for (const row of await response.json()) {
+        const name = row.found?.name || row.missing;
+        if (!names.has(name)) throw new Error('storage-unavailable');
+        profiles.set(names.get(name), row.found ? birthdayProfileData(row.found, name) : null);
+      }
+      if (profiles.size !== unique.length) throw new Error('storage-unavailable');
+      return profiles;
+    },
+    async birthdayProgress() {
+      const name = `${documents}/pushJobs/birthday`;
+      const response = await fetchImpl(origin + name, init());
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error('storage-unavailable');
+      const doc = await response.json();
+      const data = JSON.parse(doc.fields?.record?.stringValue || 'null');
+      if (doc.name !== name || !doc.updateTime || !data || !/^\d{4}-\d{2}-\d{2}$/.test(data.day)
+        || typeof data.done !== 'boolean' || (data.cursor !== null &&
+          (!data.cursor.startsWith(root + '/') || !/^[a-f0-9]{64}$/.test(data.cursor.slice(root.length + 1))))) throw new Error('storage-unavailable');
+      return { ...data, revision: doc.updateTime };
+    },
+    async saveBirthdayProgress(data, previous) {
+      const condition = previous ? `currentDocument.updateTime=${encodeURIComponent(previous.revision)}` : 'currentDocument.exists=false';
+      const response = await fetchImpl(`${origin}${documents}/pushJobs/birthday?${condition}`, { ...init(), method: 'PATCH',
+        body: JSON.stringify({ fields: { record: { stringValue: JSON.stringify(data) } } }) });
+      if (response.ok) return true;
+      const code = (await response.json().catch(() => ({}))).error?.status;
+      if (['ALREADY_EXISTS', 'FAILED_PRECONDITION', 'NOT_FOUND'].includes(code)) return false;
+      throw new Error('storage-unavailable');
     },
     async birthdayCandidates(cursor) {
       const response = await fetchImpl(`${origin}${root.replace(/\/pushSubscriptions$/, '')}:runQuery`, {
@@ -136,9 +178,44 @@ export function createPushStore({ projectId, token, fetchImpl = fetch }) {
       const records = rows.map(doc => {
         const data = JSON.parse(doc.fields?.record?.stringValue || 'null');
         if (!data?.subscription?.endpoint || doc.name !== `${root}/${id(data.subscription.endpoint)}` || !doc.updateTime) throw new Error('storage-unavailable');
-        return { ...data, revision: doc.updateTime };
+        return { ...data, revision: doc.updateTime, documentName: doc.name };
       });
       return { records, cursor: rows.length === 100 ? rows.at(-1).name : null };
+    },
+    async removeExpired(time) {
+      if (!Number.isFinite(time)) throw new Error('invalid-time');
+      const stats = { removed: 0, changed: 0, failed: 0, fullBatches: 0 };
+      // Fixed collections only. Projected reads never retrieve profile or payment data.
+      for (const collection of ['pushSubscriptions', 'pushBirthdayDeliveries']) {
+        const response = await fetchImpl(`${origin}${documents}:runQuery`, { ...init(), method: 'POST', body: JSON.stringify({ structuredQuery: {
+          from: [{ collectionId: collection }], select: { fields: [{ fieldPath: 'expiresAt' }] },
+          where: { fieldFilter: { field: { fieldPath: 'expiresAt' }, op: 'LESS_THAN_OR_EQUAL',
+            value: { timestampValue: new Date(time).toISOString() } } }, limit: 100,
+        } }) });
+        if (!response.ok) throw new Error('storage-unavailable');
+        const rows = (await response.json()).filter(row => row.document).map(row => row.document);
+        if (rows.length > 100) throw new Error('storage-unavailable');
+        const prefix = `${documents}/${collection}/`;
+        const writes = rows.map(doc => {
+          if (!doc.name?.startsWith(prefix) || !/^[a-f0-9]{64}$/.test(doc.name.slice(prefix.length)) || !doc.updateTime
+            || !(Date.parse(doc.fields?.expiresAt?.timestampValue) <= time)) throw new Error('storage-unavailable');
+          return { delete: doc.name, currentDocument: { updateTime: doc.updateTime } };
+        });
+        if (writes.length === 100) stats.fullBatches++;
+        if (!writes.length) continue;
+        // Each delete has its own revision guard: renewing one device must not delete it
+        // or prevent unrelated expired records from being removed.
+        const result = await fetchImpl(`${origin}${documents}:batchWrite`, { ...init(), method: 'POST', body: JSON.stringify({ writes }) });
+        if (!result.ok) throw new Error('storage-unavailable');
+        const statuses = (await result.json()).status;
+        if (!Array.isArray(statuses) || statuses.length !== writes.length) throw new Error('storage-unavailable');
+        for (const status of statuses) {
+          if (!status.code) stats.removed++;
+          else if ([5, 9].includes(status.code)) stats.changed++;
+          else stats.failed++;
+        }
+      }
+      return stats;
     },
     async reserveBirthday(record, profile, year, time) {
       // A separate annual ledger survives unsubscribe/re-enrolment. Atomic revision checks
