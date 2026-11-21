@@ -78,7 +78,7 @@ export default function Speakers2027Page() {
       <label htmlFor="speaker-sort">{en ? 'Sort by' : 'Ordenar por'}<select id="speaker-sort" value={alphabetical ? 'name' : 'programme'} onChange={event => updateFilter('sort', event.target.value === 'name' ? 'name' : '')}>
         <option value="programme">{en ? 'Default order' : 'Ordem original'}</option><option value="name">{en ? 'Name (A–Z)' : 'Nome (A–Z)'}</option>
       </select></label>
-      <p role="status">{resultCount} {en ? 'people found' : 'pessoas encontradas'}</p>
+      <p role="status">{resultCount} {en ? (resultCount === 1 ? 'person found' : 'people found') : (resultCount === 1 ? 'pessoa encontrada' : 'pessoas encontradas')}</p>
       {(query || role !== 'all' || alphabetical) && <button type="button" onClick={() => setParams({}, { replace: true })}>{en ? 'Clear filters' : 'Limpar filtros'}</button>}
       {resultCount === 0 && <p>{en ? 'No matches. Try another name or institution.' : 'Sem resultados. Experimente outro nome ou instituição.'}</p>}
     </div>

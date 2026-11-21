@@ -195,11 +195,12 @@ export default function ProvisionalProgramme() {
     catch { setExportError(en ? 'Could not download the calendar. Please try again.' : 'Não foi possível descarregar o calendário. Tente novamente.'); }
   };
   const changeDayWithKeyboard = event => {
-    const index = days.findIndex(day => day.day === selectedDay);
+    const buttons = [...event.currentTarget.parentElement.querySelectorAll('button')];
+    const index = buttons.indexOf(event.currentTarget);
     const target = { ArrowRight: (index + 1) % 3, ArrowLeft: (index + 2) % 3, Home: 0, End: 2 }[event.key];
     if (target === undefined) return;
     event.preventDefault(); chooseDay(days[target].day);
-    event.currentTarget.parentElement.querySelectorAll('button')[target]?.focus();
+    buttons[target]?.focus();
   };
   useEffect(() => {
     const sync = () => setSelectedDay(dayFromHash());
@@ -236,7 +237,7 @@ export default function ProvisionalProgramme() {
       </div>
       <p className="discovery-hint">{en ? 'Times are local to Coimbra (Europe/Lisbon). Favourites are saved in this browser; they do not reserve places or register you for courses.' : 'Horários locais de Coimbra (Europe/Lisbon). Os favoritos ficam neste navegador; não reservam vagas nem inscrevem em cursos.'}</p>
       {!storageAvailable && <p role="status">{en ? 'Browser storage is unavailable. Favourites will last only while this page is open.' : 'O armazenamento do navegador está indisponível. Os favoritos mantêm-se apenas enquanto esta página estiver aberta.'}</p>}
-      {(query || onlyFavourites) && <p role="status">{selectedRows.length} {en ? 'sessions found in this day' : 'sessões encontradas neste dia'}</p>}
+      {(query || onlyFavourites) && <p role="status">{selectedRows.length} {en ? (selectedRows.length === 1 ? 'session found in this day' : 'sessions found in this day') : (selectedRows.length === 1 ? 'sessão encontrada neste dia' : 'sessões encontradas neste dia')}</p>}
       {selectedRows.length === 0 && <p>{en ? 'No sessions match. Clear the filters or choose another day.' : 'Nenhuma sessão corresponde à pesquisa. Limpe os filtros ou escolha outro dia.'}</p>}
       {exportError && <p role="alert">{exportError}</p>}
     </div>

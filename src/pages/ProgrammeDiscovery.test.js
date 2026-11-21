@@ -16,7 +16,7 @@ test('finds a nested speaker without accents and exports only the matching panel
   const { container } = mount();
   fireEvent.click(screen.getByRole('button', { name: 'Recolher painéis' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'marcia amaral' } });
-  expect(screen.getByRole('status')).toHaveTextContent('1 sessões encontradas');
+  expect(screen.getByRole('status')).toHaveTextContent('1 sessão encontrada');
   expect(screen.getByRole('heading', { name: /Imagem 3D em trauma/ })).toBeVisible();
   expect(container.querySelector('#dia-09 details')).toHaveAttribute('open');
   fireEvent.click(screen.getByRole('button', { name: /Exportar sessões/ }));
@@ -47,8 +47,12 @@ test('unavailable persistence keeps favourites usable and tells the participant'
 });
 
 test('keyboard changes the programme day, and biography returns to that day', () => {
-  mount();
+  mount('/programa#dia-08');
   const day = screen.getByRole('button', { name: /09 ABR/ });
+  // Tab can focus an unselected day; arrows move relative to the focused button.
+  day.focus();
+  fireEvent.keyDown(day, { key: 'ArrowRight' });
+  expect(screen.getByRole('button', { name: /10 ABR/ })).toHaveAttribute('aria-pressed', 'true');
   fireEvent.keyDown(day, { key: 'End' });
   expect(screen.getByRole('button', { name: /10 ABR/ })).toHaveFocus();
   fireEvent.click(screen.getByRole('link', { name: 'Andrea Rockall — ver biografia' }));

@@ -12,7 +12,7 @@ test('search, role filter and empty-state reset work together', () => {
   mount();
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'marcia coimbra' } });
   expect(screen.getByRole('heading', { name: 'Márcia Amaral' })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent('1 pessoas encontradas');
+  expect(screen.getByRole('status')).toHaveTextContent('1 pessoa encontrada');
   fireEvent.change(screen.getByLabelText('Participação'), { target: { value: 'moderators' } });
   expect(screen.getByRole('status')).toHaveTextContent('0 pessoas encontradas');
   expect(screen.getByText(/Sem resultados/)).toBeVisible();
