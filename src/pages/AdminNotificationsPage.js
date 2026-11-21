@@ -31,7 +31,13 @@ export default function AdminNotificationsPage() {
       await announcementsRequest(user, notice);
       try { sessionStorage.removeItem(storageKey); } catch { /* No browser storage available. */ }
       setTitle(''); setBody(''); setAttempt(null); setSuccess(true); setRevision(n => n + 1);
-    } catch (e) { setError(e.message); }
+    } catch (e) {
+      if (['invalid-notification', 'id-conflict'].includes(e.message)) {
+        try { sessionStorage.removeItem(storageKey); } catch { /* No browser storage available. */ }
+        setAttempt(null);
+      }
+      setError(e.message);
+    }
     finally { sending.current = false; setBusy(false); }
   }
   return <main className="account-page circ-notifications">
@@ -47,7 +53,7 @@ export default function AdminNotificationsPage() {
       <p className="circ-notification-note">{t('Destinatários: todos os utilizadores. No telemóvel, recebem apenas os dispositivos que já tenham autorizado notificações. Use avisos gerais, sem dados pessoais ou de pagamento.', 'Recipients: all users. Phone notifications only reach devices that have already opted in. Use general announcements, without personal or payment details.')}</p>
       {(title.trim() || body.trim()) && <section className="circ-announcement-preview" aria-label={t('Pré-visualização', 'Preview')}><strong>My CIRC</strong><p>{`${title.trim()}: ${body.trim()}`.slice(0, 240)}</p></section>}
       <button className="button" type="submit" disabled={busy || !title.trim() || !body.trim()}>{busy ? t('A publicar…', 'Publishing…') : attempt ? t('Confirmar publicação pendente', 'Confirm pending publication') : t('Publicar e notificar todos', 'Publish and notify everyone')}</button>
-      {error && <p role="alert">{error === 'sending-disabled' ? t('O envio está temporariamente suspenso. Volte a confirmar a publicação quando estiver disponível.', 'Sending is temporarily paused. Confirm publication when it is available again.') : t('Não foi possível confirmar a publicação. Os dados foram mantidos: volte a confirmar para consultar ou concluir o mesmo pedido, sem duplicar.', 'Publication could not be confirmed. Your content is preserved: confirm again to check or finish the same request without duplicates.')}</p>}
+      {error && <p role="alert">{['invalid-notification', 'id-conflict'].includes(error) ? t('A publicação foi rejeitada. Reveja o título e a mensagem e tente novamente; os campos estão disponíveis para correção.', 'Publication was rejected. Review the title and message and try again; the fields are available for correction.') : error === 'sending-disabled' ? t('O envio está temporariamente suspenso. Volte a confirmar a publicação quando estiver disponível.', 'Sending is temporarily paused. Confirm publication when it is available again.') : t('Não foi possível confirmar a publicação. Os dados foram mantidos: volte a confirmar para consultar ou concluir o mesmo pedido, sem duplicar.', 'Publication could not be confirmed. Your content is preserved: confirm again to check or finish the same request without duplicates.')}</p>}
       {success && <p role="status">{t('Notificação publicada. O envio automático foi colocado em fila.', 'Notification published. Automatic delivery has been queued.')}</p>}
     </form>
     <AnnouncementFeed admin refreshKey={revision} />

@@ -106,10 +106,12 @@ export function createAnnouncementStore({ projectId, token, fetchImpl = fetch })
       }), more: docs.length === 100 };
     },
     async reserve(job, record, time) {
+      if (!/^[\w-]{1,128}$/.test(record.uid || '')) return false;
       const deliveryId = hash(JSON.stringify([job.id, record.uid, record.subscription.endpoint]));
       const response = await fetchImpl(`${base}:commit`, { ...init(), method: 'POST', body: JSON.stringify({ writes: [
         { verify: name('pushAnnouncementJobs', job.id), currentDocument: { updateTime: job.revision } },
         { verify: record.documentName, currentDocument: { updateTime: record.revision } },
+        { verify: name('users', record.uid), currentDocument: { exists: true } },
         { update: { name: name('pushAnnouncementDeliveries', deliveryId), fields: {
           expiresAt: { timestampValue: new Date(time + 30 * 86400000).toISOString() },
         } }, currentDocument: { exists: false } },

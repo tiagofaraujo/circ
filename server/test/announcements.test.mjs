@@ -137,7 +137,7 @@ test('disabled sending never reads data and old jobs stop after seven days', asy
   assert.equal((await s.run()).skipped, 'expired'); assert.equal(s.sent.length, 0); assert.equal(s.job().pending, false);
 });
 
-test('Firestore cursor, job/subscription revision checks and hashed delivery expiry are preserved', async () => {
+test('Firestore cursor, account existence, revision checks and hashed delivery expiry are preserved', async () => {
   const record = device(1); const calls = [];
   const store = createAnnouncementStore({ projectId: 'circ-coimbra', token: 'token', fetchImpl: async (url, options) => {
     calls.push(JSON.parse(options.body)); return Response.json(url.endsWith(':runQuery') ? [] : {});
@@ -149,7 +149,24 @@ test('Firestore cursor, job/subscription revision checks and hashed delivery exp
   const writes = calls[1].writes;
   assert.deepEqual(writes[0].currentDocument, { updateTime: 'job-revision' });
   assert.deepEqual(writes[1].currentDocument, { updateTime: record.revision });
-  assert.match(writes[2].update.name, /pushAnnouncementDeliveries\/[a-f0-9]{64}$/);
-  assert.equal(writes[2].update.fields.expiresAt.timestampValue, new Date(time + 30 * 86400000).toISOString());
-  assert.equal(JSON.stringify(writes[2]).includes(record.uid), false);
+  assert.deepEqual(writes[2], { verify: `${root}/users/${record.uid}`, currentDocument: { exists: true } });
+  assert.match(writes[3].update.name, /pushAnnouncementDeliveries\/[a-f0-9]{64}$/);
+  assert.equal(writes[3].update.fields.expiresAt.timestampValue, new Date(time + 30 * 86400000).toISOString());
+  assert.equal(JSON.stringify(writes[3]).includes(record.uid), false);
+});
+
+test('deleted accounts receive no announcements on any remaining subscribed device', async () => {
+  const s = state([device(1, { uid: 'deleted' }), device(2, { uid: 'deleted' }), device(3)]);
+  const accounts = new Set([`${root}/users/user3`]);
+  const storage = createAnnouncementStore({ projectId: 'circ-coimbra', token: 'token', fetchImpl: async (_, options) => {
+    const { writes } = JSON.parse(options.body);
+    const owner = writes.find(w => w.verify?.startsWith(`${root}/users/`));
+    return accounts.has(owner?.verify) && owner.currentDocument.exists === true ? Response.json({})
+      : Response.json({ error: { status: 'FAILED_PRECONDITION' } }, { status: 400 });
+  } });
+  s.store.reserve = storage.reserve;
+  await s.run();
+  assert.equal(s.sent.length, 1);
+  assert.equal(s.sent[0].subscription.endpoint.endsWith('/3'), true);
+  assert.equal(s.job().skipped, 2);
 });

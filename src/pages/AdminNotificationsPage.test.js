@@ -43,3 +43,23 @@ test('reloading an uncertain publication restores the original request without r
   expect(announcementsRequest.mock.calls[0][1]).toEqual(pending);
   expect(sessionStorage.getItem('circ-pending-announcement:admin')).toBeNull();
 });
+
+test('definitive validation rejection unlocks editing and clears the pending request across reload', async () => {
+  announcementsRequest.mockRejectedValueOnce(new Error('invalid-notification')).mockResolvedValueOnce({});
+  const view = show();
+  fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Programa' } });
+  fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Texto\u0001inválido' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Publicar e notificar todos' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('campos estão disponíveis para correção');
+  expect(screen.getByLabelText('Título')).not.toBeDisabled();
+  expect(screen.getByLabelText('Mensagem')).not.toBeDisabled();
+  expect(sessionStorage.getItem('circ-pending-announcement:admin')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Mensagem'), { target: { value: 'Texto corrigido' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Publicar e notificar todos' }));
+  await screen.findByRole('status');
+  expect(announcementsRequest.mock.calls[1][1].body).toBe('Texto corrigido');
+  expect(window.crypto.randomUUID).toHaveBeenCalledTimes(2);
+  view.unmount(); show();
+  expect(screen.getByLabelText('Mensagem')).not.toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Publicar e notificar todos' })).toBeDisabled();
+});
