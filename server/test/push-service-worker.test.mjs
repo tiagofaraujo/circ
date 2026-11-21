@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+const source = readFileSync(new URL('../../public/my-circ-sw.js', import.meta.url), 'utf8');
+function worker() {
+  const events = {}, displayed = [], opened = [];
+  const context = { URL, self: { addEventListener: (type, fn) => { events[type] = fn; },
+    location: { origin: 'https://circ-coimbra.org' },
+    registration: { showNotification: async (...args) => displayed.push(args) },
+    clients: { matchAll: async () => [], openWindow: async url => opened.push(url) },
+  } };
+  vm.runInNewContext(source, context);
+  return { events, displayed, opened, context };
+}
+test('every push displays a visible notification, including malformed JSON', async () => {
+  const w = worker(); let done;
+  w.events.push({ data: { json() { throw new Error(); } }, waitUntil(p) { done = p; } }); await done;
+  assert.equal(w.displayed.length, 1);
+  assert.equal(w.displayed[0][0], 'My CIRC');
+});
+test('notification click cannot open an external, javascript or payment URL', async () => {
+  for (const value of ['https://evil.example', '//evil.example', 'javascript:alert(1)', '/conta/inscricoes?pay=1']) {
+    const w = worker(); let done;
+    w.events.notificationclick({ notification: { close() {}, data: { url: value } }, waitUntil(p) { done = p; } }); await done;
+    assert.equal(w.opened[0], 'https://circ-coimbra.org/conta/notificacoes');
+  }
+});
+test('click focuses the target without replacing an unfinished registration form', async () => {
+  const w = worker(); let done, focused = false;
+  w.context.self.clients.matchAll = async () => [{ url: 'https://circ-coimbra.org/conta/inscricoes', focus() { throw new Error('wrong page'); } },
+    { url: 'https://circ-coimbra.org/conta/notificacoes', focus() { focused = true; } }];
+  w.events.notificationclick({ notification: { close() {}, data: { url: '/conta/notificacoes' } }, waitUntil(p) { done = p; } }); await done;
+  assert.equal(focused, true); assert.equal(w.opened.length, 0);
+});

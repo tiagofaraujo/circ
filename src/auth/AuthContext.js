@@ -11,6 +11,7 @@ import {
 } from './firebaseClient';
 import { deleteParticipantData } from './profileStore';
 import { setUserPresence } from './presenceStore';
+import { disablePush } from '../pwa/pushNotifications';
 
 const AuthContext = createContext(null);
 const LEGACY_ACCOUNT_KEY = 'circ_demo_account';
@@ -279,6 +280,7 @@ export function AuthProvider({ children }) {
       }
 
       await deleteParticipantData(currentUser);
+      await disablePush(currentUser).catch(() => {});
       await currentUser.delete();
       clearLegacyAccount();
       setUser(null);
@@ -287,6 +289,7 @@ export function AuthProvider({ children }) {
     async signOut() {
       const auth = getFirebaseAuth();
       if (auth?.currentUser) {
+        await disablePush(auth.currentUser).catch(() => {});
         await setUserPresence(auth.currentUser, 'offline').catch(() => {});
       }
       clearLegacyAccount();

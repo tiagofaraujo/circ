@@ -34,6 +34,7 @@ import {
 } from './pages/LegalPages';
 import ParticipantProfileFirebasePage from './pages/ParticipantProfileFirebasePage';
 import AccountSecurityPage from './pages/AccountSecurityPage';
+import NotificationsPage from './pages/NotificationsPage';
 import RegisterWithPhotoPage from './pages/RegisterWithPhotoPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
@@ -153,6 +154,7 @@ function App() {
               }
             />
             <Route path="/conta/programa" element={<ProtectedRoute><ProgramPage2027 /></ProtectedRoute>} />
+            <Route path="/conta/notificacoes" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/conta/revisoes" element={<AdminRoute permission="reviews"><ScientificReviewerPage /></AdminRoute>} />
             <Route path="/admin/avaliacoes" element={<AdminRoute permission="submissions"><ScientificReviewManagementPage /></AdminRoute>} />
             <Route

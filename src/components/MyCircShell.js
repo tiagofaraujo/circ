@@ -121,6 +121,7 @@ export default function MyCircShell({ children }) {
           <nav aria-label={en ? 'Management modules' : 'Módulos de gestão'}>{managementLinks}</nav>
         </div>}
         <div className="my-circ-sidebar__support">
+          <NavLink to="/conta/notificacoes"><AppIcon name="bell" />{en ? 'Notifications' : 'Notificações'}</NavLink>
           <NavLink to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Security' : 'Segurança'}</NavLink>
           <Link to="/contactos"><AppIcon name="circle-question" />{en ? 'Help & contacts' : 'Ajuda e contactos'}</Link>
           <Link to="/"><AppIcon name="arrow-up-right-from-square" />{en ? 'CIRC website' : 'Site CIRC'}</Link>
@@ -139,6 +140,7 @@ export default function MyCircShell({ children }) {
           </button>
           {mobileMenuOpen && <nav id="my-circ-mobile-options" aria-label={en ? 'Additional account options' : 'Mais opções da conta'} onClick={event => { if (event.target.closest('a')) setMobileMenuOpen(false); }}>
             {managementLinks}
+            <Link to="/conta/notificacoes"><AppIcon name="bell" />{en ? 'Notifications' : 'Notificações'}</Link>
             <Link to="/conta/seguranca"><AppIcon name="shield-halved" />{en ? 'Security' : 'Segurança'}</Link>
             <Link to="/contactos"><AppIcon name="circle-question" />{en ? 'Help & contacts' : 'Ajuda e contactos'}</Link>
             <Link to="/"><AppIcon name="arrow-up-right-from-square" />{en ? 'CIRC website' : 'Site CIRC'}</Link>
