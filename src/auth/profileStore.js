@@ -81,7 +81,7 @@ function mergeProfileSources(...sources) {
   PROFILE_FIELDS.forEach((field) => {
     for (let index = normalizedSources.length - 1; index >= 0; index -= 1) {
       const value = normalizedSources[index][field];
-      if (isFilled(value)) {
+      if (isFilled(value) || (['taxNumber', 'billingPostalCode'].includes(field) && value === '')) {
         merged[field] = value;
         return;
       }
@@ -104,7 +104,7 @@ export function mergeParticipantProfileSources(local, cached, remote, authProfil
 
 function profileFieldsForStorage(profile) {
   const fields = PROFILE_FIELDS.reduce((storedFields, field) => {
-    if (isFilled(profile[field])) storedFields[field] = profile[field];
+    if (isFilled(profile[field]) || (['taxNumber', 'billingPostalCode'].includes(field) && profile[field] === '')) storedFields[field] = profile[field];
     return storedFields;
   }, {});
   return fields;

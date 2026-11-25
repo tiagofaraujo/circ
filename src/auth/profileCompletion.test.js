@@ -18,6 +18,11 @@ const completeProfile = {
 };
 
 describe('getProfileCompletion', () => {
+  test('foreign optional identifiers do not prevent completion, while Portuguese billing retains both requirements', () => {
+    const profile = { ...completeProfile, taxNumber: '', billingPostalCode: '' };
+    expect(getProfileCompletion({ ...profile, billingCountry: 'AE' }).percentage).toBe(100);
+    expect(getProfileCompletion({ ...profile, billingCountry: 'PT' }).percentage).toBeLessThan(100);
+  });
   test('returns 100% when every applicable profile field is filled', () => {
     expect(getProfileCompletion(completeProfile)).toEqual({
       completed: 14,

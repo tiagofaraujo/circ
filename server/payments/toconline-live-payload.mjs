@@ -92,8 +92,12 @@ export function buildLivePaymentFR({ orderId, quote, billing, paymentDate, metho
   const legacyOnsite = quote.kind === 'primary' && quote.lines.length === 1 && quote.lines[0].code === 'congress-onsite';
   const baseNotes=legacyOnsite?'CIRC 2027 — inscrição presencial':quote.kind==='supplementary'?'CIRC 2027 — pedido complementar':'CIRC 2027 — inscrição';
   const notes=quote.discount ? `${baseNotes} · Desconto na inscrição ${(quote.discount.amountCents / 100).toFixed(2).replace('.', ',')} €` : baseNotes;
+  const customer = { ...billing.customer };
+  // TOConline accepts an optional customer tax identifier. Omit an absent
+  // foreign identifier rather than sending a fictitious Portuguese NIF.
+  if (customer.customer_country !== 'PT' && customer.customer_tax_registration_number === '') delete customer.customer_tax_registration_number;
   return { document_type: 'FR', document_series_id: policy.series.id, date: paymentDate, due_date: paymentDate,
-    currency_iso_code: 'EUR', ...billing.customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
+    currency_iso_code: 'EUR', ...customer, external_reference: `CIRC27-${orderId.toUpperCase()}`,
     notes: method==='mbway'?`${notes} · MB WAY via EuPago`:method==='stripe_card'?`${notes} · ${stripePaymentType==='paypal'?'PayPal':stripePaymentType==='link'?'Link':'Cartão'} via Stripe`:notes,
     vat_included_prices: true, payment_mechanism: mechanism,
     ...(method === 'bank_transfer' ? { bank_account_id: bankAccountId } : {}),

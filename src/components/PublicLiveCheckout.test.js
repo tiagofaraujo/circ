@@ -1023,7 +1023,7 @@ test('missing fiscal minima block review with field-specific guidance before any
  expect(within(notice).getByText(/Morada de faturação: preencha/)).toBeInTheDocument();
  expect(within(notice).getByText(/Código postal: utilize o formato 0000-000/)).toBeInTheDocument();
  expect(within(notice).getByText(/Localidade de faturação: preencha/)).toBeInTheDocument();
- expect(within(notice).getByText(/País de faturação: nesta fase é aceite Portugal/)).toBeInTheDocument();
+ expect(within(notice).getByText(/País de faturação: selecione o seu país no Perfil/)).toBeInTheDocument();
  expect(within(notice).getByRole('link',{name:'Completar dados obrigatórios no Perfil'})).toHaveAttribute('href','/conta/perfil#faturacao');
  expect(screen.getByRole('button',{name:'Finalizar compra'})).toBeDisabled();
  expect(transport).not.toHaveBeenCalled();

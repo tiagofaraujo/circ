@@ -34,6 +34,23 @@ const ctx={uid:'participant',emailVerified:true};
 const selected=changes=>({profile:'external',congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0,...changes});
 const primary=changes=>quotePrimary(selected(changes),ctx,null,new Date('2026-11-15T12:00:00Z'));
 const build=source=>buildLiveMultibancoFR({orderId:ID,quote:source,billing,paymentDate:'2026-11-15'});
+
+test('all payment methods retain foreign billing and omit absent tax identifiers without changing course taxes', () => {
+  const customer = Object.freeze({ ...billing.customer, customer_country: 'GB',
+    customer_tax_registration_number: '', customer_postcode: 'SW1A 1AA', customer_city: 'London' });
+  const before = JSON.stringify(customer);
+  const source = primary({ congressMode: 'courses-only', morningCourse: true });
+  for (const [method, extra] of [['multibanco', {}], ['mbway', {}], ['bank_transfer', { bankAccountId: 2 }], ['stripe_card', { cardFunding: 'credit' }]]) {
+    const payload = buildLivePaymentFR({ orderId: ID, quote: source, billing: { customer }, paymentDate: '2026-11-15', method, ...extra });
+    assert.equal(payload.customer_country, 'GB');
+    assert.equal(payload.customer_postcode, 'SW1A 1AA');
+    assert.equal(Object.hasOwn(payload, 'customer_tax_registration_number'), false);
+    assert.equal(payload.lines[0].tax_country_region, 'PT');
+    assert.equal(payload.lines[0].tax_code, 'NOR');
+    assert.equal(payload.lines[0].tax_percentage, 23);
+    assert.equal(JSON.stringify(customer), before);
+  }
+});
 function supplementary(changes) {
   const registration={id:'circ-2027-participant',eventId:'circ-2027',userId:'participant',status:'confirmed',isTest:false,testMode:false,
     payment:{status:'paid'},selection:selected({}),entitlements:{congressMode:'onsite',morningCourse:false,afternoonCourse:false,dinnerQuantity:0}};
@@ -174,9 +191,9 @@ test('inconsistent, duplicate, unknown or changed source lines fail before produ
   for(const change of mutations){const source=structuredClone(original);change(source);assert.throws(()=>build(source),/live-fiscal\/(unsupported-order|source-mismatch)/);}
 });
 
-test('invalid dates, foreign billing and billing fields capable of overriding document controls are rejected',()=>{
+test('invalid dates, unsupported billing countries and billing fields capable of overriding document controls are rejected',()=>{
   for(const changes of [{paymentDate:'2026-02-30'},{orderId:'not-a-uuid'},
-    {billing:{customer:{...billing.customer,customer_country:'ES'}}},{billing:{customer:{...billing.customer,payment_mechanism:'OTHER'}}}]){
+    {billing:{customer:{...billing.customer,customer_country:'ZZ'}}},{billing:{customer:{...billing.customer,payment_mechanism:'OTHER'}}}]){
     assert.throws(()=>buildLiveMultibancoFR({orderId:ID,quote,billing,paymentDate:'2026-11-15',...changes}),/unsupported-order/);
   }
 });

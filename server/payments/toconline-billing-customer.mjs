@@ -1,12 +1,10 @@
+import { billingCountryCode, isBillingCountryCode } from '../../src/data/billingCountries.js';
+
 // One billing contract for both current profiles and already frozen orders.
 const clean = value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 const SELLER_TAX_NUMBER = '517072262';
 const customerFields = Object.freeze(['customer_business_name', 'customer_tax_registration_number', 'customer_address_detail',
   'customer_postcode', 'customer_city', 'customer_country']);
-const countryCode = value => {
-  const v = clean(value).toLowerCase();
-  return ['pt', 'portugal', 'portugal - continente', 'portugal continente'].includes(v) ? 'PT' : null;
-};
 function validPortugueseTaxNumber(value) {
   if (!/^\d{9}$/.test(value) || new Set(value).size === 1) return false;
   const digits = [...value].map(Number);
@@ -29,23 +27,33 @@ export function validateBillingCustomerSnapshot(customer) {
   }
   const issues = [];
   if (!validText(customer.customer_business_name, 180)) issues.push('billing-name-required');
-  if (customer.customer_country !== 'PT') issues.push('billing-country-unmapped');
+  const countryValid = isBillingCountryCode(customer.customer_country);
+  const foreign = countryValid && customer.customer_country !== 'PT';
+  if (!countryValid) issues.push('billing-country-unmapped');
   const nif = customer.customer_tax_registration_number;
-  if (typeof nif !== 'string' || !validPortugueseTaxNumber(nif)) issues.push('billing-tax-number-invalid');
+  if (foreign) {
+    // Foreign individuals need not have a tax identifier. Never invent a NIF
+    // or substitute the organiser's number for a missing foreign identifier.
+    if (nif !== '' && (!validText(nif, 40) || !/^[a-z0-9][a-z0-9 ./-]*$/i.test(nif))) issues.push('billing-foreign-tax-number-invalid');
+  } else if (typeof nif !== 'string' || !validPortugueseTaxNumber(nif)) issues.push('billing-tax-number-invalid');
   else if (nif === SELLER_TAX_NUMBER) issues.push('billing-tax-number-is-seller');
   if (!validText(customer.customer_address_detail, 250)) issues.push('billing-address-required');
-  if (typeof customer.customer_postcode !== 'string' || !/^\d{4}-\d{3}$/.test(customer.customer_postcode)) issues.push('billing-postcode-invalid');
+  if (foreign) {
+    const postcode = customer.customer_postcode;
+    // Some countries do not use postal codes; retain international formats.
+    if (postcode !== '' && (!validText(postcode, 30) || !/^[\p{L}\p{N}][\p{L}\p{N} .-]*$/u.test(postcode))) issues.push('billing-foreign-postcode-invalid');
+  } else if (typeof customer.customer_postcode !== 'string' || !/^\d{4}-\d{3}$/.test(customer.customer_postcode)) issues.push('billing-postcode-invalid');
   if (!validText(customer.customer_city, 100)) issues.push('billing-city-required');
   return issues.length ? { ok: false, issues, customer: null } : { ok: true, issues: [], customer };
 }
 
 export function billingCustomerFromProfile(profile) {
   const name = clean(profile?.billingName) || clean(profile?.name);
-  const nif = clean(profile?.taxNumber).replace(/\s/g, '');
+  const country = billingCountryCode(profile?.billingCountry);
+  const nif = country === 'PT' ? clean(profile?.taxNumber).replace(/\s/g, '') : clean(profile?.taxNumber);
   const address = clean(profile?.billingAddress);
   const postalCode = clean(profile?.billingPostalCode).toUpperCase();
   const city = clean(profile?.billingCity);
-  const country = countryCode(profile?.billingCountry);
   return validateBillingCustomerSnapshot({
     customer_business_name: name,
     customer_tax_registration_number: nif,

@@ -53,7 +53,9 @@ const billingIssueMessages = {
   'billing-address-required': ['Morada de faturação: preencha até 250 caracteres.', 'Billing address: enter up to 250 characters.'],
   'billing-postcode-invalid': ['Código postal: utilize o formato 0000-000.', 'Postcode: use the format 0000-000.'],
   'billing-city-required': ['Localidade de faturação: preencha até 100 caracteres.', 'Billing city: enter up to 100 characters.'],
-  'billing-country-unmapped': ['País de faturação: nesta fase é aceite Portugal (PT). Para outro país, contacte a organização.', 'Billing country: Portugal (PT) is currently supported. For another country, contact the organisers.'],
+  'billing-country-unmapped': ['País de faturação: selecione o seu país no Perfil e guarde os dados.', 'Billing country: select your country in Profile and save your details.'],
+  'billing-foreign-tax-number-invalid': ['Identificação fiscal: use até 40 letras, números, espaços, pontos, barras ou hífenes; deixe vazio se não tiver.', 'Tax identifier: use up to 40 letters, numbers, spaces, dots, slashes or hyphens; leave blank if you do not have one.'],
+  'billing-foreign-postcode-invalid': ['Código postal: use o formato do seu país, até 30 caracteres; deixe vazio se não se aplicar.', 'Postcode: use your country’s format, up to 30 characters; leave blank if not applicable.'],
   'billing-customer-fields-invalid': ['Reveja e guarde os dados de faturação no Perfil.', 'Review and save billing details in your Profile.'],
 };
 const capacityNames = { onsite:['Congresso presencial', 'Onsite congress'], morningCourse:['Curso da manhã', 'Morning course'], afternoonCourse:['Curso da tarde', 'Afternoon course'] };
@@ -64,7 +66,7 @@ const states = { pending: ['A aguardar pagamento', 'Awaiting payment'], creating
 const messages = {
   'invalid-session': ['A sessão expirou. Volte a iniciar sessão antes de continuar.', 'Your session expired. Sign in again before continuing.'],
   'verified-email-required': ['Confirme primeiro o email da sua conta.', 'Verify your account email first.'],
-  'billing-customer-unconfirmed': ['Complete no perfil os dados de faturação: nome, NIF português válido, morada, código postal, localidade e país Portugal.', 'Complete your billing profile: name, valid Portuguese tax number, address, postcode, city and Portugal as country.'],
+  'billing-customer-unconfirmed': ['Complete e guarde no Perfil os dados de faturação necessários para o país selecionado.', 'Complete and save the billing details required for your selected country in Profile.'],
   'profile-incomplete': ['Complete e guarde o seu nome no perfil.', 'Complete and save your name in your profile.'],
   'uls-not-verified': ['Valide primeiro a sua elegibilidade ULS Coimbra.', 'Verify ULS Coimbra eligibility first.'],
   'student-not-approved': ['Aguarde a aprovação da sua condição de estudante.', 'Wait for student eligibility approval.'],
@@ -630,7 +632,7 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
         <p><strong>{t('Valor a pagar:', 'Amount to pay:')} {money(reviewedQuote.quote.amountCents)}</strong></p>
         {voucherOnly ? <p>{t('O desconto cobre o total. Pode confirmar a inscrição sem pagamento.', 'The discount covers the total. You can confirm registration without payment.')}</p> : <>
           <dl><dt>{t('Nome de faturação', 'Billing name')}</dt><dd>{customer.customer_business_name}</dd>
-          <dt>NIF</dt><dd>{customer.customer_tax_registration_number}</dd><dt>{t('Morada', 'Address')}</dt><dd>{customer.customer_address_detail}</dd>
+          <dt>{t('Identificação fiscal', 'Tax identifier')}</dt><dd>{customer.customer_tax_registration_number || t('Não indicada', 'Not provided')}</dd><dt>{t('Morada', 'Address')}</dt><dd>{customer.customer_address_detail}</dd>
           <dt>{t('Código postal e localidade', 'Postcode and city')}</dt><dd>{customer.customer_postcode} · {customer.customer_city}</dd><dt>{t('País', 'Country')}</dt><dd>{customer.customer_country}</dd></dl>
           <p>{t('Meio de pagamento', 'Payment method')}: <strong>{methodLabel}</strong>{method === 'mbway' && phoneValue ? ` · +351 ${phoneValue}` : ''}</p>
         </>}
