@@ -27,7 +27,7 @@ const voucherCode = `CIRC27-D-${voucherValue.match(/.{4}/g).join('-')}`;
 const voucherHash = createHash('sha256').update(voucherValue).digest('hex');
 const clone = value => structuredClone(value);
 function fixture({ identity = owner, funding = 'credit', wallet = null, instrumentType = 'card', clock = '2026-11-15T12:00:00Z', configuration = env, discount,
-  organizerVoucher = false, ulsEligible = organizerVoucher } = {}) {
+  organizerVoucher = false, ulsEligible = organizerVoucher, billingProfile = {} } = {}) {
   const payments = new Map(), jobs = new Map(), sessions = new Map();
   let registration = null, registrationVersion = 0, currentTime = clock, instrumentStatus = 200, creationFailure = false;
   const httpCalls = [], fiscalCalls = [];
@@ -55,7 +55,7 @@ function fixture({ identity = owner, funding = 'credit', wallet = null, instrume
       return found ? { id: found[0], ...snapshot(payments, found[0]) } : null;
     },
     profile: async () => ({ data: { name: 'Participante Exemplo', taxNumber: '203821432', billingAddress: 'Rua Exemplo 1',
-      billingPostalCode: '3000-001', billingCity: 'Coimbra', billingCountry: 'Portugal' } }),
+      billingPostalCode: '3000-001', billingCity: 'Coimbra', billingCountry: 'Portugal', ...billingProfile } }),
     context: async () => {
       const context = { uid: identity.sub, emailVerified: true, guards: [] };
       if (!ulsEligible) return context;
@@ -200,6 +200,44 @@ test('production Stripe checkout persists one hosted session per UUID and a sign
   const publicOrder = (await (await f.call(`/orders/${ids[0]}`)).json()).order;
   assert.doesNotMatch(JSON.stringify(publicOrder), /pi_|paymentIntentId|last4|exp_year|4242/);
   assert.doesNotMatch(JSON.stringify([f.payment(ids[0]), f.job(ids[0])]), /last4|exp_year|4242/);
+});
+
+test('international billing reaches Stripe and survives its signed paid callback without inventing a NIF', async () => {
+  for (const [country, taxNumber, postcode] of [['GB', '', 'SW1A 1AA'], ['ES', 'X1234567L', '28001'], ['AE', '', '']]) {
+    const f = fixture({ billingProfile: { billingCountry: country, taxNumber, billingPostalCode: postcode, billingCity: 'International City' } });
+    const readiness = await f.call('/billing-readiness');
+    assert.equal(readiness.status, 200);
+    assert.equal((await readiness.json()).ready, true);
+    await f.create();
+    assert.equal(f.payment(ids[0]).billingSnapshot.customer_country, country);
+    assert.equal(f.payment(ids[0]).billingSnapshot.customer_tax_registration_number, taxNumber);
+    f.markPaid();
+    assert.equal((await f.notify()).status, 200);
+    assert.equal(f.registration().status, 'confirmed');
+    assert.equal(f.fiscalCalls.length, 1);
+    assert.equal(f.fiscalCalls[0].customer_country, country);
+    assert.equal(f.fiscalCalls[0].customer_postcode, postcode);
+    assert.equal(f.fiscalCalls[0].customer_tax_registration_number, taxNumber || undefined);
+    assert.equal(f.fiscalCalls[0].lines[0].tax_code, 'ISE');
+    assert.equal(f.fiscalCalls[0].lines[0].tax_country_region, 'PT');
+    assert.equal((await f.notify()).status, 200);
+    assert.equal(f.fiscalCalls.length, 1);
+  }
+});
+
+test('a foreign participant without a Portuguese NIF confirms a fully covered voucher without payment or invoice', async () => {
+  const f = fixture({ discount: { type: 'fixed', value: 9500 }, billingProfile: {
+    billingCountry: 'United Kingdom', taxNumber: '', billingPostalCode: 'SW1A 1AA', billingCity: 'London',
+  } });
+  const body = await f.orderBody(ids[0]);
+  const response = await f.call('/orders', { ...body, method: 'organization_voucher' });
+  assert.equal(response.status, 201, await response.clone().text());
+  assert.equal(f.registration().status, 'confirmed');
+  assert.equal(f.registration().payment.amountCents, 0);
+  assert.equal(f.registration().entitlements.congressMode, 'onsite');
+  assert.equal(f.httpCalls.length, 0);
+  assert.equal(f.fiscalCalls.length, 0);
+  assert.equal(f.registration().documentCount, 0);
 });
 
 test('Stripe Checkout and the signed payment callback both use the discounted congress line and full-priced extras', async () => {

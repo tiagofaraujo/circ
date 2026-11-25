@@ -12,8 +12,10 @@ jest.mock('../auth/profileStore', () => ({
 }));
 jest.mock('../auth/ulsEligibilityStore', () => ({ useUlsEligibility: jest.fn() }));
 jest.mock('../context/LanguageContext', () => ({
-  useLanguage: () => ({ language: 'pt' }),
+  useLanguage: () => ({ language: mockLanguage }),
 }));
+
+let mockLanguage = 'pt';
 
 const PROFILE = {
   name: 'Nome Antigo',
@@ -24,6 +26,7 @@ const PROFILE = {
 };
 
 beforeEach(() => {
+  mockLanguage = 'pt';
   jest.clearAllMocks();
   useAuth.mockReturnValue({
     user: { uid: 'participant', email: PROFILE.email, displayName: PROFILE.name, photoURL: '' },
@@ -94,7 +97,37 @@ test('identifies the fiscal minimums and formats without using overall profile c
   expect(screen.getByText(/A percentagem de conclusão global.*não é o critério para poder pagar/)).toBeInTheDocument();
   expect(screen.getByText(/NIF português com 9 dígitos.*validado pelo servidor/)).toBeInTheDocument();
   expect(screen.getByText(/Formato português: 0000-000/)).toBeInTheDocument();
-  expect(screen.getByText(/Para pagar, indique Portugal ou PT/)).toBeInTheDocument();
+  expect(screen.getByLabelText('País de faturação *')).toHaveValue('PT');
+  expect(screen.getByText(/São aceites identificações fiscais e códigos postais estrangeiros/)).toBeInTheDocument();
+});
+
+test('English participants can save foreign billing without a Portuguese NIF and return to strict Portuguese fields', async () => {
+  mockLanguage = 'en';
+  show();
+  await screen.findByLabelText('Full name *');
+  fireEvent.change(screen.getByLabelText('Billing country *'), { target: { value: 'GB' } });
+  const tax = screen.getByLabelText('Tax identifier (optional)');
+  expect(tax).toHaveAttribute('inputmode', 'text');
+  expect(tax).toHaveAttribute('aria-required', 'false');
+  expect(screen.queryByLabelText('Portuguese tax number / NIF *')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Portuguese format: 0000-000/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Postal code (if applicable)'), { target: { value: 'SW1A 1AA' } });
+  fireEvent.change(screen.getByLabelText('Address *'), { target: { value: '1 Test Street' } });
+  fireEvent.change(screen.getByLabelText('City *'), { target: { value: 'London' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+  await waitFor(() => expect(saveParticipantProfile).toHaveBeenCalled());
+  expect(saveParticipantProfile.mock.calls[0][1]).toMatchObject({ billingCountry: 'GB', taxNumber: '', billingPostalCode: 'SW1A 1AA', billingCity: 'London' });
+  fireEvent.change(screen.getByLabelText('Billing country *'), { target: { value: 'PT' } });
+  expect(screen.getByLabelText('Portuguese tax number / NIF *')).toHaveAttribute('aria-required', 'true');
+  expect(screen.getByLabelText('Postal code *')).toHaveAttribute('aria-required', 'true');
+});
+
+test('a saved legacy foreign country name selects its canonical country and retains the local tax identifier', async () => {
+  loadParticipantProfileResult.mockResolvedValue({ source: 'firestore', remoteAvailable: true,
+    profile: { ...PROFILE, billingCountry: 'United Kingdom', taxNumber: 'GB123456789' } });
+  show();
+  expect(await screen.findByLabelText('País de faturação *')).toHaveValue('GB');
+  expect(screen.getByLabelText('Identificação fiscal (opcional)')).toHaveValue('GB123456789');
 });
 
 test('keeps billing entity and unrelated personal and professional data optional', async () => {

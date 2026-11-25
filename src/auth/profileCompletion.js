@@ -1,3 +1,5 @@
+import { billingCountryCode } from '../data/billingCountries';
+
 function firstFilled(...values) {
   return values.find((value) => String(value ?? '').trim().length > 0);
 }
@@ -23,7 +25,7 @@ export function normalizeParticipantProfile(profile = {}) {
       personal.birthDate
     ),
     gender: firstFilled(profile.gender, profile.sex, profile.sexo, personal.gender, personal.sex),
-    taxNumber: firstFilled(profile.taxNumber, profile.nif, profile.vatNumber, personal.taxNumber, personal.nif),
+    taxNumber: profile.taxNumber ?? firstFilled(profile.nif, profile.vatNumber, personal.taxNumber, personal.nif),
     mobile: firstFilled(
       profile.mobile,
       profile.phone,
@@ -76,8 +78,7 @@ export function normalizeParticipantProfile(profile = {}) {
       billing.address,
       billing.streetAddress
     ),
-    billingPostalCode: firstFilled(
-      profile.billingPostalCode,
+    billingPostalCode: profile.billingPostalCode ?? firstFilled(
       profile.postalCode,
       profile.codigoPostal,
       billing.postalCode
@@ -105,19 +106,20 @@ export function getProfileCompletion(profile = {}) {
   const billingCountryValue = valueOrDefault(normalized.billingCountry, 'Portugal');
   const country = String(countryValue).trim().toLowerCase();
   const profession = String(professionValue).trim();
+  const foreignBilling = Boolean(billingCountryCode(billingCountryValue)) && billingCountryCode(billingCountryValue) !== 'PT';
   const personalFields = [
     normalized.name,
     normalized.email,
     normalized.dateOfBirth,
     normalized.gender,
-    normalized.taxNumber,
+    ...(!foreignBilling || normalized.taxNumber ? [normalized.taxNumber] : []),
     normalized.mobile,
     countryValue,
   ];
   const professionalFields = [professionValue, normalized.institution];
   const billingFields = [
     normalized.billingAddress,
-    normalized.billingPostalCode,
+    ...(!foreignBilling || normalized.billingPostalCode ? [normalized.billingPostalCode] : []),
     normalized.billingCity,
     billingCountryValue,
   ];

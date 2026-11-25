@@ -160,7 +160,7 @@ test('invalid frozen billing blocks primary and supplemental bank approval befor
     customer=>{delete customer.customer_address_detail;},customer=>{delete customer.customer_postcode;},customer=>{delete customer.customer_city;},
     customer=>{customer.customer_business_name=' ';},customer=>{customer.customer_tax_registration_number='203821431';},
     customer=>{customer.customer_tax_registration_number='517072262';},customer=>{customer.customer_address_detail='';},
-    customer=>{customer.customer_postcode='3000';},customer=>{customer.customer_city='';},customer=>{customer.customer_country='ES';},
+    customer=>{customer.customer_postcode='3000';},customer=>{customer.customer_city='';},customer=>{customer.customer_country='ZZ';},
   ];
   for(const supplementary of [false,true])for(const mutate of mutations){
     const f=fixture({supplementary}),customer=structuredClone(billing);mutate(customer);f.changePayment({billingSnapshot:customer});

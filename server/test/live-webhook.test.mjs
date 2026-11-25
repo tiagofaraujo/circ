@@ -227,7 +227,7 @@ test('missing or invalid reported fees leave commission unknown without blocking
 });
 
 test('fiscal payload failure does not roll back verified paid money or confirmed entitlements',async()=>{
-  const f=fixture();f.state().payment.billingSnapshot.customer_country='ES';
+  const f=fixture();f.state().payment.billingSnapshot.customer_country='ZZ';
   const response=await f.call(payload());assert.equal(response.status,200);assert.equal((await response.json()).fiscalStatus,'review_required');
   const s=f.state();assert.equal(s.payment.status,'paid');assert.equal(s.registration.status,'confirmed');assert.equal(s.registration.entitlements.congressMode,'onsite');
   assert.equal(s.document.status,'review_required');assert.equal(s.document.errorCode,'live-fiscal-payload-blocked');assert.equal(s.document.salesDocument,null);

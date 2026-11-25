@@ -48,7 +48,7 @@ test('participant name is the safe fallback when no separate billing entity is p
 test('invalid or incomplete fiscal data fail closed without producing a customer payload', () => {
   const result = billingCustomerFromProfile({
     name: '', taxNumber: '000000000', billingAddress: '',
-    billingPostalCode: '3000', billingCity: '', billingCountry: 'Spain',
+    billingPostalCode: '3000', billingCity: '', billingCountry: 'Unknown country',
   });
   assert.equal(result.ok, false);
   assert.equal(result.customer, null);
@@ -162,14 +162,42 @@ test('snapshot tax number requires the exact valid Portuguese checksum and canno
     { ok: false, issues: ['billing-tax-number-is-seller'], customer: null });
 });
 
-test('snapshots accept only canonical PT and a complete Portuguese postcode', () => {
-  for (const value of ['', 'pt', 'Portugal', 'PT ', ' PT', 'ES']) {
+test('snapshots require canonical supported countries and preserve strict Portuguese postcodes', () => {
+  for (const value of ['', 'pt', 'Portugal', 'PT ', ' PT', 'ZZ', 'UK', 'EU']) {
     assert.deepEqual(validateBillingCustomerSnapshot({ ...validCustomer(), customer_country: value }),
       { ok: false, issues: ['billing-country-unmapped'], customer: null }, value);
   }
   for (const value of ['', '3030', '3030471', '3030 471', '303-471', '3030-47', '3030-471 ', ' 3030-471', '3030-471\n']) {
     assert.deepEqual(validateBillingCustomerSnapshot({ ...validCustomer(), customer_postcode: value }),
       { ok: false, issues: ['billing-postcode-invalid'], customer: null }, value);
+  }
+});
+
+test('foreign billing accepts local identifiers and postal formats without requiring a Portuguese NIF', () => {
+  for (const [country, code, tax, postcode] of [
+    ['United Kingdom', 'GB', 'GB123456789', 'SW1A 1AA'], ['UK', 'GB', '', 'SW1A 1AA'],
+    ['Reino Unido', 'GB', '', ''], ['Spain', 'ES', 'X1234567L', '28001'],
+    ['França', 'FR', 'FR12345678901', '75001'], ['Brasil', 'BR', '123.456.789-01', '01310-100'],
+    ['United States', 'US', '12-3456789', '10001'], ['Canada', 'CA', '', 'K1A 0B1'],
+    ['Ireland', 'IE', '', 'D02 X285'], ['AE', 'AE', '', ''],
+  ]) {
+    const result = billingCustomerFromProfile({ ...profileFor(validCustomer()), billingCountry: country,
+      taxNumber: tax, billingPostalCode: postcode });
+    assert.equal(result.ok, true, `${country}: ${JSON.stringify(result.issues)}`);
+    assert.equal(result.customer.customer_country, code);
+    assert.equal(result.customer.customer_tax_registration_number, tax);
+    assert.equal(result.customer.customer_postcode, postcode);
+    const frozen = Object.freeze(result.customer);
+    assert.equal(validateBillingCustomerSnapshot(frozen).customer, frozen);
+  }
+});
+
+test('foreign snapshots reject malformed optional fields without modifying the frozen customer', () => {
+  for (const [field, max] of [['customer_tax_registration_number', 40], ['customer_postcode', 30]]) {
+    for (const value of [null, 1234, {}, 'a'.repeat(max + 1), 'abc\n123', '<script>', ' abc']) {
+      const customer = Object.freeze({ ...validCustomer(), customer_country: 'GB', [field]: value });
+      assert.equal(validateBillingCustomerSnapshot(customer).ok, false);
+    }
   }
 });
 
