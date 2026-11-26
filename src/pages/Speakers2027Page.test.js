@@ -10,7 +10,6 @@ const speakersWithoutBiography = [
   ['Rui Pedro Faria Pais', 'ULS Coimbra', 'rui-pedro-faria-pais'],
   ['Célia Antunes', 'ULS Coimbra', 'celia-antunes'],
   ['Ricardo Veiga', 'ULS Coimbra', 'ricardo-veiga'],
-  ['Daniel Leitão', 'Siemens Healthineers', 'daniel-leitao'],
 ];
 
 function renderDirectory(path = '/oradores') {

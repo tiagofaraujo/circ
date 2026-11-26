@@ -139,7 +139,9 @@ test.each([
   fireEvent.click(container.querySelector('button[aria-controls="dia-08"]'));
   const [morning, afternoon] = rows(container, '08');
   expect(speakerNames(morning)).toEqual(['Daniel Leitão']);
-  const daniel = expectSpeakerWithoutBiography(morning, 'Daniel Leitão', 'DL');
+  const daniel = within(morning).getByRole('link', { name: `Daniel Leitão — ${biographyLabel}` });
+  expect(daniel).toHaveAttribute('href', '/oradores/daniel-leitao');
+  expect(daniel.querySelector('img')).toHaveAttribute('src', '/speakers/daniel-leitao.jpg');
   expect(daniel).toHaveTextContent('Siemens Healthineers');
   expect(speakerNames(afternoon)).toEqual(['Ricardo Veiga']);
   const ricardo = within(afternoon).getByText('Ricardo Veiga', { exact: true }).closest('.schedule-speaker');
