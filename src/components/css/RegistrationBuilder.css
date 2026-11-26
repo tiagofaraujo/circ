@@ -1185,6 +1185,27 @@
 
 .registration-paid-summary { position: static; width: 100%; max-width: 760px; margin: 0 auto 32px; }
 .registration-paid-reference { overflow-wrap: anywhere; font-size: .8rem; }
+.registration-outcome { box-sizing: border-box; display: flex; align-items: flex-start; gap: 18px; max-width: 760px; margin: 24px auto 0; padding: 28px; border: 1px solid; border-radius: 18px; }
+.registration-outcome.is-confirmed, .registration-payment-status.is-confirmed { color: #15533e; background: #eff8f3; border-color: #b8d8c7; }
+.registration-outcome.is-waiting, .registration-payment-status.is-waiting { color: #604518; background: #fff8e9; border-color: #e5cf9e; }
+.registration-outcome__icon { flex: 0 0 42px; display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid currentColor; border-radius: 50%; font-size: 1.5rem; font-weight: 700; }
+.registration-builder .registration-outcome h2 { margin: 0 0 10px; color: inherit; font-size: clamp(1.45rem, 3vw, 1.9rem); line-height: 1.2; }
+.registration-outcome p { margin: 8px 0 0; font-size: .95rem; line-height: 1.65; color: inherit; }
+.registration-optional-purchases { max-width: 960px; margin: 0 auto 32px; padding: 24px; border: 1px solid var(--line, #d9dbe4); border-radius: 18px; background: #fff; }
+.registration-builder .registration-optional-purchases > h2 { margin: 0 0 12px; font-size: 1.35rem; }
+.registration-optional-purchases > p { max-width: 70ch; line-height: 1.65; }
+.registration-optional-purchases > button { min-height: 48px; max-width: 100%; white-space: normal; text-align: center; }
+.registration-optional-purchases > button:focus-visible { outline: 3px solid var(--coral, #e55041); outline-offset: 3px; }
+.registration-optional-purchases > div:not([hidden]) { margin-top: 24px; }
+.registration-payment-status { padding: 18px; margin: 0 0 24px; border: 1px solid; border-radius: 12px; }
+.registration-payment-status > strong { display: block; font-size: 1.25rem; line-height: 1.35; }
+.registration-payment-status > p { margin: 10px 0 0; font-size: .92rem; line-height: 1.65; }
+@media (max-width:540px) {
+  .registration-outcome { padding: 20px; gap: 12px; }
+  .registration-outcome__icon { flex-basis: 32px; width: 32px; height: 32px; font-size: 1.2rem; }
+  .registration-optional-purchases { padding: 20px; }
+  .registration-optional-purchases > button { width: 100%; }
+}
 #registration-addon-courses-title { scroll-margin-top: 120px; }
 
 /* Paid registration and supplements share consistent spacing and readable type. */
