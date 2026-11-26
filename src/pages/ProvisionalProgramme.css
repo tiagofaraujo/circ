@@ -41,6 +41,7 @@
 .schedule-speaker__initials { display: grid; place-items: center; font-size: .75rem; font-weight: 600; }
 .schedule-speaker img[src*="fides"] { object-position: 50% 23%; }
 .schedule-speaker img[src*="michael"] { object-position: 50% 25%; }
+.schedule-speaker img[src*="daniel-leitao"] { object-position: 50% 0; }
 .schedule-speaker strong { display: block; font-size: .94rem; font-weight: 600; line-height: 1.4; }
 .schedule-speaker small { display: block; margin-top: 4px; color: #252fb4; font-size: .75rem; }
 .schedule-speaker .schedule-speaker__affiliation { color: #626274; }

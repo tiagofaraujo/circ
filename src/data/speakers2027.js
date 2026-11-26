@@ -373,8 +373,20 @@ export const speakers2027 = [
     }
   },
   {
-    id: 'daniel-leitao', name: 'Daniel Leitão', initials: 'DL',
+    id: 'daniel-leitao', name: 'Daniel Leitão', initials: 'DL', image: 'daniel-leitao.jpg',
     institution: 'Siemens Healthineers',
+    pt: { field: 'Ressonância Magnética', role: 'MRI Application Specialist', bio: [
+      'Daniel Leitão é licenciado em Radiologia e mestre em Radiações Aplicadas às Tecnologias da Saúde, na área de Imagem Multimodal e Funcional, pela Escola Superior de Tecnologia da Saúde de Lisboa.',
+      'Atualmente, desempenha funções como MRI Application Specialist na Siemens Healthineers, com atividade na área da Ressonância Magnética.',
+      'É docente na Escola Superior de Saúde da Cruz Vermelha Portuguesa, onde leciona unidades curriculares de Ressonância Magnética em contexto de pós-graduação, bem como seminários e workshops na área da Imagem Médica e Radioterapia.',
+      'A sua atividade profissional e académica centra-se na Ressonância Magnética, na investigação clínica e no desenvolvimento de competências na área da Imagem Médica.',
+    ] },
+    en: { field: 'Magnetic Resonance Imaging', role: 'MRI Application Specialist', bio: [
+      'Daniel Leitão holds a degree in Radiography and a master’s degree in Radiation Applied to Health Technologies, specialising in Multimodal and Functional Imaging, from the Lisbon School of Health Technology.',
+      'He currently works as an MRI Application Specialist at Siemens Healthineers, focusing on Magnetic Resonance Imaging.',
+      'He teaches at the Portuguese Red Cross School of Health, delivering postgraduate modules in Magnetic Resonance Imaging, as well as seminars and workshops in Medical Imaging and Radiotherapy.',
+      'His professional and academic work focuses on Magnetic Resonance Imaging, clinical research and the development of skills in Medical Imaging.',
+    ] },
   },
   {
     id: 'ricardo-veiga', name: 'Ricardo Veiga', initials: 'RV', image: 'ricardo-veiga.png',
