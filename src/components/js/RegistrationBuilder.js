@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CompanyRegistrationGate } from '../CompanyVoucher';
 import OrganizerVoucher from '../OrganizerVoucher';
@@ -145,12 +145,16 @@ function RegistrationSupplements({ registration, user, en, onActiveOrder }) {
 export function ExistingRegistrationAddOns({ registration, user, en = false }) {
   const [showSupplements, setShowSupplements] = useState(false);
   const supplementsId = useId();
+  const confirmationHeading = useRef(null);
   const selection = registration.selection || {};
   const capacityReview = capacityReviewPending(registration);
   const entitlements = registration.entitlements || (capacityReview ? {} : selection);
   const paid = registration.payment?.status === 'paid';
   const organizationVoucher = paid && registration.payment.method === 'organization_voucher';
   const confirmed = registration.status === 'confirmed' && paid && !capacityReview;
+  useEffect(() => {
+    if (confirmed) confirmationHeading.current?.focus();
+  }, [registration.id, confirmed]);
   const awaitingConfirmation = paid && !confirmed && registration.status !== 'cancelled';
   const status = capacityReview ? (en ? 'Payment received · Place under review' : 'Pagamento recebido · Vaga em conferência')
     : organizationVoucher && confirmed ? (en ? 'Confirmed with a discount' : 'Confirmada com desconto')
@@ -159,7 +163,7 @@ export function ExistingRegistrationAddOns({ registration, user, en = false }) {
   return <div className="registration-builder registration-builder--addons">
     {(confirmed || awaitingConfirmation) && <section className={`registration-outcome ${confirmed ? 'is-confirmed' : 'is-waiting'}`} role="status" aria-live="polite" aria-atomic="true">
       <span className="registration-outcome__icon" aria-hidden="true">{confirmed ? '✓' : '…'}</span>
-      <div><h2>{confirmed ? (en ? 'Registration confirmed' : 'Inscrição confirmada') : (en ? 'Payment received · Registration under review' : 'Pagamento recebido · Inscrição em conferência')}</h2>
+      <div><h2 ref={confirmationHeading} tabIndex={-1}>{confirmed ? (en ? 'Registration confirmed' : 'Inscrição confirmada') : (en ? 'Payment received · Registration under review' : 'Pagamento recebido · Inscrição em conferência')}</h2>
         <p>{confirmed
           ? (en ? 'Your participation is confirmed. No further payment is needed for the items listed below.' : 'A sua participação está confirmada. Não é necessário efetuar outro pagamento para os itens indicados abaixo.')
           : (en ? 'The organisers still need to confirm your registration or place. Do not pay again.' : 'A organização ainda precisa de confirmar a inscrição ou a vaga. Não efetue outro pagamento.')}</p>

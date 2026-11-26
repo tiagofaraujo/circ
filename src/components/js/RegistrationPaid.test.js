@@ -20,6 +20,7 @@ beforeEach(()=>{jest.clearAllMocks();useRegistrationCapacity.mockReturnValue(cap
 test.each([false, true])('confirmed registration is explicit without email and extras stay optional (English: %s)', en => {
  show({...registration, voucherId:null, fiscalPendingOrderId:'receipt-pending', payment:{status:'paid',method:'stripe_card',amountCents:9500}}, en);
  expect(screen.getByRole('heading', {name:en ? 'Registration confirmed' : 'Inscrição confirmada'})).toBeVisible();
+ expect(screen.getByRole('heading', {name:en ? 'Registration confirmed' : 'Inscrição confirmada'})).toHaveFocus();
  expect(screen.getByText(en ? /even if you have not received an email/ : /mesmo que ainda não tenha recebido um email/)).toBeVisible();
  expect(screen.getByRole('link', {name:en ? 'View programme' : 'Consultar programa'})).toHaveAttribute('href','/conta/programa');
  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
@@ -53,6 +54,15 @@ test('recovery of a supplementary order reveals it once without unmounting or re
  act(()=>PublicLiveCheckout.mock.calls.at(-1)[0].onLock(true));
  expect(screen.getByText('Supplement checkout')).not.toBeVisible();
  expect(screen.getByRole('heading',{name:'Inscrição confirmada'})).toBeVisible();
+});
+test('confirmation receives focus when it arrives, but receipt updates do not steal focus', () => {
+ const view=show({...registration,status:'submitted'});
+ view.rerender(<MemoryRouter><ExistingRegistrationAddOns registration={registration} user={user} /></MemoryRouter>);
+ expect(screen.getByRole('heading',{name:'Inscrição confirmada'})).toHaveFocus();
+ const toggle=screen.getByRole('button',{name:'Ver opções e compras adicionais'});
+ toggle.focus();
+ view.rerender(<MemoryRouter><ExistingRegistrationAddOns registration={{...registration,documentCount:1}} user={user} /></MemoryRouter>);
+ expect(toggle).toHaveFocus();
 });
 test('paid voucher entitlements prevent duplicate courses and supplements have their own checkout',()=>{
  show(); expect(screen.getByRole('heading',{name:'Resumo da inscrição'})).toBeInTheDocument();
