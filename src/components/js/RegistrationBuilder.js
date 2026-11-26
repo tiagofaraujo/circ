@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CompanyRegistrationGate } from '../CompanyVoucher';
 import OrganizerVoucher from '../OrganizerVoucher';
@@ -101,12 +101,20 @@ function SupplementChoices(props) {
   return <><CourseChoices {...props} /><DinnerChoices {...props} /></>;
 }
 
-function RegistrationSupplements({ registration, user, en }) {
+function RegistrationSupplements({ registration, user, en, onActiveOrder }) {
   const profile = registration.selection?.profile;
   const capacityReview = capacityReviewPending(registration);
   const owned = registration.entitlements || (capacityReview ? {} : registration.selection) || {};
   const [chosen, setChosen] = useState({ morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 });
   const [locked, setLocked] = useState(false);
+  const revealedOrder = useRef(false);
+  function handleCheckoutLock(next) {
+    setLocked(next);
+    // Keep recovery mounted inside the disclosure and reveal an existing order
+    // once, without reopening the section on every payment status refresh.
+    if (next && !revealedOrder.current) onActiveOrder();
+    revealedOrder.current = next;
+  }
   const uls = useUlsEligibility(user);
   const student = useStudentVerification(user, profile === 'student');
   const capacity = useRegistrationCapacity(user, REGISTRATION_CAPACITY_ENABLED);
@@ -130,21 +138,34 @@ function RegistrationSupplements({ registration, user, en }) {
     {!locked && <p>{en ? 'Estimated new purchase total' : 'Total estimado da nova compra'}: <strong>{formatEuro(total.total)}</strong></p>}
     {!hasItems && !locked && <p>{en ? 'Select a course or the number of dinner tickets you want to add.' : 'Selecione um curso ou a quantidade de bilhetes de jantar que pretende acrescentar.'}</p>}
     {registration.fiscalPendingOrderId && <p role="status">{en ? 'Wait for the previous order invoice to be issued before preparing another payment.' : 'Aguarde a emissão da fatura do pedido anterior antes de preparar outro pagamento.'}</p>}
-    <PublicLiveCheckout key={`${user.uid}:supplementary`} user={user} selection={selection} eligible={eligible} registration={registration} kind="supplementary" en={en} onLock={setLocked} onCapacityRefresh={capacity.refresh} onNewPurchase={() => setChosen({ morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 })} />
+    <PublicLiveCheckout key={`${user.uid}:supplementary`} user={user} selection={selection} eligible={eligible} registration={registration} kind="supplementary" en={en} onLock={handleCheckoutLock} onCapacityRefresh={capacity.refresh} onNewPurchase={() => setChosen({ morningCourse: false, afternoonCourse: false, dinnerQuantity: 0 })} />
   </section>;
 }
 
 export function ExistingRegistrationAddOns({ registration, user, en = false }) {
+  const [showSupplements, setShowSupplements] = useState(false);
+  const supplementsId = useId();
   const selection = registration.selection || {};
   const capacityReview = capacityReviewPending(registration);
   const entitlements = registration.entitlements || (capacityReview ? {} : selection);
   const paid = registration.payment?.status === 'paid';
   const organizationVoucher = paid && registration.payment.method === 'organization_voucher';
+  const confirmed = registration.status === 'confirmed' && paid && !capacityReview;
+  const awaitingConfirmation = paid && !confirmed && registration.status !== 'cancelled';
   const status = capacityReview ? (en ? 'Payment received · Place under review' : 'Pagamento recebido · Vaga em conferência')
-    : organizationVoucher ? (en ? 'Confirmed with a discount' : 'Confirmada com desconto')
+    : organizationVoucher && confirmed ? (en ? 'Confirmed with a discount' : 'Confirmada com desconto')
       : paid ? (en ? 'Paid' : 'Paga') : registration.payment?.status === 'refunded' ? (en ? 'Refund recorded' : 'Reembolso registado') : (en ? 'Under review' : 'Em conferência');
   const canAdd = registration.status === 'confirmed' && paid && !capacityReview && registration.isTest === false && registration.testMode !== true;
   return <div className="registration-builder registration-builder--addons">
+    {(confirmed || awaitingConfirmation) && <section className={`registration-outcome ${confirmed ? 'is-confirmed' : 'is-waiting'}`} role="status" aria-live="polite" aria-atomic="true">
+      <span className="registration-outcome__icon" aria-hidden="true">{confirmed ? '✓' : '…'}</span>
+      <div><h2>{confirmed ? (en ? 'Registration confirmed' : 'Inscrição confirmada') : (en ? 'Payment received · Registration under review' : 'Pagamento recebido · Inscrição em conferência')}</h2>
+        <p>{confirmed
+          ? (en ? 'Your participation is confirmed. No further payment is needed for the items listed below.' : 'A sua participação está confirmada. Não é necessário efetuar outro pagamento para os itens indicados abaixo.')
+          : (en ? 'The organisers still need to confirm your registration or place. Do not pay again.' : 'A organização ainda precisa de confirmar a inscrição ou a vaga. Não efetue outro pagamento.')}</p>
+        {confirmed && <p>{en ? 'This page confirms your registration, even if you have not received an email.' : 'Esta página confirma a inscrição, mesmo que ainda não tenha recebido um email.'}</p>}
+      </div>
+    </section>}
     <section className="registration-summary registration-paid-summary" aria-labelledby="registration-existing-title">
       <div className="registration-summary__rate"><span>{en ? 'Your registration' : 'A sua inscrição'}</span><strong>{status}</strong></div>
       <h2 id="registration-existing-title">{en ? 'Registration summary' : 'Resumo da inscrição'}</h2>
@@ -165,9 +186,17 @@ export function ExistingRegistrationAddOns({ registration, user, en = false }) {
         {(registration.voucherId || organizationVoucher) && <p><strong>{en ? 'Documents for your additional purchases' : 'Documentos das suas compras adicionais'}</strong></p>}
         <RegistrationInvoice user={user} registration={registration} en={en} />
       </>}
+      {confirmed && <Link className="button button--dark" to="/conta/programa">{en ? 'View programme' : 'Consultar programa'}</Link>}
       <Link to="/conta">{en ? 'Back to My CIRC' : 'Voltar ao My CIRC'}</Link>
     </section>
-    {canAdd ? <RegistrationSupplements registration={registration} user={user} en={en} /> : <p>{capacityReview
+    {canAdd ? <section className="registration-optional-purchases" aria-labelledby={`${supplementsId}-title`}>
+      <h2 id={`${supplementsId}-title`}>{en ? 'Optional additional purchases' : 'Compras adicionais opcionais'}</h2>
+      <p>{en ? 'Add courses or dinner tickets, apply an organiser voucher, or check an additional order. Your confirmed registration is already complete.' : 'Acrescente cursos ou bilhetes de jantar, aplique um voucher de organizador ou consulte uma compra adicional. A inscrição confirmada já está concluída.'}</p>
+      <button type="button" className="button button--outline" aria-expanded={showSupplements} aria-controls={supplementsId} onClick={() => setShowSupplements(value => !value)}>{showSupplements ? (en ? 'Hide additional purchases' : 'Ocultar compras adicionais') : (en ? 'View additional options and purchases' : 'Ver opções e compras adicionais')}</button>
+      <div id={supplementsId} hidden={!showSupplements}>
+        <RegistrationSupplements registration={registration} user={user} en={en} onActiveOrder={() => setShowSupplements(true)} />
+      </div>
+    </section> : <p>{capacityReview
       ? (en ? 'Contact the organisers to follow up on the place review.' : 'Contacte a organização para acompanhar a conferência da vaga.')
       : (en ? 'Contact the organisers before creating another purchase for this registration.' : 'Contacte a organização antes de criar outra compra para esta inscrição.')}</p>}
   </div>;

@@ -570,6 +570,14 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
     finally { working.current = false; if (active.current) setBusy(false); }
   }
   return <section className="registration-checkout" aria-label={supplementary ? t('Pagamento do complemento', 'Supplement payment') : t('Pagamento da inscrição', 'Registration payment')} aria-busy={busy}>
+    {order && <div className={`registration-payment-status ${order.status === 'paid' && order.capacityStatus !== 'review_required' ? 'is-confirmed' : 'is-waiting'}`} role="status" aria-live="polite" aria-atomic="true">
+      <strong>{voucherOrder && order.capacityStatus !== 'review_required' ? t('Inscrição confirmada com desconto.', 'Registration confirmed with a discount.')
+        : states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong>
+      {order.status === 'pending' && <p>{supplementary
+        ? t('Esta compra adicional ainda aguarda pagamento. A sua inscrição original mantém-se confirmada. Se já pagou, aguarde a atualização automática.', 'This additional purchase is awaiting payment. Your original registration remains confirmed. If you have paid, wait for the automatic update.')
+        : t('A inscrição ainda não está confirmada. Se já pagou, aguarde a confirmação: esta página atualiza automaticamente.', 'Your registration is not yet confirmed. If you have paid, wait for confirmation: this page updates automatically.')}</p>}
+      {order.status === 'paid' && <p>{t('Não é necessário repetir este pagamento.', 'You do not need to repeat this payment.')}</p>}
+    </div>}
     <h3>{voucherOnly || voucherOrder || companyConfirmed ? t('Confirmação da inscrição', 'Registration confirmation')
       : id ? `${t('Pagamento', 'Payment')} · ${methodLabel}` : t('Pagamento', 'Payment')}</h3>
     {!voucherOnly && !voucherOrder && !companyConfirmed && <p>{t('Beneficiário', 'Payee')}: Associação Hemisfério Disciplinado</p>}
@@ -650,11 +658,9 @@ export default function PublicLiveCheckout({ user, selection, eligible, registra
       <p>{t('Pedido:', 'Order:')} <code>{id}</code></p>
       <button type="button" onClick={() => refresh()} disabled={busy}>{voucherOnly || voucherOrder
         ? t('Atualizar estado da inscrição', 'Refresh registration status') : t('Atualizar estado do pagamento', 'Refresh payment status')}</button>
-      {!voucherOnly && !voucherOrder && <p>{t('Use este pedido até à sua conclusão. Uma resposta demorada não exige um novo pagamento.', 'Use this order until it is completed. A slow response does not require a new payment.')}</p>}
+      {!voucherOnly && !voucherOrder && order?.status !== 'paid' && <p>{t('Use este pedido até à sua conclusão. Uma resposta demorada não exige um novo pagamento.', 'Use this order until it is completed. A slow response does not require a new payment.')}</p>}
     </>}
     {order && <div className="registration-invoice">
-      <p role="status"><strong>{voucherOrder ? t('Inscrição confirmada com desconto.', 'Registration confirmed with a discount.')
-        : states[order.status]?.[en ? 1 : 0] || t('Estado em conferência', 'Status under review')}</strong></p>
       {order.discount && <p>{discountLabel(order.discount)} <strong>−{money(order.discount.amountCents)}</strong></p>}
       {order.organizerBenefit && <p>{t('Voucher de organizador', 'Organiser voucher')} <strong>−{money(order.organizerBenefit.amountCents)}</strong></p>}
       <p>{t('Valor:', 'Amount:')} {money(order.amountCents)}</p>
